@@ -235,6 +235,12 @@ function newComponents(editor) {
     content:
       '<button type="button" id="exportPDFBtn" class="btn btn-primary">Download PDF</button>',
   }); 
+  editor.BlockManager.add("pdfExportBtn22", {
+    category: "Extra",
+    label: '<h1><i class="fa fa-file-pdf-o fa-lg"></i></h1>PDF Btn',
+    content:
+      '<button type="button" id="exportPDFBtn22" class="btn btn-primary">Download PDF</button>',
+  }); 
 
   editor.on('load', function() {  
     let category = editor.BlockManager.getCategories(); 

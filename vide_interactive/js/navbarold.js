@@ -93,11 +93,11 @@
                     )
                     .concat(
                       i,
-                      "-menu-link {\n            margin: 0;\n            color: inherit;\n            text-decoration: none;\n            display: inline-block;\n            padding: 10px 15px;\n          }\n\n          ."
+                      "-menu-link {\n            margin: ;\n            color: inherit;\n            text-decoration: none;\n            display: inline-block;\n            padding: 10px 15px;\n          }\n\n          ."
                     )
                     .concat(
                       i,
-                      "-burger {\n            margin: 10px 0;\n            width: 45px;\n            padding: 5px 10px;\n            display: none;\n            float: right;\n            cursor: pointer;\n          }\n\n          ."
+                      "-burger {\n            margin: 0px 0;\n            width: 45px;\n            padding: 5px 10px;\n            display: none;\n            float: right;\n            cursor: pointer;\n          }\n\n          ."
                     )
                     .concat(
                       i,

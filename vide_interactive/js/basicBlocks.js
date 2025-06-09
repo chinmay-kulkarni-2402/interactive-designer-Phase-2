@@ -231,6 +231,25 @@
                   },
                 })
               ),
+              w("separator") &&
+              t.add(
+                "separator",
+                e(e({}, M), {
+                  label: a.labelSeparator,
+                  media:`
+                    <svg width="60" height="55" viewBox="0 0 60 55" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="5" y1="29" x2="55" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+                      <line x1="5" y1="42" x2="55" y2="42" stroke="currentColor" stroke-width="4" stroke-dasharray="6,4"/>
+                      <line x1="5" y1="55" x2="55" y2="55" stroke="currentColor" stroke-width="4" stroke-dasharray="2,3"/>
+                    </svg>`,
+                  content: {
+                    type: "separator",
+                    content: "", 
+                    style: { padding: "10px" },
+                  },
+                })
+              );
+
               w("link") &&
               t.add(
                 "link",
@@ -308,6 +327,7 @@
               "column3",
               "column3-7",
               "text",
+              "separator",
               "link",
               "image",
               "video",
@@ -323,6 +343,7 @@
             labelColumn3: "3 Columns",
             labelColumn39: "2 Columns 3/9",
             labelText: "Text",
+            labelSeparator: "Separator",
             labelLink: "Link",
             labelImage: "Image",
             labelVideo: "Video",

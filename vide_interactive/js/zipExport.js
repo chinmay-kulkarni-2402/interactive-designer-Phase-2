@@ -7217,7 +7217,6 @@
                         exportedJsonData.push(common_json);
                         exportedJsonData = JSON.stringify(exportedJsonData); 
                       }    
-                      
                       let googleTranslater =  '';  
                       var result = confirm("Do you want to add the google translater?");  
                         if (result) { 
@@ -7225,7 +7224,8 @@
                         } else { 
                             googleTranslater = 'No'; 
                         }
-                        
+
+
                          //START API CODE
                         editor.Modal.setTitle('Export Template');
                         editor.Modal.setContent(`<div class="new-table-form">
@@ -7239,7 +7239,22 @@
                         </div>
                         </div>
                         `); 
-                        editor.Modal.open();   
+                        editor.Modal.open();  
+                        // const googleTranslaterFn = document.getElementById("googleTranslaterField");
+                        // googleTranslaterFn.addEventListener("change", function() {
+                        //   const checkbox = this.checked;
+                        //   googleTranslaterFn.value = checkbox.toString(); 
+                        // }); 
+                         
+
+                        // googleTranslater = document.getElementById("googleTranslaterField").value; 
+                        // console.log(googleTranslater,'googleTranslater');
+                        // if (googleTranslater === 'false') {   
+                        //   googleTranslater = 'No'; 
+                        // }   
+                        // if (googleTranslater === 'true') {   
+                        //   googleTranslater = 'Yes'; 
+                        // }  
                         console.log(googleTranslater,'googleTranslater');
 
                         var downTemp = document.getElementById("download-template-file");
@@ -7267,7 +7282,7 @@
                      .VIpgJd-yAWNEb-L7lbkb{display:none!important}
                      body{ top:0px !important;}  .dataTables_scrollHeadInner{ width: 100% !important;} 
                      </style></head><body> 
-                     <div id="AllBodyData" style="display: none;"> 
+                     <div id="AllBodyData"> 
                      <div id="defaultPDF" style="display:none"></div> 
                      <div id="google_translate_element"></div> 
                      <script>  
@@ -7390,7 +7405,6 @@
                     if(button !==null){
                       button.addEventListener('click', generatePDF);   
                     }   
-                    setTimeout(() => {document.getElementById('AllBodyData').style.display = "block";}, 1000); 
                 </script>
                      </body>\n</html>`;   
                       data = data.replace(/\n/g, '');
@@ -7448,13 +7462,17 @@
                         alert('Template Name Required.');
                         return false
                       }     
-                      const apiUrl = 'http://localhost:9998/api/v1/s3Upload/uploadHtml';  
+                      const apiUrl = 'http://localhost:9998/uploadFile'; 
+                      // const apiUrl = 'http://localhost:9998/uploadFile'; 
                       const formData = new FormData(); 
                       formData.append('name', templateName); 
                       const downloadableHtmlNew = new Blob([downloadableHtml], { type: 'text/html' });
                       formData.append('editableHtml', downloadableHtmlNew, 'downloadableHtml.html'); 
                       const editableHtmlNew = new Blob([editableHtml], { type: 'text/html' });
-                      formData.append('downloadableHtml', editableHtmlNew, 'editableHtml.html'); 
+                      formData.append('downloadableHtml', editableHtmlNew, 'editableHtml.html');
+                      // console.log(downloadableHtml,'downloadableHtmlNew');
+                      //  console.log(editableHtml,'editableHtmlNew');
+
                       // Send the data to the API using the Fetch API
                       fetch(apiUrl, {
                         method: 'POST',
@@ -7469,7 +7487,30 @@
                         })
                         .catch(error => {
                           console.error('Error:', error);
-                        });  
+                        }); 
+
+                    //   fetch(apiUrl, {
+                    //     method: 'POST',
+                    //     body: formData,
+                    //     // mode: 'no-cors'
+                    // })
+                    // .then(response => {
+                    //     if (!response.ok) {
+                    //         throw new Error('Network response was not ok');
+                    //     }
+                    //     return response.json();
+                    // })
+                    // .then(data => {
+                    //     console.log('API Response:', data);
+                    //     alert("Template added successfully.");
+                    //     document.getElementById("templateNameField").value = "";
+                    //     editor.Modal.close();
+                    // })
+                    // .catch(error => {
+                    //     console.error('Error:', error);
+                    // });
+                    
+
                     }  
                   //API END Here
 

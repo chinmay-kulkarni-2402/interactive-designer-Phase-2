@@ -1,0 +1,6 @@
+<input type="file" id="test-multi" multiple accept="application/json">
+<script>
+  document.getElementById('test-multi').addEventListener('change', function (e) {
+    console.log("Files selected:", e.target.files);
+  });
+</script>

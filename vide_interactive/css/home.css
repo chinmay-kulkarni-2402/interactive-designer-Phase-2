@@ -2165,7 +2165,7 @@ span.CodeMirror-selectedtext {
   background-color: rgba(0, 0, 0, 0.2);
 }
 .i_designer-devices-c {
-  display: flex;
+  display:inline-flex;
   align-items: center;
   padding: 2px 3px 3px 3px;
 }
@@ -3368,4 +3368,113 @@ span.CodeMirror-selectedtext {
 }
 .cm-s-hopscotch span.cm-error {
   color: #fff;
+}
+
+
+/* Page Manager Styles - Add these to your home.css file */
+
+.pages-manager {
+  max-width: 500px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.page-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  margin: 5px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.page-item span {
+  font-weight: 500;
+  flex-grow: 1;
+}
+
+.page-item div {
+  display: flex;
+  gap: 5px;
+}
+
+.page-item button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.btn-info:hover {
+  background-color: #138496;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+/* Page Manager Panel Button Styles */
+#addNewPage, #managePagesBtn {
+  cursor: pointer;
+}
+
+#addNewPage:hover, #managePagesBtn:hover {
+  background-color: #f0f0f0;
+}
+
+/* Modal form styling for consistency */
+.new-table-form input[type="text"] {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.popupaddbtn {
+  background-color: #007bff;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.popupaddbtn:hover {
+  background-color: #0056b3;
+}
+
+.border-width-custom{
+  width: 10px;
+  border-radius: 2px solid red;
 }

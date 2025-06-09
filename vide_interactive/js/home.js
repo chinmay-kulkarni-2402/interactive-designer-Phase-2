@@ -31977,7 +31977,7 @@
                   (this.typeSlider = "slider"),
                   (this.typeComposite = "composite"),
                   (this.typeStack = "stack"),
-                  (this.unitsSize = ["px", "%", "em", "rem", "vh", "vw"]),
+                  (this.unitsSize = ["px", "%", "em", "rem", "vh", "vw", "pt"]),
                   (this.unitsSizeNoPerc = ["px", "em", "rem", "vh", "vw"]),
                   (this.unitsTime = ["s", "ms"]),
                   (this.unitsAngle = ["deg", "rad", "grad"]),
@@ -47147,7 +47147,7 @@
                 panels: {
                   buttons: {
                     titles: {
-                      preview: "Preview",
+                      preview: "Read Only",
                       fullscreen: "Fullscreen",
                       "sw-visibility": "View components",
                       "export-template": "View code",
@@ -49536,6 +49536,7 @@
             c = "open-blocks",
             u = "fullscreen",
             p = "preview";
+            
           const f = {
             stylePrefix: "pn-",
             defaults: [
