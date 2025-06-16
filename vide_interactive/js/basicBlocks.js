@@ -245,7 +245,7 @@
                   content: {
                     type: "separator",
                     content: "", 
-                    style: { padding: "10px" },
+                    
                   },
                 })
               );

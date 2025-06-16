@@ -63,4 +63,6 @@
 .i_designer-pn-views-container,
 .i_designer-cv-canvas {
   transition: width 0.3s ease-in-out;
+  height: 94.9% !important;
+  
 }

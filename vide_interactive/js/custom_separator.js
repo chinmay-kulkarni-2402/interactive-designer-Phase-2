@@ -28,9 +28,9 @@ function customSeparator(editor) {
             type: "number",
             label: "Thickness",
             name: "border-width-custom",
-            placeholder: "e.g. 4",
+            placeholder: "e.g. 1",
             changeProp: 1,
-            default: 4,
+            default: 1,
           },
           {
             type: "text",
@@ -54,7 +54,7 @@ function customSeparator(editor) {
           },
         ],
         style: {
-          "border-top": "4px solid #000000",
+          "border-top": "1px solid #000000",
           "width": "100%",
           "margin": "10px auto",
           "display": "block",
@@ -64,7 +64,7 @@ function customSeparator(editor) {
       init() {
         this.listenTo(
           this,
-          "change:border-style change:border-color change:border-width change:width change:margin",
+          "change:border-style change:border-color change:border-width-custom change:width change:margin",
           this.updateStyle
         );
       },
@@ -72,7 +72,7 @@ function customSeparator(editor) {
       updateStyle() {
         const borderStyle = this.get("border-style") || "solid";
         const borderColor = this.get("border-color") || "#000000";
-        const borderWidth = this.get("border-width") || 4;
+        const borderWidth = this.get("border-width-custom") || 1;
         const width = this.get("width") || "100%";
         const margin = this.get("margin") || "10px auto";
 

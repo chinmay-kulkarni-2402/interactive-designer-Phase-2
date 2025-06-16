@@ -1465,7 +1465,6 @@ span.CodeMirror-selectedtext {
   background-color: rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
   width: 85%;
-  height: calc(100% - 40px);
   bottom: 0;
   overflow: hidden;
   z-index: 1;
@@ -3474,7 +3473,3 @@ span.CodeMirror-selectedtext {
   background-color: #0056b3;
 }
 
-.border-width-custom{
-  width: 10px;
-  border-radius: 2px solid red;
-}
