@@ -3473,3 +3473,24 @@ span.CodeMirror-selectedtext {
   background-color: #0056b3;
 }
 
+  .page-break {
+    page-break-after: always !important;
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 10px 0;
+    margin: 20px 0;
+    border-top: 1px dashed #ccc;
+  }
+
+  .page-break-label {
+    color: #999;
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  @media print {
+    .page-break-label {
+      display: none !important;
+    }
+  }
