@@ -51,9 +51,9 @@ const editor = InteractiveDesigner.init({
       defaultPages: ["Home"],
     },
     "grapesjsHideOnPrint" :{
-      label: 'Hide on print',      // Optional: label for trait
-      traitName: 'hideOnPrint',    // Optional: change trait name
-      className: 'hide-on-print',  // Optional: change class name
+      label: 'Hide on print',     
+      traitName: 'hideOnPrint',    
+      className: 'hide-on-print', 
     },
   },
   canvas: {
@@ -103,13 +103,9 @@ editor.on("load", () => {
 
   // Initialize Page Setup Manager
   pageSetupManager = new PageSetupManager(editor)
+  
 
-  // Show initial setup modal on first load with a slight delay to ensure DOM is ready
-  setTimeout(() => {
-    if (pageSetupManager && !pageSetupManager.isPageManagerInitialized()) {
-      pageSetupManager.showInitialSetup()
-    }
-  }, 500)
+
 })
 
 const pn = editor.Panels
@@ -157,11 +153,11 @@ editor.Panels.addPanel({ id: "devices-c" })
       attributes: { title: "Change Language", id: "multiLanguage" },
       className: "fa fa-language",
     },
-    {
-      id: "filterTable",
-      attributes: { title: "Report Parameter", id: "filterTable" },
-      className: "fa fa-search",
-    },
+    // {
+    //   id: "filterTable",
+    //   attributes: { title: "Report Parameter", id: "filterTable" },
+    //   className: "fa fa-search",
+    // },
 
   ])
 
@@ -175,119 +171,127 @@ importPage.addEventListener("click", importSinglePages, true)
 
 // Backend URL configuration
 const BACKEND_URL = "http://localhost:3000"
-var filterBtn = document.getElementById("filterTable");
-let filtersEnabled = false;
-const activeFilters = new Map(); // Store active filters per table & column
-filterBtn.addEventListener("click", () => {
-  const canvasDoc = editor.Canvas.getDocument();
-  const tables = canvasDoc.querySelectorAll('table');
-  if (!tables.length) {
-    alert('No table found in the canvas!');
-    return;
-  }
-  if (!filtersEnabled) {
-    tables.forEach((table, tableIndex) => {
-      const headers = table.querySelectorAll('th');
-      headers.forEach((th, colIndex) => {
-        if (th.querySelector('.filter-icon')) return;
-        const icon = document.createElement('i');
-        icon.className = 'filter-icon fa fa-search';
-        icon.style.cssText = 'cursor:pointer;position:absolute;right:15px;top:50%;transform:translateY(-50%);';
-        icon.onclick = () => {
-          showFilterModal(th.innerText.trim(), table, colIndex, tableIndex);
-        };
-        th.style.position = 'relative';
-        th.appendChild(icon);
-      });
-    });
-    filtersEnabled = true;
-  } else {
-    // Disable all filters & reset
-    tables.forEach((table, tableIndex) => {
-      table.querySelectorAll('th .filter-icon').forEach(i => i.remove());
-      table.querySelectorAll('tbody tr').forEach(row => {
-        row.style.display = '';
-      });
-    });
-    activeFilters.clear();
-    removeModal();
-    filtersEnabled = false;
-  }
-}, true);
-function showFilterModal(columnName, table, colIndex, tableIndex) {
-  removeModal(); // remove existing modal if any
-  const modal = document.createElement('div');
-  modal.id = 'filterModal';
-  modal.style.cssText = `
-    position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    border: 1px solid #ccc;
-    padding: 20px;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    min-width: 298px;
-    border-radius: 8px;
-  `;
-  // Get clean column name (remove any existing filter icons)
-  const cleanColumnName = columnName;
-  modal.innerHTML = `
-    <h3 style="margin-top:0">Report Parameter</h3>
-    <p style="margin: 10px 0;">${cleanColumnName}</p>
-    <input type="text" id="filterValue" placeholder="Search..." style="width: 100%; padding: 5px; margin-bottom: 15px;">
-    <div style="text-align: right;">
-      <button id="filterOK" style="margin-right: 10px;">OK</button>
-      <button id="filterCancel">Cancel</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  document.getElementById('filterOK').onclick = () => {
-    const value = document.getElementById('filterValue').value.trim().toLowerCase();
-    const key = `${tableIndex}-${colIndex}`;
-    if (value) {
-      activeFilters.set(key, { value, table, colIndex });
-    } else {
-      activeFilters.delete(key);
-    }
-    applyAllFilters();
-    removeModal();
-  };
-  document.getElementById('filterCancel').onclick = removeModal;
-}
-function removeModal() {
-  const modal = document.getElementById('filterModal');
-  if (modal) modal.remove();
-}
-function applyAllFilters() {
-  // Reset all rows first
-  const tableGroups = new Map();
-  activeFilters.forEach(({ table, colIndex }) => {
-    const rows = table.querySelectorAll('tbody tr');
-    tableGroups.set(table, rows);
-  });
-  tableGroups.forEach((rows, table) => {
-    rows.forEach(row => {
-      row.style.display = ''; // Reset display
-    });
-  });
-  // Apply filters cumulatively
-  activeFilters.forEach(({ value, table, colIndex }) => {
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-      const cell = row.children[colIndex];
-      const text = cell?.textContent.toLowerCase() || '';
-      if (!text.includes(value)) {
-        row.style.display = 'none';
-      }
-    });
-  });
-}
+// var filterBtn = document.getElementById("filterTable");
+// let filtersEnabled = false;
+// const activeFilters = new Map(); // Store active filters per table & column
+// filterBtn.addEventListener("click", () => {
+//   const canvasDoc = editor.Canvas.getDocument();
+//   const tables = canvasDoc.querySelectorAll('table');
+//   if (!tables.length) {
+//     alert('No table found in the canvas!');
+//     return;
+//   }
+//   if (!filtersEnabled) {
+//     tables.forEach((table, tableIndex) => {
+//       const headers = table.querySelectorAll('th');
+//       headers.forEach((th, colIndex) => {
+//         if (th.querySelector('.filter-icon')) return;
+//         const icon = document.createElement('i');
+//         icon.className = 'filter-icon fa fa-search';
+//         icon.style.cssText = 'cursor:pointer;position:absolute;right:15px;top:50%;transform:translateY(-50%);';
+//         icon.onclick = () => {
+//           showFilterModal(th.innerText.trim(), table, colIndex, tableIndex);
+//         };
+//         th.style.position = 'relative';
+//         th.appendChild(icon);
+//       });
+//     });
+//     filtersEnabled = true;
+//   } else {
+//     // Disable all filters & reset
+//     tables.forEach((table, tableIndex) => {
+//       table.querySelectorAll('th .filter-icon').forEach(i => i.remove());
+//       table.querySelectorAll('tbody tr').forEach(row => {
+//         row.style.display = '';
+//       });
+//     });
+//     activeFilters.clear();
+//     removeModal();
+//     filtersEnabled = false;
+//   }
+// }, true);
+// function showFilterModal(columnName, table, colIndex, tableIndex) {
+//   removeModal(); // remove existing modal if any
+//   const modal = document.createElement('div');
+//   modal.id = 'filterModal';
+//   modal.style.cssText = `
+//     position: fixed;
+//     top: 50%; left: 50%;
+//     transform: translate(-50%, -50%);
+//     background: white;
+//     border: 1px solid #ccc;
+//     padding: 20px;
+//     z-index: 1000;
+//     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+//     min-width: 298px;
+//     border-radius: 8px;
+//   `;
+//   // Get clean column name (remove any existing filter icons)
+//   const cleanColumnName = columnName;
+//   modal.innerHTML = `
+//     <h3 style="margin-top:0">Report Parameter</h3>
+//     <p style="margin: 10px 0;">${cleanColumnName}</p>
+//     <input type="text" id="filterValue" placeholder="Search..." style="width: 100%; padding: 5px; margin-bottom: 15px;">
+//     <div style="text-align: right;">
+//       <button id="filterOK" style="margin-right: 10px;">OK</button>
+//       <button id="filterCancel">Cancel</button>
+//     </div>
+//   `;
+//   document.body.appendChild(modal);
+//   document.getElementById('filterOK').onclick = () => {
+//     const value = document.getElementById('filterValue').value.trim().toLowerCase();
+//     const key = `${tableIndex}-${colIndex}`;
+//     if (value) {
+//       activeFilters.set(key, { value, table, colIndex });
+//     } else {
+//       activeFilters.delete(key);
+//     }
+//     applyAllFilters();
+//     removeModal();
+//   };
+//   document.getElementById('filterCancel').onclick = removeModal;
+// }
+// function removeModal() {
+//   const modal = document.getElementById('filterModal');
+//   if (modal) modal.remove();
+// }
+// function applyAllFilters() {
+//   // Reset all rows first
+//   const tableGroups = new Map();
+//   activeFilters.forEach(({ table, colIndex }) => {
+//     const rows = table.querySelectorAll('tbody tr');
+//     tableGroups.set(table, rows);
+//   });
+//   tableGroups.forEach((rows, table) => {
+//     rows.forEach(row => {
+//       row.style.display = ''; // Reset display
+//     });
+//   });
+//   // Apply filters cumulatively
+//   activeFilters.forEach(({ value, table, colIndex }) => {
+//     const rows = table.querySelectorAll('tbody tr');
+//     rows.forEach(row => {
+//       const cell = row.children[colIndex];
+//       const text = cell?.textContent.toLowerCase() || '';
+//       if (!text.includes(value)) {
+//         row.style.display = 'none';
+//       }
+//     });
+//   });
+// }
 
-// Enhanced PDF generation function
+// Enhanced PDF generation function with proper page break support
 function generatePrintDialog() {
   try {
     // Get GrapesJS editor content
+    // Assuming 'editor' is a global variable or is accessible in this scope
+    // If not, you'll need to define or import it appropriately.
+    if (typeof editor === "undefined") {
+      console.error("The 'editor' variable is not defined. Ensure it is properly initialized or imported.")
+      alert("Editor not initialized. Please check the console for details.")
+      return // Exit the function if the editor is not available
+    }
+
     const editorHTML = editor.getHtml()
     const editorCSS = editor.getCss()
 
@@ -302,7 +306,13 @@ function generatePrintDialog() {
 
     document.body.appendChild(printFrame)
 
-    // Prepare the print content with proper page handling
+    // Get hide-on-print class name
+    const HIDE_CLASS = "hide-on-print"
+
+    // Process HTML to handle page breaks properly
+    const processedHTML = processPageBreaks(editorHTML)
+
+    // Prepare the print content with enhanced page break handling
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -316,6 +326,43 @@ function generatePrintDialog() {
             color-adjust: exact !important;
             print-color-adjust: exact !important;
             box-sizing: border-box;
+          }
+          
+          /* Critical: Hide on print styles must come first */
+          @media print {
+            .${HIDE_CLASS} {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              height: 0 !important;
+              width: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              overflow: hidden !important;
+            }
+            
+            /* Page break handling */
+            .page-break {
+              display: none !important;
+              visibility: hidden !important;
+              height: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              page-break-before: always !important;
+              break-before: page !important;
+            }
+            
+            .page-break + * {
+              page-break-before: always !important;
+              break-before: page !important;
+            }
+            
+            .force-page-break {
+              page-break-before: always !important;
+              break-before: page !important;
+            }
           }
           
           @media print {
@@ -338,6 +385,7 @@ function generatePrintDialog() {
               width: 100% !important;
               height: 100vh !important;
               display: block !important;
+              overflow: visible !important;
             }
             
             .page-content {
@@ -345,6 +393,14 @@ function generatePrintDialog() {
               height: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
+              overflow: visible !important;
+            }
+            
+            .main-content-area {
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              position: relative !important;
             }
             
             .page-indicator,
@@ -359,6 +415,41 @@ function generatePrintDialog() {
               border: none !important;
               background: transparent !important;
             }
+            
+            .page-header-element {
+              display: flex !important;
+              position: static !important;
+              background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            
+            .page-footer-element {
+              display: flex !important;
+              position: static !important;
+              background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            
+            .page-number-element {
+              display: flex !important;
+              position: absolute !important;
+              background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+            }
+            
+            .page-watermark {
+              display: flex !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              pointer-events: none !important;
+              z-index: 1 !important;
+            }
           }
           
           @media screen {
@@ -372,11 +463,23 @@ function generatePrintDialog() {
             }
           }
           
+          /* Apply editor CSS after print styles */
           ${editorCSS}
+          
+          /* Ensure hide-on-print takes precedence over any other styles */
+          @media print {
+            .${HIDE_CLASS} {
+              display: none !important;
+            }
+            
+            .page-break {
+              display: none !important;
+            }
+          }
         </style>
       </head>
       <body>
-        ${editorHTML}
+        ${processedHTML}
       </body>
       </html>
     `
@@ -407,8 +510,29 @@ function generatePrintDialog() {
   }
 }
 
+// Function to process HTML and handle page breaks properly
+function processPageBreaks(html) {
+  // Create a temporary div to parse HTML
+  const tempDiv = document.createElement("div")
+  tempDiv.innerHTML = html
 
+  // Find all page break elements
+  const pageBreaks = tempDiv.querySelectorAll(".page-break")
 
+  pageBreaks.forEach((pageBreak) => {
+    // Add force-page-break class to the next sibling element
+    const nextElement = pageBreak.nextElementSibling
+    if (nextElement) {
+      nextElement.classList.add("force-page-break")
+    }
+
+    // Ensure page break is properly marked for hiding
+    pageBreak.classList.add("hide-on-print")
+    pageBreak.setAttribute("data-page-break", "true")
+  })
+
+  return tempDiv.innerHTML
+}
 // Preserve all existing functionality
 var singlePageData = JSON.parse(localStorage.getItem("single-page")) || {}
 if (Object.keys(singlePageData).length > 0) {
@@ -603,20 +727,3 @@ editor.on("run:core:canvas-clear", () => {
   clickStates = {}
   currentSlideIndex = 1
 })
-
-function generateFromCanvas() {
-  const canvas = document.querySelector("canvas")
-  if (!canvas) {
-    alert("No canvas element found")
-    return
-  }
-
-  const dataURL = canvas.toDataURL("image/png")
-
-  const pdf = new jsPDF()
-  const imgWidth = pdf.internal.pageSize.getWidth()
-  const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-  pdf.addImage(dataURL, "PNG", 0, 0, imgWidth, imgHeight)
-  pdf.save("canvas-report.pdf")
-}

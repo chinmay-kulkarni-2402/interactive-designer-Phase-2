@@ -8,6 +8,38 @@ class PageSetupManager {
       pages: [],
       width: 210,
       height: 297,
+      margins: {
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+      },
+      backgroundColor: "#ffffff", // Added background color setting
+      pageNumbering: {
+        enabled: false,
+        startFromPage: 1,
+        excludedPages: [],
+      },
+      watermark: {
+        enabled: false,
+        type: "text", // 'text', 'image', 'both'
+        text: {
+          content: "CONFIDENTIAL",
+          font: "Arial",
+          fontSize: 48,
+          color: "#cccccc",
+          opacity: 0.3,
+          rotation: -45,
+        },
+        image: {
+          url: "",
+          width: 200,
+          height: 200,
+          opacity: 0.3,
+        },
+        position: "center", // 'center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'
+        applyToAllPages: true,
+      },
     }
     this.isInitialized = false
     this.currentPageIndex = 0
@@ -46,6 +78,7 @@ class PageSetupManager {
     this.injectPageSetupStyles()
     this.addToGrapesJSSettings()
     this.setupCanvasObserver()
+    this.setupContentBoundaryEnforcement()
   }
 
   setupCanvasObserver() {
@@ -55,6 +88,7 @@ class PageSetupManager {
         if (mutation.type === "childList" && this.isInitialized) {
           setTimeout(() => {
             this.updateAllPageVisuals()
+            this.enforceContentBoundaries()
             if (this.sectionsSettings.enabled) {
               this.updateSectionsDisplay()
             }
@@ -72,6 +106,158 @@ class PageSetupManager {
           subtree: true,
         })
       }
+    })
+  }
+
+  setupContentBoundaryEnforcement() {
+    // Prevent content from being added outside page boundaries
+    this.editor.on("component:add", (component) => {
+      if (this.isInitialized) {
+        setTimeout(() => {
+          this.enforceContentBoundaries()
+        }, 100)
+      }
+    })
+
+    this.editor.on("component:update", (component) => {
+      if (this.isInitialized) {
+        setTimeout(() => {
+          this.enforceContentBoundaries()
+        }, 100)
+      }
+    })
+
+    // Enhanced boundary enforcement - prevent adding content outside pages
+    this.editor.on("component:drag:start", (component) => {
+      if (this.isInitialized) {
+        this.setupDragBoundaries()
+      }
+    })
+  }
+
+  enforceContentBoundaries() {
+    if (!this.isInitialized) return
+
+    const canvasBody = this.editor.Canvas.getBody()
+    const pageElements = canvasBody.querySelectorAll(".page-container")
+
+    // Check for content outside all pages
+    const allComponents = this.editor.getWrapper().components()
+
+    allComponents.forEach((component) => {
+      const componentEl = component.getEl()
+      if (!componentEl || componentEl.classList.contains("page-container")) return
+
+      let isInsidePage = false
+      pageElements.forEach((pageElement) => {
+        const pageRect = pageElement.getBoundingClientRect()
+        const componentRect = componentEl.getBoundingClientRect()
+
+        if (
+          componentRect.left >= pageRect.left &&
+          componentRect.right <= pageRect.right &&
+          componentRect.top >= pageRect.top &&
+          componentRect.bottom <= pageRect.bottom
+        ) {
+          isInsidePage = true
+        }
+      })
+
+      if (!isInsidePage) {
+        // Show error and remove component
+        this.showBoundaryError()
+        component.remove()
+        return
+      }
+    })
+
+    pageElements.forEach((pageElement, pageIndex) => {
+      const pageContent = pageElement.querySelector(".main-content-area")
+      if (pageContent) {
+        // Get all child elements in the main content area
+        const children = pageContent.querySelectorAll("*")
+        children.forEach((child) => {
+          const rect = child.getBoundingClientRect()
+          const pageRect = pageContent.getBoundingClientRect()
+
+          // Check if element is outside page boundaries
+          if (
+            rect.right > pageRect.right ||
+            rect.bottom > pageRect.bottom ||
+            rect.left < pageRect.left ||
+            rect.top < pageRect.top
+          ) {
+            // Show error and adjust element position to stay within boundaries
+            this.showBoundaryError()
+
+            const style = window.getComputedStyle(child)
+            const left = Number.parseInt(style.left) || 0
+            const top = Number.parseInt(style.top) || 0
+
+            if (rect.right > pageRect.right) {
+              child.style.left = Math.max(0, left - (rect.right - pageRect.right)) + "px"
+            }
+            if (rect.bottom > pageRect.bottom) {
+              child.style.top = Math.max(0, top - (rect.bottom - pageRect.bottom)) + "px"
+            }
+            if (rect.left < pageRect.left) {
+              child.style.left = Math.max(0, left + (pageRect.left - rect.left)) + "px"
+            }
+            if (rect.top < pageRect.top) {
+              child.style.top = Math.max(0, top + (pageRect.top - rect.top)) + "px"
+            }
+          }
+        })
+      }
+    })
+  }
+
+  showBoundaryError() {
+    // Show error message for boundary violation
+    const errorMsg = document.createElement("div")
+    errorMsg.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #dc3545;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      z-index: 10000;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+      animation: slideIn 0.3s ease-out;
+    `
+    errorMsg.innerHTML = "⚠️ Content cannot be placed outside page boundaries!"
+
+    // Add animation
+    const style = document.createElement("style")
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+    `
+    document.head.appendChild(style)
+
+    document.body.appendChild(errorMsg)
+
+    setTimeout(() => {
+      errorMsg.remove()
+      style.remove()
+    }, 3000)
+  }
+
+  setupDragBoundaries() {
+    // Enhanced drag boundary setup
+    const canvasBody = this.editor.Canvas.getBody()
+    const pageElements = canvasBody.querySelectorAll(".page-container .main-content-area")
+
+    // Set droppable areas only to main content areas
+    pageElements.forEach((pageContent) => {
+      pageContent.style.position = "relative"
+      pageContent.setAttribute("data-droppable", "true")
     })
   }
 
@@ -95,7 +281,7 @@ class PageSetupManager {
           background: white;
           border-radius: 12px;
           padding: 30px;
-          max-width: 700px;
+          max-width: 800px;
           width: 90%;
           max-height: 90vh;
           overflow-y: auto;
@@ -182,6 +368,49 @@ class PageSetupManager {
           gap: 15px;
           margin-bottom: 10px;
         }
+
+        .margins-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr 1fr;
+          gap: 10px;
+          margin-top: 10px;
+        }
+
+        .watermark-controls {
+          display: none;
+          margin-top: 15px;
+          padding: 15px;
+          background: white;
+          border-radius: 6px;
+          border: 1px solid #dee2e6;
+        }
+
+        .watermark-controls.active {
+          display: block;
+        }
+
+        .watermark-type-controls {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 10px;
+          margin: 10px 0;
+        }
+
+        .watermark-type-btn {
+          padding: 8px 12px;
+          border: 2px solid #e9ecef;
+          border-radius: 6px;
+          background: white;
+          cursor: pointer;
+          text-align: center;
+          transition: all 0.2s;
+        }
+
+        .watermark-type-btn.active {
+          border-color: #007bff;
+          background: #007bff;
+          color: white !important;
+        }
         
         .page-setup-actions {
           display: flex;
@@ -224,15 +453,26 @@ class PageSetupManager {
           background: #f0f0f0;
           border: 2px solid #ddd;
           margin: 20px;
-          overflow: visible; /* Changed from hidden to visible */
+          overflow: visible;
         }
         
         .page-canvas {
-          background: white;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
           margin: 20px auto;
           position: relative;
-          border: 1px solid #ccc;
+          border: 2px solid transparent !important; /* Fixed: Always show full border */
+          overflow: hidden !important;
+          transition: border-color 0.2s ease;
+        }
+        
+        .page-canvas:hover {
+          border-color: #007bff !important; /* Fixed: Show full border on hover */
+        }
+        
+        .page-canvas.selected,
+        .page-canvas:focus {
+          border-color: #007bff !important; /* Fixed: Show full border when selected */
+          box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3) !important;
         }
         
         .page-indicator {
@@ -264,12 +504,36 @@ class PageSetupManager {
           background: #c82333;
         }
 
-        /* Page Elements Styles - Contained within page */
-        .page-header-element {
+        .page-watermark {
           position: absolute !important;
+          pointer-events: none !important;
+          user-select: none !important;
+          z-index: 1 !important;
           top: 0 !important;
           left: 0 !important;
           right: 0 !important;
+          bottom: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+
+        .page-watermark-text {
+          font-family: Arial, sans-serif !important;
+          font-weight: bold !important;
+          white-space: nowrap !important;
+        }
+
+        .page-watermark-image {
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: contain !important;
+        }
+
+        /* Page Elements Styles - Contained within page */
+        .page-header-element {
+          position: static !important; /* Fixed: Changed from absolute to static */
+          width: 100% !important;
           padding: 10px !important;
           text-align: center !important;
           font-size: 12px !important;
@@ -282,13 +546,12 @@ class PageSetupManager {
           display: flex !important;
           align-items: center !important;
           font-family: Arial, sans-serif !important;
+          flex-shrink: 0 !important;
         }
         
         .page-footer-element {
-          position: absolute !important;
-          bottom: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
+          position: static !important; /* Fixed: Changed from absolute to static */
+          width: 100% !important;
           padding: 10px !important;
           text-align: center !important;
           font-size: 12px !important;
@@ -301,6 +564,7 @@ class PageSetupManager {
           display: flex !important;
           align-items: center !important;
           font-family: Arial, sans-serif !important;
+          flex-shrink: 0 !important;
         }
         
         .page-number-element {
@@ -362,14 +626,14 @@ class PageSetupManager {
         /* Enhanced Sections Styles - Fixed positioning and visibility */
         .virtual-sections-panel {
           position: absolute;
-          left: -220px; /* Increased from -200px to ensure visibility */
+          left: -220px;
           top: 0;
-          width: 200px; /* Increased from 180px */
+          width: 200px;
           height: 100%;
           background: rgba(255, 255, 255, 0.98);
           border: 2px solid #007bff;
           border-radius: 8px 0 0 8px;
-          z-index: 1500; /* Increased z-index */
+          z-index: 1500;
           pointer-events: none;
           user-select: none;
           box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
@@ -388,7 +652,7 @@ class PageSetupManager {
 
         .page-section-label {
           position: absolute;
-          left: -200px; /* Adjusted positioning */
+          left: -200px;
           top: 50%;
           transform: translateY(-50%);
           background: rgba(255, 255, 255, 0.98);
@@ -405,7 +669,6 @@ class PageSetupManager {
           text-align: center;
         }
 
-        /* Special styling for header/footer labels */
         .page-section-label.header-label {
           color: #28a745;
           border-color: #28a745;
@@ -419,7 +682,7 @@ class PageSetupManager {
         .page-section-dashed-line {
           position: absolute;
           left: 0;
-          right: -30px; /* Extended line */
+          right: -30px;
           bottom: 0;
           height: 0;
           border-top: 2px dashed #007bff;
@@ -513,9 +776,15 @@ class PageSetupManager {
           position: relative !important;
         }
 
-        .page-content > * {
+        .main-content-area {
+          overflow: hidden !important;
+          position: relative !important;
+        }
+
+        .main-content-area > * {
           max-width: 100% !important;
           word-wrap: break-word !important;
+          box-sizing: border-box !important;
         }
         
         @media (max-width: 768px) {
@@ -535,7 +804,7 @@ class PageSetupManager {
           }
         }
         
-        /* Enhanced Print styles for PDF generation */
+        /* Enhanced Print styles for exact page capture */
         @media print {
           * {
             -webkit-print-color-adjust: exact !important;
@@ -548,23 +817,46 @@ class PageSetupManager {
             padding: 0 !important;
             background: white !important;
           }
-          
+
           .page-container {
             page-break-after: always !important;
             margin: 0 !important;
+            padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
             width: 100% !important;
             height: 100vh !important;
             display: block !important;
             position: relative !important;
+            overflow: hidden !important;
+            /* Preserve background color in print */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           .page-content {
             width: 100% !important;
             height: 100% !important;
             margin: 0 !important;
+            padding: 0 !important;
             position: relative !important;
+            overflow: hidden !important;
+            /* Preserve background color in print */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .main-content-area {
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            position: relative !important;
+            /* Preserve background color in print */
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           .page-indicator,
@@ -576,13 +868,20 @@ class PageSetupManager {
             display: none !important;
           }
 
-          /* Ensure headers and footers print with transparent background */
-          .page-header-element {
+          .page-watermark {
             display: flex !important;
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
             right: 0 !important;
+            bottom: 0 !important;
+            pointer-events: none !important;
+            z-index: 1 !important;
+          }
+
+          .page-header-element {
+            display: flex !important;
+            position: static !important;
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
@@ -595,10 +894,7 @@ class PageSetupManager {
           
           .page-footer-element {
             display: flex !important;
-            position: absolute !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
+            position: static !important;
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
@@ -622,6 +918,71 @@ class PageSetupManager {
             z-index: 2000 !important;
           }
         }
+
+        .page-info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+          background: #e3f2fd;
+          padding: 15px;
+          border-radius: 6px;
+          border: 1px solid #bbdefb;
+        }
+        .page-info-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .page-info-item label {
+          font-weight: 500;
+          color: #1976d2 !important;
+          font-size: 12px;
+        }
+        .page-info-value {
+          font-weight: 600;
+          color: #0d47a1 !important;
+          font-size: 12px;
+          background: white;
+          padding: 4px 8px;
+          border-radius: 4px;
+          border: 1px solid #90caf9;
+        }
+
+        .page-numbering-controls {
+          display: none;
+          margin-top: 15px;
+          padding: 15px;
+          background: white;
+          border-radius: 6px;
+          border: 1px solid #dee2e6;
+        }
+
+        .page-numbering-controls.active {
+          display: block;
+        }
+
+        /* Background color controls */
+        .background-color-controls {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 10px;
+          align-items: center;
+          margin-top: 10px;
+        }
+
+        .color-preview {
+          width: 40px;
+          height: 40px;
+          border: 2px solid #dee2e6;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .color-preview:hover {
+          border-color: #007bff;
+          transform: scale(1.05);
+        }
       </style>
     `
 
@@ -635,8 +996,8 @@ class PageSetupManager {
       <div id="pageSetupModal" class="page-setup-modal">
         <div class="page-setup-content">
           <div class="page-setup-header">
-            <h2>📄 Page Setup</h2>
-            <p>Configure your document pages</p>
+            <h2>📄 Enhanced Page Setup</h2>
+            <p>Configure your document pages with advanced features</p>
           </div>
           
           <div class="page-setup-section">
@@ -678,6 +1039,41 @@ class PageSetupManager {
               </div>
             </div>
           </div>
+
+          <div class="page-setup-section">
+            <h3>🎨 Page Background</h3>
+            <div class="page-setup-row">
+              <label class="page-setup-label">Background Color:</label>
+              <div class="background-color-controls">
+                <input type="color" id="pageBackgroundColor" class="page-setup-control" value="#ffffff">
+                <div class="color-preview" id="backgroundColorPreview" style="background-color: #ffffff;"></div>
+              </div>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">Background color will be preserved in headers, footers, and print/PDF output</p>
+          </div>
+
+          <div class="page-setup-section">
+            <h3>📏 Page Margins (mm)</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Margins will reduce the available content area</p>
+            <div class="margins-grid">
+              <div>
+                <label>Top:</label>
+                <input type="number" id="marginTop" class="page-setup-control" value="0" min="0" max="50">
+              </div>
+              <div>
+                <label>Bottom:</label>
+                <input type="number" id="marginBottom" class="page-setup-control" value="0" min="0" max="50">
+              </div>
+              <div>
+                <label>Left:</label>
+                <input type="number" id="marginLeft" class="page-setup-control" value="0" min="0" max="50">
+              </div>
+              <div>
+                <label>Right:</label>
+                <input type="number" id="marginRight" class="page-setup-control" value="0" min="0" max="50">
+              </div>
+            </div>
+          </div>
           
           <div class="page-setup-section">
             <h3>📊 Pages</h3>
@@ -686,6 +1082,82 @@ class PageSetupManager {
               <input type="number" id="numberOfPages" class="page-setup-control" value="1" min="1" max="100">
             </div>
           </div>
+
+        <!--  <div class="page-setup-section">
+            <h3>💧 Page Watermark</h3>
+            <div class="page-setup-row">
+              <label>
+                <input type="checkbox" id="enableWatermark" style="border: 2px solid #000 !important;"> Enable Watermark
+              </label>
+            </div>
+            <div id="watermarkControls" class="watermark-controls">
+              <div class="page-setup-row">
+                <label class="page-setup-label">Type:</label>
+                <div class="watermark-type-controls">
+                  <div class="watermark-type-btn active" data-type="text">Text</div>
+                  <div class="watermark-type-btn" data-type="image">Image</div>
+                  <div class="watermark-type-btn" data-type="both">Both</div>
+                </div>
+              </div>
+              
+              <div id="watermarkTextControls">
+                <div class="page-setup-row">
+                  <label class="page-setup-label">Text:</label>
+                  <input type="text" id="watermarkText" class="page-setup-control" value="CONFIDENTIAL" placeholder="Enter watermark text">
+                </div>
+                <div class="size-controls">
+                  <div>
+                    <label>Font Size:</label>
+                    <input type="number" id="watermarkFontSize" class="page-setup-control" value="48" min="12" max="100">
+                  </div>
+                  <div>
+                    <label>Color:</label>
+                    <input type="color" id="watermarkColor" class="page-setup-control" value="#cccccc">
+                  </div>
+                  <div>
+                    <label>Opacity:</label>
+                    <input type="range" id="watermarkOpacity" class="page-setup-control" value="30" min="10" max="80">
+                  </div>
+                  <div>
+                    <label>Rotation:</label>
+                    <input type="range" id="watermarkRotation" class="page-setup-control" value="-45" min="-90" max="90">
+                  </div>
+                </div>
+              </div>
+
+              <div id="watermarkImageControls" style="display: none;">
+                <div class="page-setup-row">
+                  <label class="page-setup-label">Image URL:</label>
+                  <input type="url" id="watermarkImageUrl" class="page-setup-control" placeholder="Enter image URL">
+                </div>
+                <div class="size-controls">
+                  <div>
+                    <label>Width (px):</label>
+                    <input type="number" id="watermarkImageWidth" class="page-setup-control" value="200" min="50" max="500">
+                  </div>
+                  <div>
+                    <label>Height (px):</label>
+                    <input type="number" id="watermarkImageHeight" class="page-setup-control" value="200" min="50" max="500">
+                  </div>
+                </div>
+              </div>
+
+              <div class="page-setup-row">
+                <label class="page-setup-label">Position:</label>
+                <div class="position-grid">
+                  <div class="position-option" data-position="top-left">Top Left</div>
+                  <div class="position-option" data-position="top-center">Top Center</div>
+                  <div class="position-option" data-position="top-right">Top Right</div>
+                  <div class="position-option" data-position="center-left">Center Left</div>
+                  <div class="position-option selected" data-position="center">Center</div>
+                  <div class="position-option" data-position="center-right">Center Right</div>
+                  <div class="position-option" data-position="bottom-left">Bottom Left</div>
+                  <div class="position-option" data-position="bottom-center">Bottom Center</div>
+                  <div class="position-option" data-position="bottom-right">Bottom Right</div>
+                </div>
+              </div>
+            </div>
+          </div> -->
           
           <div class="page-setup-actions">
             <button id="pageSetupCancel" class="page-setup-btn page-setup-btn-secondary">Cancel</button>
@@ -701,54 +1173,78 @@ class PageSetupManager {
   }
 
   addToGrapesJSSettings() {
-    // Add page setup options to GrapesJS settings panel
     const settingsPanel = this.editor.Panels.getPanel("options")
 
     if (settingsPanel) {
-      settingsPanel.get("buttons").add([
-        {
-          id: "page-elements-settings",
-          className: "fa fa-cogs",
-          command: "open-page-elements-settings",
-          attributes: { title: "Page Elements Settings" },
-        },
-        {
-          id: "sections-settings",
-          className: "fa fa-th-list",
-          command: "open-sections-settings",
-          attributes: { title: "Sections Settings" },
-        },
-        {
-          id: "add-page",
-          className: "fa fa-plus",
-          command: "add-new-page",
-          attributes: { title: "Add New Page" },
-        },
-        {
-          id: "delete-page",
-          className: "fa fa-trash",
-          command: "delete-current-page",
-          attributes: { title: "Delete Current Page" },
-        },
-      ])
+      this.updateNavbarButton()
+      this.updateAddPageButton()
     }
 
     // Add commands
-    this.editor.Commands.add("open-page-elements-settings", {
-      run: () => this.showPageElementsSettings(),
+    this.editor.Commands.add("open-page-setup", {
+      run: () => this.showInitialSetup(),
     })
 
-    this.editor.Commands.add("open-sections-settings", {
-      run: () => this.showSectionsSettings(),
+    this.editor.Commands.add("open-page-elements-settings", {
+      run: () => this.showPageElementsSettings(),
     })
 
     this.editor.Commands.add("add-new-page", {
       run: () => this.addNewPage(),
     })
 
-    this.editor.Commands.add("delete-current-page", {
-      run: () => this.deleteCurrentPage(),
+    this.editor.Commands.add("delete-pages", {
+      run: () => this.showPageDeleteModal(),
     })
+  }
+
+  updateNavbarButton() {
+    const settingsPanel = this.editor.Panels.getPanel("options")
+    if (!settingsPanel) return
+
+    const existingSetupBtn = settingsPanel.get("buttons").get("page-setup")
+    const existingSettingsBtn = settingsPanel.get("buttons").get("page-elements-settings")
+
+    if (existingSetupBtn) {
+      settingsPanel.get("buttons").remove(existingSetupBtn)
+    }
+    if (existingSettingsBtn) {
+      settingsPanel.get("buttons").remove(existingSettingsBtn)
+    }
+
+    if (!this.isInitialized) {
+      settingsPanel.get("buttons").add({
+        id: "page-setup",
+        className: "fa fa-file-o",
+        command: "open-page-setup",
+        attributes: { title: "Setup Pages" },
+      })
+    } else {
+      settingsPanel.get("buttons").add({
+        id: "page-elements-settings",
+        className: "fa fa-cogs",
+        command: "open-page-elements-settings",
+        attributes: { title: "Page Elements Settings" },
+      })
+    }
+  }
+
+  updateAddPageButton() {
+    const settingsPanel = this.editor.Panels.getPanel("options")
+    if (!settingsPanel) return
+
+    const existingAddBtn = settingsPanel.get("buttons").get("add-page")
+
+    if (this.isInitialized && !existingAddBtn) {
+      settingsPanel.get("buttons").add({
+        id: "add-page",
+        className: "fa fa-plus",
+        command: "add-new-page",
+        attributes: { title: "Add New Page" },
+      })
+    } else if (!this.isInitialized && existingAddBtn) {
+      settingsPanel.get("buttons").remove(existingAddBtn)
+    }
   }
 
   setupEventListeners() {
@@ -764,22 +1260,117 @@ class PageSetupManager {
           }
         }
       }
+
+      if (e.target.id === "enablePageNumbering") {
+        const controls = document.getElementById("pageNumberingControls")
+        if (controls) {
+          if (e.target.checked) {
+            controls.classList.add("active")
+            this.updateStartFromPageOptions()
+          } else {
+            controls.classList.remove("active")
+          }
+        }
+      }
+
+      if (e.target.id === "enableWatermark") {
+        const controls = document.getElementById("watermarkControls")
+        if (controls) {
+          if (e.target.checked) {
+            controls.classList.add("active")
+          } else {
+            controls.classList.remove("active")
+          }
+        }
+      }
+
+      if (e.target.id === "numberOfPages") {
+        this.updateStartFromPageOptions()
+      }
+
+      // Background color preview update
+      if (e.target.id === "pageBackgroundColor") {
+        const preview = document.getElementById("backgroundColorPreview")
+        if (preview) {
+          preview.style.backgroundColor = e.target.value
+        }
+      }
     })
 
-    // Setup modal buttons
+    // Watermark type selection
     document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("watermark-type-btn")) {
+        document.querySelectorAll(".watermark-type-btn").forEach((btn) => btn.classList.remove("active"))
+        e.target.classList.add("active")
+
+        const type = e.target.dataset.type
+        const textControls = document.getElementById("watermarkTextControls")
+        const imageControls = document.getElementById("watermarkImageControls")
+
+        if (type === "text") {
+          textControls.style.display = "block"
+          imageControls.style.display = "none"
+        } else if (type === "image") {
+          textControls.style.display = "none"
+          imageControls.style.display = "block"
+        } else if (type === "both") {
+          textControls.style.display = "block"
+          imageControls.style.display = "block"
+        }
+      }
+
+      if (e.target.classList.contains("position-option")) {
+        const parent = e.target.parentElement
+        parent.querySelectorAll(".position-option").forEach((opt) => opt.classList.remove("selected"))
+        e.target.classList.add("selected")
+      }
+
       if (e.target.id === "pageSetupApply") {
         this.applyPageSetup()
       } else if (e.target.id === "pageSetupCancel") {
         this.cancelPageSetup()
       }
+
+      // Background color preview click
+      if (e.target.id === "backgroundColorPreview") {
+        const colorInput = document.getElementById("pageBackgroundColor")
+        if (colorInput) {
+          colorInput.click()
+        }
+      }
     })
+  }
+
+  updateStartFromPageOptions() {
+    const numberOfPages = Number.parseInt(document.getElementById("numberOfPages")?.value) || 1
+    const startFromPageSelect = document.getElementById("startFromPage")
+
+    if (startFromPageSelect) {
+      startFromPageSelect.innerHTML = ""
+      for (let i = 1; i <= numberOfPages; i++) {
+        const option = document.createElement("option")
+        option.value = i
+        option.textContent = `Page ${i}`
+        startFromPageSelect.appendChild(option)
+      }
+    }
   }
 
   showInitialSetup() {
     const modal = document.getElementById("pageSetupModal")
     if (modal) {
       modal.style.display = "flex"
+      this.updateStartFromPageOptions()
+
+      // Set current background color if already initialized
+      if (this.isInitialized) {
+        const bgColorInput = document.getElementById("pageBackgroundColor")
+        const bgColorPreview = document.getElementById("backgroundColorPreview")
+        if (bgColorInput && bgColorPreview) {
+          bgColorInput.value = this.pageSettings.backgroundColor
+          bgColorPreview.style.backgroundColor = this.pageSettings.backgroundColor
+        }
+      }
     } else {
       console.error("Page setup modal not found")
       this.createInitialSetupModal()
@@ -787,16 +1378,52 @@ class PageSetupManager {
         const newModal = document.getElementById("pageSetupModal")
         if (newModal) {
           newModal.style.display = "flex"
+          this.updateStartFromPageOptions()
         }
       }, 100)
     }
   }
 
   applyPageSetup() {
+    let slides = []
+    let transitions = {}
+    let clickStates = {}
+    let currentSlideIndex = 1
+
+    const editor = this.editor
+
+    editor.on("run:core:canvas-clear", () => {
+      const thumbContainer = document.getElementById("slides-thumbnails")
+      if (thumbContainer) thumbContainer.remove()
+      slides = []
+      transitions = {}
+      clickStates = {}
+      currentSlideIndex = 1
+    })
+
     // Collect settings from modal
     const format = document.getElementById("pageFormat").value
     const orientation = document.getElementById("pageOrientation").value
     const numberOfPages = Number.parseInt(document.getElementById("numberOfPages").value) || 1
+    const backgroundColor = document.getElementById("pageBackgroundColor")?.value || "#ffffff"
+
+    // Collect margin settings
+    const margins = {
+      top: Number.parseFloat(document.getElementById("marginTop").value) || 0,
+      bottom: Number.parseFloat(document.getElementById("marginBottom").value) || 0,
+      left: Number.parseFloat(document.getElementById("marginLeft").value) || 0,
+      right: Number.parseFloat(document.getElementById("marginRight").value) || 0,
+    }
+
+    // Collect page numbering settings
+    const pageNumberingEnabled = document.getElementById("enablePageNumbering")?.checked || false
+    const startFromPage = Number.parseInt(document.getElementById("startFromPage")?.value) || 1
+
+    // Collect watermark settings
+    const watermarkEnabled = document.getElementById("enableWatermark")?.checked || false
+    const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset.type || "text"
+    const watermarkPosition =
+      document.querySelector(".watermark-controls .position-option.selected")?.dataset.position || "center"
 
     let width, height
     if (format === "custom") {
@@ -815,7 +1442,33 @@ class PageSetupManager {
       numberOfPages,
       width,
       height,
+      margins,
+      backgroundColor, // Added background color
       pages: [],
+      pageNumbering: {
+        enabled: pageNumberingEnabled,
+        startFromPage: startFromPage,
+        excludedPages: Array.from({ length: startFromPage - 1 }, (_, i) => i + 1),
+      },
+      watermark: {
+        enabled: watermarkEnabled,
+        type: watermarkType,
+        text: {
+          content: document.getElementById("watermarkText")?.value || "CONFIDENTIAL",
+          fontSize: Number.parseInt(document.getElementById("watermarkFontSize")?.value) || 48,
+          color: document.getElementById("watermarkColor")?.value || "#cccccc",
+          opacity: Number.parseInt(document.getElementById("watermarkOpacity")?.value) / 100 || 0.3,
+          rotation: Number.parseInt(document.getElementById("watermarkRotation")?.value) || -45,
+        },
+        image: {
+          url: document.getElementById("watermarkImageUrl")?.value || "",
+          width: Number.parseInt(document.getElementById("watermarkImageWidth")?.value) || 200,
+          height: Number.parseInt(document.getElementById("watermarkImageHeight")?.value) || 200,
+          opacity: 0.3,
+        },
+        position: watermarkPosition,
+        applyToAllPages: true,
+      },
     }
 
     // Initialize pages with individual settings
@@ -824,6 +1477,7 @@ class PageSetupManager {
         id: `page-${i + 1}`,
         name: `Page ${i + 1}`,
         pageNumber: i + 1,
+        backgroundColor: backgroundColor, // Added background color to each page
         header: {
           enabled: false,
           content: "",
@@ -831,7 +1485,7 @@ class PageSetupManager {
           padding: this.defaultSizes.header.padding,
           fontSize: 12,
           color: "#333333",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: backgroundColor, // Header inherits page background color
           position: "center",
         },
         footer: {
@@ -841,7 +1495,7 @@ class PageSetupManager {
           padding: this.defaultSizes.footer.padding,
           fontSize: 12,
           color: "#333333",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: backgroundColor, // Footer inherits page background color
           position: "center",
         },
         pageNumber: {
@@ -867,8 +1521,10 @@ class PageSetupManager {
     }
 
     this.isInitialized = true
+    this.updateNavbarButton()
+    this.updateAddPageButton()
 
-    console.log("Page setup applied:", this.pageSettings)
+    console.log("Enhanced page setup applied:", this.pageSettings)
   }
 
   cancelPageSetup() {
@@ -876,396 +1532,8 @@ class PageSetupManager {
     if (modal) {
       modal.style.display = "none"
     }
-
-    // Continue with default single page setup
-    this.pageSettings.numberOfPages = 1
-    this.pageSettings.pages = [
-      {
-        id: "page-1",
-        name: "Page 1",
-        pageNumber: 1,
-        header: {
-          enabled: false,
-          content: "",
-          height: this.defaultSizes.header.height,
-          padding: this.defaultSizes.header.padding,
-          fontSize: 12,
-          color: "#333333",
-          backgroundColor: "#FFFFFF",
-          position: "center",
-        },
-        footer: {
-          enabled: false,
-          content: "",
-          height: this.defaultSizes.footer.height,
-          padding: this.defaultSizes.footer.padding,
-          fontSize: 12,
-          color: "#333333",
-          backgroundColor: "#FFFFFF",
-          position: "center",
-        },
-        pageNumber: {
-          enabled: false,
-          format: "Page {n}",
-          position: "bottom-right",
-          fontSize: 11,
-          color: "#333333",
-          backgroundColor: "#ffffff",
-          showBorder: true,
-        },
-      },
-    ]
-    this.isInitialized = true
-    this.setupCanvasScrolling()
   }
 
-  showSectionsSettings() {
-    if (!this.isInitialized || this.pageSettings.pages.length === 0) {
-      alert("Please set up pages first")
-      return
-    }
-
-    // Create sections list HTML
-    let sectionsListHTML = ""
-    if (this.sectionsSettings.sections.length > 0) {
-      this.sectionsSettings.sections.forEach((section, index) => {
-        sectionsListHTML += `
-        <div class="section-item">
-          <div class="section-item-info">
-            <div class="section-item-name">${section.name}</div>
-            <div class="section-item-height">${section.height}px</div>
-          </div>
-          <div class="section-item-actions">
-            <button class="section-btn-small section-btn-edit" data-section-index="${index}">Edit</button>
-            <button class="section-btn-small section-btn-delete" data-section-index="${index}">Delete</button>
-          </div>
-        </div>
-      `
-      })
-    } else {
-      sectionsListHTML = '<p style="color: #666; text-align: center; padding: 20px;">No sections added yet</p>'
-    }
-
-    this.editor.Modal.setTitle("Sections Settings")
-    this.editor.Modal.setContent(`
-      <div class="sections-settings-content" style="color: #000 !important;">
-        <div class="page-setup-section">
-          <h3>📋 Sections Configuration</h3>
-          <div class="page-setup-row">
-            <label>
-              <input type="checkbox" id="sectionsEnabled" ${this.sectionsSettings.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Sections
-            </label>
-          </div>
-          
-          <div id="sectionsControls" style="display: ${this.sectionsSettings.enabled ? "block" : "none"};">
-            <div class="page-setup-row">
-              <label class="page-setup-label">Section Name:</label>
-              <input type="text" id="sectionName" class="page-setup-control" placeholder="Enter section name">
-            </div>
-            <div class="page-setup-row">
-              <label class="page-setup-label">Height (px):</label>
-              <input type="number" id="sectionHeight" class="page-setup-control" value="100" min="20" max="500">
-            </div>
-            <div class="page-setup-row">
-              <button id="addSection" class="page-setup-btn page-setup-btn-primary">Add Section</button>
-            </div>
-            
-            <h4>Current Sections:</h4>
-            <div class="sections-list">
-              ${sectionsListHTML}
-            </div>
-          </div>
-        </div>
-        
-        <div class="page-setup-actions">
-          <button id="applySectionsSettings" class="page-setup-btn page-setup-btn-primary">Apply Settings</button>
-          <button id="resetSectionsSettings" class="page-setup-btn page-setup-btn-secondary">Reset</button>
-        </div>
-      </div>
-    `)
-
-    this.editor.Modal.open()
-
-    // Setup event listeners
-    setTimeout(() => {
-      this.setupSectionsListeners()
-    }, 100)
-  }
-
-  setupSectionsListeners() {
-    // Enable/disable sections
-    const sectionsEnabledCheckbox = document.getElementById("sectionsEnabled")
-    const sectionsControls = document.getElementById("sectionsControls")
-
-    if (sectionsEnabledCheckbox) {
-      sectionsEnabledCheckbox.addEventListener("change", (e) => {
-        sectionsControls.style.display = e.target.checked ? "block" : "none"
-      })
-    }
-
-    // Add section
-    const addSectionBtn = document.getElementById("addSection")
-    if (addSectionBtn) {
-      addSectionBtn.addEventListener("click", () => {
-        const name = document.getElementById("sectionName").value.trim()
-        const height = Number.parseInt(document.getElementById("sectionHeight").value) || 100
-
-        if (!name) {
-          alert("Please enter a section name")
-          return
-        }
-
-        this.sectionsSettings.sections.push({
-          id: `section-${Date.now()}`,
-          name: name,
-          height: height,
-        })
-
-        // Refresh the modal
-        this.showSectionsSettings()
-      })
-    }
-
-    // Edit/Delete section buttons
-    document.querySelectorAll(".section-btn-edit").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const index = Number.parseInt(e.target.dataset.sectionIndex)
-        this.editSection(index)
-      })
-    })
-
-    document.querySelectorAll(".section-btn-delete").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const index = Number.parseInt(e.target.dataset.sectionIndex)
-        this.deleteSection(index)
-      })
-    })
-
-    // Apply settings
-    const applyBtn = document.getElementById("applySectionsSettings")
-    if (applyBtn) {
-      applyBtn.addEventListener("click", () => {
-        this.applySectionsSettings()
-      })
-    }
-
-    // Reset settings
-    const resetBtn = document.getElementById("resetSectionsSettings")
-    if (resetBtn) {
-      resetBtn.addEventListener("click", () => {
-        this.resetSectionsSettings()
-      })
-    }
-  }
-
-  editSection(index) {
-    const section = this.sectionsSettings.sections[index]
-    const newName = prompt("Enter new section name:", section.name)
-    const newHeight = prompt("Enter new height (px):", section.height)
-
-    if (newName && newName.trim()) {
-      section.name = newName.trim()
-    }
-    if (newHeight && !isNaN(newHeight)) {
-      section.height = Number.parseInt(newHeight)
-    }
-
-    this.showSectionsSettings()
-  }
-
-  deleteSection(index) {
-    const section = this.sectionsSettings.sections[index]
-    if (confirm(`Are you sure you want to delete section "${section.name}"?`)) {
-      this.sectionsSettings.sections.splice(index, 1)
-      this.showSectionsSettings()
-    }
-  }
-
-  applySectionsSettings() {
-    this.sectionsSettings.enabled = document.getElementById("sectionsEnabled")?.checked || false
-
-    if (this.sectionsSettings.enabled) {
-      this.updateSectionsDisplay()
-    } else {
-      this.hideSectionsDisplay()
-    }
-
-    this.editor.Modal.close()
-    console.log("Sections settings applied:", this.sectionsSettings)
-  }
-
-  resetSectionsSettings() {
-    this.sectionsSettings = {
-      enabled: false,
-      sections: [],
-    }
-    this.hideSectionsDisplay()
-    this.editor.Modal.close()
-    console.log("Sections settings reset")
-  }
-
-  // FIXED: Enhanced sections display with proper positioning and header/footer labels
-  updateSectionsDisplay() {
-    if (!this.sectionsSettings.enabled) return
-
-    this.pageSettings.pages.forEach((page, pageIndex) => {
-      const canvasBody = this.editor.Canvas.getBody()
-      const pageElement = canvasBody.querySelector(`[data-page-index="${pageIndex}"]`)
-      if (pageElement) {
-        this.addSectionsToPage(pageElement, pageIndex)
-      }
-    })
-  }
-
-  // FIXED: Proper section display with header/footer labels
-  addSectionsToPage(pageElement, pageIndex) {
-    // Remove existing sections elements
-    const existingSectionsElements = pageElement.querySelectorAll(
-      ".virtual-sections-panel, .page-section, .page-section-label, .page-section-dashed-line",
-    )
-    existingSectionsElements.forEach((el) => el.remove())
-
-    const pageContent = pageElement.querySelector(".page-content")
-    const pageHeight = pageContent.offsetHeight
-    const pageSettings = this.pageSettings.pages[pageIndex]
-
-    let currentTop = 0
-    const mmToPx = 96 / 25.4
-
-    // Add header section label if enabled
-    if (pageSettings.header.enabled) {
-      const headerHeightPx = pageSettings.header.height * mmToPx + pageSettings.header.padding * 2
-
-      const headerLabel = document.createElement("div")
-      headerLabel.className = "page-section-label header-label"
-      headerLabel.textContent = "Default Header"
-      headerLabel.style.cssText = `
-        position: absolute;
-        left: -200px;
-        top: ${currentTop + headerHeightPx / 2}px;
-        transform: translateY(-50%);
-        background: rgba(255, 255, 255, 0.98);
-        padding: 6px 12px;
-        border: 2px solid #28a745;
-        border-radius: 6px;
-        font-size: 12px;
-        color: #28a745;
-        font-weight: 600;
-        white-space: nowrap;
-        z-index: 1600;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        min-width: 80px;
-        text-align: center;
-      `
-      pageElement.appendChild(headerLabel)
-
-      currentTop += headerHeightPx
-    }
-
-    // Add custom sections
-    this.sectionsSettings.sections.forEach((section, index) => {
-      if (currentTop + section.height <= pageHeight) {
-        // Create section visual area
-        const sectionElement = document.createElement("div")
-        sectionElement.className = "page-section"
-        sectionElement.style.cssText = `
-          position: absolute;
-          left: 0;
-          top: ${currentTop}px;
-          right: 0;
-          height: ${section.height}px;
-          border-bottom: 2px dashed #007bff;
-          background: rgba(0, 123, 255, 0.08);
-          z-index: 500;
-          box-sizing: border-box;
-        `
-
-        // Create section label
-        const sectionLabel = document.createElement("div")
-        sectionLabel.className = "page-section-label"
-        sectionLabel.textContent = section.name
-        sectionLabel.style.cssText = `
-          position: absolute;
-          left: -200px;
-          top: 50%;
-          transform: translateY(-50%);
-          background: rgba(255, 255, 255, 0.98);
-          padding: 6px 12px;
-          border: 2px solid #007bff;
-          border-radius: 6px;
-          font-size: 12px;
-          color: #007bff;
-          font-weight: 600;
-          white-space: nowrap;
-          z-index: 1600;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-          min-width: 80px;
-          text-align: center;
-        `
-
-        // Create dashed line extending to the right
-        const dashedLine = document.createElement("div")
-        dashedLine.className = "page-section-dashed-line"
-        dashedLine.style.cssText = `
-          position: absolute;
-          left: 0;
-          right: -30px;
-          bottom: 0;
-          height: 0;
-          border-top: 2px dashed #007bff;
-          z-index: 550;
-        `
-
-        sectionElement.appendChild(sectionLabel)
-        sectionElement.appendChild(dashedLine)
-        pageElement.appendChild(sectionElement)
-
-        currentTop += section.height
-      }
-    })
-
-    // Add footer section label if enabled
-    if (pageSettings.footer.enabled) {
-      const footerHeightPx = pageSettings.footer.height * mmToPx + pageSettings.footer.padding * 2
-
-      const footerLabel = document.createElement("div")
-      footerLabel.className = "page-section-label footer-label"
-      footerLabel.textContent = "Default Footer"
-      footerLabel.style.cssText = `
-        position: absolute;
-        left: -200px;
-        bottom: ${footerHeightPx / 2}px;
-        transform: translateY(50%);
-        background: rgba(255, 255, 255, 0.98);
-        padding: 6px 12px;
-        border: 2px solid #dc3545;
-        border-radius: 6px;
-        font-size: 12px;
-        color: #dc3545;
-        font-weight: 600;
-        white-space: nowrap;
-        z-index: 1600;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        min-width: 80px;
-        text-align: center;
-      `
-      pageElement.appendChild(footerLabel)
-    }
-  }
-
-  hideSectionsDisplay() {
-    this.pageSettings.pages.forEach((page, pageIndex) => {
-      const canvasBody = this.editor.Canvas.getBody()
-      const pageElement = canvasBody.querySelector(`[data-page-index="${pageIndex}"]`)
-      if (pageElement) {
-        // Remove all section-related elements
-        const sectionsElements = pageElement.querySelectorAll(
-          ".virtual-sections-panel, .page-section, .page-section-label, .page-section-dashed-line",
-        )
-        sectionsElements.forEach((el) => el.remove())
-      }
-    })
-  }
 
   showPageElementsSettings() {
     if (!this.isInitialized || this.pageSettings.pages.length === 0) {
@@ -1273,15 +1541,85 @@ class PageSetupManager {
       return
     }
 
-    // Get current global settings (from first page or defaults)
     const firstPage = this.pageSettings.pages[0]
     const globalHeader = firstPage.header || {}
     const globalFooter = firstPage.footer || {}
     const globalPageNumber = firstPage.pageNumber || {}
 
-    this.editor.Modal.setTitle("Page Elements Settings")
+    // Generate page options for numbering start
+    let pageOptions = ""
+    for (let i = 1; i <= this.pageSettings.numberOfPages; i++) {
+      const selected = this.pageSettings.pageNumbering.startFromPage === i ? "selected" : ""
+      pageOptions += `<option value="${i}" ${selected}>Page ${i}</option>`
+    }
+
+    this.editor.Modal.setTitle("Enhanced Page Elements Settings")
     this.editor.Modal.setContent(`
       <div class="page-settings-content" style="color: #000 !important;">
+        <div class="page-setup-section">
+          <h3>📋 Page Information</h3>
+          <div class="page-info-grid">
+            <div class="page-info-item">
+              <label>Format:</label>
+              <span class="page-info-value">${this.pageSettings.format.toUpperCase()}</span>
+            </div>
+            <div class="page-info-item">
+              <label>Orientation:</label>
+              <span class="page-info-value">${this.pageSettings.orientation.charAt(0).toUpperCase() + this.pageSettings.orientation.slice(1)}</span>
+            </div>
+            <div class="page-info-item">
+              <label>Total Pages:</label>
+              <span class="page-info-value">${this.pageSettings.numberOfPages}</span>
+            </div>
+            <div class="page-info-item">
+              <label>Dimensions:</label>
+              <span class="page-info-value">${this.pageSettings.width} × ${this.pageSettings.height} mm</span>
+            </div>
+            <div class="page-info-item">
+              <label>Margins:</label>
+              <span class="page-info-value">${this.pageSettings.margins.top}/${this.pageSettings.margins.bottom}/${this.pageSettings.margins.left}/${this.pageSettings.margins.right} mm</span>
+            </div>
+            <div class="page-info-item">
+              <label>Content Area:</label>
+              <span class="page-info-value">${(this.pageSettings.width - this.pageSettings.margins.left - this.pageSettings.margins.right).toFixed(1)} × ${(this.pageSettings.height - this.pageSettings.margins.top - this.pageSettings.margins.bottom).toFixed(1)} mm</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="page-setup-section">
+          <h3>🎨 Page Background</h3>
+          <div class="page-setup-row">
+            <label class="page-setup-label">Background Color:</label>
+            <div class="background-color-controls">
+              <input type="color" id="settingsPageBackgroundColor" class="page-setup-control" value="${this.pageSettings.backgroundColor || "#ffffff"}">
+              <div class="color-preview" id="settingsBackgroundColorPreview" style="background-color: ${this.pageSettings.backgroundColor || "#ffffff"};"></div>
+            </div>
+          </div>
+          <p style="font-size: 12px; color: #666; margin-top: 5px;">Background color will be preserved in headers, footers, and print/PDF output</p>
+        </div>
+
+        <div class="page-setup-section">
+          <h3>📏 Page Margins (mm)</h3>
+          <div class="margins-grid">
+            <div>
+              <label>Top:</label>
+              <input type="number" id="settingsMarginTop" class="page-setup-control" value="${this.pageSettings.margins.top}" min="0" max="50">
+            </div>
+            <div>
+              <label>Bottom:</label>
+              <input type="number" id="settingsMarginBottom" class="page-setup-control" value="${this.pageSettings.margins.bottom}" min="0" max="50">
+            </div>
+            <div>
+              <label>Left:</label>
+              <input type="number" id="settingsMarginLeft" class="page-setup-control" value="${this.pageSettings.margins.left}" min="0" max="50">
+            </div>
+            <div>
+              <label>Right:</label>
+              <input type="number" id="settingsMarginRight" class="page-setup-control" value="${this.pageSettings.margins.right}" min="0" max="50">
+            </div>
+          </div>
+        </div>
+        
         <div class="page-setup-section">
           <h3>📄 Header Settings</h3>
           <div class="page-setup-row">
@@ -1318,10 +1656,6 @@ class PageSetupManager {
               <label>Text Color:</label>
               <input type="color" id="headerColor" class="page-setup-control" value="${globalHeader.color || "#333333"}">
             </div>
-          </div>
-          <div class="page-setup-row">
-            <label class="page-setup-label">Background:</label>
-            <input type="color" id="headerBackgroundColor" class="page-setup-control" value="${globalHeader.backgroundColor || "#FFFFFF#f8f9fa"}">
           </div>
         </div>
         
@@ -1362,19 +1696,22 @@ class PageSetupManager {
               <input type="color" id="footerColor" class="page-setup-control" value="${globalFooter.color || "#333333"}">
             </div>
           </div>
-          <div class="page-setup-row">
-            <label class="page-setup-label">Background:</label>
-            <input type="color" id="footerBackgroundColor" class="page-setup-control" value="${globalFooter.backgroundColor || "#FFFFFF"}">
-          </div>
         </div>
         
         <div class="page-setup-section">
-          <h3>🔢 Page Number Settings</h3>
+          <h3>🔢 Enhanced Page Number Settings</h3>
           <div class="page-setup-row">
             <label>
               <input type="checkbox" id="pageNumberEnabled" ${globalPageNumber.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Page Numbers
             </label>
           </div>
+          <div class="page-setup-row">
+            <label class="page-setup-label">Start From Page:</label>
+            <select id="pageNumberStartFrom" class="page-setup-control">
+              ${pageOptions}
+            </select>
+          </div>
+          <p style="font-size: 12px; color: #666; margin: 10px 0;">Pages before the selected page will be excluded from numbering</p>
           <div class="page-setup-row">
             <label class="page-setup-label">Format:</label>
             <select id="pageNumberFormat" class="page-setup-control">
@@ -1419,6 +1756,89 @@ class PageSetupManager {
             </div>
           </div>
         </div>
+
+      <!--  <div class="page-setup-section">
+          <h3>💧 Page Watermark Settings</h3>
+          <div class="page-setup-row">
+            <label>
+              <input type="checkbox" id="settingsWatermarkEnabled" ${this.pageSettings.watermark.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Watermark
+            </label>
+          </div>
+          <div id="settingsWatermarkControls" class="watermark-controls ${this.pageSettings.watermark.enabled ? "active" : ""}">
+            <div class="page-setup-row">
+              <label class="page-setup-label">Type:</label>
+              <div class="watermark-type-controls">
+                <div class="watermark-type-btn ${this.pageSettings.watermark.type === "text" ? "active" : ""}" data-type="text">Text</div>
+                <div class="watermark-type-btn ${this.pageSettings.watermark.type === "image" ? "active" : ""}" data-type="image">Image</div>
+                <div class="watermark-type-btn ${this.pageSettings.watermark.type === "both" ? "active" : ""}" data-type="both">Both</div>
+              </div>
+            </div>
+            
+            <div id="settingsWatermarkTextControls" style="display: ${this.pageSettings.watermark.type === "text" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
+              <div class="page-setup-row">
+                <label class="page-setup-label">Text:</label>
+                <input type="text" id="settingsWatermarkText" class="page-setup-control" value="${this.pageSettings.watermark.text.content}" placeholder="Enter watermark text">
+              </div>
+              <div class="size-controls">
+                <div>
+                  <label>Font Size:</label>
+                  <input type="number" id="settingsWatermarkFontSize" class="page-setup-control" value="${this.pageSettings.watermark.text.fontSize}" min="12" max="100">
+                </div>
+                <div>
+                  <label>Color:</label>
+                  <input type="color" id="settingsWatermarkColor" class="page-setup-control" value="${this.pageSettings.watermark.text.color}">
+                </div>
+                <div>
+                  <label>Opacity:</label>
+                  <input type="range" id="settingsWatermarkOpacity" class="page-setup-control" value="${Math.round(this.pageSettings.watermark.text.opacity * 100)}" min="10" max="80">
+                </div>
+                <div>
+                  <label>Rotation:</label>
+                  <input type="range" id="settingsWatermarkRotation" class="page-setup-control" value="${this.pageSettings.watermark.text.rotation}" min="-90" max="90">
+                </div>
+              </div>
+            </div>
+
+            <div id="settingsWatermarkImageControls" style="display: ${this.pageSettings.watermark.type === "image" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
+              <div class="page-setup-row">
+                <label class="page-setup-label">Image URL:</label>
+                <input type="url" id="settingsWatermarkImageUrl" class="page-setup-control" value="${this.pageSettings.watermark.image.url}" placeholder="Enter image URL">
+              </div>
+              <div class="size-controls">
+                <div>
+                  <label>Width (px):</label>
+                  <input type="number" id="settingsWatermarkImageWidth" class="page-setup-control" value="${this.pageSettings.watermark.image.width}" min="50" max="500">
+                </div>
+                <div>
+                  <label>Height (px):</label>
+                  <input type="number" id="settingsWatermarkImageHeight" class="page-setup-control" value="${this.pageSettings.watermark.image.height}" min="50" max="500">
+                </div>
+              </div>
+            </div>
+
+            <div class="page-setup-row">
+              <label class="page-setup-label">Position:</label>
+              <div class="position-grid">
+                <div class="position-option ${this.pageSettings.watermark.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "center" ? "selected" : ""}" data-position="center">Center</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
+                <div class="position-option ${this.pageSettings.watermark.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
+              </div>
+            </div>
+          </div>
+        </div> -->
+        
+        <div class="page-setup-section">
+          <h3>🗑️ Page Management</h3>
+          <div class="page-setup-row">
+            <button id="deletePages" class="page-setup-btn page-setup-btn-secondary">Delete Pages</button>
+          </div>
+        </div>
         
         <div class="page-setup-actions">
           <button id="applyPageElementsSettings" class="page-setup-btn page-setup-btn-primary">Apply Settings</button>
@@ -1429,7 +1849,6 @@ class PageSetupManager {
 
     this.editor.Modal.open()
 
-    // Setup event listeners
     setTimeout(() => {
       this.setupPageElementsListeners()
     }, 100)
@@ -1444,6 +1863,71 @@ class PageSetupManager {
         e.target.classList.add("selected")
       }
     })
+
+    // Background color preview update
+    document.addEventListener("change", (e) => {
+      if (e.target.id === "settingsPageBackgroundColor") {
+        const preview = document.getElementById("settingsBackgroundColorPreview")
+        if (preview) {
+          preview.style.backgroundColor = e.target.value
+        }
+      }
+
+      if (e.target.id === "settingsWatermarkEnabled") {
+        const controls = document.getElementById("settingsWatermarkControls")
+        if (controls) {
+          if (e.target.checked) {
+            controls.classList.add("active")
+          } else {
+            controls.classList.remove("active")
+          }
+        }
+      }
+    })
+
+    // Background color preview click
+    document.addEventListener("click", (e) => {
+      if (e.target.id === "settingsBackgroundColorPreview") {
+        const colorInput = document.getElementById("settingsPageBackgroundColor")
+        if (colorInput) {
+          colorInput.click()
+        }
+      }
+    })
+
+    // Watermark type selection
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("watermark-type-btn")) {
+        document.querySelectorAll(".watermark-type-btn").forEach((btn) => btn.classList.remove("active"))
+        e.target.classList.add("active")
+
+        const type = e.target.dataset.type
+        const textControls = document.getElementById("settingsWatermarkTextControls")
+        const imageControls = document.getElementById("settingsWatermarkImageControls")
+
+        if (type === "text") {
+          textControls.style.display = "block"
+          imageControls.style.display = "none"
+        } else if (type === "image") {
+          textControls.style.display = "none"
+          imageControls.style.display = "block"
+        } else if (type === "both") {
+          textControls.style.display = "block"
+          imageControls.style.display = "block"
+        }
+      }
+    })
+
+    // Delete pages button
+    const deletePagesBtn = document.getElementById("deletePages")
+    if (deletePagesBtn) {
+      deletePagesBtn.addEventListener("click", () => {
+        this.editor.Modal.close()
+        setTimeout(() => {
+          this.showPageDeleteModal()
+        }, 100)
+      })
+    }
 
     // Apply settings
     const applyBtn = document.getElementById("applyPageElementsSettings")
@@ -1463,6 +1947,21 @@ class PageSetupManager {
   }
 
   applyPageElementsSettings() {
+    // Collect margin settings
+    const newMargins = {
+      top: Number.parseFloat(document.getElementById("settingsMarginTop")?.value) || 0,
+      bottom: Number.parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0,
+      left: Number.parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0,
+      right: Number.parseFloat(document.getElementById("settingsMarginRight")?.value) || 0,
+    }
+
+    // Collect background color
+    const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff"
+
+    // Update margins and background color
+    this.pageSettings.margins = newMargins
+    this.pageSettings.backgroundColor = newBackgroundColor
+
     // Collect settings from form
     const headerSettings = {
       enabled: document.getElementById("headerEnabled")?.checked || false,
@@ -1472,7 +1971,7 @@ class PageSetupManager {
       padding: Number.parseFloat(document.getElementById("headerPadding")?.value) || 10,
       fontSize: Number.parseFloat(document.getElementById("headerFontSize")?.value) || 12,
       color: document.getElementById("headerColor")?.value || "#333333",
-      backgroundColor: document.getElementById("headerBackgroundColor")?.value || "#FFFFFF",
+      backgroundColor: newBackgroundColor, // Header inherits page background color
     }
 
     const footerSettings = {
@@ -1483,7 +1982,7 @@ class PageSetupManager {
       padding: Number.parseFloat(document.getElementById("footerPadding")?.value) || 10,
       fontSize: Number.parseFloat(document.getElementById("footerFontSize")?.value) || 12,
       color: document.getElementById("footerColor")?.value || "#333333",
-      backgroundColor: document.getElementById("footerBackgroundColor")?.value || "#FFFFFF",
+      backgroundColor: newBackgroundColor, // Footer inherits page background color
     }
 
     const pageNumberSettings = {
@@ -1496,30 +1995,100 @@ class PageSetupManager {
       showBorder: document.getElementById("pageNumberShowBorder")?.checked || true,
     }
 
-    // Apply to ALL pages (removed individual page option)
+    // Update page numbering settings - Fixed: Preserve page numbering after settings update
+    const startFromPage = Number.parseInt(document.getElementById("pageNumberStartFrom")?.value) || 1
+    this.pageSettings.pageNumbering.startFromPage = startFromPage
+    this.pageSettings.pageNumbering.excludedPages = Array.from({ length: startFromPage - 1 }, (_, i) => i + 1)
+    this.pageSettings.pageNumbering.enabled = pageNumberSettings.enabled // Fixed: Preserve enabled state
+
+    // Update watermark settings
+    const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false
+    const watermarkType =
+      document.querySelector("#settingsWatermarkControls .watermark-type-btn.active")?.dataset.type || "text"
+    const watermarkPosition =
+      document.querySelector("#settingsWatermarkControls .position-option.selected")?.dataset.position || "center"
+
+    this.pageSettings.watermark = {
+      enabled: watermarkEnabled,
+      type: watermarkType,
+      text: {
+        content: document.getElementById("settingsWatermarkText")?.value || "CONFIDENTIAL",
+        fontSize: Number.parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 48,
+        color: document.getElementById("settingsWatermarkColor")?.value || "#cccccc",
+        opacity: Number.parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.3,
+        rotation: Number.parseInt(document.getElementById("settingsWatermarkRotation")?.value) || -45,
+      },
+      image: {
+        url: document.getElementById("settingsWatermarkImageUrl")?.value || "",
+        width: Number.parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200,
+        height: Number.parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200,
+        opacity: 0.3,
+      },
+      position: watermarkPosition,
+      applyToAllPages: true,
+    }
+
+    // Apply to ALL pages
     this.pageSettings.pages.forEach((page) => {
+      page.backgroundColor = newBackgroundColor // Update page background color
       page.header = { ...headerSettings }
       page.footer = { ...footerSettings }
       page.pageNumber = { ...pageNumberSettings }
     })
 
-    // Update visuals
+    // Recalculate page dimensions with new margins and update visuals
+    this.setupEditorPages()
     this.updateAllPageVisuals()
-
-    // Update sections display if enabled
-    if (this.sectionsSettings.enabled) {
-      this.updateSectionsDisplay()
-    }
 
     // Close modal
     this.editor.Modal.close()
 
-    console.log("Page elements settings applied to all pages")
+    console.log("Enhanced page elements settings applied to all pages")
   }
 
   resetPageElementsSettings() {
+    // Reset margins
+    this.pageSettings.margins = {
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+    }
+
+    // Reset background color
+    this.pageSettings.backgroundColor = "#ffffff"
+
+    // Reset page numbering
+    this.pageSettings.pageNumbering = {
+      enabled: false,
+      startFromPage: 1,
+      excludedPages: [],
+    }
+
+    // Reset watermark
+    this.pageSettings.watermark = {
+      enabled: false,
+      type: "text",
+      text: {
+        content: "CONFIDENTIAL",
+        fontSize: 48,
+        color: "#cccccc",
+        opacity: 0.3,
+        rotation: -45,
+      },
+      image: {
+        url: "",
+        width: 200,
+        height: 200,
+        opacity: 0.3,
+      },
+      position: "center",
+      applyToAllPages: true,
+    }
+
     // Reset all pages to default settings
     this.pageSettings.pages.forEach((page) => {
+      page.backgroundColor = "#ffffff"
       page.header = {
         enabled: false,
         content: "",
@@ -1527,7 +2096,7 @@ class PageSetupManager {
         padding: this.defaultSizes.header.padding,
         fontSize: 12,
         color: "#333333",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "#ffffff",
         position: "center",
       }
       page.footer = {
@@ -1537,7 +2106,7 @@ class PageSetupManager {
         padding: this.defaultSizes.footer.padding,
         fontSize: 12,
         color: "#333333",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "#ffffff",
         position: "center",
       }
       page.pageNumber = {
@@ -1551,13 +2120,9 @@ class PageSetupManager {
       }
     })
 
-    // Update visuals
+    // Recalculate and update visuals
+    this.setupEditorPages()
     this.updateAllPageVisuals()
-
-    // Update sections display if enabled
-    if (this.sectionsSettings.enabled) {
-      this.updateSectionsDisplay()
-    }
 
     // Close modal
     this.editor.Modal.close()
@@ -1565,44 +2130,883 @@ class PageSetupManager {
     console.log("Page elements settings reset")
   }
 
-// FIXED: Updated setupEditorPages to properly account for header/footer space
-setupEditorPages() {
-  try {
-    // Calculate page dimensions in pixels (96 DPI standard)
+  setupEditorPages() {
+    try {
+      // Calculate page dimensions in pixels (96 DPI standard)
+      const mmToPx = 96 / 25.4
+      const totalPageWidth = Math.round(this.pageSettings.width * mmToPx)
+      const totalPageHeight = Math.round(this.pageSettings.height * mmToPx)
+
+      // Calculate content area dimensions (subtracting margins)
+      const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx)
+      const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx)
+      const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx)
+      const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx)
+
+      const contentWidth = totalPageWidth - marginLeftPx - marginRightPx
+      const contentHeight = totalPageHeight - marginTopPx - marginBottomPx
+
+      // Clear existing content
+      this.editor.getWrapper().components().reset()
+
+      // Create page containers
+      for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
+        const pageData = this.pageSettings.pages[i]
+
+        const pageComponent = this.editor.getWrapper().append(`
+          <div class="page-container" data-page-id="${pageData.id}" data-page-index="${i}">
+            <div class="page-content" style="
+              width: ${contentWidth}px; 
+              height: ${contentHeight}px; 
+              margin: ${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px;
+              position: relative;
+              overflow: hidden;
+              background-color: ${pageData.backgroundColor || this.pageSettings.backgroundColor};
+            ">
+              <!-- Content will be added here -->
+            </div>
+          </div>
+        `)[0]
+
+        // Set page styling with fixed dimensions and background color
+        pageComponent.addStyle({
+          width: `${totalPageWidth}px`,
+          height: `${totalPageHeight}px`,
+          background: pageData.backgroundColor || this.pageSettings.backgroundColor, // Apply background color
+          margin: "20px auto",
+          "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.15)",
+          border: "2px solid transparent", // Fixed: Always show full border
+          position: "relative",
+          "page-break-after": "always",
+          overflow: "hidden",
+          "box-sizing": "border-box",
+          transition: "border-color 0.2s ease",
+          "-webkit-print-color-adjust": "exact", // Preserve background color in print
+          "color-adjust": "exact",
+          "print-color-adjust": "exact",
+        })
+
+        // Set content area styling with margin enforcement and background color
+        const pageContentComponent = pageComponent.find(".page-content")[0]
+        if (pageContentComponent) {
+          pageContentComponent.addStyle({
+            overflow: "hidden",
+            position: "relative",
+            "box-sizing": "border-box",
+            display: "flex",
+            "flex-direction": "column",
+            height: `${contentHeight}px`,
+            width: `${contentWidth}px`,
+            "background-color": pageData.backgroundColor || this.pageSettings.backgroundColor, // Apply background color
+            border:
+              this.pageSettings.margins.top > 0 ||
+              this.pageSettings.margins.bottom > 0 ||
+              this.pageSettings.margins.left > 0 ||
+              this.pageSettings.margins.right > 0
+                ? "1px dashed #dee2e6"
+                : "none",
+            "-webkit-print-color-adjust": "exact", // Preserve background color in print
+            "color-adjust": "exact",
+            "print-color-adjust": "exact",
+          })
+        }
+      }
+
+      // Update canvas container for scrolling
+      this.setupCanvasScrolling()
+
+      // Apply initial page visuals
+      setTimeout(() => {
+        this.updateAllPageVisuals()
+      }, 500)
+    } catch (error) {
+      console.error("Error setting up editor pages:", error)
+    }
+  }
+
+  setupCanvasScrolling() {
+    const canvasContainer = this.editor.Canvas.getElement()
+    if (canvasContainer) {
+      canvasContainer.style.height = "calc(100vh - 120px)"
+      canvasContainer.style.background = "#f0f0f0"
+    }
+
+    const rightPanel = document.querySelector(".gjs-pn-panels-right")
+    if (rightPanel) {
+      rightPanel.style.position = "fixed"
+      rightPanel.style.right = "0"
+      rightPanel.style.top = "0"
+      rightPanel.style.height = "100vh"
+      rightPanel.style.overflow = "auto"
+      rightPanel.style.zIndex = "1000"
+    }
+  }
+
+  updateAllPageVisuals() {
+    this.pageSettings.pages.forEach((page, index) => {
+      const canvasBody = this.editor.Canvas.getBody()
+      const pageElement = canvasBody.querySelector(`[data-page-index="${index}"]`)
+      if (pageElement) {
+        this.updateSinglePageVisuals(pageElement, page, index)
+      }
+    })
+  }
+
+  updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
+    // Remove existing GrapesJS components for headers, footers, page numbers, and watermarks
+    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0]
+    if (pageComponent) {
+      const pageContentComponent = pageComponent.find(".page-content")[0]
+      if (pageContentComponent) {
+        // Remove existing elements
+        const existingHeaders = pageContentComponent.find(".page-header-element")
+        const existingFooters = pageContentComponent.find(".page-footer-element")
+        const existingPageNumbers = pageContentComponent.find(".page-number-element")
+        const existingWatermarks = pageContentComponent.find(".page-watermark")
+        const existingMainContent = pageContentComponent.find(".main-content-area")
+
+        existingHeaders.forEach((comp) => comp.remove())
+        existingFooters.forEach((comp) => comp.remove())
+        existingPageNumbers.forEach((comp) => comp.remove())
+        existingWatermarks.forEach((comp) => comp.remove())
+        existingMainContent.forEach((comp) => comp.remove())
+      }
+    }
+
+    // Remove existing DOM elements
+    const existingIndicator = pageElement.querySelector(".page-indicator")
+    if (existingIndicator) existingIndicator.remove()
+
+    // Add page indicator
+    const indicator = document.createElement("div")
+    indicator.className = "page-indicator"
+    indicator.textContent = `${pageSettings.name}`
+    pageElement.appendChild(indicator)
+
+    // Calculate dimensions and space allocation
     const mmToPx = 96 / 25.4
-    const pageWidth = Math.round(this.pageSettings.width * mmToPx)
-    const pageHeight = Math.round(this.pageSettings.height * mmToPx)
+    const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx)
+    const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx)
+    const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx)
+    const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx)
 
-    // Clear existing content
-    this.editor.getWrapper().components().reset()
+    const totalPageWidth = Math.round(this.pageSettings.width * mmToPx)
+    const totalPageHeight = Math.round(this.pageSettings.height * mmToPx)
+    const contentWidth = totalPageWidth - marginLeftPx - marginRightPx
+    const contentHeight = totalPageHeight - marginTopPx - marginBottomPx
 
-    // Create page containers
-    for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-      const pageData = this.pageSettings.pages[i]
+    // Calculate exact space needed for header and footer
+    let headerHeight = 0
+    let footerHeight = 0
 
+    if (pageSettings.header.enabled && pageSettings.header.content) {
+      headerHeight = Math.round(pageSettings.header.height * mmToPx + pageSettings.header.padding * 2)
+    }
+
+    if (pageSettings.footer.enabled && pageSettings.footer.content) {
+      footerHeight = Math.round(pageSettings.footer.height * mmToPx + pageSettings.footer.padding * 2)
+    }
+
+    // Calculate available main content area height
+    const mainContentHeight = contentHeight - headerHeight - footerHeight
+
+    if (pageComponent) {
+      const pageContentComponent = pageComponent.find(".page-content")[0]
+      if (pageContentComponent) {
+        // Reset and set exact page content dimensions with background color
+        pageContentComponent.addStyle({
+          display: "flex",
+          "flex-direction": "column",
+          height: `${contentHeight}px`,
+          width: `${contentWidth}px`,
+          "box-sizing": "border-box",
+          overflow: "hidden",
+          position: "relative",
+          "background-color": pageSettings.backgroundColor || this.pageSettings.backgroundColor, // Apply background color
+          "-webkit-print-color-adjust": "exact", // Preserve background color in print
+          "color-adjust": "exact",
+          "print-color-adjust": "exact",
+        })
+
+        // Add watermark first (behind all content)
+        if (this.pageSettings.watermark.enabled) {
+          this.addWatermarkToPage(pageContentComponent, pageIndex)
+        }
+
+        // Add header if enabled
+        if (pageSettings.header.enabled && pageSettings.header.content) {
+          const headerGjsComponent = pageContentComponent.append(`
+            <div class="page-header-element" style="
+              position: static !important;
+              width: 100% !important;
+              height: ${headerHeight}px !important;
+              background: ${pageSettings.header.backgroundColor || pageSettings.backgroundColor || this.pageSettings.backgroundColor} !important;
+              color: ${pageSettings.header.color} !important;
+              font-size: ${pageSettings.header.fontSize}px !important;
+              text-align: ${pageSettings.header.position} !important;
+              padding: ${pageSettings.header.padding}px !important;
+              box-sizing: border-box !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: ${pageSettings.header.position === "left" ? "flex-start" : pageSettings.header.position === "right" ? "flex-end" : "center"} !important;
+              pointer-events: none !important;
+              user-select: none !important;
+              font-family: Arial, sans-serif !important;
+              border-bottom: 1px solid #e9ecef !important;
+              flex-shrink: 0 !important;
+              z-index: 1000 !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }">${pageSettings.header.content}</div>
+          `)[0]
+
+          headerGjsComponent.set({
+            selectable: false,
+            editable: false,
+            removable: false,
+            draggable: false,
+            copyable: false,
+          })
+        }
+
+        // Add main content area with calculated height
+        const mainContentArea = pageContentComponent.append(`
+          <div class="main-content-area" style="
+            flex: 0 0 ${mainContentHeight}px !important;
+            width: 100% !important;
+            height: ${mainContentHeight}px !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            position: relative !important;
+            background: transparent !important;
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          "></div>
+        `)[0]
+
+        mainContentArea.set({
+          selectable: true,
+          editable: true,
+          droppable: true,
+          "custom-name": "Content Area",
+        })
+
+        // Add footer if enabled
+        if (pageSettings.footer.enabled && pageSettings.footer.content) {
+          const footerGjsComponent = pageContentComponent.append(`
+            <div class="page-footer-element" style="
+              position: static !important;
+              width: 100% !important;
+              height: ${footerHeight}px !important;
+              background: ${pageSettings.footer.backgroundColor || pageSettings.backgroundColor || this.pageSettings.backgroundColor} !important;
+              color: ${pageSettings.footer.color} !important;
+              font-size: ${pageSettings.footer.fontSize}px !important;
+              text-align: ${pageSettings.footer.position} !important;
+              padding: ${pageSettings.footer.padding}px !important;
+              box-sizing: border-box !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: ${pageSettings.footer.position === "left" ? "flex-start" : pageSettings.footer.position === "right" ? "flex-end" : "center"} !important;
+              pointer-events: none !important;
+              user-select: none !important;
+              font-family: Arial, sans-serif !important;
+              border-top: 1px solid #e9ecef !important;
+              flex-shrink: 0 !important;
+              z-index: 1000 !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }">${pageSettings.footer.content}</div>
+          `)[0]
+
+          footerGjsComponent.set({
+            selectable: false,
+            editable: false,
+            removable: false,
+            draggable: false,
+            copyable: false,
+          })
+        }
+      }
+    }
+
+    // Add page number as overlay (positioned absolutely for flexibility)
+    if (pageSettings.pageNumber.enabled && this.shouldShowPageNumber(pageIndex)) {
+      const actualPageNumber = this.getActualPageNumber(pageIndex)
+      let pageNumberText = pageSettings.pageNumber.format
+      pageNumberText = pageNumberText.replace("{n}", actualPageNumber)
+      pageNumberText = pageNumberText.replace("{total}", this.getTotalNumberedPages())
+
+      const position = pageSettings.pageNumber.position || "bottom-right"
+      let positionStyles = ""
+
+      switch (position) {
+        case "top-left":
+          positionStyles = "top: 10px !important; left: 10px !important;"
+          break
+        case "top-center":
+          positionStyles = "top: 10px !important; left: 50% !important; transform: translateX(-50%) !important;"
+          break
+        case "top-right":
+          positionStyles = "top: 10px !important; right: 10px !important;"
+          break
+        case "center-left":
+          positionStyles = "top: 50% !important; left: 10px !important; transform: translateY(-50%) !important;"
+          break
+        case "center-center":
+          positionStyles = "top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important;"
+          break
+        case "center-right":
+          positionStyles = "top: 50% !important; right: 10px !important; transform: translateY(-50%) !important;"
+          break
+        case "bottom-left":
+          positionStyles = "bottom: 10px !important; left: 10px !important;"
+          break
+        case "bottom-center":
+          positionStyles = "bottom: 10px !important; left: 50% !important; transform: translateX(-50%) !important;"
+          break
+        case "bottom-right":
+        default:
+          positionStyles = "bottom: 10px !important; right: 10px !important;"
+          break
+      }
+
+      if (pageComponent) {
+        const pageContentComponent = pageComponent.find(".page-content")[0]
+        if (pageContentComponent) {
+          const pageNumberGjsComponent = pageContentComponent.append(`
+            <div class="page-number-element" style="
+              position: absolute !important;
+              ${positionStyles}
+              background: ${pageSettings.pageNumber.backgroundColor} !important;
+              color: ${pageSettings.pageNumber.color} !important;
+              font-size: ${pageSettings.pageNumber.fontSize}px !important;
+              padding: 4px 8px !important;
+              border-radius: 3px !important;
+              border: ${pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none"} !important;
+              z-index: 2000 !important;
+              pointer-events: none !important;
+              user-select: none !important;
+              font-family: Arial, sans-serif !important;
+              white-space: nowrap !important;
+              min-width: 20px !important;
+              min-height: 20px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+            )">${pageNumberText}</div>
+          `)[0]
+
+          pageNumberGjsComponent.set({
+            selectable: false,
+            editable: false,
+            removable: false,
+            draggable: false,
+            copyable: false,
+          })
+        }
+      }
+    }
+  }
+
+  addWatermarkToPage(pageContentComponent, pageIndex) {
+    if (!this.pageSettings.watermark.enabled) return
+
+    const watermark = this.pageSettings.watermark
+    let watermarkContent = ""
+
+    // Position styles
+    let positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;"
+
+    switch (watermark.position) {
+      case "top-left":
+        positionStyles =
+          "display: flex !important; align-items: flex-start !important; justify-content: flex-start !important; padding: 20px !important;"
+        break
+      case "top-center":
+        positionStyles =
+          "display: flex !important; align-items: flex-start !important; justify-content: center !important; padding: 20px !important;"
+        break
+      case "top-right":
+        positionStyles =
+          "display: flex !important; align-items: flex-start !important; justify-content: flex-end !important; padding: 20px !important;"
+        break
+      case "center-left":
+        positionStyles =
+          "display: flex !important; align-items: center !important; justify-content: flex-start !important; padding: 20px !important;"
+        break
+      case "center":
+        positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;"
+        break
+      case "center-right":
+        positionStyles =
+          "display: flex !important; align-items: center !important; justify-content: flex-end !important; padding: 20px !important;"
+        break
+      case "bottom-left":
+        positionStyles =
+          "display: flex !important; align-items: flex-end !important; justify-content: flex-start !important; padding: 20px !important;"
+        break
+      case "bottom-center":
+        positionStyles =
+          "display: flex !important; align-items: flex-end !important; justify-content: center !important; padding: 20px !important;"
+        break
+      case "bottom-right":
+        positionStyles =
+          "display: flex !important; align-items: flex-end !important; justify-content: flex-end !important; padding: 20px !important;"
+        break
+    }
+
+    // Create watermark content based on type
+    if (watermark.type === "text" || watermark.type === "both") {
+      watermarkContent += `
+        <div class="page-watermark-text" style="
+          font-family: ${watermark.text.font || "Arial"}, sans-serif !important;
+          font-size: ${watermark.text.fontSize}px !important;
+          color: ${watermark.text.color} !important;
+          opacity: ${watermark.text.opacity} !important;
+          transform: rotate(${watermark.text.rotation}deg) !important;
+          font-weight: bold !important;
+          white-space: nowrap !important;
+          user-select: none !important;
+          pointer-events: none !important;
+        ">${watermark.text.content}</div>
+      `
+    }
+
+    if (watermark.type === "image" || watermark.type === "both") {
+      if (watermark.image.url) {
+        watermarkContent += `
+          <img class="page-watermark-image" src="${watermark.image.url}" style="
+            width: ${watermark.image.width}px !important;
+            height: ${watermark.image.height}px !important;
+            opacity: ${watermark.image.opacity} !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain !important;
+            user-select: none !important;
+            pointer-events: none !important;
+          " />
+        `
+      }
+    }
+
+    if (watermarkContent) {
+      const watermarkGjsComponent = pageContentComponent.append(`
+        <div class="page-watermark" style="
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          pointer-events: none !important;
+          user-select: none !important;
+          z-index: 1 !important;
+          ${positionStyles}
+        ">${watermarkContent}</div>
+      `)[0]
+
+      watermarkGjsComponent.set({
+        selectable: false,
+        editable: false,
+        removable: false,
+        draggable: false,
+        copyable: false,
+      })
+    }
+  }
+
+  shouldShowPageNumber(pageIndex) {
+    const pageNumber = pageIndex + 1
+    return (
+      !this.pageSettings.pageNumbering.excludedPages.includes(pageNumber) && this.pageSettings.pageNumbering.enabled
+    )
+  }
+
+  getActualPageNumber(pageIndex) {
+    const pageNumber = pageIndex + 1
+    const excludedCount = this.pageSettings.pageNumbering.excludedPages.filter((p) => p < pageNumber).length
+    return pageNumber - excludedCount
+  }
+
+  getTotalNumberedPages() {
+    return this.pageSettings.numberOfPages - this.pageSettings.pageNumbering.excludedPages.length
+  }
+
+  showPageDeleteModal() {
+    if (this.pageSettings.numberOfPages <= 1) {
+      alert("Cannot delete the last page")
+      return
+    }
+
+    let pageListHTML = ""
+    this.pageSettings.pages.forEach((page, index) => {
+      const isExcluded = this.pageSettings.pageNumbering.excludedPages.includes(index + 1)
+      const pageNumberInfo = this.shouldShowPageNumber(index)
+        ? `Page # ${this.getActualPageNumber(index)}`
+        : "Excluded from numbering"
+
+      pageListHTML += `
+        <div class="page-delete-item" data-page-index="${index}">
+          <div class="page-delete-info">
+            <div class="page-delete-icon">
+              <i class="fa fa-file-text-o"></i>
+            </div>
+            <div class="page-delete-details">
+              <div class="page-delete-name">${page.name}</div>
+              <div class="page-delete-meta">
+                ${page.header.enabled ? '<span class="feature-tag">Header</span>' : ""}
+                ${page.footer.enabled ? '<span class="feature-tag">Footer</span>' : ""}
+                ${page.pageNumber.enabled ? '<span class="feature-tag">Page #</span>' : ""}
+                ${this.pageSettings.watermark.enabled ? '<span class="feature-tag">Watermark</span>' : ""}
+                <span class="feature-tag ${isExcluded ? "excluded" : "numbered"}">${pageNumberInfo}</span>
+              </div>
+            </div>
+          </div>
+          <button class="page-delete-btn-item" data-page-index="${index}">
+            <i class="fa fa-trash"></i>
+          </button>
+        </div>
+      `
+    })
+
+    this.editor.Modal.setTitle("🗑️ Delete Pages")
+    this.editor.Modal.setContent(`
+      <div class="page-delete-modal-content" style="color: #000 !important;">
+        <div class="delete-warning">
+          <i class="fa fa-exclamation-triangle"></i>
+          <p>Select a page to delete. Page numbering will be automatically adjusted.</p>
+        </div>
+        <div class="page-delete-list">
+          ${pageListHTML}
+        </div>
+        <div class="page-setup-actions" style="margin-top: 20px;">
+          <button id="cancelPageDelete" class="page-setup-btn page-setup-btn-secondary">
+            <i class="fa fa-times"></i> Cancel
+          </button>
+        </div>
+      </div>
+      <style>
+        .delete-warning {
+          background: #fff3cd;
+          border: 1px solid #ffeaa7;
+          border-radius: 6px;
+          padding: 15px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .delete-warning i {
+          color: #856404;
+          font-size: 18px;
+        }
+        .delete-warning p {
+          margin: 0;
+          color: #856404 !important;
+          font-weight: 500;
+        }
+        .page-delete-list {
+          max-height: 400px;
+          overflow-y: auto;
+          border: 1px solid #e9ecef;
+          border-radius: 8px;
+          padding: 15px;
+          background: #f8f9fa;
+        }
+        .page-delete-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 15px;
+          margin-bottom: 10px;
+          background: white;
+          border-radius: 8px;
+          border: 2px solid #e9ecef;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .page-delete-item:hover {
+          border-color: #dc3545;
+          box-shadow: 0 4px 8px rgba(220,53,69,0.15);
+        }
+        .page-delete-item:last-child {
+          margin-bottom: 0;
+        }
+        .page-delete-info {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          flex: 1;
+        }
+        .page-delete-icon {
+          width: 40px;
+          height: 40px;
+          background: #007bff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 16px;
+        }
+        .page-delete-details {
+          flex: 1;
+        }
+        .page-delete-name {
+          font-weight: 600;
+          color: #333 !important;
+          font-size: 14px;
+          margin-bottom: 5px;
+        }
+        .page-delete-meta {
+          display: flex;
+          gap: 5px;
+          flex-wrap: wrap;
+        }
+        .feature-tag {
+          background: #e3f2fd;
+          color: #1976d2 !important;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 10px;
+          font-weight: 500;
+          border: 1px solid #bbdefb;
+        }
+        .feature-tag.excluded {
+          background: #ffebee;
+          color: #c62828 !important;
+          border-color: #ffcdd2;
+        }
+        .feature-tag.numbered {
+          background: #e8f5e8;
+          color: #2e7d32 !important;
+          border-color: #c8e6c9;
+        }
+        .page-delete-btn-item {
+          background: #dc3545;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          min-width: 80px;
+          justify-content: center;
+        }
+        .page-delete-btn-item:hover {
+          background: #c82333;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(220,53,69,0.3);
+        }
+        .page-setup-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          justify-content: center;
+        }
+      </style>
+    `)
+
+    this.editor.Modal.open()
+
+    setTimeout(() => {
+      document.querySelectorAll(".page-delete-btn-item").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const pageIndex = Number.parseInt(e.target.closest(".page-delete-btn-item").dataset.pageIndex)
+          this.confirmDeletePage(pageIndex)
+        })
+      })
+
+      const cancelBtn = document.getElementById("cancelPageDelete")
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", () => {
+          this.editor.Modal.close()
+        })
+      }
+    }, 100)
+  }
+
+  confirmDeletePage(pageIndex) {
+    const page = this.pageSettings.pages[pageIndex]
+    if (confirm(`Are you sure you want to delete "${page.name}"?`)) {
+      this.performPageDeletion(pageIndex)
+      this.editor.Modal.close()
+    }
+  }
+
+  performPageDeletion(pageIndex) {
+    const deletedPageNumber = pageIndex + 1
+
+    // Remove page from settings
+    this.pageSettings.pages.splice(pageIndex, 1)
+    this.pageSettings.numberOfPages--
+
+    // Remove page from editor
+    const component = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0]
+    if (component) {
+      component.remove()
+    }
+
+    // Fixed: Properly maintain page numbering settings after deletion
+    // Update excluded pages list (remove deleted page and adjust remaining page numbers)
+    this.pageSettings.pageNumbering.excludedPages = this.pageSettings.pageNumbering.excludedPages
+      .filter((pageNum) => pageNum !== deletedPageNumber)
+      .map((pageNum) => (pageNum > deletedPageNumber ? pageNum - 1 : pageNum))
+
+    // Adjust startFromPage if necessary
+    if (this.pageSettings.pageNumbering.startFromPage > deletedPageNumber) {
+      this.pageSettings.pageNumbering.startFromPage--
+    } else if (this.pageSettings.pageNumbering.startFromPage === deletedPageNumber) {
+      // If the starting page was deleted, find the next non-excluded page
+      let newStartPage = deletedPageNumber
+      while (
+        newStartPage <= this.pageSettings.numberOfPages &&
+        this.pageSettings.pageNumbering.excludedPages.includes(newStartPage)
+      ) {
+        newStartPage++
+      }
+      if (newStartPage <= this.pageSettings.numberOfPages) {
+        this.pageSettings.pageNumbering.startFromPage = newStartPage
+      } else {
+        this.pageSettings.pageNumbering.startFromPage = 1
+      }
+
+      // Update excluded pages accordingly
+      this.pageSettings.pageNumbering.excludedPages = Array.from(
+        { length: this.pageSettings.pageNumbering.startFromPage - 1 },
+        (_, i) => i + 1,
+      )
+    }
+
+    // Renumber all remaining pages and update their attributes
+    this.pageSettings.pages.forEach((page, newIndex) => {
+      page.pageNumber = newIndex + 1
+      page.name = `Page ${newIndex + 1}`
+      page.id = `page-${newIndex + 1}`
+    })
+
+    // Update all remaining page components with new indices
+    const remainingComponents = this.editor.getWrapper().find(".page-container")
+    remainingComponents.forEach((component, index) => {
+      if (index < this.pageSettings.numberOfPages) {
+        const page = this.pageSettings.pages[index]
+        component.addAttributes({
+          "data-page-index": index,
+          "data-page-id": page.id,
+        })
+      }
+    })
+
+    // Adjust current page index
+    if (this.currentPageIndex >= this.pageSettings.numberOfPages) {
+      this.currentPageIndex = this.pageSettings.numberOfPages - 1
+    }
+
+    // Update all page visuals to reflect new numbering
+    setTimeout(() => {
+      this.updateAllPageVisuals()
+    }, 100)
+
+    console.log(`Page deleted. Remaining pages: ${this.pageSettings.numberOfPages}`)
+    console.log("Updated page numbering settings:", this.pageSettings.pageNumbering)
+  }
+
+  addNewPage() {
+    const newPageIndex = this.pageSettings.numberOfPages
+
+    // Get current global settings from first page
+    const currentSettings = this.pageSettings.pages[0] || {}
+
+    const newPage = {
+      id: `page-${newPageIndex + 1}`,
+      name: `Page ${newPageIndex + 1}`,
+      pageNumber: newPageIndex + 1,
+      backgroundColor: this.pageSettings.backgroundColor, // Fixed: New page inherits background color
+      header: {
+        enabled: currentSettings.header?.enabled || false,
+        content: currentSettings.header?.content || "",
+        height: currentSettings.header?.height || this.defaultSizes.header.height,
+        padding: currentSettings.header?.padding || this.defaultSizes.header.padding,
+        fontSize: currentSettings.header?.fontSize || 12,
+        color: currentSettings.header?.color || "#333333",
+        backgroundColor: this.pageSettings.backgroundColor, // Fixed: Header inherits page background color
+        position: currentSettings.header?.position || "center",
+      },
+      footer: {
+        enabled: currentSettings.footer?.enabled || false,
+        content: currentSettings.footer?.content || "",
+        height: currentSettings.footer?.height || this.defaultSizes.footer.height,
+        padding: currentSettings.footer?.padding || this.defaultSizes.footer.padding,
+        fontSize: currentSettings.footer?.fontSize || 12,
+        color: currentSettings.footer?.color || "#333333",
+        backgroundColor: this.pageSettings.backgroundColor, // Fixed: Footer inherits page background color
+        position: currentSettings.footer?.position || "center",
+      },
+      pageNumber: {
+        enabled: currentSettings.pageNumber?.enabled || false,
+        format: currentSettings.pageNumber?.format || "Page {n}",
+        position: currentSettings.pageNumber?.position || "bottom-right",
+        fontSize: currentSettings.pageNumber?.fontSize || 11,
+        color: currentSettings.pageNumber?.color || "#333333",
+        backgroundColor: currentSettings.pageNumber?.backgroundColor || "#ffffff",
+        showBorder: currentSettings.pageNumber?.showBorder !== false,
+      },
+    }
+
+    this.pageSettings.pages.push(newPage)
+    this.pageSettings.numberOfPages++
+
+    // Add page to editor
+    const mmToPx = 96 / 25.4
+    const totalPageWidth = Math.round(this.pageSettings.width * mmToPx)
+    const totalPageHeight = Math.round(this.pageSettings.height * mmToPx)
+    const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx)
+    const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx)
+    const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx)
+    const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx)
+    const contentWidth = totalPageWidth - marginLeftPx - marginRightPx
+    const contentHeight = totalPageHeight - marginTopPx - marginBottomPx
+
+    try {
       const pageComponent = this.editor.getWrapper().append(`
-        <div class="page-container" data-page-id="${pageData.id}" data-page-index="${i}">
-          <div class="page-content" style="min-height: ${pageHeight}px; position: relative;">
+        <div class="page-container" data-page-id="${newPage.id}" data-page-index="${newPageIndex}">
+          <div class="page-content" style="
+            width: ${contentWidth}px; 
+            height: ${contentHeight}px; 
+            margin: ${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px;
+            position: relative;
+            overflow: hidden;
+            background-color: ${newPage.backgroundColor};
+          ">
             <!-- Content will be added here -->
           </div>
         </div>
       `)[0]
 
-      // Set page styling with fixed dimensions and content boundaries
       pageComponent.addStyle({
-        width: `${pageWidth}px`,
-        height: `${pageHeight}px`,
-        background: "white",
+        width: `${totalPageWidth}px`,
+        height: `${totalPageHeight}px`,
+        background: newPage.backgroundColor, // Fixed: Apply background color to new page
         margin: "20px auto",
         "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.15)",
-        border: "1px solid #ccc",
+        border: "2px solid transparent", // Fixed: Always show full border
         position: "relative",
         "page-break-after": "always",
-        overflow: "hidden", // Enforce content boundaries
-        "box-sizing": "border-box"
+        overflow: "hidden",
+        "box-sizing": "border-box",
+        transition: "border-color 0.2s ease",
+        "-webkit-print-color-adjust": "exact", // Preserve background color in print
+        "color-adjust": "exact",
+        "print-color-adjust": "exact",
       })
 
-      // FIXED: Set content area styling to use flexbox layout with exact height
+      // Set proper flex layout for new page content
       const pageContentComponent = pageComponent.find(".page-content")[0]
       if (pageContentComponent) {
         pageContentComponent.addStyle({
@@ -1611,629 +3015,64 @@ setupEditorPages() {
           "box-sizing": "border-box",
           display: "flex",
           "flex-direction": "column",
-          height: `${pageHeight}px`, // FIXED: Use exact height instead of min-height
-          width: "100%"
-        })
-      }
-    }
-
-    // Update canvas container for scrolling
-    this.setupCanvasScrolling()
-
-    // Apply initial page visuals
-    setTimeout(() => {
-      this.updateAllPageVisuals()
-    }, 500)
-  } catch (error) {
-    console.error("Error setting up editor pages:", error)
-  }
-}
-
-setupCanvasScrolling() {
-  // Make only the canvas scrollable, not the entire window
-  const canvasContainer = this.editor.Canvas.getElement()
-  if (canvasContainer) {
-    canvasContainer.style.overflow = "auto"
-    canvasContainer.style.height = "calc(100vh - 120px)"
-    canvasContainer.style.background = "#f0f0f0"
-  }
-
-  // Ensure the right panel doesn't scroll with canvas
-  const rightPanel = document.querySelector(".gjs-pn-panels-right")
-  if (rightPanel) {
-    rightPanel.style.position = "fixed"
-    rightPanel.style.right = "0"
-    rightPanel.style.top = "0"
-    rightPanel.style.height = "100vh"
-    rightPanel.style.overflow = "auto"
-    rightPanel.style.zIndex = "1000"
-  }
-}
-
-updateAllPageVisuals() {
-  this.pageSettings.pages.forEach((page, index) => {
-    const canvasBody = this.editor.Canvas.getBody()
-    const pageElement = canvasBody.querySelector(`[data-page-index="${index}"]`)
-    if (pageElement) {
-      this.updateSinglePageVisuals(pageElement, page, index)
-    }
-  })
-}
-
-// FIXED: Updated methods to properly calculate and manage page content area heights
-
-updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
-  // Remove existing GrapesJS components for headers, footers, and page numbers
-  const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0]
-  if (pageComponent) {
-    const pageContentComponent = pageComponent.find(".page-content")[0]
-    if (pageContentComponent) {
-      // Remove existing header, footer, and page number components
-      const existingHeaders = pageContentComponent.find(".page-header-element")
-      const existingFooters = pageContentComponent.find(".page-footer-element")
-      const existingPageNumbers = pageContentComponent.find(".page-number-element")
-      const existingMainContent = pageContentComponent.find(".main-content-area")
-
-      existingHeaders.forEach((comp) => comp.remove())
-      existingFooters.forEach((comp) => comp.remove())
-      existingPageNumbers.forEach((comp) => comp.remove())
-      existingMainContent.forEach((comp) => comp.remove())
-    }
-  }
-
-  // Remove existing DOM elements
-  const existingIndicator = pageElement.querySelector(".page-indicator")
-  if (existingIndicator) existingIndicator.remove()
-
-  // Add page indicator
-  const indicator = document.createElement("div")
-  indicator.className = "page-indicator"
-  indicator.textContent = `${pageSettings.name}`
-  pageElement.appendChild(indicator)
-
-  // Calculate dimensions and space allocation
-  const mmToPx = 96 / 25.4
-  const totalPageHeight = Math.round(this.pageSettings.height * mmToPx)
-
-  // FIXED: Calculate exact space needed for header and footer
-  let headerHeight = 0
-  let footerHeight = 0
-
-  if (pageSettings.header.enabled && pageSettings.header.content) {
-    headerHeight = Math.round((pageSettings.header.height * mmToPx) + (pageSettings.header.padding * 2))
-  }
-
-  if (pageSettings.footer.enabled && pageSettings.footer.content) {
-    footerHeight = Math.round((pageSettings.footer.height * mmToPx) + (pageSettings.footer.padding * 2))
-  }
-
-  // FIXED: Calculate available main content area height
-  const mainContentHeight = totalPageHeight - headerHeight - footerHeight
-
-  if (pageComponent) {
-    const pageContentComponent = pageComponent.find(".page-content")[0]
-    if (pageContentComponent) {
-      // FIXED: Reset and set exact page content height
-      pageContentComponent.addStyle({
-        'display': 'flex',
-        'flex-direction': 'column',
-        'height': `${totalPageHeight}px`,
-        'width': '100%',
-        'box-sizing': 'border-box',
-        'overflow': 'hidden'
-      })
-
-      // Add header if enabled
-      if (pageSettings.header.enabled && pageSettings.header.content) {
-        const headerGjsComponent = pageContentComponent.append(`
-          <div class="page-header-element" style="
-            position: static !important;
-            width: 100% !important;
-            height: ${headerHeight}px !important;
-            background: ${pageSettings.header.backgroundColor} !important;
-            color: ${pageSettings.header.color} !important;
-            font-size: ${pageSettings.header.fontSize}px !important;
-            text-align: ${pageSettings.header.position} !important;
-            padding: ${pageSettings.header.padding}px !important;
-            box-sizing: border-box !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: ${pageSettings.header.position === "left" ? "flex-start" : pageSettings.header.position === "right" ? "flex-end" : "center"} !important;
-            pointer-events: none !important;
-            user-select: none !important;
-            font-family: Arial, sans-serif !important;
-            border-bottom: 1px solid #e9ecef !important;
-            flex-shrink: 0 !important;
-            z-index: 1000 !important;
-          ">${pageSettings.header.content}</div>
-        `)[0]
-
-        // Make it non-selectable and non-editable
-        headerGjsComponent.set({
-          selectable: false,
-          editable: false,
-          removable: false,
-          draggable: false,
-          copyable: false,
+          height: `${contentHeight}px`,
+          width: `${contentWidth}px`,
+          "background-color": newPage.backgroundColor, // Fixed: Apply background color
+          border:
+            this.pageSettings.margins.top > 0 ||
+            this.pageSettings.margins.bottom > 0 ||
+            this.pageSettings.margins.left > 0 ||
+            this.pageSettings.margins.right > 0
+              ? "1px dashed #dee2e6"
+              : "none",
+          "-webkit-print-color-adjust": "exact", // Preserve background color in print
+          "color-adjust": "exact",
+          "print-color-adjust": "exact",
         })
       }
 
-      // FIXED: Add main content area with calculated height
-      const mainContentArea = pageContentComponent.append(`
-        <div class="main-content-area" style="
-          flex: 0 0 ${mainContentHeight}px !important;
-          width: 100% !important;
-          height: ${mainContentHeight}px !important;
-          box-sizing: border-box !important;
-          overflow: visible !important;
-          position: relative !important;
-          background: transparent !important;
-        "></div>
-      `)[0]
+      // Navigate to new page
+      this.currentPageIndex = newPageIndex
 
-      // Make the main content area selectable and editable for user content
-      mainContentArea.set({
-        selectable: true,
-        editable: true,
-        droppable: true,
-        'custom-name': 'Content Area'
-      })
+      // Update page visuals
+      setTimeout(() => {
+        this.updateAllPageVisuals()
 
-      // Add footer if enabled
-      if (pageSettings.footer.enabled && pageSettings.footer.content) {
-        const footerGjsComponent = pageContentComponent.append(`
-          <div class="page-footer-element" style="
-            position: static !important;
-            width: 100% !important;
-            height: ${footerHeight}px !important;
-            background: ${pageSettings.footer.backgroundColor} !important;
-            color: ${pageSettings.footer.color} !important;
-            font-size: ${pageSettings.footer.fontSize}px !important;
-            text-align: ${pageSettings.footer.position} !important;
-            padding: ${pageSettings.footer.padding}px !important;
-            box-sizing: border-box !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: ${pageSettings.footer.position === "left" ? "flex-start" : pageSettings.footer.position === "right" ? "flex-end" : "center"} !important;
-            pointer-events: none !important;
-            user-select: none !important;
-            font-family: Arial, sans-serif !important;
-            border-top: 1px solid #e9ecef !important;
-            flex-shrink: 0 !important;
-            z-index: 1000 !important;
-          ">${pageSettings.footer.content}</div>
-        `)[0]
+        // Show confirmation popup
+        const appliedFeatures = []
+        if (newPage.header.enabled) appliedFeatures.push("Header")
+        if (newPage.footer.enabled) appliedFeatures.push("Footer")
+        if (newPage.pageNumber.enabled) appliedFeatures.push("Page Number")
+        if (this.pageSettings.watermark.enabled) appliedFeatures.push("Watermark")
+        if (newPage.backgroundColor !== "#ffffff") appliedFeatures.push("Background Color")
 
-        // Make it non-selectable and non-editable
-        footerGjsComponent.set({
-          selectable: false,
-          editable: false,
-          removable: false,
-          draggable: false,
-          copyable: false,
-        })
-      }
+        const featuresText =
+          appliedFeatures.length > 0
+            ? `\n\nApplied features: ${appliedFeatures.join(", ")}`
+            : "\n\nNo additional features applied."
+
+        alert(`✅ New page "${newPage.name}" has been added successfully!${featuresText}`)
+      }, 100)
+
+      console.log("New page added:", newPage)
+    } catch (error) {
+      console.error("Error adding new page:", error)
     }
   }
 
-  // Add page number as overlay (positioned absolutely for flexibility)
-  if (pageSettings.pageNumber.enabled) {
-    // Format page number text
-    let pageNumberText = pageSettings.pageNumber.format
-    pageNumberText = pageNumberText.replace("{n}", pageIndex + 1)
-    pageNumberText = pageNumberText.replace("{total}", this.pageSettings.numberOfPages)
-
-    const position = pageSettings.pageNumber.position || "bottom-right"
-    let positionStyles = ""
-
-    switch (position) {
-      case "top-left":
-        positionStyles = "top: 10px !important; left: 10px !important;"
-        break
-      case "top-center":
-        positionStyles = "top: 10px !important; left: 50% !important; transform: translateX(-50%) !important;"
-        break
-      case "top-right":
-        positionStyles = "top: 10px !important; right: 10px !important;"
-        break
-      case "center-left":
-        positionStyles = "top: 50% !important; left: 10px !important; transform: translateY(-50%) !important;"
-        break
-      case "center-center":
-        positionStyles = "top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important;"
-        break
-      case "center-right":
-        positionStyles = "top: 50% !important; right: 10px !important; transform: translateY(-50%) !important;"
-        break
-      case "bottom-left":
-        positionStyles = "bottom: 10px !important; left: 10px !important;"
-        break
-      case "bottom-center":
-        positionStyles = "bottom: 10px !important; left: 50% !important; transform: translateX(-50%) !important;"
-        break
-      case "bottom-right":
-      default:
-        positionStyles = "bottom: 10px !important; right: 10px !important;"
-        break
-    }
-
-    if (pageComponent) {
-      const pageContentComponent = pageComponent.find(".page-content")[0]
-      if (pageContentComponent) {
-        // Add page number as an absolute positioned overlay
-        const pageNumberGjsComponent = pageContentComponent.append(`
-          <div class="page-number-element" style="
-            position: absolute !important;
-            ${positionStyles}
-            background: ${pageSettings.pageNumber.backgroundColor} !important;
-            color: ${pageSettings.pageNumber.color} !important;
-            font-size: ${pageSettings.pageNumber.fontSize}px !important;
-            padding: 4px 8px !important;
-            border-radius: 3px !important;
-            border: ${pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none"} !important;
-            z-index: 2000 !important;
-            pointer-events: none !important;
-            user-select: none !important;
-            font-family: Arial, sans-serif !important;
-            white-space: nowrap !important;
-            min-width: 20px !important;
-            min-height: 20px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-          ">${pageNumberText}</div>
-        `)[0]
-
-        // Make it non-selectable and non-editable
-        pageNumberGjsComponent.set({
-          selectable: false,
-          editable: false,
-          removable: false,
-          draggable: false,
-          copyable: false,
-        })
-      }
-    }
+  // Basic getter methods for integration
+  getPageSettings() {
+    return this.pageSettings
   }
 
-  // FIXED: Log the calculated dimensions for verification
-  console.log(`Page ${pageIndex + 1} Layout:`, {
-    totalPageHeight,
-    headerHeight,
-    footerHeight,
-    mainContentHeight,
-    availableForContent: mainContentHeight - 30 // minus padding
-  })
-}
-
-updatePageIndicators() {
-  this.pageSettings.pages.forEach((page, index) => {
-    const canvasBody = this.editor.Canvas.getBody()
-    const pageElement = canvasBody.querySelector(`[data-page-index="${index}"]`)
-    if (pageElement) {
-      // Remove existing indicator
-      const existingIndicator = pageElement.querySelector(".page-indicator")
-      if (existingIndicator) existingIndicator.remove()
-
-      // Add page indicator
-      const indicator = document.createElement("div")
-      indicator.className = "page-indicator"
-      indicator.textContent = `${page.name}`
-      pageElement.appendChild(indicator)
-    }
-  })
-}
-
-deleteCurrentPage() {
-  this.showPageDeleteModal()
-}
-
-showPageDeleteModal() {
-  if (this.pageSettings.numberOfPages <= 1) {
-    alert("Cannot delete the last page")
-    return
+  getCurrentPageIndex() {
+    return this.currentPageIndex
   }
 
-  // Create page list HTML
-  let pageListHTML = ""
-  this.pageSettings.pages.forEach((page, index) => {
-    pageListHTML += `
-    <div class="page-delete-item" data-page-index="${index}">
-      <span class="page-delete-name">${page.name}</span>
-      <button class="page-delete-btn-item" data-page-index="${index}">
-        <i class="fa fa-trash"></i> Delete
-      </button>
-    </div>
-  `
-  })
-
-  this.editor.Modal.setTitle("Delete Pages")
-  this.editor.Modal.setContent(`
-  <div class="page-delete-modal-content" style="color: #000 !important;">
-    <p style="margin-bottom: 20px; color: #666 !important;">Select a page to delete:</p>
-    <div class="page-delete-list">
-      ${pageListHTML}
-    </div>
-    <div class="page-setup-actions" style="margin-top: 20px;">
-      <button id="cancelPageDelete" class="page-setup-btn page-setup-btn-secondary">Cancel</button>
-    </div>
-  </div>
-  <style>
-    .page-delete-list {
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid #e9ecef;
-      border-radius: 6px;
-      padding: 10px;
-    }
-    .page-delete-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px;
-      margin-bottom: 8px;
-      background: #f8f9fa;
-      border-radius: 4px;
-      border: 1px solid #e9ecef;
-    }
-    .page-delete-name {
-      font-weight: 500;
-      color: #333 !important;
-    }
-    .page-delete-btn-item {
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      transition: background 0.2s;
-    }
-    .page-delete-btn-item:hover {
-      background: #c82333;
-    }
-  </style>
-`)
-
-  this.editor.Modal.open()
-
-  // Setup event listeners for delete buttons
-  setTimeout(() => {
-    document.querySelectorAll(".page-delete-btn-item").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const pageIndex = Number.parseInt(e.target.closest(".page-delete-btn-item").dataset.pageIndex)
-        this.confirmDeletePage(pageIndex)
-      })
-    })
-
-    const cancelBtn = document.getElementById("cancelPageDelete")
-    if (cancelBtn) {
-      cancelBtn.addEventListener("click", () => {
-        this.editor.Modal.close()
-      })
-    }
-  }, 100)
-}
-
-confirmDeletePage(pageIndex) {
-  const page = this.pageSettings.pages[pageIndex]
-  if (confirm(`Are you sure you want to delete "${page.name}"?`)) {
-    this.performPageDeletion(pageIndex)
-    this.editor.Modal.close()
+  isPageManagerInitialized() {
+    return this.isInitialized
   }
 }
 
-// FIXED: Proper page deletion with automatic page number adjustment
-performPageDeletion(pageIndex) {
-  // Remove page from settings
-  this.pageSettings.pages.splice(pageIndex, 1)
-  this.pageSettings.numberOfPages--
-
-  // Remove page from editor
-  const component = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0]
-  if (component) {
-    component.remove()
-  }
-
-  // FIXED: Properly renumber all remaining pages and update their attributes
-  this.pageSettings.pages.forEach((page, newIndex) => {
-    // Update page data
-    page.pageNumber = newIndex + 1
-    page.name = `Page ${newIndex + 1}`
-    page.id = `page-${newIndex + 1}`
-
-    // FIXED: Find the specific component by its current data-page-id and update it
-    const specificComponent = this.editor.getWrapper().find(`[data-page-id="${page.id}"]`)[0]
-    if (specificComponent) {
-      specificComponent.addAttributes({
-        "data-page-index": newIndex,
-        "data-page-id": page.id,
-      })
-    }
-  })
-
-  // ALTERNATIVE APPROACH: Update components by finding them with current attributes
-  // and then updating them sequentially
-  const remainingComponents = this.editor.getWrapper().find(".page-container")
-  remainingComponents.forEach((component, index) => {
-    if (index < this.pageSettings.numberOfPages) {
-      const page = this.pageSettings.pages[index]
-      component.addAttributes({
-        "data-page-index": index,
-        "data-page-id": page.id,
-      })
-      
-      // Also update any text content that shows page numbers
-      const pageNumberElements = component.find('[data-page-number]')
-      pageNumberElements.forEach(el => {
-        el.components().reset()
-        el.components().add({
-          type: 'textnode',
-          content: `Page ${index + 1}`
-        })
-      })
-    }
-  })
-
-  // Adjust current page index
-  if (this.currentPageIndex >= this.pageSettings.numberOfPages) {
-    this.currentPageIndex = this.pageSettings.numberOfPages - 1
-  }
-  
-  // Refresh the page list UI if you have one
-  this.refreshPageList()
-}
-
-// Helper method to refresh page list UI
-refreshPageList() {
-  // Update any UI elements that display page numbers/names
-  const pageListContainer = document.querySelector('.page-list')
-  if (pageListContainer) {
-    pageListContainer.innerHTML = ''
-    this.pageSettings.pages.forEach((page, index) => {
-      const pageItem = document.createElement('div')
-      pageItem.textContent = page.name
-      pageItem.dataset.pageIndex = index
-      pageListContainer.appendChild(pageItem)
-    })
-  }
-}
-
-// FIXED: Updated addNewPage to properly calculate available content space
-addNewPage() {
-  const newPageIndex = this.pageSettings.numberOfPages
-
-  // Get current global settings from first page
-  const currentSettings = this.pageSettings.pages[0] || {}
-
-  const newPage = {
-    id: `page-${newPageIndex + 1}`,
-    name: `Page ${newPageIndex + 1}`,
-    pageNumber: newPageIndex + 1,
-    header: {
-      enabled: currentSettings.header?.enabled || false,
-      content: currentSettings.header?.content || "",
-      height: currentSettings.header?.height || this.defaultSizes.header.height,
-      padding: currentSettings.header?.padding || this.defaultSizes.header.padding,
-      fontSize: currentSettings.header?.fontSize || 12,
-      color: currentSettings.header?.color || "#333333",
-      backgroundColor: currentSettings.header?.backgroundColor || "#f8f9fa",
-      position: currentSettings.header?.position || "center",
-    },
-    footer: {
-      enabled: currentSettings.footer?.enabled || false,
-      content: currentSettings.footer?.content || "",
-      height: currentSettings.footer?.height || this.defaultSizes.footer.height,
-      padding: currentSettings.footer?.padding || this.defaultSizes.footer.padding,
-      fontSize: currentSettings.footer?.fontSize || 12,
-      color: currentSettings.footer?.color || "#333333",
-      backgroundColor: currentSettings.footer?.backgroundColor || "#f8f9fa",
-      position: currentSettings.footer?.position || "center",
-    },
-    pageNumber: {
-      enabled: currentSettings.pageNumber?.enabled || false,
-      format: currentSettings.pageNumber?.format || "Page {n}",
-      position: currentSettings.pageNumber?.position || "bottom-right",
-      fontSize: currentSettings.pageNumber?.fontSize || 11,
-      color: currentSettings.pageNumber?.color || "#333333",
-      backgroundColor: currentSettings.pageNumber?.backgroundColor || "#ffffff",
-      showBorder: currentSettings.pageNumber?.showBorder !== false,
-    },
-  }
-
-  this.pageSettings.pages.push(newPage)
-  this.pageSettings.numberOfPages++
-
-  // Add page to editor
-  const mmToPx = 96 / 25.4
-  const pageWidth = Math.round(this.pageSettings.width * mmToPx)
-  const pageHeight = Math.round(this.pageSettings.height * mmToPx)
-
-  try {
-    const pageComponent = this.editor.getWrapper().append(`
-      <div class="page-container" data-page-id="${newPage.id}" data-page-index="${newPageIndex}">
-        <div class="page-content" style="height: ${pageHeight}px; position: relative;">
-          <!-- Content will be added here -->
-        </div>
-      </div>
-    `)[0]
-
-    pageComponent.addStyle({
-      width: `${pageWidth}px`,
-      height: `${pageHeight}px`,
-      background: "white",
-      margin: "20px auto",
-      "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.15)",
-      border: "1px solid #ccc",
-      position: "relative",
-      "page-break-after": "always",
-      overflow: "hidden",
-      "box-sizing": "border-box"
-    })
-
-    // FIXED: Set proper flex layout for new page content with exact height
-    const pageContentComponent = pageComponent.find(".page-content")[0]
-    if (pageContentComponent) {
-      pageContentComponent.addStyle({
-        overflow: "hidden",
-        position: "relative",
-        "box-sizing": "border-box",
-        display: "flex",
-        "flex-direction": "column",
-        height: `${pageHeight}px`,
-        width: "100%"
-      })
-    }
-
-    // Navigate to new page
-    this.currentPageIndex = newPageIndex
-
-    // Update page visuals
-    setTimeout(() => {
-      this.updateAllPageVisuals()
-
-      // Update sections display if enabled
-      if (this.sectionsSettings.enabled) {
-        this.updateSectionsDisplay()
-      }
-
-      // Show confirmation popup
-      const appliedFeatures = []
-      if (newPage.header.enabled) appliedFeatures.push("Header")
-      if (newPage.footer.enabled) appliedFeatures.push("Footer")
-      if (newPage.pageNumber.enabled) appliedFeatures.push("Page Number")
-
-      const featuresText =
-        appliedFeatures.length > 0
-          ? `\n\nApplied features: ${appliedFeatures.join(", ")}`
-          : "\n\nNo additional features applied."
-
-      alert(`✅ New page "${newPage.name}" has been added successfully!${featuresText}`)
-    }, 100)
-
-    console.log("New page added:", newPage)
-  } catch (error) {
-    console.error("Error adding new page:", error)
-  }
-}
-
-// Basic getter methods for integration
-getPageSettings() {
-  return this.pageSettings
-}
-
-getCurrentPageIndex() {
-  return this.currentPageIndex
-}
-
-isPageManagerInitialized() {
-  return this.isInitialized
-}
-
-getSectionsSettings() {
-  return this.sectionsSettings
-}
-}
 // Export for use in main.js
 window.PageSetupManager = PageSetupManager
