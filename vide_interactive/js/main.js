@@ -23,6 +23,7 @@ const editor = InteractiveDesigner.init({
     customLoadingPage,
     customVideoIn,
     customSeparator,
+    customSections,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -283,34 +284,31 @@ const BACKEND_URL = "http://localhost:3000"
 // Enhanced PDF generation function with proper page break support
 function generatePrintDialog() {
   try {
-    // Get GrapesJS editor content
-    // Assuming 'editor' is a global variable or is accessible in this scope
-    // If not, you'll need to define or import it appropriately.
     if (typeof editor === "undefined") {
-      console.error("The 'editor' variable is not defined. Ensure it is properly initialized or imported.")
-      alert("Editor not initialized. Please check the console for details.")
-      return // Exit the function if the editor is not available
+      console.error("The 'editor' variable is not defined. Ensure it is properly initialized or imported.");
+      alert("Editor not initialized. Please check the console for details.");
+      return;
     }
 
-    const editorHTML = editor.getHtml()
-    const editorCSS = editor.getCss()
+    const editorHTML = editor.getHtml();
+    const editorCSS = editor.getCss();
 
     // Create a hidden iframe for printing
-    const printFrame = document.createElement("iframe")
-    printFrame.style.position = "absolute"
-    printFrame.style.left = "-9999px"
-    printFrame.style.top = "0"
-    printFrame.style.width = "100%"
-    printFrame.style.height = "100%"
-    printFrame.style.border = "none"
+    const printFrame = document.createElement("iframe");
+    printFrame.style.position = "absolute";
+    printFrame.style.left = "-9999px";
+    printFrame.style.top = "0";
+    printFrame.style.width = "100%";
+    printFrame.style.height = "100%";
+    printFrame.style.border = "none";
 
-    document.body.appendChild(printFrame)
+    document.body.appendChild(printFrame);
 
     // Get hide-on-print class name
-    const HIDE_CLASS = "hide-on-print"
+    const HIDE_CLASS = "hide-on-print";
 
     // Process HTML to handle page breaks properly
-    const processedHTML = processPageBreaks(editorHTML)
+    const processedHTML = processPageBreaks(editorHTML);
 
     // Prepare the print content with enhanced page break handling
     const printContent = `
@@ -328,7 +326,6 @@ function generatePrintDialog() {
             box-sizing: border-box;
           }
           
-          /* Critical: Hide on print styles must come first */
           @media print {
             .${HIDE_CLASS} {
               display: none !important;
@@ -342,7 +339,6 @@ function generatePrintDialog() {
               overflow: hidden !important;
             }
             
-            /* Page break handling */
             .page-break {
               display: none !important;
               visibility: hidden !important;
@@ -362,6 +358,44 @@ function generatePrintDialog() {
             .force-page-break {
               page-break-before: always !important;
               break-before: page !important;
+            }
+            
+            table.table-bordered {
+              display: table !important;
+              width: 100% !important;
+              border-collapse: collapse !important;
+              margin: 0 !important;
+              position: relative !important;
+            }
+            
+            table.table-bordered thead, table.table-bordered tbody {
+              display: table-row-group !important;
+            }
+            
+            table.table-bordered tr {
+              display: table-row !important;
+            }
+            
+            table.table-bordered th, table.table-bordered td {
+              display: table-cell !important;
+              border: 1px solid #ddd !important;
+              padding: 8px !important;
+              text-align: left !important;
+              vertical-align: middle !important;
+            }
+            
+            table.table-bordered th {
+              background-color: #f2f2f2 !important;
+              font-weight: bold !important;
+            }
+            
+            table.table-bordered th div {
+              display: block !important;
+              margin-right: 0 !important;
+            }
+            
+            table.table-bordered th span {
+              display: none !important;
             }
           }
           
@@ -383,14 +417,14 @@ function generatePrintDialog() {
               box-shadow: none !important;
               border: none !important;
               width: 100% !important;
-              height: 100vh !important;
+              height: auto !important;
               display: block !important;
               overflow: visible !important;
             }
             
             .page-content {
               width: 100% !important;
-              height: 100% !important;
+              height: auto !important;
               margin: 0 !important;
               padding: 0 !important;
               overflow: visible !important;
@@ -463,10 +497,8 @@ function generatePrintDialog() {
             }
           }
           
-          /* Apply editor CSS after print styles */
           ${editorCSS}
           
-          /* Ensure hide-on-print takes precedence over any other styles */
           @media print {
             .${HIDE_CLASS} {
               display: none !important;
@@ -482,57 +514,53 @@ function generatePrintDialog() {
         ${processedHTML}
       </body>
       </html>
-    `
+    `;
 
     // Write content to iframe
-    const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document
-    frameDoc.open()
-    frameDoc.write(printContent)
-    frameDoc.close()
+    const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(printContent);
+    frameDoc.close();
 
     // Wait for content to load, then trigger print dialog
     printFrame.onload = () => {
       setTimeout(() => {
-        printFrame.contentWindow.focus()
-        printFrame.contentWindow.print()
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
 
         // Cleanup after print dialog is triggered
         setTimeout(() => {
           if (document.body.contains(printFrame)) {
-            document.body.removeChild(printFrame)
+            document.body.removeChild(printFrame);
           }
-        }, 100)
-      }, 500)
-    }
+        }, 100);
+      }, 500);
+    };
   } catch (error) {
-    console.error("Error generating print dialog:", error)
-    alert("Error opening print dialog. Please try again.")
+    console.error("Error generating print dialog:", error);
+    alert("Error opening print dialog. Please try again.");
   }
 }
 
-// Function to process HTML and handle page breaks properly
 function processPageBreaks(html) {
-  // Create a temporary div to parse HTML
-  const tempDiv = document.createElement("div")
-  tempDiv.innerHTML = html
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = html;
 
-  // Find all page break elements
-  const pageBreaks = tempDiv.querySelectorAll(".page-break")
+  const pageBreaks = tempDiv.querySelectorAll(".page-break");
 
   pageBreaks.forEach((pageBreak) => {
-    // Add force-page-break class to the next sibling element
-    const nextElement = pageBreak.nextElementSibling
+    const nextElement = pageBreak.nextElementSibling;
     if (nextElement) {
-      nextElement.classList.add("force-page-break")
+      nextElement.classList.add("force-page-break");
     }
 
-    // Ensure page break is properly marked for hiding
-    pageBreak.classList.add("hide-on-print")
-    pageBreak.setAttribute("data-page-break", "true")
-  })
+    pageBreak.classList.add("hide-on-print");
+    pageBreak.setAttribute("data-page-break", "true");
+  });
 
-  return tempDiv.innerHTML
+  return tempDiv.innerHTML;
 }
+
 // Preserve all existing functionality
 var singlePageData = JSON.parse(localStorage.getItem("single-page")) || {}
 if (Object.keys(singlePageData).length > 0) {
