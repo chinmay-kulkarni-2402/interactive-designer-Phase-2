@@ -3309,6 +3309,7 @@ function customChartCommonJson(editor) {
   
   const init1 = () => {
     const ctx = this.id;
+    let uniqueID = Math.floor(100 + Math.random() * 900);
     const divElement = document.getElementById(ctx);
     let JsonPath1 = "{[ jsonpath ]}";
     let custom_language = localStorage.getItem('language') || 'english';
@@ -3357,6 +3358,7 @@ function customChartCommonJson(editor) {
         const tr = document.createElement('tr');
         objectKeys.forEach((key, j) => {
         const td = document.createElement('td');
+        td.className = `col${uniqueID}`;
         td.setAttribute("class", "col" + ctx + j);
         td.innerText = row[key];
         tr.appendChild(td);

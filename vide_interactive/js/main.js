@@ -24,6 +24,7 @@ const editor = InteractiveDesigner.init({
     customVideoIn,
     customSeparator,
     customSections,
+    formatText,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -292,7 +293,7 @@ function generatePrintDialog() {
 
     const editorHTML = editor.getHtml();
     const editorCSS = editor.getCss();
-
+    console.log("html", editorHTML)
     // Create a hidden iframe for printing
     const printFrame = document.createElement("iframe");
     printFrame.style.position = "absolute";

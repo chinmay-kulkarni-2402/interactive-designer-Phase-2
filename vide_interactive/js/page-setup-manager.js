@@ -155,7 +155,9 @@ class PageSetupManager {
     editor.on("component:drag:end", (model) => {
       if (this._syncInProgress) return
 
-      const sharedRegion = model.closest("[data-shared-region]")
+      const el = model.view?.el
+      const sharedRegion = el?.closest("[data-shared-region]")
+
       if (sharedRegion) {
         const regionType = sharedRegion.getAttributes()["data-shared-region"]
         setTimeout(() => {
@@ -1184,6 +1186,36 @@ class PageSetupManager {
           border-radius: 4px;
           font-size: 12px;
         }
+
+        /* Format and Orientation Change Controls */
+        .format-orientation-section {
+          background: #fff3cd;
+          border: 1px solid #ffeaa7;
+          border-radius: 8px;
+          padding: 20px;
+          margin-bottom: 20px;
+        }
+
+        .format-orientation-section h3 {
+          color: #856404 !important;
+          margin-bottom: 15px;
+        }
+
+        .format-orientation-warning {
+          background: #f8d7da;
+          border: 1px solid #f5c6cb;
+          border-radius: 6px;
+          padding: 10px;
+          margin-bottom: 15px;
+          color: #721c24 !important;
+          font-size: 12px;
+        }
+
+        .format-orientation-controls {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+        }
       </style>
     `
 
@@ -1450,6 +1482,11 @@ class PageSetupManager {
           preview.style.backgroundColor = e.target.value
         }
       }
+
+      // Handle format and orientation changes in settings
+      if (e.target.id === "settingsPageFormat" || e.target.id === "settingsPageOrientation") {
+        this.handleFormatOrientationChange()
+      }
     })
 
     document.addEventListener("click", (e) => {
@@ -1490,6 +1527,11 @@ class PageSetupManager {
         if (colorInput) {
           colorInput.click()
         }
+      }
+
+      // Handle apply format/orientation changes
+      if (e.target.id === "applyFormatOrientationChanges") {
+        this.applyFormatOrientationChanges()
       }
     })
   }
@@ -1542,7 +1584,7 @@ class PageSetupManager {
     const numberOfPages = Number.parseInt(document.getElementById("numberOfPages").value) || 1
     const backgroundColor = document.getElementById("pageBackgroundColor")?.value || "#ffffff"
 
-    // Get header/footer settings
+    // Get header/footer settings - PRESERVE ENABLED STATE
     const headerEnabled = document.getElementById("headerEnabled")?.checked !== false
     const footerEnabled = document.getElementById("footerEnabled")?.checked !== false
     const headerHeight = Number.parseFloat(document.getElementById("headerHeight")?.value) || 12.7
@@ -1573,7 +1615,7 @@ class PageSetupManager {
       height = orientation === "landscape" ? dimensions.width : dimensions.height
     }
 
-    // Update settings with new header/footer configuration
+    // Update settings with PRESERVED header/footer configuration
     this.pageSettings = {
       format,
       orientation,
@@ -1584,8 +1626,8 @@ class PageSetupManager {
       backgroundColor,
       pages: [],
       headerFooter: {
-        headerEnabled,
-        footerEnabled,
+        headerEnabled: headerEnabled, // PRESERVE STATE
+        footerEnabled: footerEnabled, // PRESERVE STATE
         headerHeight,
         footerHeight,
       },
@@ -1615,7 +1657,7 @@ class PageSetupManager {
       },
     }
 
-    // Initialize pages with individual settings
+    // Initialize pages with PRESERVED individual settings
     for (let i = 0; i < numberOfPages; i++) {
       this.pageSettings.pages.push({
         id: `page-${i + 1}`,
@@ -1623,7 +1665,7 @@ class PageSetupManager {
         pageNumber: i + 1,
         backgroundColor: backgroundColor,
         header: {
-          enabled: headerEnabled,
+          enabled: headerEnabled, // PRESERVE STATE
           content: "",
           height: headerHeight,
           padding: 10,
@@ -1633,7 +1675,7 @@ class PageSetupManager {
           position: "center",
         },
         footer: {
-          enabled: footerEnabled,
+          enabled: footerEnabled, // PRESERVE STATE
           content: "",
           height: footerHeight,
           padding: 10,
@@ -1666,7 +1708,7 @@ class PageSetupManager {
     this.updateNavbarButton()
     this.updateAddPageButton()
 
-    console.log("Enhanced page setup applied:", this.pageSettings)
+    console.log("Enhanced page setup applied with preserved header/footer state:", this.pageSettings)
   }
 
   cancelPageSetup() {
@@ -1696,6 +1738,39 @@ class PageSetupManager {
     this.editor.Modal.setTitle("Enhanced Page Elements Settings")
     this.editor.Modal.setContent(`
       <div class="page-settings-content" style="color: #000 !important;">
+        <div class="page-setup-section format-orientation-section">
+          <h3>📐 Change Page Format & Orientation</h3>
+          <div class="format-orientation-warning">
+            <strong>⚠️ Warning:</strong> Changing format or orientation will adjust all content positions proportionally to maintain relative positioning.
+          </div>
+          <div class="format-orientation-controls">
+            <div>
+              <label class="page-setup-label">Format:</label>
+              <select id="settingsPageFormat" class="page-setup-control">
+                <option value="a4" ${this.pageSettings.format === "a4" ? "selected" : ""}>A4 (210 × 297 mm)</option>
+                <option value="a3" ${this.pageSettings.format === "a3" ? "selected" : ""}>A3 (297 × 420 mm)</option>
+                <option value="a2" ${this.pageSettings.format === "a2" ? "selected" : ""}>A2 (420 × 594 mm)</option>
+                <option value="a1" ${this.pageSettings.format === "a1" ? "selected" : ""}>A1 (594 × 841 mm)</option>
+                <option value="a0" ${this.pageSettings.format === "a0" ? "selected" : ""}>A0 (841 × 1189 mm)</option>
+                <option value="letter" ${this.pageSettings.format === "letter" ? "selected" : ""}>Letter (8.5 × 11 in)</option>
+                <option value="legal" ${this.pageSettings.format === "legal" ? "selected" : ""}>Legal (8.5 × 14 in)</option>
+                <option value="a5" ${this.pageSettings.format === "a5" ? "selected" : ""}>A5 (148 × 210 mm)</option>
+                <option value="custom" ${this.pageSettings.format === "custom" ? "selected" : ""}>Custom Size</option>
+              </select>
+            </div>
+            <div>
+              <label class="page-setup-label">Orientation:</label>
+              <select id="settingsPageOrientation" class="page-setup-control">
+                <option value="portrait" ${this.pageSettings.orientation === "portrait" ? "selected" : ""}>Portrait</option>
+                <option value="landscape" ${this.pageSettings.orientation === "landscape" ? "selected" : ""}>Landscape</option>
+              </select>
+            </div>
+          </div>
+          <div class="page-setup-actions" style="margin-top: 15px;">
+            <button id="applyFormatOrientationChanges" class="page-setup-btn page-setup-btn-primary">Apply Format/Orientation Changes</button>
+          </div>
+        </div>
+
         <div class="page-setup-section">
           <h3>📋 Page Information</h3>
           <div class="page-info-grid">
@@ -1934,6 +2009,172 @@ class PageSetupManager {
         this.resetPageElementsSettings()
       })
     }
+
+    const applyFormatBtn = document.getElementById("applyFormatOrientationChanges")
+    if (applyFormatBtn) {
+      applyFormatBtn.addEventListener("click", () => {
+        this.applyFormatOrientationChanges()
+      })
+    }
+  }
+
+  // NEW METHOD: Handle format and orientation changes
+  applyFormatOrientationChanges() {
+    const newFormat = document.getElementById("settingsPageFormat")?.value || this.pageSettings.format
+    const newOrientation = document.getElementById("settingsPageOrientation")?.value || this.pageSettings.orientation
+
+    if (newFormat === this.pageSettings.format && newOrientation === this.pageSettings.orientation) {
+      alert("No changes detected in format or orientation.")
+      return
+    }
+
+    if (!confirm("Changing format or orientation will adjust all content positions. Continue?")) {
+      return
+    }
+
+    // Calculate old and new dimensions
+    const oldWidth = this.pageSettings.width
+    const oldHeight = this.pageSettings.height
+
+    let newWidth, newHeight
+    if (newFormat === "custom") {
+      // For custom, keep current dimensions but apply orientation
+      const baseDimensions = { width: oldWidth, height: oldHeight }
+      newWidth =
+        newOrientation === "landscape"
+          ? Math.max(baseDimensions.width, baseDimensions.height)
+          : Math.min(baseDimensions.width, baseDimensions.height)
+      newHeight =
+        newOrientation === "landscape"
+          ? Math.min(baseDimensions.width, baseDimensions.height)
+          : Math.max(baseDimensions.width, baseDimensions.height)
+    } else {
+      const dimensions = this.pageFormats[newFormat] || this.pageFormats.a4
+      newWidth = newOrientation === "landscape" ? dimensions.height : dimensions.width
+      newHeight = newOrientation === "landscape" ? dimensions.width : dimensions.height
+    }
+
+    // Calculate scaling factors
+    const scaleX = newWidth / oldWidth
+    const scaleY = newHeight / oldHeight
+
+    // Update page settings
+    this.pageSettings.format = newFormat
+    this.pageSettings.orientation = newOrientation
+    this.pageSettings.width = newWidth
+    this.pageSettings.height = newHeight
+
+    // Update all page settings
+    this.pageSettings.pages.forEach((page) => {
+      page.backgroundColor = page.backgroundColor || this.pageSettings.backgroundColor
+    })
+
+    // Adjust content positions
+    this.adjustContentForNewDimensions(scaleX, scaleY)
+
+    // Rebuild pages
+    this.setupEditorPages()
+
+    // Update visuals
+    setTimeout(() => {
+      this.updateAllPageVisuals()
+      alert(
+        `✅ Format changed to ${newFormat.toUpperCase()} ${newOrientation}. Content positions have been adjusted proportionally.`,
+      )
+    }, 300)
+
+    console.log(
+      `Format/Orientation changed: ${newFormat} ${newOrientation}, Scale factors: ${scaleX.toFixed(3)}x${scaleY.toFixed(3)}`,
+    )
+  }
+
+  // NEW METHOD: Adjust content positions for new page dimensions
+  adjustContentForNewDimensions(scaleX, scaleY) {
+    try {
+      // Get all page components
+      const allPageComponents = this.editor.getWrapper().find(".page-container")
+
+      allPageComponents.forEach((pageComponent) => {
+        // Adjust main content area elements
+        const mainContentArea = pageComponent.find(".main-content-area")[0]
+        if (mainContentArea) {
+          this.adjustComponentsRecursively(mainContentArea, scaleX, scaleY)
+        }
+      })
+    } catch (error) {
+      console.error("Error adjusting content for new dimensions:", error)
+    }
+  }
+
+  // NEW METHOD: Recursively adjust component positions and sizes
+  adjustComponentsRecursively(parentComponent, scaleX, scaleY) {
+    if (!parentComponent) return
+
+    parentComponent.components().forEach((component) => {
+      try {
+        const currentStyles = component.getStyle()
+        const newStyles = {}
+
+        // Adjust position properties
+        if (currentStyles.left) {
+          const leftValue = Number.parseFloat(currentStyles.left)
+          if (!isNaN(leftValue)) {
+            newStyles.left = `${(leftValue * scaleX).toFixed(2)}px`
+          }
+        }
+
+        if (currentStyles.top) {
+          const topValue = Number.parseFloat(currentStyles.top)
+          if (!isNaN(topValue)) {
+            newStyles.top = `${(topValue * scaleY).toFixed(2)}px`
+          }
+        }
+
+        // Adjust size properties
+        if (currentStyles.width && !currentStyles.width.includes("%")) {
+          const widthValue = Number.parseFloat(currentStyles.width)
+          if (!isNaN(widthValue)) {
+            newStyles.width = `${(widthValue * scaleX).toFixed(2)}px`
+          }
+        }
+
+        if (currentStyles.height && !currentStyles.height.includes("%")) {
+          const heightValue = Number.parseFloat(currentStyles.height)
+          if (!isNaN(heightValue)) {
+            newStyles.height = `${(heightValue * scaleY).toFixed(2)}px`
+          }
+        }
+        // Adjust margin and padding if they're in pixels
+        ;["margin-top", "margin-bottom", "padding-top", "padding-bottom"].forEach((prop) => {
+          if (currentStyles[prop] && !currentStyles[prop].includes("%")) {
+            const value = Number.parseFloat(currentStyles[prop])
+            if (!isNaN(value)) {
+              newStyles[prop] = `${(value * scaleY).toFixed(2)}px`
+            }
+          }
+        })
+        ;["margin-left", "margin-right", "padding-left", "padding-right"].forEach((prop) => {
+          if (currentStyles[prop] && !currentStyles[prop].includes("%")) {
+            const value = Number.parseFloat(currentStyles[prop])
+            if (!isNaN(value)) {
+              newStyles[prop] = `${(value * scaleX).toFixed(2)}px`
+            }
+          }
+        })
+
+        // Apply new styles if any changes were made
+        if (Object.keys(newStyles).length > 0) {
+          component.addStyle(newStyles)
+        }
+
+        // Recursively adjust child components
+        if (component.components().length > 0) {
+          this.adjustComponentsRecursively(component, scaleX, scaleY)
+        }
+      } catch (error) {
+        console.error("Error adjusting component:", error)
+      }
+    })
   }
 
   applyPageElementsSettings() {
@@ -1947,7 +2188,7 @@ class PageSetupManager {
 
       const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff"
 
-      // Get header/footer settings with validation
+      // Get header/footer settings with validation - PRESERVE ENABLED STATE
       const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked !== false
       const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked !== false
       const headerHeight = Math.max(
@@ -1959,18 +2200,18 @@ class PageSetupManager {
         Math.min(50, Number.parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7),
       )
 
-      // Update global settings
+      // Update global settings - PRESERVE ENABLED STATE
       this.pageSettings.margins = newMargins
       this.pageSettings.backgroundColor = newBackgroundColor
       this.pageSettings.headerFooter = {
-        headerEnabled,
-        footerEnabled,
+        headerEnabled: headerEnabled, // PRESERVE STATE
+        footerEnabled: footerEnabled, // PRESERVE STATE
         headerHeight,
         footerHeight,
       }
 
       const headerSettings = {
-        enabled: headerEnabled,
+        enabled: headerEnabled, // PRESERVE STATE
         content: "",
         height: headerHeight,
         padding: 10,
@@ -1981,7 +2222,7 @@ class PageSetupManager {
       }
 
       const footerSettings = {
-        enabled: footerEnabled,
+        enabled: footerEnabled, // PRESERVE STATE
         content: "",
         height: footerHeight,
         padding: 10,
@@ -2016,11 +2257,11 @@ class PageSetupManager {
       this.pageSettings.pageNumbering.excludedPages = Array.from({ length: startFromPage - 1 }, (_, i) => i + 1)
       this.pageSettings.pageNumbering.enabled = pageNumberSettings.enabled
 
-      // Apply to ALL pages
+      // Apply to ALL pages - PRESERVE ENABLED STATE
       this.pageSettings.pages.forEach((page) => {
         page.backgroundColor = newBackgroundColor
-        page.header = { ...headerSettings }
-        page.footer = { ...footerSettings }
+        page.header = { ...headerSettings } // PRESERVE STATE
+        page.footer = { ...footerSettings } // PRESERVE STATE
         page.pageNumber = { ...pageNumberSettings }
       })
 
@@ -2037,7 +2278,7 @@ class PageSetupManager {
 
       this.editor.Modal.close()
 
-      console.log("Enhanced page elements settings applied to all pages")
+      console.log("Enhanced page elements settings applied to all pages with preserved header/footer state")
     } catch (error) {
       console.error("Error applying page elements settings:", error)
       alert("Error applying settings. Please check your input values.")
@@ -2335,6 +2576,7 @@ class PageSetupManager {
     let headerHeight = 0
     let footerHeight = 0
 
+    // ALWAYS CHECK GLOBAL SETTINGS FOR ENABLED STATE
     if (this.pageSettings.headerFooter.headerEnabled) {
       headerHeight = Math.round(this.pageSettings.headerFooter.headerHeight * mmToPx)
     }
@@ -2366,7 +2608,7 @@ class PageSetupManager {
           this.addWatermarkToPage(pageContentComponent, pageIndex)
         }
 
-        // Add header if enabled - ALWAYS CREATE FOR ALL PAGES
+        // Add header if GLOBALLY enabled - ALWAYS CREATE FOR ALL PAGES
         if (this.pageSettings.headerFooter.headerEnabled) {
           const headerWrapper = pageContentComponent.append(`
           <div class="header-wrapper" data-shared-region="header" style="
@@ -2451,7 +2693,7 @@ class PageSetupManager {
           "custom-name": "Content Area",
         })
 
-        // Add footer if enabled - ALWAYS CREATE FOR ALL PAGES
+        // Add footer if GLOBALLY enabled - ALWAYS CREATE FOR ALL PAGES
         if (this.pageSettings.headerFooter.footerEnabled) {
           const footerWrapper = pageContentComponent.append(`
           <div class="footer-wrapper" data-shared-region="footer" style="
@@ -2995,14 +3237,14 @@ class PageSetupManager {
   addNewPage() {
     const newPageIndex = this.pageSettings.numberOfPages
 
-    // Use current global settings for new page
+    // Use current global settings for new page - PRESERVE ENABLED STATE
     const newPage = {
       id: `page-${newPageIndex + 1}`,
       name: `Page ${newPageIndex + 1}`,
       pageNumber: newPageIndex + 1,
       backgroundColor: this.pageSettings.backgroundColor,
       header: {
-        enabled: this.pageSettings.headerFooter.headerEnabled,
+        enabled: this.pageSettings.headerFooter.headerEnabled, // PRESERVE GLOBAL STATE
         content: "",
         height: this.pageSettings.headerFooter.headerHeight,
         padding: 10,
@@ -3012,7 +3254,7 @@ class PageSetupManager {
         position: "center",
       },
       footer: {
-        enabled: this.pageSettings.headerFooter.footerEnabled,
+        enabled: this.pageSettings.headerFooter.footerEnabled, // PRESERVE GLOBAL STATE
         content: "",
         height: this.pageSettings.headerFooter.footerHeight,
         padding: 10,
@@ -3122,7 +3364,7 @@ class PageSetupManager {
         alert(`✅ New page "${newPage.name}" has been added successfully!${featuresText}`)
       }, 100)
 
-      console.log("New page added:", newPage)
+      console.log("New page added with preserved header/footer state:", newPage)
     } catch (error) {
       console.error("Error adding new page:", error)
     }
