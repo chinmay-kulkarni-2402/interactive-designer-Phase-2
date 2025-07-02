@@ -1,4 +1,3 @@
-
 const editor = InteractiveDesigner.init({
   height: "100%",
   container: "#editor",
@@ -52,10 +51,10 @@ const editor = InteractiveDesigner.init({
       category: "Pages",
       defaultPages: ["Home"],
     },
-    "grapesjsHideOnPrint" :{
-      label: 'Hide on print',     
-      traitName: 'hideOnPrint',    
-      className: 'hide-on-print', 
+    grapesjsHideOnPrint: {
+      label: "Hide on print",
+      traitName: "hideOnPrint",
+      className: "hide-on-print",
     },
   },
   canvas: {
@@ -93,27 +92,24 @@ const editor = InteractiveDesigner.init({
       "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
     ],
   },
-})
+});
 
 // // Initialize the page manager after editor is loaded
-let pageManager = null
-let pageSetupManager = null
+let pageManager = null;
+let pageSetupManager = null;
 
 editor.on("load", () => {
   // Safely attempt to get page manager plugin
-  pageManager = editor.Plugins?.get?.("page-manager-component")
+  pageManager = editor.Plugins?.get?.("page-manager-component");
 
   // Initialize Page Setup Manager
-  pageSetupManager = new PageSetupManager(editor)
-  
+  pageSetupManager = new PageSetupManager(editor);
+});
 
-
-})
-
-const pn = editor.Panels
+const pn = editor.Panels;
 const panelViews = pn.addPanel({
   id: "views",
-})
+});
 
 panelViews.get("buttons").add([
   {
@@ -125,7 +121,7 @@ panelViews.get("buttons").add([
     togglable: false,
     id: "open-code",
   },
-])
+]);
 
 editor.Panels.addPanel({ id: "devices-c" })
   .get("buttons")
@@ -160,19 +156,18 @@ editor.Panels.addPanel({ id: "devices-c" })
     //   attributes: { title: "Report Parameter", id: "filterTable" },
     //   className: "fa fa-search",
     // },
+  ]);
 
-  ])
+var el = document.getElementById("exportPDF");
+el.addEventListener("click", generatePrintDialog, true);
+var save = document.getElementById("savePage");
+save.addEventListener("click", savePage, true);
 
-var el = document.getElementById("exportPDF")
-el.addEventListener("click", generatePrintDialog, true)
-var save = document.getElementById("savePage")
-save.addEventListener("click", savePage, true)
-
-var importPage = document.getElementById("importPage")
-importPage.addEventListener("click", importSinglePages, true)
+var importPage = document.getElementById("importPage");
+importPage.addEventListener("click", importSinglePages, true);
 
 // Backend URL configuration
-const BACKEND_URL = "http://localhost:3000"
+const BACKEND_URL = "http://localhost:3000";
 // var filterBtn = document.getElementById("filterTable");
 // let filtersEnabled = false;
 // const activeFilters = new Map(); // Store active filters per table & column
@@ -286,14 +281,16 @@ const BACKEND_URL = "http://localhost:3000"
 function generatePrintDialog() {
   try {
     if (typeof editor === "undefined") {
-      console.error("The 'editor' variable is not defined. Ensure it is properly initialized or imported.");
+      console.error(
+        "The 'editor' variable is not defined. Ensure it is properly initialized or imported."
+      );
       alert("Editor not initialized. Please check the console for details.");
       return;
     }
 
     const editorHTML = editor.getHtml();
     const editorCSS = editor.getCss();
-    console.log("html", editorHTML)
+    console.log("html", editorHTML);
     // Create a hidden iframe for printing
     const printFrame = document.createElement("iframe");
     printFrame.style.position = "absolute";
@@ -518,7 +515,8 @@ function generatePrintDialog() {
     `;
 
     // Write content to iframe
-    const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
+    const frameDoc =
+      printFrame.contentDocument || printFrame.contentWindow.document;
     frameDoc.open();
     frameDoc.write(printContent);
     frameDoc.close();
@@ -563,14 +561,14 @@ function processPageBreaks(html) {
 }
 
 // Preserve all existing functionality
-var singlePageData = JSON.parse(localStorage.getItem("single-page")) || {}
+var singlePageData = JSON.parse(localStorage.getItem("single-page")) || {};
 if (Object.keys(singlePageData).length > 0) {
-  editor.setComponents(singlePageData)
+  editor.setComponents(singlePageData);
 }
 
-var pageName = "index"
+var pageName = "index";
 function savePage() {
-  editor.Modal.setTitle("Add Page Name")
+  editor.Modal.setTitle("Add Page Name");
   editor.Modal.setContent(`<div class="new-table-form">
   <div> 
       <input type="text" class="form-control class="popupaddbtn"" value="" placeholder="Enter page name" style="width:95%"  name="singleSavePageName" id="singleSavePageName">
@@ -578,23 +576,23 @@ function savePage() {
   <input id="saveSinglePage" type="button" value="Add" class="popupaddbtn" data-component-id="c1006">
   </div>
   </div>
-  `)
-  editor.Modal.open()
-  var el = document.getElementById("saveSinglePage")
-  el.addEventListener("click", downloadPage, true)
+  `);
+  editor.Modal.open();
+  var el = document.getElementById("saveSinglePage");
+  el.addEventListener("click", downloadPage, true);
 }
 
 function downloadPage() {
-  const pageName = document.getElementById("singleSavePageName").value
+  const pageName = document.getElementById("singleSavePageName").value;
   if (!pageName) {
-    alert("Page name required")
-    return false
+    alert("Page name required");
+    return false;
   }
 
-  const html = editor.getHtml()
-  const css = editor.getCss()
-  const components = editor.getComponents()
-  const style = editor.getStyle()
+  const html = editor.getHtml();
+  const css = editor.getCss();
+  const components = editor.getComponents();
+  const style = editor.getStyle();
 
   const pageData = {
     html,
@@ -602,7 +600,7 @@ function downloadPage() {
     components: components.toJSON(),
     style: style.toJSON(),
     traits: {},
-  }
+  };
 
   editor
     .getWrapper()
@@ -611,148 +609,152 @@ function downloadPage() {
       pageData.traits[comp.cid] = comp.getTraits().map((trait) => ({
         name: trait.attributes.name,
         value: trait.get("value"),
-      }))
-    })
+      }));
+    });
 
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(pageData))
-  const downloadAnchorNode = document.createElement("a")
-  downloadAnchorNode.setAttribute("href", dataStr)
-  downloadAnchorNode.setAttribute("download", pageName + ".json")
-  document.body.appendChild(downloadAnchorNode)
-  downloadAnchorNode.click()
-  downloadAnchorNode.remove()
-  editor.Modal.close()
+  const dataStr =
+    "data:text/json;charset=utf-8," +
+    encodeURIComponent(JSON.stringify(pageData));
+  const downloadAnchorNode = document.createElement("a");
+  downloadAnchorNode.setAttribute("href", dataStr);
+  downloadAnchorNode.setAttribute("download", pageName + ".json");
+  document.body.appendChild(downloadAnchorNode);
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+  editor.Modal.close();
 }
 
 function importSinglePages() {
-  editor.Modal.setTitle("Add Pages From JSON")
+  editor.Modal.setTitle("Add Pages From JSON");
 
-  const container = document.createElement("div")
-  container.className = "new-table-form"
+  const container = document.createElement("div");
+  container.className = "new-table-form";
 
-  const fileInput = document.createElement("input")
-  fileInput.type = "file"
-  fileInput.className = "form-control popupinput2"
-  fileInput.style.width = "95%"
-  fileInput.accept = "application/json"
-  fileInput.multiple = true
-  fileInput.id = "importMultiplePageInput"
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.className = "form-control popupinput2";
+  fileInput.style.width = "95%";
+  fileInput.accept = "application/json";
+  fileInput.multiple = true;
+  fileInput.id = "importMultiplePageInput";
 
-  const addButton = document.createElement("input")
-  addButton.type = "button"
-  addButton.value = "Add"
-  addButton.className = "popupaddbtn"
-  addButton.id = "import-multiple-file"
+  const addButton = document.createElement("input");
+  addButton.type = "button";
+  addButton.value = "Add";
+  addButton.className = "popupaddbtn";
+  addButton.id = "import-multiple-file";
 
-  container.appendChild(fileInput)
-  container.appendChild(addButton)
+  container.appendChild(fileInput);
+  container.appendChild(addButton);
 
-  editor.Modal.setContent("")
-  editor.Modal.setContent(container)
-  editor.Modal.open()
+  editor.Modal.setContent("");
+  editor.Modal.setContent(container);
+  editor.Modal.open();
 
-  addButton.addEventListener("click", importMultipleFiles, true)
+  addButton.addEventListener("click", importMultipleFiles, true);
 }
 
 function importMultipleFiles() {
-  const input = document.getElementById("importMultiplePageInput")
-  const files = Array.from(input.files)
+  const input = document.getElementById("importMultiplePageInput");
+  const files = Array.from(input.files);
 
   if (!files.length) {
-    alert("No files selected")
-    return
+    alert("No files selected");
+    return;
   }
 
   files.forEach((file) => {
-    const reader = new FileReader()
+    const reader = new FileReader();
 
     reader.onload = (e) => {
       try {
-        const pageData = JSON.parse(e.target.result)
+        const pageData = JSON.parse(e.target.result);
 
-        const wrapper = editor.getWrapper()
-        const container = wrapper.append(`<div class="imported-page" data-filename="${file.name}"></div>`)[0]
+        const wrapper = editor.getWrapper();
+        const container = wrapper.append(
+          `<div class="imported-page" data-filename="${file.name}"></div>`
+        )[0];
 
-        container.components(pageData.html)
-        editor.addStyle(pageData.css)
+        container.components(pageData.html);
+        editor.addStyle(pageData.css);
 
         for (const cid in pageData.traits) {
           if (pageData.traits.hasOwnProperty(cid)) {
-            const comp = wrapper.find(`#${cid}`)[0]
+            const comp = wrapper.find(`#${cid}`)[0];
             if (comp) {
               pageData.traits[cid].forEach((traitData) => {
-                const trait = comp.getTrait(traitData.name)
+                const trait = comp.getTrait(traitData.name);
                 if (trait) {
-                  trait.set("value", traitData.value)
+                  trait.set("value", traitData.value);
                 }
-              })
+              });
             }
           }
         }
       } catch (err) {
-        console.error(`Error parsing JSON from file ${file.name}:`, err)
-        alert(`Invalid JSON in file: ${file.name}`)
+        console.error(`Error parsing JSON from file ${file.name}:`, err);
+        alert(`Invalid JSON in file: ${file.name}`);
       }
-    }
+    };
 
-    reader.readAsText(file)
-  })
+    reader.readAsText(file);
+  });
 
-  editor.Modal.close()
+  editor.Modal.close();
 }
 
 // Remaining utility functions...
 function updateComponentsWithNewJson(editor) {
-  var jsonDataString = localStorage.getItem("common_json")
-  if (!jsonDataString) return
+  var jsonDataString = localStorage.getItem("common_json");
+  if (!jsonDataString) return;
 
-  var jsonData = [JSON.parse(jsonDataString)]
-  let custom_language = localStorage.getItem("language")
-  var jsonData2 = jsonData
-  var styleTags2 = editor.getCss()
-  var jsonDataNew = {}
-  var styleContent = styleTags2
-  var regex = /#(\w+)\s*{\s*[^{}]*my-input-json:\s*([^;]+)\s*;[^{}]*}/g
-  var matches
+  var jsonData = [JSON.parse(jsonDataString)];
+  let custom_language = localStorage.getItem("language");
+  var jsonData2 = jsonData;
+  var styleTags2 = editor.getCss();
+  var jsonDataNew = {};
+  var styleContent = styleTags2;
+  var regex = /#(\w+)\s*{\s*[^{}]*my-input-json:\s*([^;]+)\s*;[^{}]*}/g;
+  var matches;
   while ((matches = regex.exec(styleContent)) !== null) {
-    var divId = matches[1]
-    var jsonKey = matches[2]
-    var lang = jsonKey
-    jsonDataNew[divId] = lang
+    var divId = matches[1];
+    var jsonKey = matches[2];
+    var lang = jsonKey;
+    jsonDataNew[divId] = lang;
   }
   if (custom_language === null) {
-    custom_language = "english"
+    custom_language = "english";
   }
-  const updateDivContenthtml = editor.getHtml()
+  const updateDivContenthtml = editor.getHtml();
   for (var divIdLocal in jsonDataNew) {
-    var jsonKey2 = jsonDataNew[divIdLocal]
-    const str = "jsonData2[0]." + custom_language + "." + jsonKey2
-    var value = eval(str)
+    var jsonKey2 = jsonDataNew[divIdLocal];
+    const str = "jsonData2[0]." + custom_language + "." + jsonKey2;
+    var value = eval(str);
     if (divIdLocal && value) {
-      var parser = new DOMParser()
-      var doc = parser.parseFromString(updateDivContenthtml, "text/html")
-      var myDiv = doc.getElementById(divIdLocal)
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(updateDivContenthtml, "text/html");
+      var myDiv = doc.getElementById(divIdLocal);
       if (myDiv) {
-        myDiv.textContent = value
-        var component = editor.getWrapper().find(`#${divIdLocal}`)[0]
+        myDiv.textContent = value;
+        var component = editor.getWrapper().find(`#${divIdLocal}`)[0];
         if (component) {
-          component.components(value)
+          component.components(value);
         }
       }
     }
   }
 }
 
-let slides = []
-let transitions = {}
-let clickStates = {}
-let currentSlideIndex = 1
+let slides = [];
+let transitions = {};
+let clickStates = {};
+let currentSlideIndex = 1;
 
 editor.on("run:core:canvas-clear", () => {
-  const thumbContainer = document.getElementById("slides-thumbnails")
-  if (thumbContainer) thumbContainer.remove()
-  slides = []
-  transitions = {}
-  clickStates = {}
-  currentSlideIndex = 1
-})
+  const thumbContainer = document.getElementById("slides-thumbnails");
+  if (thumbContainer) thumbContainer.remove();
+  slides = [];
+  transitions = {};
+  clickStates = {};
+  currentSlideIndex = 1;
+});
