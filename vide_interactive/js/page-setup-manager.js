@@ -260,6 +260,8 @@ class PageSetupManager {
 
       const el = model.view?.el;
       const sharedRegion = el?.closest("[data-shared-region]");
+      const el = model.view?.el;
+      const sharedRegion = el?.closest("[data-shared-region]");
 
       if (sharedRegion) {
         const regionType = sharedRegion.getAttributes()["data-shared-region"]
