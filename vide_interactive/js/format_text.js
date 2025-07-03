@@ -1,42 +1,72 @@
 function formatText(editor) {
-  // Format configurations
+  // Format configurations with combination support
   const formatConfigs = {
     text: {
       label: 'Text',
       patterns: ['None'],
       defaultPattern: 'None',
-      icon: '📝'
+      icon: '📝',
+      canCombine: false
     },
     number: {
       label: 'Number',
-      patterns: ['0', '0.0', '0.00', '0.000', '#,###', '#,###.##', '#,###.000'],
-      defaultPattern: '0.00',
-      icon: '🔢'
+      patterns: ['0', '0.0', '0.00', '0.000', '#,###', '##,###', '#,###.##', '#,###.000', '#,##,###', '#,##,###.##', '#,##,###.000'],
+      defaultPattern: '#,##,###',
+      icon: '🔢',
+      canCombine: true,
+      combinesWith: ['currency', 'percentage']
     },
     currency: {
       label: 'Currency',
       patterns: ['$0', '$0.00', '€0.00', '₹0.00', '¥0', '£0.00'],
-      defaultPattern: '$0.00',
-      icon: '💰'
+      defaultPattern: '₹0.00',
+      icon: '💰',
+      canCombine: true,
+      combinesWith: ['number']
     },
     percentage: {
       label: 'Percentage',
       patterns: ['0%', '0.0%', '0.00%'],
       defaultPattern: '0.00%',
-      icon: '📊'
+      icon: '📊',
+      canCombine: true,
+      combinesWith: ['number']
     },
     date: {
       label: 'Date',
       patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY', 'MMMM DD, YYYY'],
       defaultPattern: 'MM/DD/YYYY',
-      icon: '📅'
+      icon: '📅',
+      canCombine: true,
+      combinesWith: ['time']
     },
     // time: {
     //   label: 'Time',
     //   patterns: ['HH:mm', 'HH:mm:ss', 'hh:mm AM/PM', 'hh:mm:ss AM/PM'],
     //   defaultPattern: 'HH:mm',
-    //   icon: '⏰'
+    //   icon: '⏰',
+    //   canCombine: true,
+    //   combinesWith: ['date']
     // }
+  };
+
+  // Combined format patterns
+  const combinedFormats = {
+    'number+currency': {
+      label: 'Number + Currency',
+      icon: '🔢💰',
+      patterns: ['₹#,##,###', '$#,###.##', '€#,###.00', '¥#,###']
+    },
+    'number+percentage': {
+      label: 'Number + Percentage',
+      icon: '🔢📊',
+      patterns: ['#,###%', '#,###.##%', '#,##,###.00%']
+    },
+    'date+time': {
+      label: 'Date + Time',
+      icon: '📅⏰',
+      patterns: ['MM/DD/YYYY HH:mm', 'DD/MM/YYYY HH:mm:ss', 'MMM DD, YYYY hh:mm AM/PM']
+    }
   };
 
   // Helper functions for format conversion
@@ -71,6 +101,12 @@ function formatText(editor) {
 
     validateFormat(value, formatType) {
       const str = String(value).trim();
+      
+      // Handle combined formats
+      if (formatType.includes('+')) {
+        const [primary] = formatType.split('+');
+        return this.validateFormat(value, primary);
+      }
       
       switch (formatType) {
         case 'text':
@@ -149,9 +185,27 @@ function formatText(editor) {
         case '#,###':
           return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(num);
         case '#,###.##':
-          return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+          return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(num);
         case '#,###.000':
-          return new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(num);
+          return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3
+          }).format(num);
+        case '#,##,###':
+          return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(num);
+        case '#,##,###.##':
+          return new Intl.NumberFormat('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(num);
+        case '#,##,###.000':
+          return new Intl.NumberFormat('en-IN', {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3
+          }).format(num);
         default:
           return num.toString();
       }
@@ -161,21 +215,21 @@ function formatText(editor) {
       const num = this.parseNumber(value);
       const currencySymbol = pattern.charAt(0);
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
-      
-      if (decimals > 0) {
-        return currencySymbol + new Intl.NumberFormat('en-US', { 
-          minimumFractionDigits: decimals,
-          maximumFractionDigits: decimals 
-        }).format(num);
-      } else {
-        return currencySymbol + new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(num);
+
+      let locale = 'en-US';
+      if (currencySymbol === '₹') {
+        locale = 'en-IN';
       }
+
+      return currencySymbol + new Intl.NumberFormat(locale, {
+        minimumFractionDigits: decimals > 0 ? decimals : 0,
+        maximumFractionDigits: decimals > 0 ? decimals : 0
+      }).format(num);
     },
 
     formatPercentage(value, pattern) {
       const num = this.parseNumber(value);
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
-      // Don't multiply by 100 - treat input as already the percentage value
       return num.toFixed(decimals) + '%';
     },
 
@@ -251,7 +305,54 @@ function formatText(editor) {
       }
     },
 
+    // Handle combined format patterns
+    formatCombined(value, pattern) {
+      const num = this.parseNumber(value);
+      
+      // Combined number + currency patterns
+      if (pattern.includes('₹')) {
+        const formatted = new Intl.NumberFormat('en-IN').format(num);
+        return '₹'+ formatted ;
+      } else if (pattern.startsWith('$')) {
+        const formatted = new Intl.NumberFormat('en-US').format(num);
+        return '$' + formatted;
+      } else if (pattern.startsWith('€')) {
+        const formatted = new Intl.NumberFormat('en-US').format(num);
+        return '€' + formatted;
+      } else if (pattern.startsWith('¥')) {
+        const formatted = new Intl.NumberFormat('en-US').format(num);
+        return '¥' + formatted;
+      }
+      
+      // Combined number + percentage patterns
+      if (pattern.includes('%')) {
+        if (pattern.includes('.##')) {
+          return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(num) + '%';
+        } else if (pattern.includes('.00')) {
+          return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(num) + '%';
+        } else {
+          return new Intl.NumberFormat('en-US').format(num) + '%';
+        }
+      }
+      
+      // Combined date + time patterns
+      if (pattern.includes(' ')) {
+        const date = this.parseDate(value);
+        const [datePart, timePart] = pattern.split(' ');
+        const formattedDate = this.formatDate(date, datePart);
+        const formattedTime = this.formatTime(date, timePart);
+        return `${formattedDate} ${formattedTime}`;
+      }
+      
+      return String(value);
+    },
+
     applyFormat(value, formatType, pattern) {
+      // Handle combined formats
+      if (formatType.includes('+')) {
+        return this.formatCombined(value, pattern);
+      }
+      
       switch (formatType) {
         case 'number':
           return this.formatNumber(value, pattern);
@@ -269,10 +370,27 @@ function formatText(editor) {
     }
   };
 
-  // Show error function
   function showFormatError(message) {
     alert(message);
     console.error('Format Error:', message);
+  }
+
+  // Get all format options including combined formats
+  function getAllFormatOptions() {
+    const options = Object.keys(formatConfigs).map(key => ({
+      value: key,
+      label: `${formatConfigs[key].icon} ${formatConfigs[key].label}`
+    }));
+    
+    // Add combined format options
+    Object.keys(combinedFormats).forEach(key => {
+      options.push({
+        value: key,
+        label: `${combinedFormats[key].icon} ${combinedFormats[key].label}`
+      });
+    });
+    
+    return options;
   }
 
   // Override the text component with enhanced functionality
@@ -284,19 +402,12 @@ function formatText(editor) {
         droppable: false,
         editable: true,
         content: 'Insert your text here',
-        attributes: {
-          'data-gjs-type': 'text',
-          'contenteditable': 'true'
-        },
         traits: [
           {
             type: 'select',
             name: 'format-type',
             label: 'Format Type',
-            options: Object.keys(formatConfigs).map(key => ({
-              value: key,
-              label: `${formatConfigs[key].icon} ${formatConfigs[key].label}`
-            })),
+            options: getAllFormatOptions(),
             changeProp: 1
           },
           {
@@ -309,15 +420,12 @@ function formatText(editor) {
         ],
         'format-type': 'text',
         'format-pattern': 'None',
-        'raw-content': 'Insert your text here',
-        'is-editing': false
+        'raw-content': 'Insert your text here'
       },
 
       init() {
         this.listenTo(this, 'change:format-type', this.handleFormatTypeChange);
         this.listenTo(this, 'change:format-pattern', this.updateFormattedContent);
-        
-        // Initialize format pattern options
         this.updateFormatPattern();
       },
 
@@ -326,52 +434,45 @@ function formatText(editor) {
         const previousFormatType = this.previous('format-type');
         const rawContent = this.get('raw-content') || '';
 
-        // Validate if content can be converted to new format
         const validation = formatHelpers.validateFormat(rawContent, newFormatType);
         
         if (!validation.valid) {
-          // Show error
           showFormatError(validation.error);
-          
-          // Prevent the change by using stopListening temporarily
           this.stopListening(this, 'change:format-type', this.handleFormatTypeChange);
-          
-          // Revert to previous format type
           this.set('format-type', previousFormatType);
           
-          // Update trait manager UI
           setTimeout(() => {
             const traitManager = this.em && this.em.get('TraitManager');
             if (traitManager) {
               const traits = traitManager.getCurrent();
               if (traits) {
-                const formatTypeTrait = traits.at(0); // First trait is format-type
+                const formatTypeTrait = traits.at(0);
                 if (formatTypeTrait && formatTypeTrait.view) {
-                  // Force UI update
                   formatTypeTrait.view.model.set('value', previousFormatType);
                   formatTypeTrait.view.render();
                 }
               }
             }
-            
-            // Re-enable listening
             this.listenTo(this, 'change:format-type', this.handleFormatTypeChange);
           }, 50);
           
           return;
         }
         
-        // If validation passes, update format pattern and content
         this.updateFormatPattern();
         this.updateFormattedContent();
       },
 
       updateFormatPattern() {
         const formatType = this.get('format-type') || 'text';
-        const config = formatConfigs[formatType];
+        let config = formatConfigs[formatType];
+        
+        // Check if it's a combined format
+        if (!config && combinedFormats[formatType]) {
+          config = combinedFormats[formatType];
+        }
         
         if (config) {
-          // Update pattern options
           const patternTrait = this.getTrait('format-pattern');
           if (patternTrait) {
             patternTrait.set('options', config.patterns.map(pattern => ({
@@ -379,13 +480,12 @@ function formatText(editor) {
               label: pattern
             })));
             
-            // Set default pattern
-            this.set('format-pattern', config.defaultPattern);
+            const defaultPattern = config.defaultPattern || config.patterns[0];
+            this.set('format-pattern', defaultPattern);
             
-            // Update trait UI
             setTimeout(() => {
               if (patternTrait.view) {
-                patternTrait.view.model.set('value', config.defaultPattern);
+                patternTrait.view.model.set('value', defaultPattern);
                 patternTrait.view.render();
               }
             }, 10);
@@ -409,55 +509,29 @@ function formatText(editor) {
             this.setContent(rawContent);
           }
         }
-        
-        this.updateComponentType();
       },
 
       setContent(content) {
-  // Update model content & raw content
-  this.set('content', content);
-  this.set('raw-content', content);
-  this.addAttributes({
-    'data-formatted-content': content,
-    'data-raw-content': content
-  });
+        this.set('content', content);
+        this.set('raw-content', content);
 
-  // Update live DOM content
-  const iframe = editor.Canvas.getFrameEl();
-  const el = iframe.contentDocument.querySelector(`#${this.getId()}`);
+        const iframe = editor.Canvas.getFrameEl();
+        const el = iframe.contentDocument.querySelector(`#${this.getId()}`);
 
-  if (el) {
-    el.textContent = content;
-    el.setAttribute('data-raw-content', content);
-    el.setAttribute('data-formatted-content', content);
-  }
+        if (el) {
+          el.textContent = content;
+        }
 
-  // Ensure GrapesJS uses updated content in export
-  // Ensure GrapesJS uses updated content in export
-const comp = editor.getWrapper().find(`#${this.getId()}`)[0];
-
-if (comp) {
-  const comps = comp.components();
-
-  if (comps.length > 0) {
-    // ✅ Update the inner text node content
-    const child = comps.at(0);
-    child.set('content', content);
-  } else {
-    // ✅ If no text node exists, create one
-    comp.components([{ type: 'textnode', content }]);
-  }
-}
-}, 
-      updateComponentType() {
-        const formatType = this.get('format-type') || 'text';
-        const pattern = this.get('format-pattern') || 'None';
-        
-        this.addAttributes({
-          'data-format-type': formatType,
-          'data-format-pattern': pattern,
-          'data-raw-content': this.get('raw-content') || ''
-        });
+        const comp = editor.getWrapper().find(`#${this.getId()}`)[0];
+        if (comp) {
+          const comps = comp.components();
+          if (comps.length > 0) {
+            const child = comps.at(0);
+            child.set('content', content);
+          } else {
+            comp.components([{ type: 'textnode', content }]);
+          }
+        }
       }
     },
 
@@ -473,7 +547,6 @@ if (comp) {
       },
 
       handleFocus(event) {
-        // Show raw content when editing
         const rawContent = this.model.get('raw-content') || '';
         this.el.textContent = rawContent;
         this.model.set('is-editing', true, { silent: true });
@@ -493,28 +566,22 @@ if (comp) {
         const content = this.getContentFromElement();
         const formatType = this.model.get('format-type');
         
-        // Validate the content for current format
         const validation = formatHelpers.validateFormat(content, formatType);
         
         if (!validation.valid) {
           showFormatError(validation.error);
-          // Restore previous raw content
           const previousRawContent = this.model.get('raw-content');
           this.el.textContent = previousRawContent;
           this.model.set('is-editing', false, { silent: true });
           
-          // Apply previous formatting
           setTimeout(() => {
             this.model.updateFormattedContent();
           }, 10);
           return;
         }
         
-        // Update raw content and apply formatting
         this.model.set('raw-content', content, { silent: true });
         this.model.set('is-editing', false, { silent: true });
-        
-        // Apply formatting
         this.model.updateFormattedContent();
       },
 
@@ -523,7 +590,6 @@ if (comp) {
       },
 
       updateElementContent() {
-        // Only update if not currently editing
         if (!this.model.get('is-editing') && document.activeElement !== this.el) {
           const content = this.model.get('content') || '';
           this.el.textContent = content;
@@ -532,42 +598,7 @@ if (comp) {
 
       onRender() {
         this.el.setAttribute('contenteditable', 'true');
-        this.model.updateComponentType();
       }
-    }
-  });
-
-  // Ensure formatted content is preserved in export
-  editor.on('component:export', (component) => {
-    if (component.get('type') === 'text') {
-      const formattedContent = component.get('content');
-      const formatType = component.get('format-type');
-      const pattern = component.get('format-pattern');
-      
-      // Ensure the exported HTML contains the formatted content
-      if (formattedContent && formatType !== 'text') {
-        component.set('content', formattedContent);
-        component.addAttributes({
-          'data-original-content': component.get('raw-content'),
-          'data-format-applied': `${formatType}:${pattern}`
-        });
-      }
-    }
-  });
-
-  // Handle PDF export by ensuring formatted content is in the DOM
-  editor.on('canvas:frame:load', () => {
-    const canvas = editor.Canvas;
-    const canvasDoc = canvas.getDocument();
-    
-    if (canvasDoc) {
-      const textElements = canvasDoc.querySelectorAll('[data-gjs-type="text"]');
-      textElements.forEach(el => {
-        const formattedContent = el.getAttribute('data-formatted-content');
-        if (formattedContent) {
-          el.textContent = formattedContent;
-        }
-      });
     }
   });
 
@@ -594,7 +625,7 @@ if (comp) {
   editor.on('component:selected', (component) => {
     if (component.get('type') === 'text') {
       const formatType = component.get('format-type') || 'text';
-      const config = formatConfigs[formatType];
+      let config = formatConfigs[formatType] || combinedFormats[formatType];
       
       if (config) {
         const displayLabel = formatType === 'text' ? 'Text' : `${config.icon} ${config.label}`;
@@ -613,13 +644,12 @@ if (comp) {
             'format-type': 'text',
             'format-pattern': 'None',
             'raw-content': component.get('content') || 'Insert your text here',
-            'editable': true,
-            'is-editing': false
+            'editable': true
           }, { silent: true });
         }
       });
     }
   });
 
-  console.log('Enhanced text formatter initialized successfully!');
+  console.log('Enhanced text formatter with combined formats initialized successfully!');
 }
