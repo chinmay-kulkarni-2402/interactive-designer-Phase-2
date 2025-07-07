@@ -514,12 +514,16 @@ function formatText(editor) {
       setContent(content) {
         this.set('content', content);
         this.set('raw-content', content);
+        this.addAttributes({
+          'data-raw-content': content
+        });
 
         const iframe = editor.Canvas.getFrameEl();
         const el = iframe.contentDocument.querySelector(`#${this.getId()}`);
 
         if (el) {
           el.textContent = content;
+          el.setAttribute('data-raw-content', content);
         }
 
         const comp = editor.getWrapper().find(`#${this.getId()}`)[0];
@@ -532,6 +536,15 @@ function formatText(editor) {
             comp.components([{ type: 'textnode', content }]);
           }
         }
+    },
+
+    updateComponentType() {
+        
+        this.addAttributes({
+          'data-format-type': formatType,
+          'data-format-pattern': pattern,
+          'data-raw-content': this.get('raw-content') || ''
+        });
       }
     },
 
@@ -634,22 +647,7 @@ function formatText(editor) {
     }
   });
 
-  // Initialize existing components
-  editor.on('load', () => {
-    const wrapper = editor.DomComponents.getWrapper();
-    if (wrapper) {
-      wrapper.find('[data-gjs-type="text"]').forEach(component => {
-        if (!component.get('format-type')) {
-          component.set({
-            'format-type': 'text',
-            'format-pattern': 'None',
-            'raw-content': component.get('content') || 'Insert your text here',
-            'editable': true
-          }, { silent: true });
-        }
-      });
-    }
-  });
+
 
   console.log('Enhanced text formatter with combined formats initialized successfully!');
 }
