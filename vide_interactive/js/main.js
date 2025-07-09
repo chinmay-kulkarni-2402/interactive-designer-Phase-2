@@ -23,7 +23,7 @@ const editor = InteractiveDesigner.init({
     customVideoIn,
     customSeparator,
     customSections,
-    formatText,
+   // formatText,
     "basic-block-component",
     "countdown-component",
     "forms-component",
