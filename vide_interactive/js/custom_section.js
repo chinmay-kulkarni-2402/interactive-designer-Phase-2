@@ -50,11 +50,11 @@ function customSections(editor) {
     iframeDoc.head.appendChild(styleEl);
   });
 
-  editor.Components.addType("sections", {
+  editor.Components.addType("Dynamic Header Footer", {
     model: {
       defaults: {
         tagName: "div",
-        name: "Sections",
+        name: "Dynamic Header Footer",
         attributes: { class: "sections-container" },
         selectable: true,
         highlightable: true,

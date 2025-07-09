@@ -3304,230 +3304,304 @@ function customChartCommonJson(editor) {
   if (this.tableInitialized) return;
   this.tableInitialized = true;
   
-  // Store active filters for this table instance
-  const activeFilters = {};
+
   
   const init1 = () => {
-    const ctx = this.id;
-    let uniqueID = Math.floor(100 + Math.random() * 900);
-    const divElement = document.getElementById(ctx);
-    let JsonPath1 = "{[ jsonpath ]}";
-    let custom_language = localStorage.getItem('language') || 'english';
-    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
-    const str = jsonDataN[custom_language][JsonPath1];
-    const tableData = eval(str);
-    const objectKeys = Object.keys(tableData.heading);
-    const table = document.createElement('table');
-    table.setAttribute('width', '100%');
-    table.setAttribute('class', 'table table-bordered');
-    table.setAttribute('id', 'table' + ctx);
+  const ctx = this.id;
+  let uniqueID = Math.floor(100 + Math.random() * 900);
+  const divElement = document.getElementById(ctx);
+  let JsonPath1 = "{[ jsonpath ]}";
+  let custom_language = localStorage.getItem('language') || 'english';
+  const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+  const str = jsonDataN[custom_language][JsonPath1];
+  const tableData = eval(str);
+  const objectKeys = Object.keys(tableData.heading);
 
-    // Clear previous content
-    divElement.innerHTML = "";
+  const table = document.createElement('table');
+  table.setAttribute('width', '100%');
+  table.setAttribute('class', 'table table-bordered');
+  table.setAttribute('id', 'table' + ctx);
 
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
+  divElement.innerHTML = "";
 
-    objectKeys.forEach((key, i) => {
-        const th = document.createElement('th');
-        th.setAttribute("class", "col" + ctx + i);
+  // Build thead
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  objectKeys.forEach((key, i) => {
+    const th = document.createElement('th');
+    th.setAttribute("class", "col" + ctx + i);
 
-        const labelDiv = document.createElement('div');
-        labelDiv.textContent = tableData.heading[key];
-        labelDiv.style.display = "inline-block";
-        labelDiv.style.marginRight = "78%";
+    const labelDiv = document.createElement('div');
+    labelDiv.textContent = tableData.heading[key];
+    labelDiv.style.display = "inline-block";
+    labelDiv.style.marginRight = "78%";
 
-        const searchIcon = document.createElement('span');
-        searchIcon.innerHTML = "🔍";
-        searchIcon.style.cursor = "pointer";
-        searchIcon.addEventListener("click", () => openSearchModal(key, tableData.heading[key]));
+    const searchIcon = document.createElement('span');
+    searchIcon.innerHTML = "🔍";
+    searchIcon.style.cursor = "pointer";
+    searchIcon.addEventListener("click", () => openSearchModal(key, tableData.heading[key]));
 
-        th.appendChild(labelDiv);
-        th.appendChild(searchIcon);
-        headerRow.appendChild(th);
-    });
+    th.appendChild(labelDiv);
+    th.appendChild(searchIcon);
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
 
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
+  // Initially empty tbody
+  const tbody = document.createElement('tbody');
+  tbody.setAttribute("id", "tbody" + ctx);
+  table.appendChild(tbody);
 
-    // Body (initially hidden)
-    const tbody = document.createElement('tbody');
-    tbody.style.display = "none";
-    tbody.setAttribute("id", "tbody" + ctx);
-    tableData.data.forEach((row, rowIndex) => {
-        const tr = document.createElement('tr');
-        objectKeys.forEach((key, j) => {
-        const td = document.createElement('td');
-        td.className = `col${uniqueID}`;
-        td.setAttribute("class", "col" + ctx + j);
-        td.innerText = row[key];
-        tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-    });
+  divElement.appendChild(table);
 
-    table.appendChild(tbody);
-    divElement.appendChild(table);
+  // Create modal for filter
+  const modal = document.createElement('div');
+  modal.setAttribute("id", "modal" + ctx);
+  modal.style.display = "none";
+  modal.style.position = "fixed";
+  modal.style.top = "50%";
+  modal.style.left = "50%";
+  modal.style.transform = "translate(-50%, -50%)";
+  modal.style.background = "#fff";
+  modal.style.padding = "20px 30px";
+  modal.style.border = "1px solid #ccc";
+  modal.style.borderRadius = "10px";
+  modal.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+  modal.style.zIndex = "9999";
+  modal.style.minWidth = "300px";
+  modal.style.fontFamily = "Arial, sans-serif";
 
-    // Add popup modal
-    const modal = document.createElement('div');
-    modal.setAttribute("id", "modal" + ctx);
-    modal.style.display = "none";
-    modal.style.position = "fixed";
-    modal.style.top = "50%";
-    modal.style.left = "50%";
-    modal.style.transform = "translate(-50%, -50%)";
-    modal.style.background = "#fff";
-    modal.style.padding = "20px 30px";
-    modal.style.border = "1px solid #ccc";
-    modal.style.borderRadius = "10px";
-    modal.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
-    modal.style.zIndex = "9999";
-    modal.style.minWidth = "300px";
-    modal.style.fontFamily = "Arial, sans-serif";
-    modal.style.position = "fixed";
-
-    modal.innerHTML = `
+  modal.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h4 style="margin: 0;">Report Parameter</h4>
-        <span id="closeModalBtn" style="cursor: pointer; font-size: 18px; font-weight: bold;">&times;</span>
+      <h4 style="margin: 0;">Report Parameter</h4>
+      <span id="closeModalBtn" style="cursor: pointer; font-size: 18px; font-weight: bold;">&times;</span>
     </div>
     <div id="activeFiltersContainer" style="margin-bottom: 15px;"></div>
     <label id="modalColLabel" style="font-weight: bold;"></label><br/>
     <input type="text" id="modalInput" style="margin-top: 10px; width: 100%; padding: 6px; border-radius: 5px; border: 1px solid #ccc;"/><br/><br/>
     <div style="text-align: right;">
-        <button id="applyBtn" style="padding: 6px 12px; margin-right: 28%; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Preview</button>
-        <button id="resetBtn" style="padding: 6px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Show All</button>
+      <button id="applyBtn" style="padding: 6px 12px; margin-right: 28%; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Preview</button>
+      <button id="resetBtn" style="padding: 6px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Show All</button>
     </div>
-    `;
+  `;
+  document.body.appendChild(modal);
 
-    document.body.appendChild(modal);
+  // Active filter state
+  const activeFilters = {};
 
-    function updateActiveFiltersDisplay() {
-        const container = document.getElementById("activeFiltersContainer");
-        container.innerHTML = "";
-        
-        if (Object.keys(activeFilters).length > 0) {
-            const filtersDiv = document.createElement('div');
-            filtersDiv.style.border = "1px solid #ddd";
-            filtersDiv.style.borderRadius = "5px";
-            filtersDiv.style.padding = "10px";
-            filtersDiv.style.backgroundColor = "#f8f9fa";
-            filtersDiv.style.marginBottom = "10px";
-            
-            const title = document.createElement('div');
-            title.textContent = "Active Filters:";
-            title.style.fontWeight = "bold";
-            title.style.marginBottom = "8px";
-            filtersDiv.appendChild(title);
-            
-            Object.keys(activeFilters).forEach(colKey => {
-                const filterDiv = document.createElement('div');
-                filterDiv.style.display = "flex";
-                filterDiv.style.justifyContent = "space-between";
-                filterDiv.style.alignItems = "center";
-                filterDiv.style.marginBottom = "5px";
-                filterDiv.style.padding = "3px 8px";
-                filterDiv.style.backgroundColor = "#e9ecef";
-                filterDiv.style.borderRadius = "3px";
-                
-                const filterText = document.createElement('span');
-                filterText.textContent = `${tableData.heading[colKey]}: ${activeFilters[colKey]}`;
-                filterText.style.fontSize = "12px";
-                
-                const deleteBtn = document.createElement('span');
-                deleteBtn.innerHTML = "×";
-                deleteBtn.style.cursor = "pointer";
-                deleteBtn.style.color = "#dc3545";
-                deleteBtn.style.fontWeight = "bold";
-                deleteBtn.style.marginLeft = "10px";
-                deleteBtn.addEventListener("click", () => {
-                    delete activeFilters[colKey];
-                    applyAllFilters();
-                    updateActiveFiltersDisplay();
-                });
-                
-                filterDiv.appendChild(filterText);
-                filterDiv.appendChild(deleteBtn);
-                filtersDiv.appendChild(filterDiv);
-            });
-            
-            container.appendChild(filtersDiv);
-        }
-    }
+  function updateActiveFiltersDisplay() {
+    const container = document.getElementById("activeFiltersContainer");
+    container.innerHTML = "";
 
-    function applyAllFilters() {
-        const tbody = document.getElementById("tbody" + ctx);
-        tbody.style.display = "";
-        
-        Array.from(tbody.rows).forEach(row => {
-            let shouldShow = true;
-            
-            // Check all active filters
-            Object.keys(activeFilters).forEach(colKey => {
-                const colIndex = objectKeys.indexOf(colKey);
-                const cellVal = row.cells[colIndex].textContent.toLowerCase();
-                const filterVal = activeFilters[colKey].toLowerCase();
-                
-                if (!cellVal.includes(filterVal)) {
-                    shouldShow = false;
-                }
-            });
-            
-            row.style.display = shouldShow ? "" : "none";
+    if (Object.keys(activeFilters).length > 0) {
+      const filtersDiv = document.createElement('div');
+      filtersDiv.style.border = "1px solid #ddd";
+      filtersDiv.style.borderRadius = "5px";
+      filtersDiv.style.padding = "10px";
+      filtersDiv.style.backgroundColor = "#f8f9fa";
+      filtersDiv.style.marginBottom = "10px";
+
+      const title = document.createElement('div');
+      title.textContent = "Active Filters:";
+      title.style.fontWeight = "bold";
+      title.style.marginBottom = "8px";
+      filtersDiv.appendChild(title);
+
+      Object.keys(activeFilters).forEach(colKey => {
+        const filterDiv = document.createElement('div');
+        filterDiv.style.display = "flex";
+        filterDiv.style.justifyContent = "space-between";
+        filterDiv.style.alignItems = "center";
+        filterDiv.style.marginBottom = "5px";
+        filterDiv.style.padding = "3px 8px";
+        filterDiv.style.backgroundColor = "#e9ecef";
+        filterDiv.style.borderRadius = "3px";
+
+        const filterText = document.createElement('span');
+        filterText.textContent = `${tableData.heading[colKey]}: ${activeFilters[colKey]}`;
+        filterText.style.fontSize = "12px";
+
+        const deleteBtn = document.createElement('span');
+        deleteBtn.innerHTML = "×";
+        deleteBtn.style.cursor = "pointer";
+        deleteBtn.style.color = "#dc3545";
+        deleteBtn.style.fontWeight = "bold";
+        deleteBtn.style.marginLeft = "10px";
+        deleteBtn.addEventListener("click", () => {
+          delete activeFilters[colKey];
+          applyAllFilters();
+          updateActiveFiltersDisplay();
         });
+
+        filterDiv.appendChild(filterText);
+        filterDiv.appendChild(deleteBtn);
+        filtersDiv.appendChild(filterDiv);
+      });
+
+      container.appendChild(filtersDiv);
     }
+  }
 
-    function openSearchModal(colKey, colLabel) {
-        modal.style.display = "block";
-        modal.setAttribute("data-colkey", colKey);
-        document.getElementById("modalColLabel").textContent = colLabel;
-        
-        // Pre-fill with existing filter value if any
-        const existingFilter = activeFilters[colKey] || "";
-        document.getElementById("modalInput").value = existingFilter;
-        
-        updateActiveFiltersDisplay();
-    }
-    
-    document.getElementById("closeModalBtn").onclick = () => {
-        modal.style.display = "none";
-    };
+  function openSearchModal(colKey, colLabel) {
+    modal.style.display = "block";
+    modal.setAttribute("data-colkey", colKey);
+    document.getElementById("modalColLabel").textContent = colLabel;
 
-    document.getElementById("applyBtn").onclick = () => {
-        const colKey = modal.getAttribute("data-colkey");
-        const filterVal = document.getElementById("modalInput").value.trim();
-        
-        if (filterVal) {
-            activeFilters[colKey] = filterVal;
-        } else {
-            delete activeFilters[colKey];
-        }
-        
-        applyAllFilters();
-        modal.style.display = "none";
-    };
+    const existingFilter = activeFilters[colKey] || "";
+    document.getElementById("modalInput").value = existingFilter;
 
-    document.getElementById("resetBtn").onclick = () => {
-        // Clear all filters
-        Object.keys(activeFilters).forEach(key => delete activeFilters[key]);
-        
-        const tbody = document.getElementById("tbody" + ctx);
-        tbody.style.display = "";
-        Array.from(tbody.rows).forEach(row => row.style.display = "");
-        modal.style.display = "none";
-    };
+    updateActiveFiltersDisplay();
+  }
+
+  document.getElementById("closeModalBtn").onclick = () => {
+    modal.style.display = "none";
   };
 
-  if (!window.Highcharts) {
-    const scr = document.createElement("script");
-    scr.src = "{[ custom_line_chartsrc ]}";
-    scr.onload = init1;
-    document.head.appendChild(scr);
-  } else {
-    init1();
+  document.getElementById("applyBtn").onclick = () => {
+    const colKey = modal.getAttribute("data-colkey");
+    const filterVal = document.getElementById("modalInput").value.trim();
+
+    if (filterVal) {
+      activeFilters[colKey] = filterVal;
+    } else {
+      delete activeFilters[colKey];
+    }
+
+    applyAllFilters();
+    modal.style.display = "none";
+  };
+
+  document.getElementById("resetBtn").onclick = () => {
+    Object.keys(activeFilters).forEach(key => delete activeFilters[key]);
+    modal.style.display = "none";
+    applyAllFilters(true); // true = show all
+  };
+
+  function applyAllFilters(showAll = false) {
+    const tbody = document.getElementById("tbody" + ctx);
+    tbody.innerHTML = "";
+
+    const jsonData = JSON.parse(localStorage.getItem("common_json"));
+    const allData = eval(jsonData[custom_language][JsonPath1]);
+
+    const rows = showAll ? allData.data : allData.data.filter(row => {
+      return Object.keys(activeFilters).every(colKey => {
+        const val = row[colKey]?.toString().toLowerCase() || '';
+        const filter = activeFilters[colKey].toLowerCase();
+        return val.includes(filter);
+      });
+    });
+
+    rows.forEach((row, rowIndex) => {
+      const tr = document.createElement('tr');
+      objectKeys.forEach((key, j) => {
+        const td = document.createElement('td');
+        td.className = `col${uniqueID}`;
+        td.setAttribute("class", "col" + ctx + j);
+
+        const div = document.createElement('div');
+        div.setAttribute("contenteditable", "true");
+        div.style.outline = "none";
+        div.style.minWidth = "60px";
+
+        const colLetter = String.fromCharCode(65 + j);
+        const cellRef = colLetter + (rowIndex + 1);
+
+        if (!window.globalFormulaParser) {
+          window.globalFormulaParser = new formulaParser.Parser();
+        }
+        const parser = window.globalFormulaParser;
+
+        if (!window.globalCellMap) {
+          window.globalCellMap = {};
+        }
+        const cellMap = window.globalCellMap;
+
+        parser.on('callCellValue', function (cellCoord, done) {
+          const label = cellCoord.label;
+          done(cellMap[label] || 0);
+        });
+
+        const rawVal = row[key];
+        let displayVal = rawVal;
+
+        if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
+          const res = parser.parse(rawVal.trim().substring(1));
+          displayVal = res.error ? '#ERR' : res.result;
+        }
+        cellMap[cellRef] = displayVal;
+
+
+        div.textContent = displayVal;
+        td.setAttribute("data-formula", rawVal);
+
+        div.addEventListener("blur", function () {
+          const userInput = div.textContent.trim();
+          let newVal = userInput;
+
+          if (userInput.startsWith('=')) {
+            const result = parser.parse(userInput.substring(1));
+            newVal = result.error ? "#ERR" : result.result;
+          }
+
+          cellMap[cellRef] = isNaN(newVal) ? 0 : newVal;
+          td.setAttribute("data-formula", userInput);
+          div.textContent = newVal;
+        });
+
+        td.appendChild(div);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
   }
+};
+
+
+//   if (!window.Highcharts) {
+//     const scr = document.createElement("script");
+//     scr.src = "{[ custom_line_chartsrc ]}";
+//     scr.onload = init1;
+//     document.head.appendChild(scr);
+//   } else {
+//     init1();
+//   }
   
+// Start Formula code and commented above line code
+const loadScriptsAndInit = () => {
+  // Load jQuery if not present
+  if (!window.jQuery) {
+    const jqueryScript = document.createElement("script");
+    jqueryScript.src = "{[ custom_line_chartsrc ]}";
+    jqueryScript.onload = () => loadFormulaParser();
+    document.head.appendChild(jqueryScript);
+  } else {
+    loadFormulaParser();
+  }
+};
+
+const loadFormulaParser = () => {
+  if (!window.formulaParserLoaded) {
+    const fScript = document.createElement("script");
+    fScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
+    fScript.onload = () => {
+      window.formulaParserLoaded = true;
+      init1(); // only run table logic after parser is ready
+    };
+    document.head.appendChild(fScript);
+  } else {
+    init1(); // already loaded
+  }
+};
+
+loadScriptsAndInit();
+
+
+// END Formula code
+
+
+
   this.on('removed', function () {
     this.tableInitialized = false;
   });

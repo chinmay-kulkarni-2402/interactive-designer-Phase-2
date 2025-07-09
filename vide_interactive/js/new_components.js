@@ -244,7 +244,8 @@ function newComponents(editor) {
 editor.BlockManager.add("page-break", {
   category: "Extra",
   label: '<h1><i class="fa fa-file-pdf-o fa-lg"></i></h1>Page Break',
-  content: '<div class="page-break" contenteditable="false"><span class="page-break-label">--- Page Break ---</span></div>',
+  content: 
+            {type : "page-break"},
 });
 
 
