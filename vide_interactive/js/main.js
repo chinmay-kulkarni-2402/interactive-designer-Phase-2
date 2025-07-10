@@ -24,6 +24,7 @@ const editor = InteractiveDesigner.init({
     customSeparator,
     customSections,
    // formatText,
+    customTableOfContents,
     "basic-block-component",
     "countdown-component",
     "forms-component",
