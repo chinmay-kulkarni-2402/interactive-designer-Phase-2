@@ -83,4 +83,10 @@ function source(editor) {
     content: `<video controls> <source src="video.mp4" type="video/mp4"> <source src="video.ogg" type="video/ogg"> </video>`,
   });  
 
+  editor.BlockManager.add("marquee-tag-block", {
+    category: "Tags",
+    label: '<h1><i class="fa fa-code fa-lg"></i></h1> Marquee',
+    content: {type: "Marquee"},
+  });  
+
 }

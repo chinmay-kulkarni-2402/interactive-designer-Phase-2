@@ -25,6 +25,7 @@ const editor = InteractiveDesigner.init({
     customSections,
    // formatText,
     customTableOfContents,
+    marqueTag,
     "basic-block-component",
     "countdown-component",
     "forms-component",
