@@ -23,9 +23,9 @@ const editor = InteractiveDesigner.init({
     customVideoIn,
     customSeparator,
     customSections,
-   // formatText,
-    customTableOfContents,
+    addFormattedRichTextComponent,
     marqueTag,
+    customJsonTable,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -153,6 +153,12 @@ editor.Panels.addPanel({ id: "devices-c" })
       attributes: { title: "Change Language", id: "multiLanguage" },
       className: "fa fa-language",
     },
+    {
+      id: "backgroundMusic",
+      attributes: { title: "Add Background Music", id: "backgroundMusic" },
+      className: "fa fa-music",
+      command: 'open-background-music-modal', 
+    },
     // {
     //   id: "filterTable",
     //   attributes: { title: "Report Parameter", id: "filterTable" },
@@ -167,6 +173,68 @@ save.addEventListener("click", savePage, true);
 
 var importPage = document.getElementById("importPage");
 importPage.addEventListener("click", importSinglePages, true);
+
+// var backMusic = document.getElementById("backgroundMusic");
+// backMusic.addEventListener("click", addBackgroundMusic, true);
+
+
+editor.Commands.add('open-background-music-modal', {
+  run(editor) {
+    const modal = editor.Modal;
+    const container = document.createElement('div');
+    container.style.padding = '10px';
+
+    container.innerHTML = `
+      <div style="margin-bottom: 10px;">
+        <label><strong>Audio File Path:</strong></label><br/>
+        <input type="text" id="bg-audio-path" style="width: 100%;" placeholder="Enter audio URL or path"/>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>
+          <input type="checkbox" id="bg-audio-once" />
+          Play only once
+        </label>
+      </div>
+      <button id="add-bg-audio-btn" class="gjs-btn gjs-btn-prim">Add Background Music</button>
+    `;
+
+    modal.setTitle('Add Background Music');
+    modal.setContent(container);
+    modal.open();
+
+    setTimeout(() => {
+      document.getElementById('add-bg-audio-btn').onclick = () => {
+        const audioPath = document.getElementById('bg-audio-path').value.trim();
+        const playOnce = document.getElementById('bg-audio-once').checked;
+
+        if (!audioPath) {
+          alert('Please enter a valid audio file path.');
+          return;
+        }
+
+        const audioAttrs = {
+          src: audioPath,
+          autoplay: true,
+          controls: false,
+        };
+
+        if (!playOnce) {
+          audioAttrs.loop = true;
+        }
+
+        editor.addComponents({
+          tagName: 'audio',
+          attributes: audioAttrs,
+          style: {
+            display: 'none',
+          },
+        });
+
+        modal.close();
+      };
+    }, 0);
+  }
+});
 
 // Backend URL configuration
 const BACKEND_URL = "http://localhost:3000";
@@ -543,6 +611,7 @@ function generatePrintDialog() {
   }
 }
 
+
 function processPageBreaks(html) {
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = html;
@@ -625,6 +694,103 @@ function downloadPage() {
   downloadAnchorNode.remove();
   editor.Modal.close();
 }
+
+// *********start resize and drag code ***********
+
+editor.on('component:add', function (component) {
+  // Set resizable if not set  
+  if (!component.get('resizable')) {
+    component.set('resizable', {
+      tl: 1, tc: 1, tr: 1,
+      cl: 1, cr: 1,
+      bl: 1, bc: 1, br: 1,
+      minDim: 20,
+      maxDim: 2000,
+      step: 1,
+      unitHeight: 'px',
+      unitWidth: 'px',
+      handleSize: 8,   
+    });
+  }   
+});  
+
+editor.BlockManager.add('draggable-section-container', {
+  label: 'Draggable Container',
+  category: 'Basic',
+  media: '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h20V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h20a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z"/>\n      </svg>',
+  content: `
+    <div class="draggable-section-container" style="position: relative; border: 2px dashed #888; padding: 10px; min-height: 67px;">
+      <div class="draggable-child" style="width: 200px; height: 47px;">
+        Drag me inside
+      </div>
+    </div>
+  `,
+});
+
+let isDragging = false;
+let startX = 0;
+let startY = 0;
+let currentX = 0;
+let currentY = 0;
+let selectedEl = null;
+let parentEl = null;
+
+editor.on('component:selected', (component) => {
+  const el = component.getEl();
+
+  // Check if it's a direct child of .custom-container
+  if (el?.parentElement?.classList.contains('draggable-section-container')) {
+    const parent = el.parentElement;
+    parent.style.position = 'relative'; 
+    selectedEl = el;
+    parentEl = parent; 
+
+    const compId = component.getId();
+    const selector = `#${compId}`;
+
+
+    el.onmousedown = function (e) {
+      e.preventDefault();
+      isDragging = true;
+      startX = e.clientX - currentX;
+      startY = e.clientY - currentY;
+
+      document.onmousemove = function (e) {
+        if (!isDragging) return;
+
+        const newX = e.clientX - startX;
+        const newY = e.clientY - startY;
+
+        const parentRect = parentEl.getBoundingClientRect();
+
+        currentX = Math.max(0, Math.min(newX, parentRect.width - selectedEl.offsetWidth));
+        currentY = Math.max(0, Math.min(newY, parentRect.height - selectedEl.offsetHeight));
+
+        // Add CSS Rule via CssComposer
+        const cssRule = editor.CssComposer.getRule(selector) || editor.CssComposer.add([selector]);
+ 
+        cssRule.addStyle({
+        transform: `translate(${currentX}px, ${currentY}px)`,
+      });
+      };
+
+      document.onmouseup = function () {
+        isDragging = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+    };
+  } else {
+    // If selected component is not child of custom container, disable custom dragging
+    if (el) {
+      el.onmousedown = null;
+    }
+  }
+});
+
+
+
+// ******* END Resize and drag code ***********
 
 function importSinglePages() {
   editor.Modal.setTitle("Add Pages From JSON");
