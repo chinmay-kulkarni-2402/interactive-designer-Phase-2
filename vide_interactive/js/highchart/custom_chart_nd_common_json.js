@@ -1037,30 +1037,39 @@ function customChartCommonJson(editor) {
   });
 
   function handleJsonPathChange(event) {
-      if (event.value) {
-          const selectedComponent = editor.getSelected();
-          const componentType = selectedComponent?.get('type');
-          if (componentType === 'text') {
-              const content = selectedComponent?.get('content');
-              if (content !== undefined) {
-                  try {
-                      const commonJson = JSON.parse(localStorage.getItem("common_json"));
-                      const jsonPath = `commonJson.${custom_language}.${event.value}`;
-                      const value = eval(jsonPath);
-                      if (value) {
-                          const componentView = selectedComponent.view;
-                          if (componentView) {
-                              componentView.el.innerHTML = value;
-                              editor.TraitManager.render();
-                          }
-                      }
-                  } catch (e) {
-                      console.error("Error evaluating JSON path:", e);
-                  }
-              }
-          }
-      }
-  }
+    if (event.value) {
+        const selectedComponent = editor.getSelected();
+        const componentType = selectedComponent?.get('type');
+        
+        // Support both 'text' and 'formatted-rich-text' components
+        if (componentType === 'text' || componentType === 'formatted-rich-text') {
+            const content = selectedComponent?.get('content');
+            if (content !== undefined) {
+                try {
+                    const commonJson = JSON.parse(localStorage.getItem("common_json"));
+                    const jsonPath = `commonJson.${custom_language}.${event.value}`;
+                    const value = eval(jsonPath);
+                    if (value) {
+                        if (componentType === 'formatted-rich-text') {
+                            // For formatted-rich-text, update both raw-content and content
+                            selectedComponent.set('raw-content', value);
+                            selectedComponent.updateFormattedContent();
+                        } else {
+                            // For regular text components
+                            const componentView = selectedComponent.view;
+                            if (componentView) {
+                                componentView.el.innerHTML = value;
+                            }
+                        }
+                        editor.TraitManager.render();
+                    }
+                } catch (e) {
+                    console.error("Error evaluating JSON path:", e);
+                }
+            }
+        }
+    }
+}
 
   // Start suggestion module   
   editor.on('load', function () {

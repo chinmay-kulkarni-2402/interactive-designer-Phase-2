@@ -25,7 +25,6 @@ const editor = InteractiveDesigner.init({
     customSections,
     addFormattedRichTextComponent,
     marqueTag,
-    customJsonTable,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -44,6 +43,9 @@ const editor = InteractiveDesigner.init({
     "page-manager-component",
     "pageBreakPlugin",
     "grapesjsHideOnPrint",
+    window.addEventListener('load', () => {
+  drawingTool(editor);
+}), 
   ],
   pluginsOpts: {
     "grapesjs-plugin-toolbox": {
@@ -195,6 +197,18 @@ editor.Commands.add('open-background-music-modal', {
           Play only once
         </label>
       </div>
+      <div style="margin-bottom: 10px;">
+        <label>
+          <input type="checkbox" id="bg-audio-autoplay" checked />
+          Auto-play on page load
+        </label>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>
+          <input type="checkbox" id="bg-audio-controls" />
+          Show audio controls
+        </label>
+      </div>
       <button id="add-bg-audio-btn" class="gjs-btn gjs-btn-prim">Add Background Music</button>
     `;
 
@@ -206,31 +220,127 @@ editor.Commands.add('open-background-music-modal', {
       document.getElementById('add-bg-audio-btn').onclick = () => {
         const audioPath = document.getElementById('bg-audio-path').value.trim();
         const playOnce = document.getElementById('bg-audio-once').checked;
+        const autoplay = document.getElementById('bg-audio-autoplay').checked;
+        const showControls = document.getElementById('bg-audio-controls').checked;
 
         if (!audioPath) {
           alert('Please enter a valid audio file path.');
           return;
         }
 
+        // Generate unique ID for the audio element
+        const audioId = 'bg-audio-' + Date.now();
+
         const audioAttrs = {
           src: audioPath,
-          autoplay: true,
-          controls: false,
+          id: audioId,
+          preload: 'auto'
         };
 
+        // Add attributes based on user selection
         if (!playOnce) {
           audioAttrs.loop = true;
         }
+        
+        if (showControls) {
+          audioAttrs.controls = true;
+        }
 
-        editor.addComponents({
+        if (autoplay) {
+          audioAttrs.autoplay = true;
+        }
+
+        // Create the audio component
+        const audioComponent = editor.addComponents({
           tagName: 'audio',
           attributes: audioAttrs,
-          style: {
-            display: 'none',
-          },
+          style: showControls ? {} : { display: 'none' },
         });
 
+        // Add initialization script to the head
+        const head = editor.getWrapper().find('head')[0];
+        if (head) {
+          head.append({
+            tagName: 'script',
+            content: `
+              // Background Music Auto-play Script
+              document.addEventListener('DOMContentLoaded', function() {
+                const bgAudio = document.getElementById('${audioId}');
+                if (bgAudio) {
+                  // For browsers that block autoplay, try to play on user interaction
+                  const playAudio = () => {
+                    bgAudio.play().catch(e => {
+                      console.log('Audio autoplay blocked by browser');
+                      // Show a play button if autoplay fails
+                      if (!bgAudio.controls) {
+                        const playBtn = document.createElement('button');
+                        playBtn.innerText = '🎵 Play Background Music';
+                        playBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;';
+                        playBtn.onclick = () => {
+                          bgAudio.play();
+                          playBtn.remove();
+                        };
+                        document.body.appendChild(playBtn);
+                      }
+                    });
+                  };
+                  
+                  // Try to play immediately
+                  if (${autoplay}) {
+                    playAudio();
+                  }
+                  
+                  // Also try on first user interaction
+                  document.addEventListener('click', playAudio, { once: true });
+                  document.addEventListener('keydown', playAudio, { once: true });
+                }
+              });
+            `
+          });
+        } else {
+          // If no head element, add script to body
+          editor.addComponents({
+            tagName: 'script',
+            content: `
+              // Background Music Auto-play Script
+              document.addEventListener('DOMContentLoaded', function() {
+                const bgAudio = document.getElementById('${audioId}');
+                if (bgAudio) {
+                  const playAudio = () => {
+                    bgAudio.play().catch(e => {
+                      console.log('Audio autoplay blocked by browser');
+                      if (!bgAudio.controls) {
+                        const playBtn = document.createElement('button');
+                        playBtn.innerText = '🎵 Play Background Music';
+                        playBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;';
+                        playBtn.onclick = () => {
+                          bgAudio.play();
+                          playBtn.remove();
+                        };
+                        document.body.appendChild(playBtn);
+                      }
+                    });
+                  };
+                  
+                  if (${autoplay}) {
+                    playAudio();
+                  }
+                  
+                  document.addEventListener('click', playAudio, { once: true });
+                  document.addEventListener('keydown', playAudio, { once: true });
+                }
+              });
+            `
+          });
+        }
+
         modal.close();
+        
+        // Show success message
+        editor.Modal.setTitle('Success');
+        editor.Modal.setContent('<div style="padding: 20px; text-align: center;">Background music added successfully!</div>');
+        editor.Modal.open();
+        setTimeout(() => editor.Modal.close(), 2000);
       };
     }, 0);
   }

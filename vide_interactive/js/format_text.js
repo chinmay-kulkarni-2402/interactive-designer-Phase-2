@@ -15,8 +15,8 @@ function addFormattedRichTextComponent(editor) {
     },
     currency: {
       label: 'Currency',
-      patterns: ['$0', '$0.00', '€0.00', '₹0.00', '¥0', '£0.00'],
-      defaultPattern: '₹0.00',
+      patterns: ['$ 0', '$ 0.00', '€ 0.00', '₹ 0.00', '¥ 0', '£ 0.00'],
+      defaultPattern: '₹ 0.00',
       icon: '💰'
     },
     percentage: {
@@ -38,7 +38,7 @@ function addFormattedRichTextComponent(editor) {
     'number+currency': {
       label: 'Number + Currency',
       icon: '🔢💰',
-      patterns: ['₹#,##,###', '$#,###.##', '€#,###.00', '¥#,###']
+      patterns: ['₹ #,##,###', '$ #,###.##', '€ #,###.00', '¥ #,###']
     },
     'number+percentage': {
       label: 'Number + Percentage',
@@ -174,7 +174,7 @@ function addFormattedRichTextComponent(editor) {
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
       const locale = currencySymbol === '₹' ? 'en-IN' : 'en-US';
 
-      return currencySymbol + new Intl.NumberFormat(locale, {
+      return currencySymbol + ' ' + new Intl.NumberFormat(locale, {
         minimumFractionDigits: decimals > 0 ? decimals : 0,
         maximumFractionDigits: decimals > 0 ? decimals : 0
       }).format(num);
@@ -366,285 +366,390 @@ function addFormattedRichTextComponent(editor) {
   ];
 
   // Add the formatted-rich-text component
-  editor.DomComponents.addType('formatted-rich-text', {
-    model: {
-      defaults: {
-        tagName: 'div',
-        draggable: true,
-        droppable: false,
-        editable: false, // Always false to prevent default RTE
-        content: 'Insert your text here',
-        attributes: {
-          'data-gjs-type': 'formatted-rich-text'
+// Add the formatted-rich-text component with show/hide and highlight functionality
+editor.DomComponents.addType('formatted-rich-text', {
+  model: {
+    defaults: {
+      tagName: 'div',
+      draggable: true,
+      droppable: false,
+      editable: false,
+      content: 'Insert your text here',
+      attributes: {
+        'data-gjs-type': 'formatted-rich-text'
+      },
+      traits: [
+        {
+          type: 'select',
+          name: 'format-type',
+          label: 'Format Type',
+          options: getAllFormatOptions(),
+          changeProp: 1
         },
-        traits: [
-          {
-            type: 'select',
-            name: 'format-type',
-            label: 'Format Type',
-            options: getAllFormatOptions(),
-            changeProp: 1
-          },
-          {
-            type: 'select',
-            name: 'format-pattern',
-            label: 'Format Pattern',
-            options: [{ value: 'None', label: 'None' }],
-            changeProp: 1
-          }
-        ],
-        'format-type': 'text',
-        'format-pattern': 'None',
-        'raw-content': 'Insert your text here',
-        'is-editing': false
-      },
-
-      init() {
-        this.on('change:format-type', this.handleFormatTypeChange);
-        this.on('change:format-pattern', this.updateFormattedContent);
-        this.updateFormatPattern();
-        this.updateTooltip();
-      },
-
-      updateTooltip() {
-        const formatType = this.get('format-type') || 'text';
-        const label = getFormatLabel(formatType);
-        this.set('custom-name', label, { silent: true });
-      },
-
-      handleFormatTypeChange() {
-        const newFormatType = this.get('format-type');
-        const rawContent = this.get('raw-content') || '';
-
-        const validation = formatHelpers.validateFormat(rawContent, newFormatType);
-        
-        if (!validation.valid) {
-          alert(validation.error);
-          return;
+        {
+          type: 'select',
+          name: 'format-pattern',
+          label: 'Format Pattern',
+          options: [{ value: 'None', label: 'None' }],
+          changeProp: 1
+        },
+        {
+          type: 'text',
+          name: 'my-input-json',
+          label: 'Json Path',
+          changeProp: 1
+        },
+        {
+          type: 'text',
+          name: 'hide-words',
+          label: 'Hide Words (comma separated)',
+          placeholder: 'word1, word2, phrase',
+          changeProp: 1
+        },
+        {
+          type: 'text',
+          name: 'highlight-words',
+          label: 'Highlight Words (comma separated)',
+          placeholder: 'word1, word2, phrase',
+          changeProp: 1
+        },
+        {
+          type: 'color',
+          name: 'highlight-color',
+          label: 'Highlight Color',
+          changeProp: 1
         }
-        
-        this.updateFormatPattern();
-        this.updateFormattedContent();
-        this.updateTooltip();
-      },
+      ],
+      'format-type': 'text',
+      'format-pattern': 'None',
+      'raw-content': 'Insert your text here',
+      'is-editing': false,
+      'hide-words': '',
+      'highlight-words': '',
+      'highlight-color': '#ffff00'
+    },
 
-      updateFormatPattern() {
-        const formatType = this.get('format-type') || 'text';
-        let config = formatConfigs[formatType] || combinedFormats[formatType];
-        
-        if (config) {
-          const patternTrait = this.getTrait('format-pattern');
-          if (patternTrait) {
-            patternTrait.set('options', config.patterns.map(pattern => ({
-              value: pattern,
-              label: pattern
-            })));
-            
-            const defaultPattern = config.defaultPattern || config.patterns[0];
-            this.set('format-pattern', defaultPattern);
+    init() {
+      this.on('change:format-type', this.handleFormatTypeChange);
+      this.on('change:format-pattern', this.updateContent);
+      this.on('change:hide-words', this.updateContent);
+      this.on('change:highlight-words', this.updateContent);
+      this.on('change:highlight-color', this.updateContent);
+      this.on('change:my-input-json', this.handleJsonPathChange);
+      this.updateFormatPattern();
+      this.updateTooltip();
+    },
+
+    updateTooltip() {
+      const formatType = this.get('format-type') || 'text';
+      const label = getFormatLabel(formatType);
+      this.set('custom-name', label, { silent: true });
+    },
+
+    handleFormatTypeChange() {
+      const newFormatType = this.get('format-type');
+      const rawContent = this.get('raw-content') || '';
+
+      const validation = formatHelpers.validateFormat(rawContent, newFormatType);
+      
+      if (!validation.valid) {
+        alert(validation.error);
+        return;
+      }
+      
+      this.updateFormatPattern();
+      this.updateContent();
+      this.updateTooltip();
+    },
+
+    handleJsonPathChange() {
+      const jsonPath = this.get('my-input-json');
+      if (jsonPath) {
+        try {
+          const commonJson = JSON.parse(localStorage.getItem("common_json"));
+          const fullJsonPath = `commonJson.${custom_language}.${jsonPath}`;
+          const value = eval(fullJsonPath);
+          if (value) {
+            this.set('raw-content', value, { silent: true });
+            this.updateContent();
           }
+        } catch (e) {
+          console.error("Error evaluating JSON path:", e);
         }
-      },
-
-      updateFormattedContent() {
-        const formatType = this.get('format-type') || 'text';
-        const pattern = this.get('format-pattern') || 'None';
-        const rawContent = this.get('raw-content') || '';
-
-        if (formatType === 'text' || pattern === 'None') {
-          this.set('content', rawContent);
-        } else {
-          try {
-            const formatted = formatHelpers.applyFormat(rawContent, formatType, pattern);
-            this.set('content', formatted);
-          } catch (error) {
-            console.warn('Format error:', error);
-            this.set('content', rawContent);
-          }
-        }
-      },
-
-      enableRTE() {
-        this.set('is-editing', true);
-      },
-
-      disableRTE() {
-        this.set('is-editing', false);
       }
     },
 
-    view: {
-      events: {
-        'dblclick': 'enableRichTextEditing',
-        'click': 'handleSingleClick'
-      },
-
-      init() {
-        this.listenTo(this.model, 'change:is-editing', this.handleEditingChange);
-        this.rteActive = false;
-      },
-
-      handleSingleClick(e) {
-        // Allow normal GrapesJS selection behavior on single click
-        // Don't prevent default, let GrapesJS handle component selection
-      },
-
-      handleEditingChange() {
-        const isEditing = this.model.get('is-editing');
-        if (isEditing && !this.rteActive) {
-          this.startRTE();
-        } else if (!isEditing && this.rteActive) {
-          this.stopRTE();
+    updateFormatPattern() {
+      const formatType = this.get('format-type') || 'text';
+      let config = formatConfigs[formatType] || combinedFormats[formatType];
+      
+      if (config) {
+        const patternTrait = this.getTrait('format-pattern');
+        if (patternTrait) {
+          patternTrait.set('options', config.patterns.map(pattern => ({
+            value: pattern,
+            label: pattern
+          })));
+          
+          const defaultPattern = config.defaultPattern || config.patterns[0];
+          this.set('format-pattern', defaultPattern);
         }
-      },
+      }
+    },
 
-      enableRichTextEditing(e) {
-        e.preventDefault();
-        e.stopPropagation();
+    // Helper method to escape regex special characters
+    escapeRegex(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    },
 
-        if (!this.rteActive) {
-          this.model.enableRTE();
+    // Method to apply show/hide and highlight functionality
+    applyConditionalFormatting(content) {
+      let processedContent = content;
+      const hideWords = this.get('hide-words') || '';
+      const highlightWords = this.get('highlight-words') || '';
+      const highlightColor = this.get('highlight-color') || '#ffff00';
+
+      // Remove existing conditional formatting
+      processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
+      processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
+
+      // Apply hide functionality
+      if (hideWords.trim()) {
+        const wordsToHide = hideWords.split(',').map(word => word.trim()).filter(word => word);
+        wordsToHide.forEach(word => {
+          if (word) {
+            const escapedWord = this.escapeRegex(word);
+            const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+            processedContent = processedContent.replace(regex, `<span class="hidden-word" style="display: none;">${word}</span>`);
+          }
+        });
+      }
+
+      // Apply highlight functionality
+      if (highlightWords.trim()) {
+        const wordsToHighlight = highlightWords.split(',').map(word => word.trim()).filter(word => word);
+        wordsToHighlight.forEach(word => {
+          if (word) {
+            const escapedWord = this.escapeRegex(word);
+            // Create a regex that matches the word but avoids already processed spans
+            const regex = new RegExp(`(?!<[^>]*>)\\b(${escapedWord})\\b(?![^<]*<\/span>)`, 'gi');
+            processedContent = processedContent.replace(regex, 
+              `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+            );
+          }
+        });
+      }
+
+      return processedContent;
+    },
+
+    updateContent() {
+      const formatType = this.get('format-type') || 'text';
+      const pattern = this.get('format-pattern') || 'None';
+      const rawContent = this.get('raw-content') || '';
+
+      let formattedContent;
+      
+      if (formatType === 'text' || pattern === 'None') {
+        formattedContent = rawContent;
+      } else {
+        try {
+          formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
+        } catch (error) {
+          console.warn('Format error:', error);
+          formattedContent = rawContent;
         }
-      },
+      }
 
-      startRTE() {
-        if (this.rteActive) return; // Prevent multiple RTE instances
+      // Apply conditional formatting (show/hide and highlight)
+      const finalContent = this.applyConditionalFormatting(formattedContent);
+      
+      this.set('content', finalContent);
+    },
 
-        const em = this.model.em;
-        if (!em) return;
+    enableRTE() {
+      this.set('is-editing', true);
+    },
 
-        const rte = em.get('RichTextEditor');
-        if (!rte) return;
+    disableRTE() {
+      this.set('is-editing', false);
+    }
+  },
 
-        this.rteActive = true;
+  view: {
+    events: {
+      'dblclick': 'enableRichTextEditing',
+      'click': 'handleSingleClick'
+    },
 
-        // Store original actions and replace with custom ones
-        this.originalActions = rte.getAll().slice(); // Create a copy
-        
-        // Clear existing actions
-        this.originalActions.forEach(action => {
+    init() {
+      this.listenTo(this.model, 'change:is-editing', this.handleEditingChange);
+      this.listenTo(this.model, 'change:content', this.render);
+      this.rteActive = false;
+    },
+
+    handleSingleClick(e) {
+      // Allow normal GrapesJS selection behavior on single click
+    },
+
+    handleEditingChange() {
+      const isEditing = this.model.get('is-editing');
+      if (isEditing && !this.rteActive) {
+        this.startRTE();
+      } else if (!isEditing && this.rteActive) {
+        this.stopRTE();
+      }
+    },
+
+    enableRichTextEditing(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!this.rteActive) {
+        this.model.enableRTE();
+      }
+    },
+
+    startRTE() {
+      if (this.rteActive) return;
+
+      const em = this.model.em;
+      if (!em) return;
+
+      const rte = em.get('RichTextEditor');
+      if (!rte) return;
+
+      this.rteActive = true;
+
+      // Store original actions and replace with custom ones
+      this.originalActions = rte.getAll().slice();
+      
+      // Clear existing actions
+      this.originalActions.forEach(action => {
+        try {
+          rte.remove(action.name);
+        } catch (e) {
+          // Ignore errors when removing actions
+        }
+      });
+
+      // Add custom actions
+      customRteActions.forEach(action => {
+        try {
+          rte.add(action.name, action);
+        } catch (e) {
+          // Ignore errors when adding actions
+        }
+      });
+
+      // Set content from raw content (without conditional formatting for editing)
+      const rawContent = this.model.get('raw-content') || '';
+      this.el.innerHTML = rawContent;
+
+      // Enable RTE
+      try {
+        rte.enable(this, null, { 
+          actions: customRteActions.map(a => a.name)
+        });
+      } catch (e) {
+        console.warn('RTE enable error:', e);
+      }
+
+      // Handle content changes
+      this.rteChangeHandler = () => {
+        const content = this.el.innerHTML;
+        this.model.set('raw-content', content, { silent: true });
+      };
+
+      this.el.addEventListener('input', this.rteChangeHandler);
+      this.el.addEventListener('blur', this.handleRTEBlur.bind(this));
+    },
+
+    stopRTE() {
+      if (!this.rteActive) return;
+
+      const em = this.model.em;
+      if (!em) return;
+
+      const rte = em.get('RichTextEditor');
+      if (!rte) return;
+
+      this.rteActive = false;
+
+      // Remove event listeners
+      if (this.rteChangeHandler) {
+        this.el.removeEventListener('input', this.rteChangeHandler);
+        this.el.removeEventListener('blur', this.handleRTEBlur);
+        this.rteChangeHandler = null;
+      }
+
+      // Disable RTE
+      try {
+        rte.disable(this);
+      } catch (e) {
+        console.warn('RTE disable error:', e);
+      }
+
+      // Restore original actions
+      if (this.originalActions) {
+        customRteActions.forEach(action => {
           try {
             rte.remove(action.name);
           } catch (e) {
-            // Ignore errors when removing actions
+            // Ignore errors
           }
         });
 
-        // Add custom actions
-        customRteActions.forEach(action => {
+        this.originalActions.forEach(action => {
           try {
             rte.add(action.name, action);
           } catch (e) {
-            // Ignore errors when adding actions
+            // Ignore errors
           }
         });
-
-        // Set content from current formatted content
-        const currentContent = this.model.get('content') || '';
-        this.el.innerHTML = currentContent;
-
-        // Enable RTE
-        try {
-          rte.enable(this, null, { 
-            actions: customRteActions.map(a => a.name)
-          });
-        } catch (e) {
-          console.warn('RTE enable error:', e);
-        }
-
-        // Handle content changes
-        this.rteChangeHandler = () => {
-          const content = this.el.innerHTML;
-          this.model.set('raw-content', content, { silent: true });
-        };
-
-        this.el.addEventListener('input', this.rteChangeHandler);
-        this.el.addEventListener('blur', this.handleRTEBlur.bind(this));
-      },
-
-      stopRTE() {
-        if (!this.rteActive) return;
-
-        const em = this.model.em;
-        if (!em) return;
-
-        const rte = em.get('RichTextEditor');
-        if (!rte) return;
-
-        this.rteActive = false;
-
-        // Remove event listeners
-        if (this.rteChangeHandler) {
-          this.el.removeEventListener('input', this.rteChangeHandler);
-          this.el.removeEventListener('blur', this.handleRTEBlur);
-          this.rteChangeHandler = null;
-        }
-
-        // Disable RTE
-        try {
-          rte.disable(this);
-        } catch (e) {
-          console.warn('RTE disable error:', e);
-        }
-
-        // Restore original actions
-        if (this.originalActions) {
-          // Clear custom actions
-          customRteActions.forEach(action => {
-            try {
-              rte.remove(action.name);
-            } catch (e) {
-              // Ignore errors
-            }
-          });
-
-          // Restore original actions
-          this.originalActions.forEach(action => {
-            try {
-              rte.add(action.name, action);
-            } catch (e) {
-              // Ignore errors
-            }
-          });
-          
-          this.originalActions = null;
-        }
-      },
-
-      handleRTEBlur() {
-        const content = this.el.innerHTML;
-        const formatType = this.model.get('format-type');
         
-        // Validate format before applying
-        const validation = formatHelpers.validateFormat(content, formatType);
-        
-        if (!validation.valid) {
-          alert(validation.error);
-          // Revert to previous content
-          const previousContent = this.model.get('raw-content');
-          this.el.innerHTML = previousContent;
-        } else {
-          this.model.set('raw-content', content, { silent: true });
-          this.model.updateFormattedContent();
-        }
-        
-        // Disable editing after blur
-        setTimeout(() => {
-          this.model.disableRTE();
-        }, 100);
-      },
-
-      onRender() {
-        // Ensure element is not editable by default
-        this.el.contentEditable = false;
-        
-        // Set tooltip based on format type
-        const formatType = this.model.get('format-type') || 'text';
-        const label = getFormatLabel(formatType);
-        this.el.setAttribute('title', label);
+        this.originalActions = null;
       }
+    },
+
+    handleRTEBlur() {
+      const content = this.el.innerHTML;
+      const formatType = this.model.get('format-type');
+      
+      // Validate format before applying
+      const validation = formatHelpers.validateFormat(content, formatType);
+      
+      if (!validation.valid) {
+        alert(validation.error);
+        // Revert to previous content
+        const previousContent = this.model.get('raw-content');
+        this.el.innerHTML = previousContent;
+      } else {
+        this.model.set('raw-content', content, { silent: true });
+        this.model.updateContent();
+      }
+      
+      // Disable editing after blur
+      setTimeout(() => {
+        this.model.disableRTE();
+      }, 100);
+    },
+
+    onRender() {
+      // Ensure element is not editable by default
+      this.el.contentEditable = false;
+      
+      // Set tooltip based on format type
+      const formatType = this.model.get('format-type') || 'text';
+      const label = getFormatLabel(formatType);
+      this.el.setAttribute('title', label);
+      
+      // Update content display
+      const content = this.model.get('content') || '';
+      this.el.innerHTML = content;
     }
-  });
+  }
+});
 
   // Add component to blocks
   editor.BlockManager.add('formatted-rich-text', {
@@ -663,8 +768,6 @@ function addFormattedRichTextComponent(editor) {
   editor.addStyle(`
     [data-gjs-type="formatted-rich-text"] {
       min-height: 40px;
-      outline: none;
-      cursor: pointer;
       position: relative;
       padding: 12px;
       border: 1px solid transparent;
@@ -675,15 +778,12 @@ function addFormattedRichTextComponent(editor) {
     }
     
     [data-gjs-type="formatted-rich-text"]:hover {
-      background-color: rgba(0, 123, 255, 0.02);
-      border: 1px dashed rgba(0, 123, 255, 0.3);
-      cursor: pointer;
+
     }
     
     [data-gjs-type="formatted-rich-text"][contenteditable="true"] {
-      background-color: rgba(0, 123, 255, 0.05);
       border: 1px dashed #007bff;
-      outline: none;
+
       cursor: text;
     }
     
@@ -695,7 +795,7 @@ function addFormattedRichTextComponent(editor) {
     [data-gjs-type="formatted-rich-text"] a {
       color: #007bff;
       text-decoration: underline;
-      cursor: pointer;
+
     }
     
     [data-gjs-type="formatted-rich-text"] a:hover {
@@ -747,17 +847,14 @@ function addFormattedRichTextComponent(editor) {
     
     .gjs-block-formatted-rich-text:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
     
     /* Editing state indicator */
     [data-gjs-type="formatted-rich-text"][contenteditable="true"]::before {
-      content: "✏️ Editing";
       position: absolute;
       top: -20px;
       left: 0;
       font-size: 10px;
-      background: #007bff;
       color: white;
       padding: 2px 6px;
       border-radius: 3px;
