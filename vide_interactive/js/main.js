@@ -941,7 +941,6 @@ function generatePrintDialog() {
               /* Inline styles will automatically have higher specificity */
             }
           }
-            
           
           /* Screen styles */
           @media screen {
@@ -1099,6 +1098,13 @@ editor.BlockManager.add('draggable-section-container', {
   category: 'Basic',
   media: '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h20V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h20a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z"/>\n      </svg>',
   content: `
+  <style>
+      @media print {
+        .draggable-section-container {
+          border: none !important;
+        }
+      }
+    </style>
     <div class="draggable-section-container" style="position: relative; border: 2px dashed #888; padding: 10px; min-height: 67px;">
       <div class="draggable-child" style="width: 200px; height: 47px;">
         Drag me inside

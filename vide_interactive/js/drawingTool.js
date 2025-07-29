@@ -125,7 +125,6 @@ function drawingTool(editor) {
         /* Custom block style */
         .drawing-canvas-block {
             min-height: 200px;
-            border: 2px dashed #ccc;
             display: flex;
             align-items: center;
             justify-content: center;
