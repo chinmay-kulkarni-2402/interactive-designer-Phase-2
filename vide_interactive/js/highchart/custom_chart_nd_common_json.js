@@ -53,6 +53,17 @@ function customChartCommonJson(editor) {
           { value: 'line', label: 'Line chart' },
           { value: 'column', label: 'Column chart' },
           { value: 'bar', label: 'Bar chart' },
+          { value: 'drilldown_bar', label: 'Donut chart' },
+          { value: 'drilldown_bar', label: 'Scatter chart' },
+          { value: 'drilldown_bar', label: 'Area chart' },
+          { value: 'drilldown_bar', label: 'Bubble chart' },
+          { value: 'drilldown_bar', label: 'Spiderweb chart' },
+          { value: 'drilldown_bar', label: 'CandleStick chart' },
+          { value: 'drilldown_bar', label: 'OHLC chart' },
+          { value: 'drilldown_bar', label: 'Dual axis line and column chart' },
+          { value: 'drilldown_bar', label: '3D Donut chart' },
+          { value: 'drilldown_bar', label: '3D pie chart' },
+          { value: 'drilldown_bar', label: '3D Column chart' },
           { value: 'stacked-column', label: 'Stacked Column chart' },
           { value: 'stacked-bar', label: 'Stacked Bar chart' },
           { value: 'drilldown_pie', label: 'Drilldown Pie chart' },
@@ -114,7 +125,13 @@ function customChartCommonJson(editor) {
   ];
 
   let jsonData = [];
-  let common_json = JSON.parse(localStorage.getItem("common_json")); 
+  let common_json = null;
+  try {
+    common_json = JSON.parse(localStorage.getItem("common_json") || 'null');
+  } catch(e) {
+    common_json = null;
+  }
+  
   if (common_json !== null) {
       jsonData.length = 0;
       jsonData.push(common_json);
@@ -127,77 +144,87 @@ function customChartCommonJson(editor) {
         ...test_chart_Props,
         tagName: "figure",
         resizable: 1,
-        custom_line_chartsrc: "https://code.highcharts.com/highcharts.js",
+        custom_line_chartsrc: "https://code.highcharts.com/11.4.8/highcharts.js",
         droppable: 0,
         stylable: 1,
         attributes: { 'data-i_designer-type': 'custom_line_chart' },
         traits: [id_Trait, title_Trait, ...all_Traits],
         style: {
           padding: "2px",
+          minHeight: "400px",
+          width: "100%",
         },
         script: function () { 
-          if (this.highchartsInitialized) return;
-          this.highchartsInitialized = true; 
-          const init1 = () => {
+          // Enhanced initialization for export compatibility
+          const initializeChart = () => {
             const ctx = this.id; 
-            let chart_Title = "{[ chartTitle ]}";
-            let chart_Title_align = "{[ SelectTitleAlign ]}";
-            let JsonPath1 = "{[ jsonpath ]}"; 
-            let chartType = "{[ SelectChart ]}";
-            var language = localStorage.getItem('language');
-            if (language === undefined || language === null || language === '') {
-                language = 'english';
-            } 
+            const element = document.getElementById(ctx);
+            
+            if (!element) {
+              console.warn('Chart container not found:', ctx);
+              return;
+            }
+
+            let chart_Title = "{[ chartTitle ]}" || "Chart Title";
+            let chart_Title_align = "{[ SelectTitleAlign ]}" || "left";
+            let JsonPath1 = "{[ jsonpath ]}" || ""; 
+            let chartType = "{[ SelectChart ]}" || "pie";
+            let chart_yAxis = "{[ ChartyAxis ]}" || "Values";
+            let chart_layout = "{[ SelectChartLayout ]}" || "horizontal";
+
+            // Fallback data handling for export scenarios
+            let language = 'english';
             let project_type = 'developmentJsonType';
-            let str = JSON.parse(localStorage.getItem('common_json'))[language][JsonPath1];
-            if (typeof project_type2 !== 'undefined' && project_type2 === 'downloadedJsonType') {
-                project_type = 'downloadedJsonType';
-            }
-            if (project_type === 'downloadedJsonType') {
-                str = jsonData1[0][language][JsonPath1];
-            }
-            let chart_yAxis = "{[ ChartyAxis ]}";
-            let chart_layout = "{[ SelectChartLayout ]}";
-            let seriesData = [];
-            let seriesData2 = [];
-            let chartAlign = '';
+            let str = null;
+            let seriesData = {};
+
             try {
+              if (typeof localStorage !== 'undefined') {
+                language = localStorage.getItem('language') || 'english';
+                const common_json_data = JSON.parse(localStorage.getItem('common_json') || 'null');
+                if (common_json_data && JsonPath1) {
+                  str = common_json_data[language] && common_json_data[language][JsonPath1];
+                }
+              }
+              
+              if (typeof project_type2 !== 'undefined' && project_type2 === 'downloadedJsonType') {
+                project_type = 'downloadedJsonType';
+                if (typeof jsonData1 !== 'undefined' && jsonData1[0] && JsonPath1) {
+                  str = jsonData1[0][language] && jsonData1[0][language][JsonPath1];
+                }
+              }
+
+              if (str) {
                 seriesData = eval(str);
-                if (seriesData.series === undefined) {
-                    alert("Series array not found");
-                    return false;
+                if (!seriesData.series) {
+                  throw new Error("Series array not found");
                 }
+              }
             } catch (e) {
-                seriesData = [];
-                if (JsonPath1 !== '' && JsonPath1 !== null && JsonPath1 !== undefined && JsonPath1 !== ' ') {
-                    alert("JSON path not found");
-                }
+              console.warn("JSON path evaluation failed, using default data:", e.message);
+              seriesData = {};
             }
-            if (chartType == '') {
-                chartType = 'pie';
-            };
-            if (chart_layout == '') {
-                chart_layout = 'horizontal';
-            }
-            chartAlign = chart_layout + 'Align';
-            if (chartType == 'pie') {
-                if (JsonPath1 === '') {
+
+            let seriesData2 = {};
+            let chartAlign = chart_layout + 'Align';
+
+            // Chart type configurations with fallback data
+            if (chartType === 'pie') {
+                if (!seriesData.series) {
                     seriesData = {
                         "series": [{
                             data: [{
                                 name: "Chrome",
                                 y: 70.67
-                            },
-                            {
+                            }, {
                                 name: "Edge",
                                 y: 14.77
-                            },
-                            {
+                            }, {
                                 name: "Firefox",
                                 y: 4.86
                             }]
                         }]
-                    }
+                    };
                 }
                 seriesData2 = {
                     chart: {
@@ -205,18 +232,19 @@ function customChartCommonJson(editor) {
                         plotBorderWidth: null,
                         plotShadow: false,
                         type: chartType,
+                        animation: false, // Disable animation for export
                     },
                     title: {
                         text: chart_Title,
                         align: chart_Title_align
                     },
                     series: seriesData.series,
-                    "tooltip": {
+                    tooltip: {
                         pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>"
                     },
                     accessibility: {
                         point: {
-                            "valueSuffix": "%"
+                            valueSuffix: "%"
                         }
                     },
                     credits: {
@@ -224,19 +252,21 @@ function customChartCommonJson(editor) {
                     },
                     plotOptions: {
                         pie: {
-                            "allowPointSelect": true,
-                            "cursor": "pointer",
-                            "dataLabels": {
-                                "enabled": false
+                            allowPointSelect: true,
+                            cursor: "pointer",
+                            dataLabels: {
+                                enabled: false
                             },
-                            "colors": null,
-                            "showInLegend": true
+                            colors: null,
+                            showInLegend: true,
+                            animation: false // Disable animation for export
                         }
                     },
-                }
+                };
             }
-            if (chartType == 'bar') {
-                if (JsonPath1 === '') {
+            
+            if (chartType === 'bar') {
+                if (!seriesData.series) {
                     seriesData = {
                         "xAxis": {
                             "categories": ["Africa", "America", "Asia", "Europe", "Oceania"]
@@ -254,128 +284,130 @@ function customChartCommonJson(editor) {
                             "name": "Year 2018",
                             "data": [1276, 1007, 4561, 746, 42]
                         }]
-                    }
+                    };
                 }
                 seriesData2 = {
                     chart: {
-                        "plotBackgroundColor": null,
-                        "plotBorderWidth": null,
-                        "plotShadow": false,
-                        "type": "bar"
+                        plotBackgroundColor: null,
+                        plotBorderWidth: null,
+                        plotShadow: false,
+                        type: "bar",
+                        animation: false
                     },
-                    "title": {
+                    title: {
                         text: chart_Title,
                         align: chart_Title_align
                     },
-
-                    "xAxis": {
-                        "categories": seriesData.xAxis.categories,
-                        "title": {
-                            "text": null
+                    xAxis: {
+                        categories: seriesData.xAxis.categories,
+                        title: {
+                            text: null
                         }
                     },
-                    "tooltip": {
-                        "valueSuffix": "millions"
-                    },
-                    "plotOptions": {
-                        "bar": {
-                            "dataLabels": {
-                                "enabled": true
-                            }
+                    yAxis: {
+                        title: {
+                            text: chart_yAxis
                         }
                     },
-                    "legend": {
-                        "layout": chart_layout,
-                        "align": "right",
-                        chartAlign: "top",
-                        "x": -40,
-                        "y": 80,
-                        "floating": true,
-                        "borderWidth": 1,
-                        "backgroundColor": "#FFFFFF",
-                        "shadow": true
+                    tooltip: {
+                        valueSuffix: " millions"
                     },
-                    "credits": {
-                        "enabled": false
+                    plotOptions: {
+                        bar: {
+                            dataLabels: {
+                                enabled: true
+                            },
+                            animation: false
+                        }
+                    },
+                    legend: {
+                        layout: chart_layout,
+                        align: "right",
+                        [chartAlign]: "top",
+                        x: -40,
+                        y: 80,
+                        floating: true,
+                        borderWidth: 1,
+                        backgroundColor: "#FFFFFF",
+                        shadow: true
+                    },
+                    credits: {
+                        enabled: false
                     },
                     series: seriesData.series,
-                }
+                };
             }
-            if (chartType == 'line') {
-                if (JsonPath1 === '') {
+
+            if (chartType === 'line') {
+                if (!seriesData.series) {
                     seriesData = {
-                        "series": [
-                            {
-                                "name": "Installation & Developers",
-                                "data": [43934, 48656, 65165, 81827, 112143, 142383,
-                                    171533, 165174, 155157, 161454, 154610]
-                            }, {
-                                "name": "Manufacturing",
-                                "data": [24916, 37941, 29742, 29851, 32490, 30282,
-                                    38121, 36885, 33726, 34243, 31050]
-                            }]
-                    }
+                        "series": [{
+                            "name": "Installation & Developers",
+                            "data": [43934, 48656, 65165, 81827, 112143, 142383, 171533, 165174, 155157, 161454, 154610]
+                        }, {
+                            "name": "Manufacturing",
+                            "data": [24916, 37941, 29742, 29851, 32490, 30282, 38121, 36885, 33726, 34243, 31050]
+                        }]
+                    };
                 }
                 seriesData2 = {
-                    "chart": {
-                        "plotBackgroundColor": null,
-                        "plotBorderWidth": null,
-                        "plotShadow": false,
-                        "type": "line"
+                    chart: {
+                        plotBackgroundColor: null,
+                        plotBorderWidth: null,
+                        plotShadow: false,
+                        type: "line",
+                        animation: false
                     },
-                    "title": {
+                    title: {
                         text: chart_Title,
                         align: chart_Title_align
                     },
-                    "yAxis": {
-                        "title": {
-                            "text": chart_yAxis
+                    yAxis: {
+                        title: {
+                            text: chart_yAxis
                         }
                     },
-
-                    "series": seriesData.series,
-
-                    "xAxis": {
-                        "accessibility": {
-                            "rangeDescription": ""
+                    series: seriesData.series,
+                    xAxis: {
+                        accessibility: {
+                            rangeDescription: ""
                         }
                     },
-
-                    "legend": {
-                        "layout": chart_layout,
-                        "align": "right",
-                        chartAlign: "middle"
+                    legend: {
+                        layout: chart_layout,
+                        align: "right",
+                        [chartAlign]: "middle"
                     },
-
-                    "plotOptions": {
-                        "series": {
-                            "label": {
-                                "connectorAllowed": false
+                    plotOptions: {
+                        series: {
+                            label: {
+                                connectorAllowed: false
                             },
-                            "pointStart": 2010
+                            pointStart: 2010,
+                            animation: false
                         }
                     },
-
-                    "responsive": {
-                        "rules": [{
-                            "condition": {
-                                "maxWidth": 500
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
                             },
-                            "chartOptions": {
-                                "legend": {
-                                    "layout": chart_layout,
-                                    "align": "center",
-                                    chartAlign: "bottom"
+                            chartOptions: {
+                                legend: {
+                                    layout: chart_layout,
+                                    align: "center",
+                                    [chartAlign]: "bottom"
                                 }
                             }
                         }]
                     },
-                    "colors": null,
-                    "credits": { "enabled": false }
-                }
+                    colors: null,
+                    credits: { enabled: false }
+                };
             }
-            if (chartType == 'column') {
-                if (JsonPath1 === '') {
+
+            if (chartType === 'column') {
+                if (!seriesData.series) {
                     seriesData = {
                         "xAxis": {
                             "categories": ["Africa", "America", "Asia"],
@@ -390,64 +422,66 @@ function customChartCommonJson(editor) {
                             "name": "Year 2010",
                             "data": [1044, 944, 4170]
                         }]
-                    }
+                    };
                 }
                 seriesData2 = {
-                    "chart": {
-                        "plotBackgroundColor": null,
-                        "plotBorderWidth": null,
-                        "plotShadow": false,
-                        "type": "column"
+                    chart: {
+                        plotBackgroundColor: null,
+                        plotBorderWidth: null,
+                        plotShadow: false,
+                        type: "column",
+                        animation: false
                     },
-                    "title": {
+                    title: {
                         text: chart_Title,
                         align: chart_Title_align
                     },
-
-                    "xAxis": {
-                        "categories": seriesData.xAxis.categories,
-                        "title": {
-                            "text": null
+                    xAxis: {
+                        categories: seriesData.xAxis.categories,
+                        title: {
+                            text: null
                         }
                     },
-                    "yAxis": {
-                        "min": 0,
-                        "title": {
-                            "text": chart_yAxis
+                    yAxis: {
+                        min: 0,
+                        title: {
+                            text: chart_yAxis
                         },
-                        "labels": {
-                            "overflow": "justify"
+                        labels: {
+                            overflow: "justify"
                         }
                     },
-                    "tooltip": {
-                        "valueSuffix": "millions"
+                    tooltip: {
+                        valueSuffix: " millions"
                     },
-                    "plotOptions": {
-                        "bar": {
-                            "dataLabels": {
-                                "enabled": true
-                            }
+                    plotOptions: {
+                        column: {
+                            dataLabels: {
+                                enabled: true
+                            },
+                            animation: false
                         }
                     },
-                    "legend": {
-                        "layout": chart_layout,
-                        "align": "right",
-                        chartAlign: "top",
-                        "x": -40,
-                        "y": 80,
-                        "floating": true,
-                        "borderWidth": 1,
-                        "backgroundColor": "#FFFFFF",
-                        "shadow": true
+                    legend: {
+                        layout: chart_layout,
+                        align: "right",
+                        [chartAlign]: "top",
+                        x: -40,
+                        y: 80,
+                        floating: true,
+                        borderWidth: 1,
+                        backgroundColor: "#FFFFFF",
+                        shadow: true
                     },
-                    "credits": {
-                        "enabled": false
+                    credits: {
+                        enabled: false
                     },
-                    "series": seriesData.series
-                }
+                    series: seriesData.series
+                };
             }
-            if (chartType == 'stacked-column') {
-                if (JsonPath1 === '') {
+
+            if (chartType === 'stacked-column') {
+                if (!seriesData.series) {
                     seriesData = {
                         "xAxis": {
                             categories: ['Arsenal', 'Chelsea'],
@@ -462,11 +496,12 @@ function customChartCommonJson(editor) {
                             name: 'CL',
                             data: [0, 2]
                         }]
-                    }
+                    };
                 }
                 seriesData2 = {
                     chart: {
-                        type: 'column'
+                        type: 'column',
+                        animation: false
                     },
                     title: {
                         text: chart_Title,
@@ -484,23 +519,19 @@ function customChartCommonJson(editor) {
                             enabled: true,
                             style: {
                                 fontWeight: 'bold',
-                                color: (
-                                    Highcharts.defaultOptions.title.style &&
-                                    Highcharts.defaultOptions.title.style.color
-                                ) || 'gray',
+                                color: 'gray',
                                 textOutline: 'none'
                             }
                         }
                     },
                     legend: {
-                        "layout": chart_layout,
+                        layout: chart_layout,
                         align: 'left',
                         x: 70,
                         verticalAlign: 'top',
                         y: 70,
                         floating: true,
-                        backgroundColor:
-                            Highcharts.defaultOptions.legend.backgroundColor || 'white',
+                        backgroundColor: 'white',
                         borderColor: '#CCC',
                         borderWidth: 1,
                         shadow: false
@@ -514,14 +545,16 @@ function customChartCommonJson(editor) {
                             stacking: 'normal',
                             dataLabels: {
                                 enabled: true
-                            }
+                            },
+                            animation: false
                         }
                     },
-                    "series": seriesData.series
-                }
+                    series: seriesData.series
+                };
             }
-            if (chartType == 'stacked-bar') {
-                if (JsonPath1 === '') {
+
+            if (chartType === 'stacked-bar') {
+                if (!seriesData.series) {
                     seriesData = {
                         "xAxis": {
                             categories: ['2020/21', '2019/20', '2018/19'],
@@ -536,11 +569,12 @@ function customChartCommonJson(editor) {
                             name: 'Robert Lewandowski',
                             data: [5, 15, 8]
                         }]
-                    }
+                    };
                 }
                 seriesData2 = {
                     chart: {
-                        type: 'bar'
+                        type: 'bar',
+                        animation: false
                     },
                     title: {
                         text: chart_Title,
@@ -552,7 +586,7 @@ function customChartCommonJson(editor) {
                     yAxis: {
                         min: 0,
                         title: {
-                            text: 'Goals'
+                            text: chart_yAxis
                         }
                     },
                     legend: {
@@ -563,379 +597,330 @@ function customChartCommonJson(editor) {
                             stacking: 'normal',
                             dataLabels: {
                                 enabled: true
-                            }
+                            },
+                            animation: false
                         }
                     },
-                    "series": seriesData.series
-                }
+                    series: seriesData.series
+                };
             }
-            if (chartType == 'drilldown_bar') {
-                if (JsonPath1 == '') {
+
+            // Drilldown charts (simplified for export)
+            if (chartType === 'drilldown_bar') {
+                if (!seriesData.series) {
                     seriesData = {
-                        "series": [
-                            {
-                                "name": "Browsers",
-                                "colorByPoint": true,
-                                "data": [
-                                    {
-                                        "name": "Chrome",
-                                        "y": 61.04,
-                                        "drilldown": "Chrome"
-                                    },
-                                    {
-                                        "name": "Safari",
-                                        "y": 9.47,
-                                        "drilldown": "Safari"
-                                    },
-                                    {
-                                        "name": "Other",
-                                        "y": 11.02,
-                                        "drilldown": null
-                                    }
-                                ]
-                            }
-                        ],
+                        "series": [{
+                            "name": "Browsers",
+                            "colorByPoint": true,
+                            "data": [{
+                                "name": "Chrome",
+                                "y": 61.04,
+                                "drilldown": "Chrome"
+                            }, {
+                                "name": "Safari",
+                                "y": 9.47,
+                                "drilldown": "Safari"
+                            }, {
+                                "name": "Other",
+                                "y": 11.02,
+                                "drilldown": null
+                            }]
+                        }],
                         "drilldown": {
-                            "series": [
-                                {
-                                    "name": "Chrome",
-                                    "id": "Chrome",
-                                    "data": [
-                                        [
-                                            "v97.0",
-                                            36.89
-                                        ],
-                                        [
-                                            "v96.0",
-                                            18.16
-                                        ],
-                                        [
-                                            "v95.0",
-                                            0.54
-                                        ]
-                                    ]
-                                },
-                                {
-                                    "name": "Safari",
-                                    "id": "Safari",
-                                    "data": [
-                                        [
-                                            "v15.3",
-                                            0.1
-                                        ],
-                                        [
-                                            "v15.2",
-                                            2.01
-                                        ],
-                                        [
-                                            "v15.1",
-                                            2.29
-                                        ]
-                                    ]
-                                }
-                            ]
+                            "series": [{
+                                "name": "Chrome",
+                                "id": "Chrome",
+                                "data": [["v97.0", 36.89], ["v96.0", 18.16], ["v95.0", 0.54]]
+                            }, {
+                                "name": "Safari",
+                                "id": "Safari",
+                                "data": [["v15.3", 0.1], ["v15.2", 2.01], ["v15.1", 2.29]]
+                            }]
                         }
-                    }
+                    };
                 }
                 seriesData2 = {
-                    "chart": {
-                        "plotBackgroundColor": null,
-                        "plotBorderWidth": null,
-                        "plotShadow": false,
-                        "type": "bar"
+                    chart: {
+                        type: "bar",
+                        animation: false
                     },
-                    "title": {
+                    title: {
                         text: chart_Title,
                         align: chart_Title_align
                     },
-                    "xAxis": {
-                        "type": "category"
+                    xAxis: {
+                        type: "category"
                     },
-                    "yAxis": {
-                        "title": {
-                            "text": chart_yAxis
+                    yAxis: {
+                        title: {
+                            text: chart_yAxis
                         }
                     },
-                    "tooltip": {
-                        "valueSuffix": ""
+                    tooltip: {
+                        valueSuffix: ""
                     },
-                    "plotOptions": {
-                        "series": {
-                            "borderWidth": 0,
-                            "dataLabels": {
-                                "enabled": true,
-                                "format": "{point.y:.1f}%"
-                            }
+                    plotOptions: {
+                        series: {
+                            borderWidth: 0,
+                            dataLabels: {
+                                enabled: true,
+                                format: "{point.y:.1f}%"
+                            },
+                            animation: false
                         }
                     },
-                    "legend": {
-                        "enabled": false
+                    legend: {
+                        enabled: false
                     },
-                    "credits": {
-                        "enabled": false
+                    credits: {
+                        enabled: false
                     },
-                    "series": seriesData.series,
-                    "drilldown": seriesData.drilldown
-                }
+                    series: seriesData.series,
+                    drilldown: seriesData.drilldown
+                };
             }
-            if (chartType == 'drilldown_pie') {
-                if (JsonPath1 == '') {
+
+            if (chartType === 'drilldown_pie') {
+                if (!seriesData.series) {
                     seriesData = {
-                        "series": [
-                            {
-                                "name": "Browsers",
-                                "colorByPoint": true,
-                                "data": [
-                                    {
-                                        "name": "Chrome",
-                                        "y": 61.04,
-                                        "drilldown": "Chrome"
-                                    },
-                                    {
-                                        "name": "Safari",
-                                        "y": 9.47,
-                                        "drilldown": "Safari"
-                                    }
-                                ]
-                            }
-                        ],
+                        "series": [{
+                            "name": "Browsers",
+                            "colorByPoint": true,
+                            "data": [{
+                                "name": "Chrome",
+                                "y": 61.04,
+                                "drilldown": "Chrome"
+                            }, {
+                                "name": "Safari",
+                                "y": 9.47,
+                                "drilldown": "Safari"
+                            }]
+                        }],
                         "drilldown": {
-                            "series": [
-                                {
-                                    "name": "Chrome",
-                                    "id": "Chrome",
-                                    "data": [
-                                        [
-                                            "v97.0",
-                                            36.89
-                                        ],
-                                        [
-                                            "v96.0",
-                                            18.16
-                                        ],
-                                        [
-                                            "v95.0",
-                                            0.54
-                                        ],
-                                        [
-                                            "v49.0",
-                                            0.17
-                                        ]
-                                    ]
-                                },
-                                {
-                                    "name": "Safari",
-                                    "id": "Safari",
-                                    "data": [
-                                        [
-                                            "v15.3",
-                                            0.1
-                                        ],
-                                        [
-                                            "v15.2",
-                                            2.01
-                                        ]
-                                    ]
-                                },
-                            ]
+                            "series": [{
+                                "name": "Chrome",
+                                "id": "Chrome",
+                                "data": [["v97.0", 36.89], ["v96.0", 18.16], ["v95.0", 0.54]]
+                            }, {
+                                "name": "Safari",
+                                "id": "Safari",
+                                "data": [["v15.3", 0.1], ["v15.2", 2.01]]
+                            }]
                         }
-                    }
+                    };
                 }
                 seriesData2 = {
-                    "chart": {
-                        "plotBackgroundColor": null,
-                        "plotBorderWidth": null,
-                        "plotShadow": false,
-                        "type": "pie"
+                    chart: {
+                        type: "pie",
+                        animation: false
                     },
-                    "title": {
+                    title: {
                         text: chart_Title,
                         align: chart_Title_align
                     },
-
-                    "tooltip": {
-                        "pointFormat": "{series.name}: <b>{point.percentage:.1f}%</b>"
+                    tooltip: {
+                        pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>"
                     },
-                    "accessibility": {
-                        "point": {
-                            "valueSuffix": "%"
+                    accessibility: {
+                        point: {
+                            valueSuffix: "%"
                         }
                     },
-                    "credits": {
-                        "enabled": false
+                    credits: {
+                        enabled: false
                     },
-                    "plotOptions": {
-                        "pie": {
-                            "allowPointSelect": true,
-                            "cursor": "pointer",
-                            "dataLabels": {
-                                "enabled": false
+                    plotOptions: {
+                        pie: {
+                            allowPointSelect: true,
+                            cursor: "pointer",
+                            dataLabels: {
+                                enabled: false
                             },
-                            "colors": null,
-                            "showInLegend": true
+                            colors: null,
+                            showInLegend: true,
+                            animation: false
                         }
                     },
-                    "series": seriesData.series,
-                    "drilldown": seriesData.drilldown
-                }
+                    series: seriesData.series,
+                    drilldown: seriesData.drilldown
+                };
             }
-            if (chartType == 'drilldown_line') {
-                if (JsonPath1 == '') {
+
+            if (chartType === 'drilldown_line') {
+                if (!seriesData.series) {
                     seriesData = {
-                        "series": [
-                            {
-                                "name": "Things",
-                                "colorByPoint": true,
-                                "data": [{
-                                    "name": "Animals",
-                                    "y": 5,
-                                    "drilldown": "animals"
-                                }, {
-                                    "name": "Fruits",
-                                    "y": 2,
-                                    "drilldown": "fruits"
-                                }, {
-                                    "name": "Cars",
-                                    "y": 4,
-                                    "drilldown": "cars"
-                                }]
-                            },
-                            {
-                                "name": "vehicles",
-                                "colorByPoint": true,
-                                "data": [{
-                                    "name": "Vehicle 1",
-                                    "y": 25,
-                                    "drilldown": "vehicle1"
-                                }, {
-                                    "name": "Vehicle 2",
-                                    "y": 25,
-                                    "drilldown": "vehicle2"
-                                }, {
-                                    "name": "Vehicle 3",
-                                    "y": 45,
-                                    "drilldown": "vehicle3"
-                                }]
-                            }
-                        ],
+                        "series": [{
+                            "name": "Things",
+                            "colorByPoint": true,
+                            "data": [{
+                                "name": "Animals",
+                                "y": 5,
+                                "drilldown": "animals"
+                            }, {
+                                "name": "Fruits",
+                                "y": 2,
+                                "drilldown": "fruits"
+                            }]
+                        }],
                         "drilldown": {
-                            "series": [
-                                {
-                                    "id": "animals",
-                                    "data": [
-                                        ["Cats", 4],
-                                        ["Dogs", 2],
-                                        ["Cows", 1],
-                                        ["Sheep", 2],
-                                        ["Pigs", 1]
-                                    ]
-                                }, {
-                                    "id": "fruits",
-                                    "data": [
-                                        ["Apples", 4],
-                                        ["Oranges", 2]
-                                    ]
-                                }, {
-                                    "id": "cars",
-                                    "data": [
-                                        ["Toyota", 4],
-                                        ["Opel", 2],
-                                        ["Volkswagen", 2]
-                                    ]
-                                }, {
-                                    "id": "vehicle1",
-                                    "data": [
-                                        ["Toyota", 4],
-                                        ["Opel", 2],
-                                        ["Volkswagen", 2]
-                                    ]
-                                }, {
-                                    "id": "vehicle2",
-                                    "data": [
-                                        ["Toyota", 12],
-                                        ["Opel", 12],
-                                        ["Volkswagen", 2]
-                                    ]
-                                }, {
-                                    "id": "vehicle3",
-                                    "data": [
-                                        ["Toyota", 5],
-                                        ["Opel", 4],
-                                        ["Volkswagen", 1]
-                                    ]
-                                }
-                            ]
+                            "series": [{
+                                "id": "animals",
+                                "data": [["Cats", 4], ["Dogs", 2], ["Cows", 1]]
+                            }, {
+                                "id": "fruits",
+                                "data": [["Apples", 4], ["Oranges", 2]]
+                            }]
                         }
-                    }
+                    };
                 }
                 seriesData2 = {
-                    "chart": {
-                        "plotBackgroundColor": null,
-                        "plotBorderWidth": null,
-                        "plotShadow": false,
-                        "type": "line"
+                    chart: {
+                        type: "line",
+                        animation: false
                     },
-                    "title": {
+                    title: {
                         text: chart_Title,
                         align: chart_Title_align
                     },
-                    "yAxis": {
-                        "title": {
-                            "text": chart_yAxis
+                    yAxis: {
+                        title: {
+                            text: chart_yAxis
                         }
                     },
-                    "series": seriesData.series,
-                    "drilldown": seriesData.drilldown,
-
-                    "xAxis": {
-                        "accessibility": {
-                            "rangeDescription": ""
+                    series: seriesData.series,
+                    drilldown: seriesData.drilldown,
+                    xAxis: {
+                        accessibility: {
+                            rangeDescription: ""
                         }
                     },
-                    "legend": {
-                        "layout": chart_layout,
-                        "align": "right",
-                        chartAlign: "middle"
+                    legend: {
+                        layout: chart_layout,
+                        align: "right",
+                        [chartAlign]: "middle"
                     },
-
-                    "plotOptions": {
-                        "series": {
-                            "label": {
-                                "connectorAllowed": false
+                    plotOptions: {
+                        series: {
+                            label: {
+                                connectorAllowed: false
                             },
-                            "pointStart": 2010
+                            pointStart: 2010,
+                            animation: false
                         }
                     },
-                    "responsive": {
-                        "rules": [{
-                            "condition": {
-                                "maxWidth": 500
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
                             },
-                            "chartOptions": {
-                                "legend": {
-                                    "layout": chart_layout,
-                                    "align": "center",
-                                    "verticalAlign": "bottom"
+                            chartOptions: {
+                                legend: {
+                                    layout: chart_layout,
+                                    align: "center",
+                                    verticalAlign: "bottom"
                                 }
                             }
                         }]
                     },
-                    "credits": { "enabled": false },
-                }
+                    credits: { enabled: false },
+                };
             }
-            Highcharts.chart(ctx, seriesData2);
-          };   
-          if (!window.Highcharts) {
-            const scr = document.createElement("script");
-            scr.src = "{[ custom_line_chartsrc ]}";
-            scr.onload = init1;
-            document.head.appendChild(scr);
-          } else {
-            init1();
+
+            // Create chart with error handling
+            try {
+              if (window.Highcharts) {
+                // Destroy existing chart if any
+                const existingChart = window.Highcharts.charts.find(chart => 
+                  chart && chart.container && chart.container.id === ctx
+                );
+                if (existingChart) {
+                  existingChart.destroy();
+                }
+                
+                // Create new chart
+                const chart = window.Highcharts.chart(ctx, seriesData2);
+                
+                // Store chart reference for cleanup
+                element.chartInstance = chart;
+                
+                // Ensure chart is rendered for export
+                setTimeout(() => {
+                  if (chart && chart.reflow) {
+                    chart.reflow();
+                  }
+                }, 100);
+              }
+            } catch (error) {
+              console.error('Error creating Highcharts chart:', error);
+              element.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Chart could not be rendered</div>';
+            }
+          };
+
+          // Enhanced script loading with better export support
+          const loadHighcharts = () => {
+            return new Promise((resolve, reject) => {
+              if (window.Highcharts) {
+                resolve();
+                return;
+              }
+
+              const script = document.createElement("script");
+              script.src = "{[ custom_line_chartsrc ]}";
+              script.onload = () => {
+                // Load drilldown module if needed
+                const drilldownScript = document.createElement("script");
+                drilldownScript.src = "https://code.highcharts.com/11.4.8/modules/drilldown.js";
+                drilldownScript.onload = resolve;
+                drilldownScript.onerror = resolve; // Continue even if drilldown fails
+                document.head.appendChild(drilldownScript);
+              };
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+          };
+
+          // Initialize with proper timing
+          const init = async () => {
+            try {
+              await loadHighcharts();
+              // Wait for DOM to be ready
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeChart);
+              } else {
+                // Add small delay for export scenarios
+                setTimeout(initializeChart, 50);
+              }
+            } catch (error) {
+              console.error('Failed to load Highcharts:', error);
+            }
+          };
+
+          // Prevent multiple initializations
+          if (!this.highchartsInitialized) {
+            this.highchartsInitialized = true;
+            init();
           }
-          this.on('removed', function() {
+
+          // Cleanup on removal
+          this.on('removed', () => {
+            const element = document.getElementById(this.id);
+            if (element && element.chartInstance) {
+              element.chartInstance.destroy();
+              element.chartInstance = null;
+            }
             this.highchartsInitialized = false;
           });
+
+          // Re-initialize on print/export events
+          if (typeof window !== 'undefined') {
+            window.addEventListener('beforeprint', () => {
+              setTimeout(initializeChart, 100);
+            });
+            
+            window.addEventListener('afterprint', () => {
+              setTimeout(initializeChart, 100);
+            });
+          }
         },
       }),
       init() {
@@ -950,7 +935,6 @@ function customChartCommonJson(editor) {
       },
     },
   });
-  
 
 
   
@@ -1036,40 +1020,45 @@ function customChartCommonJson(editor) {
       ]
   });
 
-  function handleJsonPathChange(event) {
+    function handleJsonPathChange(event) {
     if (event.value) {
-        const selectedComponent = editor.getSelected();
-        const componentType = selectedComponent?.get('type');
-        
-        // Support both 'text' and 'formatted-rich-text' components
-        if (componentType === 'text' || componentType === 'formatted-rich-text') {
-            const content = selectedComponent?.get('content');
-            if (content !== undefined) {
-                try {
-                    const commonJson = JSON.parse(localStorage.getItem("common_json"));
-                    const jsonPath = `commonJson.${custom_language}.${event.value}`;
-                    const value = eval(jsonPath);
-                    if (value) {
-                        if (componentType === 'formatted-rich-text') {
-                            // For formatted-rich-text, update both raw-content and content
-                            selectedComponent.set('raw-content', value);
-                            selectedComponent.updateFormattedContent();
-                        } else {
-                            // For regular text components
-                            const componentView = selectedComponent.view;
-                            if (componentView) {
-                                componentView.el.innerHTML = value;
-                            }
-                        }
-                        editor.TraitManager.render();
-                    }
-                } catch (e) {
-                    console.error("Error evaluating JSON path:", e);
+      const selectedComponent = editor.getSelected();
+      const componentType = selectedComponent?.get('type');
+      
+      // Support both 'text' and 'formatted-rich-text' components
+      if (componentType === 'text' || componentType === 'formatted-rich-text') {
+        const content = selectedComponent?.get('content');
+        if (content !== undefined) {
+          try {
+            const commonJson = JSON.parse(localStorage.getItem("common_json"));
+            const jsonPath = `commonJson.${custom_language}.${event.value}`;
+            const value = eval(jsonPath);
+            if (value !== undefined && value !== null) {
+              if (componentType === 'formatted-rich-text') {
+                // For formatted-rich-text, update both raw-content and trigger update
+                selectedComponent.set('raw-content', String(value), { silent: true });
+                selectedComponent.set('my-input-json', event.value, { silent: true });
+                selectedComponent.updateContent();
+              } else {
+                // For regular text components
+                const componentView = selectedComponent.view;
+                if (componentView) {
+                  componentView.el.innerHTML = value;
                 }
+              }
+              // Re-render traits to show updated values
+              setTimeout(() => {
+                editor.TraitManager.render();
+              }, 100);
             }
+          } catch (e) {
+            console.error("Error evaluating JSON path:", e);
+          }
         }
+      }
     }
-}
+  }
+
 
   // Start suggestion module   
   editor.on('load', function () {

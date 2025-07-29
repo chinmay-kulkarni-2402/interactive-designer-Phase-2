@@ -47,7 +47,7 @@ function addFormattedRichTextComponent(editor) {
     }
   };
 
-  // Format helper functions
+  // Enhanced format helper functions with conditional support
   const formatHelpers = {
     canConvertToNumber(value) {
       if (typeof value === 'number') return true;
@@ -94,6 +94,94 @@ function addFormattedRichTextComponent(editor) {
       }
       
       return tempDiv.innerHTML;
+    },
+
+    // Enhanced method to check if a condition string is a number condition
+    isNumberCondition(condition) {
+      const conditionPattern = /^(<|<=|>|>=|=|!=)\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*\(\s*value\s*\)\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*\(\s*value\s*\)\s*<=\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*value\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*value\s*<=\s*\d+(\.\d+)?$/;
+      return conditionPattern.test(condition.trim());
+    },
+
+    // Parse and evaluate number conditions
+    parseNumberCondition(condition) {
+      const trimmed = condition.trim();
+      
+      // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
+      const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
+      const rangeMatch = trimmed.match(rangePattern);
+      
+      if (rangeMatch) {
+        const [, min, minOp, maxOp, max] = rangeMatch;
+        const minValue = parseFloat(min);
+        const maxValue = parseFloat(max);
+        const minInclusive = minOp === '<=';
+        const maxInclusive = maxOp === '<=';
+        
+        return {
+          type: 'range',
+          min: minValue,
+          max: maxValue,
+          minInclusive,
+          maxInclusive,
+          evaluate: (value) => {
+            const num = parseFloat(value);
+            if (isNaN(num)) return false;
+            
+            const minCondition = minInclusive ? num >= minValue : num > minValue;
+            const maxCondition = maxInclusive ? num <= maxValue : num < maxValue;
+            
+            return minCondition && maxCondition;
+          }
+        };
+      }
+      
+      // Handle simple conditions: <1000, >=500, =100, !=50, etc.
+      const simplePattern = /^(<|<=|>|>=|=|!=)\s*(\d+(?:\.\d+)?)$/;
+      const simpleMatch = trimmed.match(simplePattern);
+      
+      if (simpleMatch) {
+        const [, operator, valueStr] = simpleMatch;
+        const conditionValue = parseFloat(valueStr);
+        
+        return {
+          type: 'simple',
+          operator,
+          value: conditionValue,
+          evaluate: (value) => {
+            const num = parseFloat(value);
+            if (isNaN(num)) return false;
+            
+            switch (operator) {
+              case '<': return num < conditionValue;
+              case '<=': return num <= conditionValue;
+              case '>': return num > conditionValue;
+              case '>=': return num >= conditionValue;
+              case '=': return num === conditionValue;
+              case '!=': return num !== conditionValue;
+              default: return false;
+            }
+          }
+        };
+      }
+      
+      return null;
+    },
+
+    // Extract all numbers from text content
+    extractNumbers(content) {
+      const text = this.extractTextContent(content);
+      const numberPattern = /\b\d+(?:\.\d+)?\b/g;
+      const matches = text.match(numberPattern);
+      return matches ? matches.map(match => parseFloat(match)) : [];
+    },
+
+    // Check if any number in the content matches the condition
+    evaluateNumberCondition(content, condition) {
+      const conditionObj = this.parseNumberCondition(condition);
+      if (!conditionObj) return false;
+      
+      const numbers = this.extractNumbers(content);
+      return numbers.some(num => conditionObj.evaluate(num));
     },
 
     validateFormat(value, formatType) {
@@ -365,391 +453,593 @@ function addFormattedRichTextComponent(editor) {
     }
   ];
 
-  // Add the formatted-rich-text component
-// Add the formatted-rich-text component with show/hide and highlight functionality
-editor.DomComponents.addType('formatted-rich-text', {
-  model: {
-    defaults: {
-      tagName: 'div',
-      draggable: true,
-      droppable: false,
-      editable: false,
-      content: 'Insert your text here',
-      attributes: {
-        'data-gjs-type': 'formatted-rich-text'
+  // Add the formatted-rich-text component with enhanced conditional formatting
+  editor.DomComponents.addType('formatted-rich-text', {
+    model: {
+      defaults: {
+        tagName: 'div',
+        draggable: true,
+        droppable: false,
+        editable: false,
+        content: 'Insert your text here',
+        attributes: {
+          'data-gjs-type': 'formatted-rich-text'
+        },
+        traits: [
+          {
+            type: 'select',
+            name: 'format-type',
+            label: 'Format Type',
+            options: getAllFormatOptions(),
+            changeProp: 1
+          },
+          {
+            type: 'select',
+            name: 'format-pattern',
+            label: 'Format Pattern',
+            options: [{ value: 'None', label: 'None' }],
+            changeProp: 1
+          },
+          {
+            type: 'text',
+            name: 'my-input-json',
+            label: 'Json Path',
+            changeProp: 1
+          },
+          {
+            type: 'text',
+            name: 'hide-words',
+            label: 'Hide Words/Conditions',
+            placeholder: 'Examples:\n• word1, word2, phrase\n• <1000 (hide if any number < 1000)\n• >=500 (hide if any number >= 500)\n• 100<value<1000 (hide if any number between 100-1000)',
+            changeProp: 1
+          },
+          {
+            type: 'text',
+            name: 'highlight-words',
+            label: 'Highlight Words/Conditions',
+            placeholder: 'Examples:\n• word1, word2, phrase\n• >1000 (highlight if any number > 1000)\n• <=100 (highlight if any number <= 100)\n• 50<=value<=200 (highlight if any number between 50-200)',
+            changeProp: 1
+          },
+          {
+            type: 'color',
+            name: 'highlight-color',
+            label: 'Highlight Color',
+            changeProp: 1
+          }
+        ],
+        'format-type': 'text',
+        'format-pattern': 'None',
+        'raw-content': 'Insert your text here',
+        'is-editing': false,
+        'hide-words': '',
+        'highlight-words': '',
+        'highlight-color': '#ffff00'
       },
-      traits: [
-        {
-          type: 'select',
-          name: 'format-type',
-          label: 'Format Type',
-          options: getAllFormatOptions(),
-          changeProp: 1
-        },
-        {
-          type: 'select',
-          name: 'format-pattern',
-          label: 'Format Pattern',
-          options: [{ value: 'None', label: 'None' }],
-          changeProp: 1
-        },
-        {
-          type: 'text',
-          name: 'my-input-json',
-          label: 'Json Path',
-          changeProp: 1
-        },
-        {
-          type: 'text',
-          name: 'hide-words',
-          label: 'Hide Words (comma separated)',
-          placeholder: 'word1, word2, phrase',
-          changeProp: 1
-        },
-        {
-          type: 'text',
-          name: 'highlight-words',
-          label: 'Highlight Words (comma separated)',
-          placeholder: 'word1, word2, phrase',
-          changeProp: 1
-        },
-        {
-          type: 'color',
-          name: 'highlight-color',
-          label: 'Highlight Color',
-          changeProp: 1
-        }
-      ],
-      'format-type': 'text',
-      'format-pattern': 'None',
-      'raw-content': 'Insert your text here',
-      'is-editing': false,
-      'hide-words': '',
-      'highlight-words': '',
-      'highlight-color': '#ffff00'
-    },
 
-    init() {
-      this.on('change:format-type', this.handleFormatTypeChange);
-      this.on('change:format-pattern', this.updateContent);
-      this.on('change:hide-words', this.updateContent);
-      this.on('change:highlight-words', this.updateContent);
-      this.on('change:highlight-color', this.updateContent);
-      this.on('change:my-input-json', this.handleJsonPathChange);
-      this.updateFormatPattern();
-      this.updateTooltip();
-    },
+      init() {
+        this.on('change:format-type', this.handleFormatTypeChange);
+        this.on('change:format-pattern', this.updateContent);
+        this.on('change:hide-words', this.updateContent);
+        this.on('change:highlight-words', this.updateContent);
+        this.on('change:highlight-color', this.updateContent);
+        this.on('change:my-input-json', this.handleJsonPathChange);
+        this.updateFormatPattern();
+        this.updateTooltip();
+      },
 
-    updateTooltip() {
-      const formatType = this.get('format-type') || 'text';
-      const label = getFormatLabel(formatType);
-      this.set('custom-name', label, { silent: true });
-    },
+      updateTooltip() {
+        const formatType = this.get('format-type') || 'text';
+        const label = getFormatLabel(formatType);
+        this.set('custom-name', label, { silent: true });
+      },
 
-    handleFormatTypeChange() {
-      const newFormatType = this.get('format-type');
-      const rawContent = this.get('raw-content') || '';
+      handleFormatTypeChange() {
+        const newFormatType = this.get('format-type');
+        const rawContent = this.get('raw-content') || '';
 
-      const validation = formatHelpers.validateFormat(rawContent, newFormatType);
-      
-      if (!validation.valid) {
-        alert(validation.error);
-        return;
-      }
-      
-      this.updateFormatPattern();
-      this.updateContent();
-      this.updateTooltip();
-    },
-
-    handleJsonPathChange() {
-      const jsonPath = this.get('my-input-json');
-      if (jsonPath) {
-        try {
-          const commonJson = JSON.parse(localStorage.getItem("common_json"));
-          const fullJsonPath = `commonJson.${custom_language}.${jsonPath}`;
-          const value = eval(fullJsonPath);
-          if (value) {
-            this.set('raw-content', value, { silent: true });
-            this.updateContent();
-          }
-        } catch (e) {
-          console.error("Error evaluating JSON path:", e);
-        }
-      }
-    },
-
-    updateFormatPattern() {
-      const formatType = this.get('format-type') || 'text';
-      let config = formatConfigs[formatType] || combinedFormats[formatType];
-      
-      if (config) {
-        const patternTrait = this.getTrait('format-pattern');
-        if (patternTrait) {
-          patternTrait.set('options', config.patterns.map(pattern => ({
-            value: pattern,
-            label: pattern
-          })));
-          
-          const defaultPattern = config.defaultPattern || config.patterns[0];
-          this.set('format-pattern', defaultPattern);
-        }
-      }
-    },
-
-    // Helper method to escape regex special characters
-    escapeRegex(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    },
-
-    // Method to apply show/hide and highlight functionality
-    applyConditionalFormatting(content) {
-      let processedContent = content;
-      const hideWords = this.get('hide-words') || '';
-      const highlightWords = this.get('highlight-words') || '';
-      const highlightColor = this.get('highlight-color') || '#ffff00';
-
-      // Remove existing conditional formatting
-      processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
-      processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
-
-      // Apply hide functionality
-      if (hideWords.trim()) {
-        const wordsToHide = hideWords.split(',').map(word => word.trim()).filter(word => word);
-        wordsToHide.forEach(word => {
-          if (word) {
-            const escapedWord = this.escapeRegex(word);
-            const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
-            processedContent = processedContent.replace(regex, `<span class="hidden-word" style="display: none;">${word}</span>`);
-          }
-        });
-      }
-
-      // Apply highlight functionality
-      if (highlightWords.trim()) {
-        const wordsToHighlight = highlightWords.split(',').map(word => word.trim()).filter(word => word);
-        wordsToHighlight.forEach(word => {
-          if (word) {
-            const escapedWord = this.escapeRegex(word);
-            // Create a regex that matches the word but avoids already processed spans
-            const regex = new RegExp(`(?!<[^>]*>)\\b(${escapedWord})\\b(?![^<]*<\/span>)`, 'gi');
-            processedContent = processedContent.replace(regex, 
-              `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
-            );
-          }
-        });
-      }
-
-      return processedContent;
-    },
-
-    updateContent() {
-      const formatType = this.get('format-type') || 'text';
-      const pattern = this.get('format-pattern') || 'None';
-      const rawContent = this.get('raw-content') || '';
-
-      let formattedContent;
-      
-      if (formatType === 'text' || pattern === 'None') {
-        formattedContent = rawContent;
-      } else {
-        try {
-          formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
-        } catch (error) {
-          console.warn('Format error:', error);
-          formattedContent = rawContent;
-        }
-      }
-
-      // Apply conditional formatting (show/hide and highlight)
-      const finalContent = this.applyConditionalFormatting(formattedContent);
-      
-      this.set('content', finalContent);
-    },
-
-    enableRTE() {
-      this.set('is-editing', true);
-    },
-
-    disableRTE() {
-      this.set('is-editing', false);
-    }
-  },
-
-  view: {
-    events: {
-      'dblclick': 'enableRichTextEditing',
-      'click': 'handleSingleClick'
-    },
-
-    init() {
-      this.listenTo(this.model, 'change:is-editing', this.handleEditingChange);
-      this.listenTo(this.model, 'change:content', this.render);
-      this.rteActive = false;
-    },
-
-    handleSingleClick(e) {
-      // Allow normal GrapesJS selection behavior on single click
-    },
-
-    handleEditingChange() {
-      const isEditing = this.model.get('is-editing');
-      if (isEditing && !this.rteActive) {
-        this.startRTE();
-      } else if (!isEditing && this.rteActive) {
-        this.stopRTE();
-      }
-    },
-
-    enableRichTextEditing(e) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (!this.rteActive) {
-        this.model.enableRTE();
-      }
-    },
-
-    startRTE() {
-      if (this.rteActive) return;
-
-      const em = this.model.em;
-      if (!em) return;
-
-      const rte = em.get('RichTextEditor');
-      if (!rte) return;
-
-      this.rteActive = true;
-
-      // Store original actions and replace with custom ones
-      this.originalActions = rte.getAll().slice();
-      
-      // Clear existing actions
-      this.originalActions.forEach(action => {
-        try {
-          rte.remove(action.name);
-        } catch (e) {
-          // Ignore errors when removing actions
-        }
-      });
-
-      // Add custom actions
-      customRteActions.forEach(action => {
-        try {
-          rte.add(action.name, action);
-        } catch (e) {
-          // Ignore errors when adding actions
-        }
-      });
-
-      // Set content from raw content (without conditional formatting for editing)
-      const rawContent = this.model.get('raw-content') || '';
-      this.el.innerHTML = rawContent;
-
-      // Enable RTE
-      try {
-        rte.enable(this, null, { 
-          actions: customRteActions.map(a => a.name)
-        });
-      } catch (e) {
-        console.warn('RTE enable error:', e);
-      }
-
-      // Handle content changes
-      this.rteChangeHandler = () => {
-        const content = this.el.innerHTML;
-        this.model.set('raw-content', content, { silent: true });
-      };
-
-      this.el.addEventListener('input', this.rteChangeHandler);
-      this.el.addEventListener('blur', this.handleRTEBlur.bind(this));
-    },
-
-    stopRTE() {
-      if (!this.rteActive) return;
-
-      const em = this.model.em;
-      if (!em) return;
-
-      const rte = em.get('RichTextEditor');
-      if (!rte) return;
-
-      this.rteActive = false;
-
-      // Remove event listeners
-      if (this.rteChangeHandler) {
-        this.el.removeEventListener('input', this.rteChangeHandler);
-        this.el.removeEventListener('blur', this.handleRTEBlur);
-        this.rteChangeHandler = null;
-      }
-
-      // Disable RTE
-      try {
-        rte.disable(this);
-      } catch (e) {
-        console.warn('RTE disable error:', e);
-      }
-
-      // Restore original actions
-      if (this.originalActions) {
-        customRteActions.forEach(action => {
-          try {
-            rte.remove(action.name);
-          } catch (e) {
-            // Ignore errors
-          }
-        });
-
-        this.originalActions.forEach(action => {
-          try {
-            rte.add(action.name, action);
-          } catch (e) {
-            // Ignore errors
-          }
-        });
+        const validation = formatHelpers.validateFormat(rawContent, newFormatType);
         
-        this.originalActions = null;
-      }
-    },
+        if (!validation.valid) {
+          alert(validation.error);
+          return;
+        }
+        
+        this.updateFormatPattern();
+        this.updateContent();
+        this.updateTooltip();
+      },
 
-    handleRTEBlur() {
-      const content = this.el.innerHTML;
-      const formatType = this.model.get('format-type');
+      // FIXED: Enhanced handleJsonPathChange that works with your existing JSON system
+handleJsonPathChange() {
+  console.log('=== COMPONENT JSON PATH CHANGE ===');
+  const jsonPath = this.get('my-input-json');
+  console.log('JSON Path:', jsonPath);
+  
+  // CRITICAL FIX: Force stop RTE before updating
+  if (this.view && this.view.rteActive) {
+    console.log('RTE active, forcing stop before JSON update');
+    this.view.stopRTE();
+  }
+  
+  if (jsonPath && jsonPath.trim()) {
+    try {
+      const commonJson = JSON.parse(localStorage.getItem("common_json"));
+      const fullJsonPath = `commonJson.${custom_language}.${jsonPath}`;
+      const value = eval(fullJsonPath);
+      console.log('Evaluated value:', value);
       
-      // Validate format before applying
-      const validation = formatHelpers.validateFormat(content, formatType);
-      
-      if (!validation.valid) {
-        alert(validation.error);
-        // Revert to previous content
-        const previousContent = this.model.get('raw-content');
-        this.el.innerHTML = previousContent;
-      } else {
-        this.model.set('raw-content', content, { silent: true });
-        this.model.updateContent();
+      if (value !== undefined && value !== null) {
+        const stringValue = String(value);
+        console.log('Setting raw-content to:', stringValue);
+        
+        // Set raw-content and trigger immediate update
+        this.set('raw-content', stringValue, { silent: true });
+        this.updateContent();
+        console.log('Content updated');
+        
+        // CRITICAL FIX: Force immediate view update
+        if (this.view && this.view.el) {
+          this.view.render();
+          console.log('View rendered immediately');
+          
+          // Force canvas refresh
+          if (this.em) {
+            this.em.trigger('change:canvasOffset');
+          }
+        }
       }
-      
-      // Disable editing after blur
-      setTimeout(() => {
-        this.model.disableRTE();
-      }, 100);
-    },
-
-    onRender() {
-      // Ensure element is not editable by default
-      this.el.contentEditable = false;
-      
-      // Set tooltip based on format type
-      const formatType = this.model.get('format-type') || 'text';
-      const label = getFormatLabel(formatType);
-      this.el.setAttribute('title', label);
-      
-      // Update content display
-      const content = this.model.get('content') || '';
-      this.el.innerHTML = content;
+    } catch (e) {
+      console.error("Error evaluating JSON path:", e);
     }
   }
-});
+},
+
+      updateFormatPattern() {
+        const formatType = this.get('format-type') || 'text';
+        let config = formatConfigs[formatType] || combinedFormats[formatType];
+        
+        if (config) {
+          const patternTrait = this.getTrait('format-pattern');
+          if (patternTrait) {
+            patternTrait.set('options', config.patterns.map(pattern => ({
+              value: pattern,
+              label: pattern
+            })));
+            
+            const defaultPattern = config.defaultPattern || config.patterns[0];
+            this.set('format-pattern', defaultPattern);
+          }
+        }
+      },
+
+      // Helper method to escape regex special characters
+      escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      },
+
+      // FIXED: Improved conditional formatting with better content preservation
+      applyConditionalFormatting(content) {
+        // FIXED: Return early if content is empty or null
+        if (!content || typeof content !== 'string') {
+          return content || '';
+        }
+
+        let processedContent = content;
+        const hideWords = this.get('hide-words') || '';
+        const highlightWords = this.get('highlight-words') || '';
+        const highlightColor = this.get('highlight-color') || '#ffff00';
+
+        // FIXED: Clean up existing conditional formatting more precisely
+        // Only remove spans that were specifically added by our conditional formatting
+        processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
+        processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
+
+        // FIXED: Early return if no conditions to preserve content integrity
+        const hasHideConditions = hideWords.trim().length > 0;
+        const hasHighlightConditions = highlightWords.trim().length > 0;
+        
+        if (!hasHideConditions && !hasHighlightConditions) {
+          return processedContent;
+        }
+
+        // Apply hide functionality with conditional support
+        if (hasHideConditions) {
+          const conditions = hideWords.split(',').map(cond => cond.trim()).filter(cond => cond);
+          
+          conditions.forEach(condition => {
+            if (condition) {
+              // Check if it's a number condition
+              if (formatHelpers.isNumberCondition(condition)) {
+                // Apply number condition logic
+                if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
+                  // Hide the entire text block by wrapping it
+                  processedContent = `<span class="hidden-word" style="display: none;">${processedContent}</span>`;
+                }
+              } else {
+                // Apply word-based hiding (existing logic)
+                const escapedWord = this.escapeRegex(condition);
+                const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+                processedContent = processedContent.replace(regex, 
+                  `<span class="hidden-word" style="display: none;">${condition}</span>`
+                );
+              }
+            }
+          });
+        }
+
+        // Apply highlight functionality with conditional support
+        if (hasHighlightConditions) {
+          const conditions = highlightWords.split(',').map(cond => cond.trim()).filter(cond => cond);
+          
+          conditions.forEach(condition => {
+            if (condition) {
+              // Check if it's a number condition
+              if (formatHelpers.isNumberCondition(condition)) {
+                // Apply number condition logic
+                if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
+                  // Highlight numbers that meet the condition
+                  const numbers = formatHelpers.extractNumbers(processedContent);
+                  const conditionObj = formatHelpers.parseNumberCondition(condition);
+                  
+                  if (conditionObj) {
+                    numbers.forEach(num => {
+                      if (conditionObj.evaluate(num)) {
+                        const escapedNum = this.escapeRegex(num.toString());
+                        const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
+                        processedContent = processedContent.replace(regex, 
+                          `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
+                        );
+                      }
+                    });
+                  }
+                }
+              } else {
+                // Apply word-based highlighting (existing logic)
+                const escapedWord = this.escapeRegex(condition);
+                // FIXED: Improved regex to avoid double-wrapping
+                const regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
+                processedContent = processedContent.replace(regex, 
+                  `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+                );
+              }
+            }
+          });
+        }
+
+        return processedContent;
+      },
+
+      // FIXED: Enhanced updateContent method with better state management
+      updateContent() {
+        const formatType = this.get('format-type') || 'text';
+        const pattern = this.get('format-pattern') || 'None';
+        let rawContent = this.get('raw-content') || '';
+
+        // FIXED: Ensure rawContent is always a string and handle edge cases
+        if (typeof rawContent !== 'string') {
+          rawContent = String(rawContent);
+        }
+
+        // FIXED: Store previous content to check for actual changes
+        const previousContent = this.get('content');
+
+        let formattedContent;
+        
+        if (formatType === 'text' || pattern === 'None') {
+          formattedContent = rawContent;
+        } else {
+          try {
+            formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
+          } catch (error) {
+            console.warn('Format error:', error);
+            formattedContent = rawContent;
+          }
+        }
+
+        // Apply conditional formatting (show/hide and highlight)
+        const finalContent = this.applyConditionalFormatting(formattedContent);
+        
+        // FIXED: Only update if content actually changed to prevent infinite loops
+        if (finalContent !== previousContent) {
+          this.set('content', finalContent);
+        }
+      },
+
+      // FIXED: Add method to handle external JSON updates
+      updateFromJsonPath(jsonPath) {
+        if (jsonPath && jsonPath.trim()) {
+          this.set('my-input-json', jsonPath, { silent: true });
+          this.handleJsonPathChange();
+        }
+      },
+
+      enableRTE() {
+        this.set('is-editing', true);
+      },
+
+      disableRTE() {
+        this.set('is-editing', false);
+      }
+    },
+
+    view: {
+      events: {
+        'dblclick': 'enableRichTextEditing',
+        'click': 'handleSingleClick'
+      },
+
+      init() {
+        this.listenTo(this.model, 'change:is-editing', this.handleEditingChange);
+        this.listenTo(this.model, 'change:content', this.render);
+        this.rteActive = false;
+      },
+
+      handleSingleClick(e) {
+        // Allow normal GrapesJS selection behavior on single click
+      },
+
+      handleEditingChange() {
+        const isEditing = this.model.get('is-editing');
+        if (isEditing && !this.rteActive) {
+          this.startRTE();
+        } else if (!isEditing && this.rteActive) {
+          this.stopRTE();
+        }
+      },
+
+enableRichTextEditing(e) {
+  console.log('=== DOUBLE CLICK DETECTED ===');
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Check if already in RTE mode
+  if (this.rteActive) {
+    console.log('RTE already active, ignoring double click');
+    return;
+  }
+
+  // Check if content is hidden
+  const hideWords = this.model.get('hide-words') || '';
+  if (hideWords.trim()) {
+    const content = this.model.get('content') || '';
+    if (content.includes('class="hidden-word"') && content.includes('display: none')) {
+      console.log('Content is hidden, cannot edit');
+      return;
+    }
+  }
+
+  console.log('Enabling RTE...');
+  this.model.enableRTE();
+},
+
+      startRTE() {
+  console.log('=== STARTING RTE ===');
+  
+  if (this.rteActive) {
+    console.log('RTE already active, aborting start');
+    return;
+  }
+
+  const em = this.model.em;
+  if (!em) {
+    console.log('No editor manager found');
+    return;
+  }
+
+  const rte = em.get('RichTextEditor');
+  if (!rte) {
+    console.log('No RTE found');
+    return;
+  }
+
+  console.log('Setting rteActive to true');
+  this.rteActive = true;
+
+  // Store original actions
+  this.originalActions = rte.getAll().slice();
+  console.log('Stored original actions:', this.originalActions.length);
+  
+  // Clear existing actions
+  this.originalActions.forEach(action => {
+    try {
+      rte.remove(action.name);
+    } catch (e) {
+      console.log('Error removing action:', action.name);
+    }
+  });
+
+  // Add custom actions
+  customRteActions.forEach(action => {
+    try {
+      rte.add(action.name, action);
+    } catch (e) {
+      console.log('Error adding action:', action.name);
+    }
+  });
+
+  // Set content from raw content for editing
+  const rawContent = this.model.get('raw-content') || '';
+  console.log('Setting element content to raw content:', rawContent);
+  this.el.innerHTML = rawContent;
+
+  // Enable RTE
+  try {
+    console.log('Enabling RTE on element');
+    rte.enable(this, null, { 
+      actions: customRteActions.map(a => a.name)
+    });
+    console.log('RTE enabled successfully');
+  } catch (e) {
+    console.error('RTE enable error:', e);
+  }
+
+  // Enhanced content change handler
+  this.rteChangeHandler = () => {
+    const content = this.el.innerHTML;
+    console.log("Content changed in RTE:", content);
+    this.model.set('raw-content', content, { silent: true });
+  };
+
+  console.log('Adding event listeners');
+  this.el.addEventListener('input', this.rteChangeHandler);
+  this.el.addEventListener('blur', this.handleRTEBlur.bind(this));
+  
+  // Add escape key handler
+  this.escapeHandler = (e) => {
+    if (e.key === 'Escape') {
+      console.log('Escape key pressed, closing RTE');
+      this.handleRTEBlur();
+    }
+  };
+  document.addEventListener('keydown', this.escapeHandler);
+  
+  console.log('RTE startup complete');
+},
+
+      stopRTE() {
+  console.log('=== STOPPING RTE ===');
+  
+  if (!this.rteActive) {
+    console.log('RTE not active, nothing to stop');
+    return;
+  }
+
+  const em = this.model.em;
+  if (!em) {
+    console.log('No editor manager found');
+    return;
+  }
+
+  const rte = em.get('RichTextEditor');
+  if (!rte) {
+    console.log('No RTE found');
+    return;
+  }
+
+  console.log('Setting rteActive to false');
+  this.rteActive = false;
+
+  // Remove event listeners
+  if (this.rteChangeHandler) {
+    console.log('Removing event listeners');
+    this.el.removeEventListener('input', this.rteChangeHandler);
+    this.el.removeEventListener('blur', this.handleRTEBlur);
+    this.rteChangeHandler = null;
+  }
+
+  // Remove escape key handler
+  if (this.escapeHandler) {
+    console.log('Removing escape key handler');
+    document.removeEventListener('keydown', this.escapeHandler);
+    this.escapeHandler = null;
+  }
+
+  // Disable RTE
+  try {
+    console.log('Disabling RTE');
+    rte.disable(this);
+    console.log('RTE disabled successfully');
+  } catch (e) {
+    console.error('RTE disable error:', e);
+  }
+
+  // Restore original actions
+  if (this.originalActions) {
+    console.log('Restoring original actions');
+    
+    // Remove custom actions first
+    customRteActions.forEach(action => {
+      try {
+        rte.remove(action.name);
+      } catch (e) {
+        console.log('Error removing custom action:', action.name);
+      }
+    });
+
+    // Add back original actions
+    this.originalActions.forEach(action => {
+      try {
+        rte.add(action.name, action);
+      } catch (e) {
+        console.log('Error restoring action:', action.name);
+      }
+    });
+    
+    this.originalActions = null;
+    console.log('Original actions restored');
+  }
+
+  // Ensure element is not editable
+  console.log('Setting contentEditable to false');
+  this.el.contentEditable = false;
+  
+  console.log('RTE stop complete');
+},
+
+forceStopRTE() {
+  console.log('=== FORCE STOP RTE ===');
+  if (this.view && this.view.rteActive) {
+    console.log('Forcing RTE to stop');
+    this.view.stopRTE();
+    this.set('is-editing', false, { silent: true });
+  }
+},
+      handleRTEBlur() {
+  console.log('=== RTE BLUR TRIGGERED ===');
+  
+  const content = this.el.innerHTML;
+  console.log('Content on blur:', content);
+  
+  const formatType = this.model.get('format-type');
+  console.log('Format type:', formatType);
+  
+  // Validate format before applying
+  const validation = formatHelpers.validateFormat(content, formatType);
+  
+  if (!validation.valid) {
+    console.log('Validation failed:', validation.error);
+    alert(validation.error);
+    // Revert to previous content
+    const previousContent = this.model.get('raw-content');
+    this.el.innerHTML = previousContent;
+  } else {
+    console.log('Validation passed, updating content');
+    this.model.set('raw-content', content, { silent: true });
+    this.model.updateContent();
+  }
+  
+  // Disable editing
+  console.log('Disabling RTE from blur handler');
+  this.model.disableRTE();
+},
+
+onRender() {
+  console.log('=== VIEW RENDER ===');
+  console.log('RTE Active:', this.rteActive);
+  
+  // Ensure element is not editable by default
+  this.el.contentEditable = false;
+  
+  // Set tooltip based on format type
+  const formatType = this.model.get('format-type') || 'text';
+  const label = getFormatLabel(formatType);
+  this.el.setAttribute('title', label);
+  
+  // Get current content
+  const content = this.model.get('content') || '';
+  console.log('Content to render:', content);
+  console.log('Current element innerHTML:', this.el.innerHTML);
+  
+  // CRITICAL FIX: Always update content if not in RTE mode
+  if (!this.rteActive) {
+    console.log('Updating element innerHTML (not in RTE mode)');
+    this.el.innerHTML = content;
+  } else {
+    console.log('Skipping innerHTML update - RTE is active');
+  }
+},
+    }
+  });
 
   // Add component to blocks
   editor.BlockManager.add('formatted-rich-text', {
@@ -783,7 +1073,6 @@ editor.DomComponents.addType('formatted-rich-text', {
     
     [data-gjs-type="formatted-rich-text"][contenteditable="true"] {
       border: 1px dashed #007bff;
-
       cursor: text;
     }
     
@@ -795,7 +1084,6 @@ editor.DomComponents.addType('formatted-rich-text', {
     [data-gjs-type="formatted-rich-text"] a {
       color: #007bff;
       text-decoration: underline;
-
     }
     
     [data-gjs-type="formatted-rich-text"] a:hover {
@@ -818,6 +1106,21 @@ editor.DomComponents.addType('formatted-rich-text', {
     
     [data-gjs-type="formatted-rich-text"] s {
       text-decoration: line-through;
+    }
+    
+    /* Conditional formatting styles */
+    [data-gjs-type="formatted-rich-text"] .hidden-word {
+      display: none !important;
+    }
+    
+    [data-gjs-type="formatted-rich-text"] .highlighted-word {
+      border-radius: 2px;
+      padding: 1px 2px;
+      transition: background-color 0.2s ease;
+    }
+    
+    [data-gjs-type="formatted-rich-text"] .highlighted-word:hover {
+      opacity: 0.8;
     }
     
     /* Responsive text sizes using GrapesJS responsive classes */
@@ -860,13 +1163,56 @@ editor.DomComponents.addType('formatted-rich-text', {
       border-radius: 3px;
       z-index: 1000;
     }
+    
+    /* Trait textarea styling for better UX */
+    .gjs-pn-panel .gjs-pn-buttons textarea[name="hide-words"],
+    .gjs-pn-panel .gjs-pn-buttons textarea[name="highlight-words"] {
+      min-height: 80px;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      resize: vertical;
+    }
   `);
 
-  console.log('Formatted Rich Text component (standalone) initialized successfully!');
+  console.log('Enhanced Formatted Rich Text component with conditional number formatting initialized successfully!');
   
+  // Return helper functions for external use
   return {
     formatHelpers,
     customRteActions,
-    getAllFormatOptions
+    getAllFormatOptions,
+    
+    // Additional utility methods for conditional formatting
+    utils: {
+      // Test if a condition string is valid
+      isValidCondition(condition) {
+        return formatHelpers.isNumberCondition(condition) || condition.trim().length > 0;
+      },
+      
+      // Parse a condition and return its type and details
+      parseCondition(condition) {
+        if (formatHelpers.isNumberCondition(condition)) {
+          return {
+            type: 'number',
+            details: formatHelpers.parseNumberCondition(condition)
+          };
+        }
+        return {
+          type: 'text',
+          details: { value: condition.trim() }
+        };
+      },
+      
+      // Evaluate a condition against content
+      evaluateCondition(content, condition) {
+        if (formatHelpers.isNumberCondition(condition)) {
+          return formatHelpers.evaluateNumberCondition(content, condition);
+        }
+        // For text conditions, check if the word exists
+        const text = formatHelpers.extractTextContent(content);
+        return text.toLowerCase().includes(condition.toLowerCase());
+      }
+    }
   };
 }

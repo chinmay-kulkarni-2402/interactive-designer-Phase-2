@@ -369,7 +369,7 @@ function drawingTool(editor) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     fabric.Image.fromURL(event.target.result, (img) => {
-                        img.scale(0.5);
+                        img.scale(2);
                         fabricCanvas.add(img);
                         fabricCanvas.centerObject(img);
                         saveState();
@@ -527,14 +527,17 @@ function drawingTool(editor) {
         // Handle OK button
         document.getElementById('drawing-ok-btn').onclick = () => {
             const dataURL = fabricCanvas.toDataURL({
-                format: 'png',
-                quality: 1,
-                multiplier: 1
-            });
-            
-            // Create img element and replace the drawing block
-            const imgElement = `<img src="${dataURL}" style="max-width: 100%; height: auto; display: block;">`;
-            model.replaceWith(imgElement);
+    format: 'png',
+    quality: 1,
+    multiplier: 5
+});
+
+// Keep display size same as canvas, so it doesn't visually change
+const canvasWidth = fabricCanvas.getWidth();
+const canvasHeight = fabricCanvas.getHeight();
+
+const imgElement = `<img src="${dataURL}" style="width: ${canvasWidth}px; height: ${canvasHeight}px; display: block;">`;
+model.replaceWith(imgElement);
             
             modal.style.display = 'none';
         };

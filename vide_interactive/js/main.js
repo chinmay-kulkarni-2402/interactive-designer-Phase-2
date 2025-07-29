@@ -25,6 +25,7 @@ const editor = InteractiveDesigner.init({
     customSections,
     addFormattedRichTextComponent,
     marqueTag,
+    addQRBarcodeComponent,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -94,6 +95,8 @@ const editor = InteractiveDesigner.init({
       "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
       "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js",
       "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+      "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
+      "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
     ],
   },
 });
@@ -458,6 +461,7 @@ const BACKEND_URL = "http://localhost:3000";
 // }
 
 // Enhanced PDF generation function with proper page break support
+// Enhanced PDF generation function with exact Bootstrap print support
 function generatePrintDialog() {
   try {
     if (typeof editor === "undefined") {
@@ -471,6 +475,7 @@ function generatePrintDialog() {
     const editorHTML = editor.getHtml();
     const editorCSS = editor.getCss();
     console.log("html", editorHTML);
+    
     // Create a hidden iframe for printing
     const printFrame = document.createElement("iframe");
     printFrame.style.position = "absolute";
@@ -488,7 +493,125 @@ function generatePrintDialog() {
     // Process HTML to handle page breaks properly
     const processedHTML = processPageBreaks(editorHTML);
 
-    // Prepare the print content with enhanced page break handling
+    // Function to convert Bootstrap classes to inline styles for print
+    function convertBootstrapToInlineStyles(html) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      
+      // Process all elements with Bootstrap classes
+      const allElements = tempDiv.querySelectorAll('*');
+      
+      allElements.forEach(element => {
+        const classList = Array.from(element.classList);
+        let computedStyles = {};
+        
+        // Handle container classes
+        if (classList.includes('container') || classList.includes('container-fluid')) {
+          computedStyles.width = '100%';
+          computedStyles.maxWidth = 'none';
+          computedStyles.margin = '0';
+          computedStyles.padding = '0';
+        }
+        
+        // Handle row classes
+        if (classList.includes('row')) {
+          computedStyles.display = 'flex';
+          computedStyles.flexWrap = 'wrap';
+          computedStyles.margin = '0';
+          computedStyles.width = '100%';
+          // Ensure row maintains its height
+          computedStyles.minHeight = 'auto';
+        }
+        
+        // Handle column classes - check all possible Bootstrap column classes
+        let isColumn = false;
+        classList.forEach(className => {
+          // Handle col-* classes
+          if (className.match(/^col-(\d+)$/)) {
+            const colSize = parseInt(className.split('-')[1]);
+            computedStyles.flex = `0 0 ${(colSize / 12) * 100}%`;
+            computedStyles.maxWidth = `${(colSize / 12) * 100}%`;
+            computedStyles.position = 'relative';
+            computedStyles.width = '100%';
+            isColumn = true;
+          }
+          
+          // Handle col-sm-*, col-md-*, col-lg-*, col-xl-* classes
+          if (className.match(/^col-(sm|md|lg|xl)-(\d+)$/)) {
+            const colSize = parseInt(className.split('-')[2]);
+            computedStyles.flex = `0 0 ${(colSize / 12) * 100}%`;
+            computedStyles.maxWidth = `${(colSize / 12) * 100}%`;
+            computedStyles.position = 'relative';
+            computedStyles.width = '100%';
+            isColumn = true;
+          }
+          
+          // Handle plain col class
+          if (className === 'col') {
+            computedStyles.flex = '1 0 0%';
+            computedStyles.position = 'relative';
+            computedStyles.width = '100%';
+            isColumn = true;
+          }
+        });
+        
+        // For columns, calculate and preserve actual content height
+        if (isColumn) {
+          // Get the actual computed height of the element
+          const actualElement = document.querySelector(`[class*="col"]`);
+          if (actualElement) {
+            const computedHeight = window.getComputedStyle(element).height;
+            const computedMinHeight = window.getComputedStyle(element).minHeight;
+            
+            // Use the larger of computed height or content height
+            if (computedHeight && computedHeight !== 'auto' && computedHeight !== '0px') {
+              computedStyles.minHeight = computedHeight;
+            } else {
+              // Calculate content height by measuring the element's content
+              const contentHeight = element.scrollHeight;
+              if (contentHeight > 0) {
+                computedStyles.minHeight = `${contentHeight}px`;
+              } else {
+                // Ensure minimum height for columns with content
+                const hasContent = element.textContent.trim().length > 0 || element.children.length > 0;
+                if (hasContent) {
+                  computedStyles.minHeight = 'auto';
+                  computedStyles.height = 'auto';
+                } else {
+                  computedStyles.minHeight = '45px';
+                }
+              }
+            }
+          } else {
+            // Fallback: ensure columns have proper height
+            const hasContent = element.textContent.trim().length > 0 || element.children.length > 0;
+            if (hasContent) {
+              computedStyles.minHeight = 'auto';
+              computedStyles.height = 'auto';
+            } else {
+              computedStyles.minHeight = '45px';
+            }
+          }
+          
+          // Ensure columns don't collapse
+          computedStyles.boxSizing = 'border-box';
+          computedStyles.display = 'block';
+        }
+        
+        // Apply computed styles as inline styles
+        Object.keys(computedStyles).forEach(property => {
+          const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
+          element.style.setProperty(cssProperty, computedStyles[property], 'important');
+        });
+      });
+      
+      return tempDiv.innerHTML;
+    }
+
+    // Convert Bootstrap classes to inline styles
+    const processedHTMLWithInlineStyles = convertBootstrapToInlineStyles(processedHTML);
+
+    // Prepare the print content with comprehensive print support
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -497,14 +620,207 @@ function generatePrintDialog() {
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Print Document</title>
         <style>
+          /* Global reset and print setup */
           * {
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
             print-color-adjust: exact !important;
-            box-sizing: border-box;
+            box-sizing: border-box !important;
           }
           
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            background: white !important;
+            font-family: Arial, sans-serif !important;
+            line-height: 1.4 !important;
+            color: #333 !important;
+          }
+          
+          @page {
+            margin: 0.5in !important;
+            size: auto !important;
+          }
+          
+          /* Force all elements to preserve their computed styles */
           @media print {
+            * {
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box !important;
+            }
+            
+            /* Preserve all background colors and images */
+            *[style*="background-color"],
+            *[style*="background"],
+            *[class*="bg-"] {
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            /* Bootstrap Grid System - Force Layout */
+            .container,
+            .container-fluid {
+              width: 100% !important;
+              max-width: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              display: block !important;
+            }
+            
+            .row {
+              display: flex !important;
+              flex-wrap: wrap !important;
+              margin: 0 !important;
+              width: 100% !important;
+              min-height: auto !important;
+              height: auto !important;
+            }
+            
+            /* Force all column classes to work with proper height */
+            [class*="col-"] {
+              position: relative !important;
+              width: 100% !important;
+              display: block !important;
+              float: none !important;
+              min-height: auto !important;
+              height: auto !important;
+              box-sizing: border-box !important;
+            }
+            
+            /* Specific column widths with proper height handling */
+            .col-1, .col-sm-1, .col-md-1, .col-lg-1, .col-xl-1 { 
+              flex: 0 0 8.333333% !important; 
+              max-width: 8.333333% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-2, .col-sm-2, .col-md-2, .col-lg-2, .col-xl-2 { 
+              flex: 0 0 16.666667% !important; 
+              max-width: 16.666667% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-3, .col-sm-3, .col-md-3, .col-lg-3, .col-xl-3 { 
+              flex: 0 0 25% !important; 
+              max-width: 25% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-4, .col-sm-4, .col-md-4, .col-lg-4, .col-xl-4 { 
+              flex: 0 0 33.333333% !important; 
+              max-width: 33.333333% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-5, .col-sm-5, .col-md-5, .col-lg-5, .col-xl-5 { 
+              flex: 0 0 41.666667% !important; 
+              max-width: 41.666667% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-6, .col-sm-6, .col-md-6, .col-lg-6, .col-xl-6 { 
+              flex: 0 0 50% !important; 
+              max-width: 50% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-7, .col-sm-7, .col-md-7, .col-lg-7, .col-xl-7 { 
+              flex: 0 0 58.333333% !important; 
+              max-width: 58.333333% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-8, .col-sm-8, .col-md-8, .col-lg-8, .col-xl-8 { 
+              flex: 0 0 66.666667% !important; 
+              max-width: 66.666667% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-9, .col-sm-9, .col-md-9, .col-lg-9, .col-xl-9 { 
+              flex: 0 0 75% !important; 
+              max-width: 75% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-10, .col-sm-10, .col-md-10, .col-lg-10, .col-xl-10 { 
+              flex: 0 0 83.333333% !important; 
+              max-width: 83.333333% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-11, .col-sm-11, .col-md-11, .col-lg-11, .col-xl-11 { 
+              flex: 0 0 91.666667% !important; 
+              max-width: 91.666667% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            .col-12, .col-sm-12, .col-md-12, .col-lg-12, .col-xl-12 { 
+              flex: 0 0 100% !important; 
+              max-width: 100% !important; 
+              min-height: auto !important;
+              height: auto !important;
+            }
+            
+            /* Auto columns */
+            .col, .col-sm, .col-md, .col-lg, .col-xl {
+              flex: 1 0 0% !important;
+              max-width: 100% !important;
+              min-height: auto !important;
+              height: auto !important;
+            }
+            
+            /* Ensure columns with inline styles preserve their height */
+            [class*="col-"][style*="min-height"] {
+              /* Inline styles will take precedence */
+            }
+            
+            /* Bootstrap utility classes */
+            .d-flex { display: flex !important; }
+            .d-block { display: block !important; }
+            .d-inline { display: inline !important; }
+            .d-inline-block { display: inline-block !important; }
+            
+            .justify-content-start { justify-content: flex-start !important; }
+            .justify-content-end { justify-content: flex-end !important; }
+            .justify-content-center { justify-content: center !important; }
+            .justify-content-between { justify-content: space-between !important; }
+            .justify-content-around { justify-content: space-around !important; }
+            
+            .align-items-start { align-items: flex-start !important; }
+            .align-items-end { align-items: flex-end !important; }
+            .align-items-center { align-items: center !important; }
+            .align-items-baseline { align-items: baseline !important; }
+            .align-items-stretch { align-items: stretch !important; }
+            
+            /* Text alignment */
+            .text-left { text-align: left !important; }
+            .text-center { text-align: center !important; }
+            .text-right { text-align: right !important; }
+            .text-justify { text-align: justify !important; }
+            
+            /* Spacing utilities */
+            .m-0 { margin: 0 !important; }
+            .mt-0 { margin-top: 0 !important; }
+            .mr-0 { margin-right: 0 !important; }
+            .mb-0 { margin-bottom: 0 !important; }
+            .ml-0 { margin-left: 0 !important; }
+            .mx-0 { margin-left: 0 !important; margin-right: 0 !important; }
+            .my-0 { margin-top: 0 !important; margin-bottom: 0 !important; }
+            
+            .p-0 { padding: 0 !important; }
+            .pt-0 { padding-top: 0 !important; }
+            .pr-0 { padding-right: 0 !important; }
+            .pb-0 { padding-bottom: 0 !important; }
+            .pl-0 { padding-left: 0 !important; }
+            .px-0 { padding-left: 0 !important; padding-right: 0 !important; }
+            .py-0 { padding-top: 0 !important; padding-bottom: 0 !important; }
+            
+            /* Hide on print */
             .${HIDE_CLASS} {
               display: none !important;
               visibility: hidden !important;
@@ -517,6 +833,7 @@ function generatePrintDialog() {
               overflow: hidden !important;
             }
             
+            /* Page break handling */
             .page-break {
               display: none !important;
               visibility: hidden !important;
@@ -538,6 +855,7 @@ function generatePrintDialog() {
               break-before: page !important;
             }
             
+            /* Table fixes */
             table.table-bordered {
               display: table !important;
               width: 100% !important;
@@ -575,46 +893,8 @@ function generatePrintDialog() {
             table.table-bordered th span {
               display: none !important;
             }
-          }
-          
-          @media print {
-            body {
-              margin: 0;
-              padding: 0;
-              background: white;
-            }
             
-            @page {
-              margin: 0.5in;
-              size: auto;
-            }
-            
-            .page-container {
-              page-break-after: always !important;
-              margin: 0 !important;
-              box-shadow: none !important;
-              border: none !important;
-              width: 100% !important;
-              height: auto !important;
-              display: block !important;
-              overflow: visible !important;
-            }
-            
-            .page-content {
-              width: 100% !important;
-              height: auto !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              overflow: visible !important;
-            }
-            
-            .main-content-area {
-              width: 100% !important;
-              height: auto !important;
-              overflow: visible !important;
-              position: relative !important;
-            }
-            
+            /* Editor specific elements */
             .page-indicator,
             .virtual-sections-panel,
             .section-panel-toggle,
@@ -628,14 +908,7 @@ function generatePrintDialog() {
               background: transparent !important;
             }
             
-            .page-header-element {
-              display: flex !important;
-              position: static !important;
-              background: transparent !important;
-              border: none !important;
-              box-shadow: none !important;
-            }
-            
+            .page-header-element,
             .page-footer-element {
               display: flex !important;
               position: static !important;
@@ -662,8 +935,15 @@ function generatePrintDialog() {
               pointer-events: none !important;
               z-index: 1 !important;
             }
+            
+            /* Force inline styles to take precedence */
+            *[style] {
+              /* Inline styles will automatically have higher specificity */
+            }
           }
+            
           
+          /* Screen styles */
           @media screen {
             body {
               font-family: Arial, sans-serif;
@@ -675,28 +955,18 @@ function generatePrintDialog() {
             }
           }
           
+          /* Original editor CSS */
           ${editorCSS}
-          
-          @media print {
-            .${HIDE_CLASS} {
-              display: none !important;
-            }
-            
-            .page-break {
-              display: none !important;
-            }
-          }
         </style>
       </head>
       <body>
-        ${processedHTML}
+        ${processedHTMLWithInlineStyles}
       </body>
       </html>
     `;
 
     // Write content to iframe
-    const frameDoc =
-      printFrame.contentDocument || printFrame.contentWindow.document;
+    const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
     frameDoc.open();
     frameDoc.write(printContent);
     frameDoc.close();
