@@ -26,6 +26,8 @@ const editor = InteractiveDesigner.init({
     addFormattedRichTextComponent,
     marqueTag,
     addQRBarcodeComponent,
+    registerCustomShapes,
+    customJsonTable,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -87,7 +89,11 @@ const editor = InteractiveDesigner.init({
       "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
       "https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js",
       "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
-      "https://code.highcharts.com/highcharts.js",
+      "https://code.highcharts.com/stock/highstock.js",
+      "https://code.highcharts.com/highcharts-more.js",
+
+
+
       "https://code.highcharts.com/modules/drilldown.js",
       "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
       "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js",
@@ -1077,7 +1083,7 @@ function downloadPage() {
 // *********start resize and drag code ***********
 
 editor.on('component:add', function (component) {
-  // Set resizable if not set  
+  // Add resizable & rotatable options if not set
   if (!component.get('resizable')) {
     component.set('resizable', {
       tl: 1, tc: 1, tr: 1,
@@ -1088,10 +1094,11 @@ editor.on('component:add', function (component) {
       step: 1,
       unitHeight: 'px',
       unitWidth: 'px',
-      handleSize: 8,   
+      handleSize: 8,
+      rotator: true,
     });
-  }   
-});  
+  }
+});
 
 editor.BlockManager.add('draggable-section-container', {
   label: 'Draggable Container',
@@ -1113,27 +1120,44 @@ editor.BlockManager.add('draggable-section-container', {
   `,
 });
 
+// === State variables for drag & rotation ===
 let isDragging = false;
 let startX = 0;
 let startY = 0;
 let currentX = 0;
 let currentY = 0;
+let currentRotation = 0;   // ✅ track rotation
 let selectedEl = null;
 let parentEl = null;
 
 editor.on('component:selected', (component) => {
   const el = component.getEl();
 
+  // ✅ Enable rotation logic for line & rectangle
+  if (component.get('type') === 'line' || component.get('type') === 'rectangle') {
+    const resizable = component.get('resizable') || {};
+    resizable.rotator = true;
+
+    // ✅ Add rotation handler to merge transform
+    resizable.onRotate = (event, { rotation }) => {
+      currentRotation = rotation;
+      component.addStyle({
+        transform: `translate(${currentX}px, ${currentY}px) rotate(${currentRotation}deg)`
+      });
+    };
+
+    component.set('resizable', resizable);
+  }
+
   // Check if it's a direct child of .custom-container
   if (el?.parentElement?.classList.contains('draggable-section-container')) {
     const parent = el.parentElement;
-    parent.style.position = 'relative'; 
+    parent.style.position = 'relative';
     selectedEl = el;
-    parentEl = parent; 
+    parentEl = parent;
 
     const compId = component.getId();
     const selector = `#${compId}`;
-
 
     el.onmousedown = function (e) {
       e.preventDefault();
@@ -1148,16 +1172,14 @@ editor.on('component:selected', (component) => {
         const newY = e.clientY - startY;
 
         const parentRect = parentEl.getBoundingClientRect();
-
         currentX = Math.max(0, Math.min(newX, parentRect.width - selectedEl.offsetWidth));
         currentY = Math.max(0, Math.min(newY, parentRect.height - selectedEl.offsetHeight));
 
-        // Add CSS Rule via CssComposer
+        // ✅ Merge translate + rotate in drag
         const cssRule = editor.CssComposer.getRule(selector) || editor.CssComposer.add([selector]);
- 
         cssRule.addStyle({
-        transform: `translate(${currentX}px, ${currentY}px)`,
-      });
+          transform: `translate(${currentX}px, ${currentY}px) rotate(${currentRotation}deg)`
+        });
       };
 
       document.onmouseup = function () {
@@ -1174,9 +1196,8 @@ editor.on('component:selected', (component) => {
   }
 });
 
-
-
 // ******* END Resize and drag code ***********
+
 
 function importSinglePages() {
   editor.Modal.setTitle("Add Pages From JSON");

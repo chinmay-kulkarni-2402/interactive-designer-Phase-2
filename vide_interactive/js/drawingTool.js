@@ -49,6 +49,9 @@ function drawingTool(editor) {
             cursor: pointer;
             font-size: 12px;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         
         .tool-btn:hover {
@@ -85,7 +88,7 @@ function drawingTool(editor) {
             background: #f9f9f9;
         }
         
-        #modal-canvas {
+        #konva-container {
             border: 1px solid #ccc;
             background: white;
             border-radius: 4px;
@@ -132,6 +135,53 @@ function drawingTool(editor) {
             font-size: 16px;
             cursor: pointer;
         }
+        
+        /* Icon styles */
+        .tool-icon {
+            font-size: 16px;
+            transition: font-size 0.2s;
+            display: inline-block;
+        }
+        
+        .tool-icon.resizable {
+            font-size: 20px;
+        }
+        
+        /* Fallback icons for better compatibility */
+        .tool-btn[data-tool="pencil"] .tool-icon::before {
+            content: "✏️";
+        }
+        
+        .tool-btn[data-tool="eraser"] .tool-icon::before {
+        content: "🧽"; 
+        }
+        
+        .tool-btn[data-tool="paint"] .tool-icon::before {
+            content: "🪣";
+        }
+            .pencil-cursor {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">✏️</text></svg>') 8 20, crosshair !important;
+    }
+    
+    .eraser-cursor {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">🧽</text></svg>') 8 20, crosshair !important;
+    }
+        .paint-cursor {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">🪣</text></svg>') 8 20, pointer !important;
+    }
+        
+        /* Size indicator */
+        .size-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
     `;
 
     // Create and inject style element
@@ -144,14 +194,33 @@ function drawingTool(editor) {
         <div id="drawing-modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <button class="tool-btn" id="select-btn">🔲 Select</button>
-                    <button class="tool-btn" id="move-btn">✋ Move</button>
-                    <button class="tool-btn" id="pencil-btn">✏️ Brush</button>
-                    <button class="tool-btn" id="eraser-btn">🧽 Eraser</button>
-                    <button class="tool-btn" id="line-btn">📏 Line</button>
-                    <button class="tool-btn" id="rect-btn">⬜ Rectangle</button>
-                    <button class="tool-btn" id="circle-btn">🔵 Circle</button>
-                    <button class="tool-btn" id="text-btn">📝 Text</button>
+                    <button class="tool-btn" id="select-btn">
+                        <span class="tool-icon">🔲</span> Select
+                    </button>
+                    <button class="tool-btn" id="move-btn">
+                        <span class="tool-icon">✋</span> Move
+                    </button>
+                    <button class="tool-btn" id="pencil-btn" data-tool="pencil">
+                        <span class="tool-icon"></span> Pencil
+                    </button>
+                    <button class="tool-btn" id="eraser-btn" data-tool="eraser">
+                        <span class="tool-icon"></span> Eraser
+                    </button>
+                    <button class="tool-btn" id="line-btn">
+                        <span class="tool-icon">📏</span> Line
+                    </button>
+                    <button class="tool-btn" id="rect-btn">
+                        <span class="tool-icon">⬜</span> Rectangle
+                    </button>
+                    <button class="tool-btn" id="circle-btn">
+                        <span class="tool-icon">🔵</span> Circle
+                    </button>
+                    <button class="tool-btn" id="text-btn">
+                        <span class="tool-icon">📝</span> Text
+                    </button>
+                    <button class="tool-btn" id="paint-btn" data-tool="paint">
+                        <span class="tool-icon"></span> Paint
+                    </button>
                     
                     <label style="display: flex; align-items: center; gap: 5px;">
                         Color: <input type="color" id="tool-color" value="#000000" class="color-input">
@@ -178,7 +247,8 @@ function drawingTool(editor) {
                 </div>
                 
                 <div class="canvas-container">
-                    <canvas id="modal-canvas" width="600" height="300"></canvas>
+                    <div id="konva-container"></div>
+                    <div class="size-indicator" id="size-indicator">Size: 5px</div>
                 </div>
                 
                 <div class="modal-footer">
@@ -229,27 +299,378 @@ function drawingTool(editor) {
         }
     });
 
-    // Initialize fabric canvas
+    // Initialize Konva stage and layer
     const modal = document.getElementById('drawing-modal');
-    const fabricCanvas = new fabric.Canvas('modal-canvas', { 
-        selection: true,
-        preserveObjectStacking: true 
-    });
-    
+    let stage, layer, transformer;
     let history = [];
     let historyIndex = -1;
     let currentTool = 'select';
     let isDrawing = false;
-    let startX, startY, activeObject;
+    let isPaint = false;
+    let lastLine = null;
+    let pencilSize = 5;
+    let eraserSize = 15;
+    let currentColor = '#000000';
+
+    // Tool state management
+    let toolStates = {
+        pencil: { size: 5, icon: '✏️' },
+        eraser: { size: 15, icon: '🧽' },
+        paint: { icon: '🪣' }
+    };
+
+    // Flood fill algorithm for paint bucket
+    function floodFill(imageData, startX, startY, fillColor, tolerance = 0) {
+        const canvas = stage.getStage();
+        const width = canvas.width();
+        const height = canvas.height();
+        const data = imageData.data;
+        
+        const startPos = (startY * width + startX) * 4;
+        const startR = data[startPos];
+        const startG = data[startPos + 1];
+        const startB = data[startPos + 2];
+        const startA = data[startPos + 3];
+        
+        const fillR = parseInt(fillColor.slice(1, 3), 16);
+        const fillG = parseInt(fillColor.slice(3, 5), 16);
+        const fillB = parseInt(fillColor.slice(5, 7), 16);
+        const fillA = 255;
+        
+        // Check if the start color is the same as fill color
+        if (startR === fillR && startG === fillG && startB === fillB && startA === fillA) {
+            return imageData;
+        }
+        
+        const stack = [{x: startX, y: startY}];
+        const visited = new Set();
+        
+        function colorMatch(x, y) {
+            if (x < 0 || x >= width || y < 0 || y >= height) return false;
+            
+            const pos = (y * width + x) * 4;
+            const r = data[pos];
+            const g = data[pos + 1];
+            const b = data[pos + 2];
+            const a = data[pos + 3];
+            
+            return Math.abs(r - startR) <= tolerance &&
+                   Math.abs(g - startG) <= tolerance &&
+                   Math.abs(b - startB) <= tolerance &&
+                   Math.abs(a - startA) <= tolerance;
+        }
+        
+        function setPixel(x, y) {
+            const pos = (y * width + x) * 4;
+            data[pos] = fillR;
+            data[pos + 1] = fillG;
+            data[pos + 2] = fillB;
+            data[pos + 3] = fillA;
+        }
+        
+        while (stack.length > 0) {
+            const {x, y} = stack.pop();
+            const key = `${x},${y}`;
+            
+            if (visited.has(key) || !colorMatch(x, y)) continue;
+            
+            visited.add(key);
+            setPixel(x, y);
+            
+            // Add neighboring pixels
+            stack.push({x: x + 1, y: y});
+            stack.push({x: x - 1, y: y});
+            stack.push({x: x, y: y + 1});
+            stack.push({x: x, y: y - 1});
+        }
+        
+        return imageData;
+    }
+
+    function initializeCanvas(width = 600, height = 300) {
+        const container = document.getElementById('konva-container');
+        container.innerHTML = '';
+        
+        stage = new Konva.Stage({
+            container: 'konva-container',
+            width: width,
+            height: height
+        });
+
+        layer = new Konva.Layer();
+        stage.add(layer);
+
+        // Add transformer for selection
+        transformer = new Konva.Transformer({
+            rotateEnabled: true,
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
+        });
+        layer.add(transformer);
+
+        setupEventListeners();
+        layer.draw();
+        saveState();
+    }
+
+    function setupEventListeners() {
+        stage.on('mousedown touchstart', handleMouseDown);
+        stage.on('mousemove touchmove', handleMouseMove);
+        stage.on('mouseup touchend', handleMouseUp);
+        
+        // Click to select objects
+        stage.on('click tap', handleClick);
+    }
+
+    function handleClick(e) {
+        if (currentTool === 'select') {
+            if (e.target === stage) {
+                transformer.nodes([]);
+                layer.draw();
+                return;
+            }
+
+            const clickedOnEmpty = e.target === stage;
+            if (clickedOnEmpty) {
+                transformer.nodes([]);
+                layer.draw();
+                return;
+            }
+
+            const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+            const isSelected = transformer.nodes().indexOf(e.target) >= 0;
+
+            if (!metaPressed && !isSelected) {
+                transformer.nodes([e.target]);
+            } else if (metaPressed && isSelected) {
+                const nodes = transformer.nodes().slice();
+                nodes.splice(nodes.indexOf(e.target), 1);
+                transformer.nodes(nodes);
+            } else if (metaPressed && !isSelected) {
+                const nodes = transformer.nodes().concat([e.target]);
+                transformer.nodes(nodes);
+            }
+            layer.draw();
+        } else if (currentTool === 'paint') {
+            // Paint bucket functionality - flood fill algorithm
+            const pos = stage.getPointerPosition();
+            
+            // Get current canvas as image data
+            const canvas = stage.toCanvas();
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Apply flood fill
+            const filledImageData = floodFill(imageData, Math.floor(pos.x), Math.floor(pos.y), currentColor, 10);
+            
+            // Create new image from filled data
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.putImageData(filledImageData, 0, 0);
+            
+            // Clear current layer and add filled image
+            layer.destroyChildren();
+            
+            // Recreate transformer
+            transformer = new Konva.Transformer({
+                rotateEnabled: true,
+                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                               'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
+            });
+            layer.add(transformer);
+            
+            // Add the filled image to layer
+            const img = new Image();
+            img.onload = () => {
+                const konvaImg = new Konva.Image({
+                    x: 0,
+                    y: 0,
+                    image: img,
+                    width: canvas.width,
+                    height: canvas.height
+                });
+                layer.add(konvaImg);
+                layer.draw();
+                saveState();
+            };
+            img.src = tempCanvas.toDataURL();
+        }
+    }
+
+    function handleMouseDown(e) {
+        if (currentTool === 'select' || currentTool === 'move') return;
+
+        isDrawing = true;
+        const pos = stage.getPointerPosition();
+
+        if (currentTool === 'pencil') {
+            isPaint = true;
+            lastLine = new Konva.Line({
+                stroke: currentColor,
+                strokeWidth: pencilSize,
+                globalCompositeOperation: 'source-over',
+                lineCap: 'round',
+                lineJoin: 'round',
+                points: [pos.x, pos.y, pos.x, pos.y],
+            });
+            layer.add(lastLine);
+        } else if (currentTool === 'eraser') {
+            isPaint = true;
+            lastLine = new Konva.Line({
+                stroke: 'white',
+                strokeWidth: eraserSize,
+                globalCompositeOperation: 'destination-out',
+                lineCap: 'round',
+                lineJoin: 'round',
+                points: [pos.x, pos.y, pos.x, pos.y],
+            });
+            layer.add(lastLine);
+        } else if (currentTool === 'line') {
+            lastLine = new Konva.Line({
+                stroke: currentColor,
+                strokeWidth: pencilSize,
+                lineCap: 'round',
+                points: [pos.x, pos.y, pos.x, pos.y],
+            });
+            layer.add(lastLine);
+        } else if (currentTool === 'rect') {
+            lastLine = new Konva.Rect({
+                x: pos.x,
+                y: pos.y,
+                width: 0,
+                height: 0,
+                stroke: currentColor,
+                strokeWidth: pencilSize,
+                fill: 'transparent'
+            });
+            layer.add(lastLine);
+        } else if (currentTool === 'circle') {
+            lastLine = new Konva.Circle({
+                x: pos.x,
+                y: pos.y,
+                radius: 0,
+                stroke: currentColor,
+                strokeWidth: pencilSize,
+                fill: 'transparent'
+            });
+            layer.add(lastLine);
+        } else if (currentTool === 'text') {
+            const text = new Konva.Text({
+                x: pos.x,
+                y: pos.y,
+                text: 'Type here...',
+                fontSize: pencilSize * 3,
+                fontFamily: 'Arial',
+                fill: currentColor,
+                draggable: true
+            });
+            layer.add(text);
+            
+            // Make text editable
+            text.on('dblclick', () => {
+                const textPosition = text.absolutePosition();
+                const areaPosition = {
+                    x: stage.container().offsetLeft + textPosition.x,
+                    y: stage.container().offsetTop + textPosition.y,
+                };
+
+                const textarea = document.createElement('textarea');
+                document.body.appendChild(textarea);
+
+                textarea.value = text.text();
+                textarea.style.position = 'absolute';
+                textarea.style.top = areaPosition.y + 'px';
+                textarea.style.left = areaPosition.x + 'px';
+                textarea.style.width = text.width() - text.padding() * 2 + 'px';
+                textarea.style.height = text.height() - text.padding() * 2 + 5 + 'px';
+                textarea.style.fontSize = text.fontSize() + 'px';
+                textarea.style.border = 'none';
+                textarea.style.padding = '0px';
+                textarea.style.margin = '0px';
+                textarea.style.overflow = 'hidden';
+                textarea.style.background = 'none';
+                textarea.style.outline = 'none';
+                textarea.style.resize = 'none';
+                textarea.style.lineHeight = text.lineHeight();
+                textarea.style.fontFamily = text.fontFamily();
+                textarea.style.transformOrigin = 'left top';
+                textarea.style.textAlign = text.align();
+                textarea.style.color = text.fill();
+
+                textarea.focus();
+
+                textarea.addEventListener('keydown', function (e) {
+                    if (e.keyCode === 13 && !e.shiftKey) {
+                        text.text(textarea.value);
+                        document.body.removeChild(textarea);
+                        layer.draw();
+                        saveState();
+                    }
+                    if (e.keyCode === 27) {
+                        document.body.removeChild(textarea);
+                    }
+                });
+
+                textarea.addEventListener('blur', function () {
+                    text.text(textarea.value);
+                    document.body.removeChild(textarea);
+                    layer.draw();
+                    saveState();
+                });
+            });
+            
+            layer.draw();
+            saveState();
+            return;
+        }
+    }
+
+    function handleMouseMove(e) {
+        if (!isDrawing) return;
+
+        const pos = stage.getPointerPosition();
+
+        if (currentTool === 'pencil' || currentTool === 'eraser') {
+            if (isPaint && lastLine) {
+                const newPoints = lastLine.points().concat([pos.x, pos.y]);
+                lastLine.points(newPoints);
+            }
+        } else if (currentTool === 'line' && lastLine) {
+            const points = lastLine.points();
+            lastLine.points([points[0], points[1], pos.x, pos.y]);
+        } else if (currentTool === 'rect' && lastLine) {
+            const startX = lastLine.x();
+            const startY = lastLine.y();
+            lastLine.width(pos.x - startX);
+            lastLine.height(pos.y - startY);
+        } else if (currentTool === 'circle' && lastLine) {
+            const startX = lastLine.x();
+            const startY = lastLine.y();
+            const radius = Math.sqrt(Math.pow(pos.x - startX, 2) + Math.pow(pos.y - startY, 2));
+            lastLine.radius(radius);
+        }
+
+        layer.batchDraw();
+    }
+
+    function handleMouseUp() {
+        if (isDrawing) {
+            isDrawing = false;
+            isPaint = false;
+            lastLine = null;
+            saveState();
+        }
+    }
 
     // Save state for undo/redo
     function saveState() {
-        const state = JSON.stringify(fabricCanvas.toJSON());
+        const state = layer.toJSON();
         history = history.slice(0, historyIndex + 1);
         history.push(state);
         historyIndex++;
         
-        // Limit history size
         if (history.length > 50) {
             history.shift();
             historyIndex--;
@@ -265,47 +686,154 @@ function drawingTool(editor) {
         line: document.getElementById('line-btn'),
         rect: document.getElementById('rect-btn'),
         circle: document.getElementById('circle-btn'),
-        text: document.getElementById('text-btn')
+        text: document.getElementById('text-btn'),
+        paint: document.getElementById('paint-btn')
     };
 
     const colorPicker = document.getElementById('tool-color');
     const sizeInput = document.getElementById('brush-size');
+    const sizeIndicator = document.getElementById('size-indicator');
 
     // Set active tool
-    function setActiveTool(tool) {
-        // Remove active class from all tools
-        Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
+function setActiveTool(tool) {
+    // Clear any selections when switching tools
+    if (transformer) {
+        transformer.nodes([]);
+        layer.draw();
+    }
+
+    // Remove active class from all tools
+    Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
+    
+    // Add active class to current tool
+    if (toolButtons[tool]) {
+        toolButtons[tool].classList.add('active');
+    }
+    
+    currentTool = tool;
+    
+    // Update cursor based on tool with custom icons and sizes
+    const container = stage ? stage.container() : null;
+    if (container) {
+        // Remove all cursor classes first
+        container.classList.remove('pencil-cursor', 'eraser-cursor', 'paint-cursor');
+        container.style.cursor = ''; // Clear any inline cursor styles
         
-        // Add active class to current tool
-        if (toolButtons[tool]) {
-            toolButtons[tool].classList.add('active');
-        }
-        
-        currentTool = tool;
-        fabricCanvas.isDrawingMode = false;
-        fabricCanvas.selection = true;
-        
-        // Configure canvas based on tool
         switch(tool) {
             case 'select':
             case 'move':
-                fabricCanvas.defaultCursor = 'default';
+                container.style.cursor = 'default';
                 break;
             case 'pencil':
-                fabricCanvas.isDrawingMode = true;
-                fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
-                fabricCanvas.freeDrawingBrush.color = colorPicker.value;
-                fabricCanvas.freeDrawingBrush.width = parseInt(sizeInput.value, 10);
+                container.style.cursor = createToolCursor('✏️', pencilSize);
                 break;
             case 'eraser':
-                fabricCanvas.isDrawingMode = true;
-                fabricCanvas.freeDrawingBrush = new fabric.EraserBrush(fabricCanvas);
-                fabricCanvas.freeDrawingBrush.width = parseInt(sizeInput.value, 10);
+                container.style.cursor = createToolCursor('🧽', eraserSize);
+                break;
+            case 'paint':
+                container.style.cursor = createToolCursor('🪣');
                 break;
             default:
-                fabricCanvas.defaultCursor = 'crosshair';
-                fabricCanvas.selection = false;
+                container.style.cursor = 'crosshair';
         }
+    }
+
+    // Update size input based on tool
+    if (tool === 'pencil') {
+        sizeInput.value = toolStates.pencil.size;
+        pencilSize = toolStates.pencil.size;
+    } else if (tool === 'eraser') {
+        sizeInput.value = toolStates.eraser.size;
+        eraserSize = toolStates.eraser.size;
+    }
+    
+    updateSizeIndicator();
+}
+
+function setActiveToolAlternative(tool) {
+    // Clear any selections when switching tools
+    if (transformer) {
+        transformer.nodes([]);
+        layer.draw();
+    }
+
+    // Remove active class from all tools
+    Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
+    
+    // Add active class to current tool
+    if (toolButtons[tool]) {
+        toolButtons[tool].classList.add('active');
+    }
+    
+    currentTool = tool;
+    
+    // Update cursor based on tool
+    const container = stage ? stage.container() : null;
+    if (container) {
+        switch(tool) {
+            case 'select':
+            case 'move':
+                container.style.cursor = 'default';
+                break;
+            case 'pencil':
+                // Create pencil cursor using canvas
+                container.style.cursor = createToolCursor('✏️');
+                break;
+            case 'eraser':
+                // Create eraser cursor using canvas
+                container.style.cursor = createToolCursor('🧽');
+                break;
+            case 'paint':
+                container.style.cursor = 'pointer';
+                break;
+            default:
+                container.style.cursor = 'crosshair';
+        }
+    }
+
+    // Update size input based on tool
+    if (tool === 'pencil') {
+        sizeInput.value = toolStates.pencil.size;
+        pencilSize = toolStates.pencil.size;
+    } else if (tool === 'eraser') {
+        sizeInput.value = toolStates.eraser.size;
+        eraserSize = toolStates.eraser.size;
+    }
+    
+    updateSizeIndicator();
+}
+
+function createToolCursor(emoji, size = 5) {
+    const canvas = document.createElement('canvas');
+    const canvasSize = Math.max(24, size + 8); // Minimum 24px, grows with brush size
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+    
+    // Draw outer circle to show brush size
+    if (emoji === '✏️' || emoji === '🧽') {
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(canvasSize/2, canvasSize/2, size/2, 0, 2 * Math.PI);
+        ctx.stroke();
+    }
+    
+    // Draw emoji in center
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, canvasSize/2, canvasSize/2);
+    
+    const dataURL = canvas.toDataURL();
+    return `url('${dataURL}') ${canvasSize/2} ${canvasSize/2}, crosshair`;
+}
+    function updateSizeIndicator() {
+        const currentSize = currentTool === 'eraser' ? eraserSize : pencilSize;
+        sizeIndicator.textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} Size: ${currentSize}px`;
     }
 
     // Tool event listeners
@@ -317,23 +845,127 @@ function drawingTool(editor) {
     toolButtons.rect.onclick = () => setActiveTool('rect');
     toolButtons.circle.onclick = () => setActiveTool('circle');
     toolButtons.text.onclick = () => setActiveTool('text');
+    toolButtons.paint.onclick = () => setActiveTool('paint');
 
-    // Color and size changes
+    // Color change
     colorPicker.onchange = () => {
-        if (fabricCanvas.freeDrawingBrush) {
-            fabricCanvas.freeDrawingBrush.color = colorPicker.value;
-        }
+        currentColor = colorPicker.value;
     };
 
+    // Size change
     sizeInput.onchange = () => {
-        if (fabricCanvas.freeDrawingBrush) {
-            fabricCanvas.freeDrawingBrush.width = parseInt(sizeInput.value, 10);
+    const newSize = parseInt(sizeInput.value, 10);
+    if (currentTool === 'pencil') {
+        pencilSize = newSize;
+        toolStates.pencil.size = newSize;
+        // Update cursor with new size
+        const container = stage ? stage.container() : null;
+        if (container) {
+            container.style.cursor = createToolCursor('✏️', pencilSize);
         }
-    };
+    } else if (currentTool === 'eraser') {
+        eraserSize = newSize;
+        toolStates.eraser.size = newSize;
+        // Update cursor with new size
+        const container = stage ? stage.container() : null;
+        if (container) {
+            container.style.cursor = createToolCursor('🧽', eraserSize);
+        }
+    } else {
+        pencilSize = newSize;
+    }
+    updateSizeIndicator();
+};
+
+    // Keyboard shortcuts for resizing icons
+    document.addEventListener('keydown', (e) => {
+    if (modal.style.display === 'flex') {
+        if (e.shiftKey && e.key === '+') {
+            e.preventDefault();
+            if (currentTool === 'pencil' || currentTool === 'eraser') {
+                const iconElement = toolButtons[currentTool === 'pencil' ? 'pencil' : 'eraser'].querySelector('.tool-icon');
+                iconElement.classList.add('resizable');
+                sizeIndicator.style.display = 'block';
+                
+                const currentSize = currentTool === 'pencil' ? toolStates.pencil.size : toolStates.eraser.size;
+                const newSize = Math.min(currentSize + 2, 100);
+                
+                if (currentTool === 'pencil') {
+                    pencilSize = newSize;
+                    toolStates.pencil.size = newSize;
+                    // Update cursor
+                    const container = stage ? stage.container() : null;
+                    if (container) {
+                        container.style.cursor = createToolCursor('✏️', pencilSize);
+                    }
+                } else {
+                    eraserSize = newSize;
+                    toolStates.eraser.size = newSize;
+                    // Update cursor
+                    const container = stage ? stage.container() : null;
+                    if (container) {
+                        container.style.cursor = createToolCursor('🧽', eraserSize);
+                    }
+                }
+                
+                sizeInput.value = newSize;
+                updateSizeIndicator();
+                
+                setTimeout(() => {
+                    iconElement.classList.remove('resizable');
+                    sizeIndicator.style.display = 'none';
+                }, 1000);
+            }
+        } else if (e.shiftKey && e.key === '-') {
+            e.preventDefault();
+            if (currentTool === 'pencil' || currentTool === 'eraser') {
+                const iconElement = toolButtons[currentTool === 'pencil' ? 'pencil' : 'eraser'].querySelector('.tool-icon');
+                iconElement.classList.add('resizable');
+                sizeIndicator.style.display = 'block';
+                
+                const currentSize = currentTool === 'pencil' ? toolStates.pencil.size : toolStates.eraser.size;
+                const newSize = Math.max(currentSize - 2, 1);
+                
+                if (currentTool === 'pencil') {
+                    pencilSize = newSize;
+                    toolStates.pencil.size = newSize;
+                    // Update cursor
+                    const container = stage ? stage.container() : null;
+                    if (container) {
+                        container.style.cursor = createToolCursor('✏️', pencilSize);
+                    }
+                } else {
+                    eraserSize = newSize;
+                    toolStates.eraser.size = newSize;
+                    // Update cursor
+                    const container = stage ? stage.container() : null;
+                    if (container) {
+                        container.style.cursor = createToolCursor('🧽', eraserSize);
+                    }
+                }
+                
+                sizeInput.value = newSize;
+                updateSizeIndicator();
+                
+                setTimeout(() => {
+                    iconElement.classList.remove('resizable');
+                    sizeIndicator.style.display = 'none';
+                }, 1000);
+            }
+        }
+    }
+});
 
     // Clear canvas
     document.getElementById('clear-btn').onclick = () => {
-        fabricCanvas.clear();
+        layer.destroyChildren();
+        transformer = new Konva.Transformer({
+            rotateEnabled: true,
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
+        });
+        layer.add(transformer);
+        layer.draw();
         saveState();
     };
 
@@ -341,9 +973,22 @@ function drawingTool(editor) {
     document.getElementById('undo-btn').onclick = () => {
         if (historyIndex > 0) {
             historyIndex--;
-            fabricCanvas.loadFromJSON(history[historyIndex], () => {
-                fabricCanvas.renderAll();
+            layer.destroyChildren();
+            const objects = JSON.parse(history[historyIndex]);
+            objects.children.forEach(obj => {
+                if (obj.className !== 'Transformer') {
+                    const shape = Konva.Node.create(obj);
+                    layer.add(shape);
+                }
             });
+            
+            transformer = new Konva.Transformer({
+                rotateEnabled: true,
+                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                               'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
+            });
+            layer.add(transformer);
+            layer.draw();
         }
     };
 
@@ -351,9 +996,22 @@ function drawingTool(editor) {
     document.getElementById('redo-btn').onclick = () => {
         if (historyIndex < history.length - 1) {
             historyIndex++;
-            fabricCanvas.loadFromJSON(history[historyIndex], () => {
-                fabricCanvas.renderAll();
+            layer.destroyChildren();
+            const objects = JSON.parse(history[historyIndex]);
+            objects.children.forEach(obj => {
+                if (obj.className !== 'Transformer') {
+                    const shape = Konva.Node.create(obj);
+                    layer.add(shape);
+                }
             });
+            
+            transformer = new Konva.Transformer({
+                rotateEnabled: true,
+                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                               'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
+            });
+            layer.add(transformer);
+            layer.draw();
         }
     };
 
@@ -367,12 +1025,21 @@ function drawingTool(editor) {
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    fabric.Image.fromURL(event.target.result, (img) => {
-                        img.scale(2);
-                        fabricCanvas.add(img);
-                        fabricCanvas.centerObject(img);
+                    const img = new Image();
+                    img.onload = () => {
+                        const konvaImg = new Konva.Image({
+                            x: 50,
+                            y: 50,
+                            image: img,
+                            width: Math.min(img.width, 200),
+                            height: Math.min(img.height, 200),
+                            draggable: true
+                        });
+                        layer.add(konvaImg);
+                        layer.draw();
                         saveState();
-                    });
+                    };
+                    img.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
             }
@@ -386,165 +1053,40 @@ function drawingTool(editor) {
         const newHeight = parseInt(document.getElementById('canvas-height').value, 10);
         
         if (newWidth && newHeight && newWidth >= 200 && newHeight >= 200) {
-            fabricCanvas.setDimensions({
-                width: newWidth,
-                height: newHeight
-            });
-            
-            // Update canvas element attributes
-            const canvasElement = document.getElementById('modal-canvas');
-            canvasElement.width = newWidth;
-            canvasElement.height = newHeight;
-            
-            fabricCanvas.renderAll();
+            stage.width(newWidth);
+            stage.height(newHeight);
+            layer.draw();
             saveState();
         } else {
             alert('Please enter valid dimensions (minimum 200px)');
         }
     };
 
-    // Canvas mouse events for shape drawing
-    fabricCanvas.on('mouse:down', (e) => {
-        if (['line', 'rect', 'circle', 'text'].includes(currentTool)) {
-            isDrawing = true;
-            const pointer = fabricCanvas.getPointer(e.e);
-            startX = pointer.x;
-            startY = pointer.y;
-
-            if (currentTool === 'text') {
-                const text = new fabric.IText('Type here...', {
-                    left: startX,
-                    top: startY,
-                    fontFamily: 'Arial',
-                    fontSize: parseInt(sizeInput.value, 10) * 2,
-                    fill: colorPicker.value
-                });
-                fabricCanvas.add(text);
-                fabricCanvas.setActiveObject(text);
-                text.enterEditing();
-                saveState();
-                return;
-            }
-
-            let shape;
-            switch(currentTool) {
-                case 'line':
-                    shape = new fabric.Line([startX, startY, startX, startY], {
-                        stroke: colorPicker.value,
-                        strokeWidth: parseInt(sizeInput.value, 10)
-                    });
-                    break;
-                case 'rect':
-                    shape = new fabric.Rect({
-                        left: startX,
-                        top: startY,
-                        width: 1,
-                        height: 1,
-                        fill: 'transparent',
-                        stroke: colorPicker.value,
-                        strokeWidth: parseInt(sizeInput.value, 10)
-                    });
-                    break;
-                case 'circle':
-                    shape = new fabric.Circle({
-                        left: startX,
-                        top: startY,
-                        radius: 1,
-                        fill: 'transparent',
-                        stroke: colorPicker.value,
-                        strokeWidth: parseInt(sizeInput.value, 10)
-                    });
-                    break;
-            }
-
-            if (shape) {
-                fabricCanvas.add(shape);
-                activeObject = shape;
-            }
-        }
-    });
-
-    fabricCanvas.on('mouse:move', (e) => {
-        if (!isDrawing || !activeObject) return;
-
-        const pointer = fabricCanvas.getPointer(e.e);
-
-        switch(currentTool) {
-            case 'line':
-                activeObject.set({
-                    x2: pointer.x,
-                    y2: pointer.y
-                });
-                break;
-            case 'rect':
-                const width = Math.abs(pointer.x - startX);
-                const height = Math.abs(pointer.y - startY);
-                activeObject.set({
-                    width: width,
-                    height: height,
-                    left: Math.min(startX, pointer.x),
-                    top: Math.min(startY, pointer.y)
-                });
-                break;
-            case 'circle':
-                const radius = Math.sqrt(Math.pow(pointer.x - startX, 2) + Math.pow(pointer.y - startY, 2)) / 2;
-                activeObject.set({
-                    radius: radius,
-                    left: startX - radius,
-                    top: startY - radius
-                });
-                break;
-        }
-        fabricCanvas.renderAll();
-    });
-
-    fabricCanvas.on('mouse:up', () => {
-        if (isDrawing) {
-            isDrawing = false;
-            activeObject = null;
-            saveState();
-        }
-    });
-
-    // Save state when path is created (for brush tool)
-    fabricCanvas.on('path:created', () => {
-        saveState();
-    });
-
-    // Initialize with select tool
-    setActiveTool('select');
-    saveState(); // Initial state
-
     // Modal functions
     function showDrawingModal(model) {
         modal.style.display = 'flex';
-        fabricCanvas.clear();
-        history = [];
-        historyIndex = -1;
-        saveState();
+        
+        // Initialize canvas
+        initializeCanvas();
+        
+        // Reset tool states
+        setActiveTool('select');
 
         // Handle OK button
         document.getElementById('drawing-ok-btn').onclick = () => {
-            const dataURL = fabricCanvas.toDataURL({
-    format: 'png',
-    quality: 1,
-    multiplier: 5
-});
+            const dataURL = stage.toDataURL({ pixelRatio: 2 });
+            const canvasWidth = stage.width();
+            const canvasHeight = stage.height();
 
-// Keep display size same as canvas, so it doesn't visually change
-const canvasWidth = fabricCanvas.getWidth();
-const canvasHeight = fabricCanvas.getHeight();
-
-const imgElement = `<img src="${dataURL}" style="width: ${canvasWidth}px; height: ${canvasHeight}px; display: block;">`;
-model.replaceWith(imgElement);
+            const imgElement = `<img src="${dataURL}" style="width: ${canvasWidth}px; height: ${canvasHeight}px; display: block;">`;
+            model.replaceWith(imgElement);
             
             modal.style.display = 'none';
         };
 
-        // Handle Cancel button - Don't remove the component, just close modal
+        // Handle Cancel button
         document.getElementById('drawing-cancel-btn').onclick = () => {
             modal.style.display = 'none';
-            // Keep the drawing block so user can try again
         };
     }
 

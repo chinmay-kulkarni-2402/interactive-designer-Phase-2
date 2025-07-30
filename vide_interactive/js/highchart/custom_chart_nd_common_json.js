@@ -53,13 +53,13 @@ function customChartCommonJson(editor) {
           { value: 'line', label: 'Line chart' },
           { value: 'column', label: 'Column chart' },
           { value: 'bar', label: 'Bar chart' },
-          { value: 'drilldown_bar', label: 'Donut chart' },
-          { value: 'drilldown_bar', label: 'Scatter chart' },
-          { value: 'drilldown_bar', label: 'Area chart' },
-          { value: 'drilldown_bar', label: 'Bubble chart' },
-          { value: 'drilldown_bar', label: 'Spiderweb chart' },
-          { value: 'drilldown_bar', label: 'CandleStick chart' },
-          { value: 'drilldown_bar', label: 'OHLC chart' },
+          { value: 'donut', label: 'Donut chart' },
+          { value: 'scatter', label: 'Scatter chart' },
+          { value: 'area', label: 'Area chart' },
+          { value: 'bubble', label: 'Bubble chart' },
+          { value: 'spiderweb', label: 'Spiderweb chart' },
+          { value: 'candlestick', label: 'CandleStick chart' },
+          { value: 'ohlc', label: 'OHLC chart' },
           { value: 'drilldown_bar', label: 'Dual axis line and column chart' },
           { value: 'drilldown_bar', label: '3D Donut chart' },
           { value: 'drilldown_bar', label: '3D pie chart' },
@@ -144,7 +144,7 @@ function customChartCommonJson(editor) {
         ...test_chart_Props,
         tagName: "figure",
         resizable: 1,
-        custom_line_chartsrc: "https://code.highcharts.com/11.4.8/highcharts.js",
+        custom_line_chartsrc: "https://code.highcharts.com/11.4.8/highcharts.js", 
         droppable: 0,
         stylable: 1,
         attributes: { 'data-i_designer-type': 'custom_line_chart' },
@@ -824,6 +824,576 @@ function customChartCommonJson(editor) {
                     },
                     credits: { enabled: false },
                 };
+            }
+
+// -------------------------------New Charts--------------------------------------------------            
+
+            if (chartType === 'donut') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [{
+                            name: 'Registrations',
+                            colorByPoint: true,
+                            innerSize: '75%',
+                            data: [
+                                { name: 'EV', y: 23.9 },
+                                { name: 'Hybrids', y: 12.6 },
+                                { name: 'Diesel', y: 37.0 },
+                                { name: 'Petrol', y: 26.4 }
+                            ]
+                        }]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        type: 'pie',
+                        animation: false,
+                        custom: {},
+                        events: {
+                            render() {
+                                const chart = this,
+                                    series = chart.series[0];
+                                let customLabel = chart.options.chart.custom.label;
+
+                                if (!customLabel) {
+                                    customLabel = chart.options.chart.custom.label = chart.renderer.label(
+                                        'Total<br/><strong>2 877 820</strong>'
+                                    )
+                                    .css({
+                                        color: 'var(--highcharts-neutral-color-100, #000)',
+                                        textAnchor: 'middle'
+                                    })
+                                    .add();
+                                }
+
+                                const x = series.center[0] + chart.plotLeft;
+                                const y = series.center[1] + chart.plotTop - (customLabel.attr('height') / 2);
+
+                                customLabel.attr({ x, y });
+
+                                customLabel.css({
+                                    fontSize: `${series.center[2] / 12}px`
+                                });
+                            }
+                        }
+                    },
+                    title: {
+                        text: chart_Title,
+                        align: chart_Title_align
+                    },
+                    accessibility: {
+                        point: {
+                            valueSuffix: '%'
+                        }
+                    },
+                    tooltip: {
+                        pointFormat: '{series.name}: <b>{point.percentage:.0f}%</b>'
+                    },
+                    legend: {
+                        enabled: false
+                    },
+                    plotOptions: {
+                        series: {
+                            allowPointSelect: true,
+                            cursor: 'pointer',
+                            borderRadius: 8,
+                            dataLabels: [
+                                {
+                                    enabled: true,
+                                    distance: 20,
+                                    format: '{point.name}'
+                                },
+                                {
+                                    enabled: true,
+                                    distance: -15,
+                                    format: '{point.percentage:.0f}%',
+                                    style: {
+                                        fontSize: '0.9em'
+                                    }
+                                }
+                            ],
+                            showInLegend: true
+                        }
+                    },
+                    series: seriesData.series,
+                    credits: { enabled: false }
+                };
+            }
+            
+            if (chartType === 'scatter') {
+                if (!seriesData.series) {
+                    // Sample static data for demo; replace with live fetch if needed
+                    seriesData = {
+                        series: [
+                            {
+                                name: 'Basketball',
+                                marker: { symbol: 'circle' },
+                                data: [
+                                    [2.01, 98], [2.05, 104], [2.00, 95], [2.10, 110], [2.02, 102]
+                                ]
+                            },
+                            {
+                                name: 'Triathlon',
+                                marker: { symbol: 'triangle' },
+                                data: [
+                                    [1.75, 65], [1.80, 70], [1.78, 68], [1.82, 72], [1.76, 67]
+                                ]
+                            },
+                            {
+                                name: 'Volleyball',
+                                marker: { symbol: 'square' },
+                                data: [
+                                    [1.90, 85], [1.88, 82], [1.95, 90], [1.92, 88], [1.87, 84]
+                                ]
+                            }
+                        ]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        type: 'scatter',
+                        animation: false,
+                        zooming: {
+                            type: 'xy'
+                        }
+                    },
+                    title: {
+                        text: chart_Title || 'Olympics athletes by height and weight',
+                        align: chart_Title_align || 'center'
+                    },
+                    xAxis: {
+                        title: { text: 'Height' },
+                        labels: { format: '{value} m' },
+                        startOnTick: true,
+                        endOnTick: true,
+                        showLastLabel: true
+                    },
+                    yAxis: {
+                        title: { text: 'Weight' },
+                        labels: { format: '{value} kg' }
+                    },
+                    legend: {
+                        enabled: true,
+                        layout: chart_layout || 'vertical',
+                        align: 'right',
+                        [chartAlign || 'verticalAlign']: 'middle'
+                    },
+                    tooltip: {
+                        pointFormat: 'Height: {point.x} m <br/> Weight: {point.y} kg'
+                    },
+                    plotOptions: {
+                        scatter: {
+                            marker: {
+                                radius: 2.5,
+                                symbol: 'circle',
+                                states: {
+                                    hover: {
+                                        enabled: true,
+                                        lineColor: 'rgb(100,100,100)'
+                                    }
+                                }
+                            },
+                            states: {
+                                hover: {
+                                    marker: {
+                                        enabled: false
+                                    }
+                                }
+                            },
+                            jitter: { x: 0.005 }
+                        }
+                    },
+                    series: seriesData.series,
+                    credits: { enabled: false }
+                };
+            }
+
+            if (chartType === 'area') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [{
+                            name: 'Asia',
+                            data: [502, 635, 809, 947, 1402, 3634, 5268]
+                        }, {
+                            name: 'Africa',
+                            data: [106, 107, 111, 133, 221, 767, 1766]
+                        }, {
+                            name: 'Europe',
+                            data: [163, 203, 276, 408, 547, 729, 628]
+                        }, {
+                            name: 'America',
+                            data: [18, 31, 54, 156, 339, 818, 1201]
+                        }, {
+                            name: 'Oceania',
+                            data: [2, 2, 2, 6, 13, 30, 46]
+                        }]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        type: 'area',
+                        animation: false
+                    },
+                    title: {
+                        text: chart_Title || 'Historic and Estimated Population Growth by Region',
+                        align: chart_Title_align || 'center'
+                    },
+                    xAxis: {
+                        allowDecimals: false,
+                        labels: {
+                            formatter: function () {
+                                return this.value; // show year as-is
+                            }
+                        },
+                        accessibility: {
+                            rangeDescription: 'Range: 1750 to 2050'
+                        },
+                        categories: ['1750', '1800', '1850', '1900', '1950', '2000', '2050']
+                    },
+                    yAxis: {
+                        title: {
+                            text: 'Population (millions)'
+                        },
+                        labels: {
+                            formatter: function () {
+                                return this.value / 1000 + 'B';
+                            }
+                        }
+                    },
+                    tooltip: {
+                        pointFormat: '{series.name} had <b>{point.y:,.0f}</b><br/> people in {point.category}'
+                    },
+                    plotOptions: {
+                        area: {
+                            stacking: 'normal',
+                            lineColor: '#666666',
+                            lineWidth: 1,
+                            marker: {
+                                lineWidth: 1,
+                                lineColor: '#666666'
+                            }
+                        }
+                    },
+                    legend: {
+                        layout: chart_layout || 'vertical',
+                        align: 'right',
+                        [chartAlign || 'verticalAlign']: 'middle'
+                    },
+                    series: seriesData.series,
+                    credits: { enabled: false }
+                };
+            }
+
+            if (chartType === 'bubble') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [{
+                            colorByPoint: true,
+                            data: [
+                                { x: 95, y: 95, z: 13.8, name: 'BE', country: 'Belgium' },
+                                { x: 86.5, y: 102.9, z: 14.7, name: 'DE', country: 'Germany' },
+                                { x: 80.8, y: 91.5, z: 15.8, name: 'FI', country: 'Finland' },
+                                { x: 80.4, y: 102.5, z: 12, name: 'NL', country: 'Netherlands' },
+                                { x: 80.3, y: 86.1, z: 11.8, name: 'SE', country: 'Sweden' },
+                                { x: 78.4, y: 70.1, z: 16.6, name: 'ES', country: 'Spain' },
+                                { x: 74.2, y: 68.5, z: 14.5, name: 'FR', country: 'France' },
+                                { x: 73.5, y: 83.1, z: 10, name: 'NO', country: 'Norway' },
+                                { x: 71, y: 93.2, z: 24.7, name: 'UK', country: 'United Kingdom' },
+                                { x: 69.2, y: 57.6, z: 10.4, name: 'IT', country: 'Italy' },
+                                { x: 68.6, y: 20, z: 16, name: 'RU', country: 'Russia' },
+                                { x: 65.5, y: 126.4, z: 35.3, name: 'US', country: 'United States' },
+                                { x: 65.4, y: 50.8, z: 28.5, name: 'HU', country: 'Hungary' },
+                                { x: 63.4, y: 51.8, z: 15.4, name: 'PT', country: 'Portugal' },
+                                { x: 64, y: 82.9, z: 31.3, name: 'NZ', country: 'New Zealand' }
+                            ]
+                        }]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        type: 'bubble',
+                        animation: false,
+                        plotBorderWidth: 1,
+                        zooming: {
+                            type: 'xy'
+                        }
+                    },
+                    title: {
+                        text: chart_Title || 'Sugar and fat intake per country',
+                        align: chart_Title_align || 'center'
+                    },
+                    accessibility: {
+                        point: {
+                            valueDescriptionFormat:
+                                '{index}. {point.name}, fat: {point.x}g, sugar: {point.y}g, obesity: {point.z}%.'
+                        }
+                    },
+                    xAxis: {
+                        gridLineWidth: 1,
+                        title: { text: 'Daily fat intake' },
+                        labels: { format: '{value} gr' },
+                        plotLines: [{
+                            dashStyle: 'dot',
+                            width: 2,
+                            value: 65,
+                            label: {
+                                rotation: 0,
+                                y: 15,
+                                style: { fontStyle: 'italic' },
+                                text: 'Safe fat intake 65g/day'
+                            },
+                            zIndex: 3
+                        }],
+                        accessibility: {
+                            rangeDescription: 'Range: 60 to 100 grams.'
+                        }
+                    },
+                    yAxis: {
+                        startOnTick: false,
+                        endOnTick: false,
+                        title: { text: 'Daily sugar intake' },
+                        labels: { format: '{value} gr' },
+                        maxPadding: 0.2,
+                        plotLines: [{
+                            dashStyle: 'dot',
+                            width: 2,
+                            value: 50,
+                            label: {
+                                align: 'right',
+                                style: { fontStyle: 'italic' },
+                                text: 'Safe sugar intake 50g/day',
+                                x: -10
+                            },
+                            zIndex: 3
+                        }],
+                        accessibility: {
+                            rangeDescription: 'Range: 0 to 160 grams.'
+                        }
+                    },
+                    legend: {
+                        enabled: false
+                    },
+                    tooltip: {
+                        useHTML: true,
+                        headerFormat: '<table>',
+                        pointFormat:
+                            '<tr><th colspan="2"><h3>{point.country}</h3></th></tr>' +
+                            '<tr><th>Fat intake:</th><td>{point.x}g</td></tr>' +
+                            '<tr><th>Sugar intake:</th><td>{point.y}g</td></tr>' +
+                            '<tr><th>Obesity (adults):</th><td>{point.z}%</td></tr>',
+                        footerFormat: '</table>',
+                        followPointer: true
+                    },
+                    plotOptions: {
+                        series: {
+                            dataLabels: {
+                                enabled: true,
+                                format: '{point.name}'
+                            }
+                        }
+                    },
+                    series: seriesData.series,
+                    credits: { enabled: false }
+                };
+            }
+
+            if (chartType === 'spiderweb') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [
+                            {
+                                name: 'Allocated Budget',
+                                data: [43000, 19000, 60000, 35000, 17000, 10000],
+                                pointPlacement: 'on'
+                            },
+                            {
+                                name: 'Actual Spending',
+                                data: [50000, 39000, 42000, 31000, 26000, 14000],
+                                pointPlacement: 'on'
+                            }
+                        ]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        polar: true,
+                        type: 'line',
+                        animation: false
+                    },
+                    title: {
+                        text: chart_Title || 'Budget vs spending',
+                        x: -80,
+                        align: chart_Title_align || 'center'
+                    },
+                    accessibility: {
+                        description:
+                            'A spiderweb chart compares the allocated budget against actual spending. Each spoke represents a department. The chart shows departments like Marketing and IT overspending the most.'
+                    },
+                    pane: {
+                        size: '80%'
+                    },
+                    xAxis: {
+                        categories: [
+                            'Sales',
+                            'Marketing',
+                            'Development',
+                            'Customer Support',
+                            'Information Technology',
+                            'Administration'
+                        ],
+                        tickmarkPlacement: 'on',
+                        lineWidth: 0
+                    },
+                    yAxis: {
+                        gridLineInterpolation: 'polygon',
+                        lineWidth: 0,
+                        min: 0
+                    },
+                    tooltip: {
+                        shared: true,
+                        pointFormat:
+                            '<span style="color:{series.color}">{series.name}: <b>${point.y:,.0f}</b><br/>'
+                    },
+                    legend: {
+                        layout: chart_layout || 'vertical',
+                        align: 'right',
+                        [chartAlign || 'verticalAlign']: 'middle'
+                    },
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
+                            },
+                            chartOptions: {
+                                title: {
+                                    x: 0
+                                },
+                                legend: {
+                                    align: 'center',
+                                    verticalAlign: 'bottom',
+                                    layout: 'horizontal'
+                                },
+                                pane: {
+                                    size: '70%'
+                                }
+                            }
+                        }]
+                    },
+                    series: seriesData.series,
+                    credits: { enabled: false }
+                };
+            }
+
+            if (chartType === 'candlestick') {
+                // Only fetch if not already present
+
+
+                if (!seriesData.series) {
+                seriesData.fetch = async () => {
+                    const data = await fetch('https://demo-live-data.highcharts.com/aapl-ohlc.json')
+                    .then(res => res.json());
+
+                    console.log(data); // Confirm correct format
+
+                    seriesData.series = [{
+                    type: 'candlestick',
+                    name: 'AAPL Stock Price',
+                    data: data, // ✅ Use data directly (no extra brackets)
+                    dataGrouping: {
+                        units: [
+                        ['week', [1]],
+                        ['month', [1, 2, 3, 4, 6]]
+                        ]
+                    }
+                    }];
+                };
+                }
+
+
+                seriesData2 = {
+                    isStock: true, // custom flag to decide between `Highcharts.chart` or `Highcharts.stockChart`
+                    options: {
+                        rangeSelector: {
+                            selected: 1
+                        },
+                        title: {
+                            text: chart_Title || 'AAPL Stock Price',
+                            align: chart_Title_align || 'center'
+                        },
+                        legend: {
+                            enabled: false
+                        },
+                        series: seriesData.series || [],
+                        credits: { enabled: false }
+                    }
+                };
+
+                // If data not fetched yet, fetch and then render
+                if (seriesData.fetch && typeof seriesData.fetch === 'function') {
+                    seriesData.fetch().then(() => {
+                        seriesData2.options.series = seriesData.series;
+                        Highcharts.stockChart('container', seriesData2.options);
+                    });
+                } else {
+                    Highcharts.stockChart('container', seriesData2.options);
+                }
+            }
+
+            if (chartType === 'ohlc') {
+                // Only fetch once
+                if (!seriesData.series) {
+                    seriesData = {
+                        fetch: async () => {
+                            const data = await fetch('https://demo-live-data.highcharts.com/aapl-ohlc.json')
+                                .then(res => res.json());
+
+                            seriesData.series = [{
+                                type: 'ohlc',
+                                name: 'AAPL Stock Price',
+                                data: data,
+                                dataGrouping: {
+                                    units: [
+                                        ['week', [1]],
+                                        ['month', [1, 2, 3, 4, 6]]
+                                    ]
+                                }
+                            }];
+                        }
+                    };
+                }
+
+                seriesData2 = {
+                    isStock: true,
+                    options: {
+                        rangeSelector: {
+                            selected: 2
+                        },
+                        title: {
+                            text: chart_Title || 'AAPL Stock Price',
+                            align: chart_Title_align || 'center'
+                        },
+                        legend: {
+                            enabled: false
+                        },
+                        series: seriesData.series || [],
+                        credits: { enabled: false }
+                    }
+                };
+
+                // Fetch and render if not already fetched
+                if (seriesData.fetch && typeof seriesData.fetch === 'function') {
+                    seriesData.fetch().then(() => {
+                        seriesData2.options.series = seriesData.series;
+                        Highcharts.stockChart('container', seriesData2.options);
+                    });
+                } else {
+                    Highcharts.stockChart('container', seriesData2.options);
+                }
             }
 
             // Create chart with error handling
