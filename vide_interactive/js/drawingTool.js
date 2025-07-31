@@ -983,7 +983,7 @@ function createToolCursor(emoji, size = 5) {
                     sizeIndicator.style.display = 'none';
                 }, 1000);
             }
-        } else if (e.shiftKey && e.key === '-') {
+        } else if (e.shiftKey && e.key === '_') {
             e.preventDefault();
             if (currentTool === 'pencil' || currentTool === 'eraser') {
                 const iconElement = toolButtons[currentTool === 'pencil' ? 'pencil' : 'eraser'].querySelector('.tool-icon');

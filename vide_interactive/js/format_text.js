@@ -1,5 +1,9 @@
 function addFormattedRichTextComponent(editor) {
-  // Format configurations
+  // Load external libraries for formatting (add these to your index.html)
+  // <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+  // <script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>
+  
+  // Format configurations with library support
   const formatConfigs = {
     text: {
       label: 'Text',
@@ -9,45 +13,43 @@ function addFormattedRichTextComponent(editor) {
     },
     number: {
       label: 'Number',
-      patterns: ['0', '0.0', '0.00', '#,###', '#,###.##', '#,##,###', '#,##,###.##'],
-      defaultPattern: '#,##,###',
+      patterns: ['0', '0.0', '0.00', '0,0', '0,0.0', '0,0.00', '0.[00]', '0.[0000]'],
+      defaultPattern: '0,0',
       icon: '🔢'
     },
     currency: {
       label: 'Currency',
-      patterns: ['$ 0', '$ 0.00', '€ 0.00', '₹ 0.00', '¥ 0', '£ 0.00'],
-      defaultPattern: '₹ 0.00',
+      patterns: ['$0', '$0.00', '€0.00', '₹0.00', '¥0', '£0.00', '($0.00)', '$0,0.00'],
+      defaultPattern: '₹0.00',
       icon: '💰'
     },
     percentage: {
       label: 'Percentage',
-      patterns: ['0%', '0.0%', '0.00%'],
+      patterns: ['0%', '0.0%', '0.00%', '0.[00]%'],
       defaultPattern: '0.00%',
       icon: '📊'
     },
     date: {
       label: 'Date',
-      patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY'],
+      patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY', 'MMMM Do YYYY', 'dddd, MMMM Do YYYY'],
       defaultPattern: 'MM/DD/YYYY',
       icon: '📅'
-    }
-  };
-
-  // Combined format patterns
-  const combinedFormats = {
-    'number+currency': {
-      label: 'Number + Currency',
-      icon: '🔢💰',
-      patterns: ['₹ #,##,###', '$ #,###.##', '€ #,###.00', '¥ #,###']
     },
-    'number+percentage': {
-      label: 'Number + Percentage',
-      icon: '🔢📊',
-      patterns: ['#,###%', '#,###.##%', '#,##,###.00%']
+    time: {
+      label: 'Time',
+      patterns: ['HH:mm', 'hh:mm A', 'HH:mm:ss', 'hh:mm:ss A'],
+      defaultPattern: 'HH:mm',
+      icon: '🕐'
+    },
+    datetime: {
+      label: 'Date & Time',
+      patterns: ['MM/DD/YYYY HH:mm', 'DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm', 'MMM DD, YYYY hh:mm A'],
+      defaultPattern: 'MM/DD/YYYY HH:mm',
+      icon: '📅🕐'
     }
   };
 
-  // Enhanced format helper functions with conditional support
+  // Enhanced format helper functions using libraries
   const formatHelpers = {
     canConvertToNumber(value) {
       if (typeof value === 'number') return true;
@@ -57,8 +59,10 @@ function addFormattedRichTextComponent(editor) {
 
     canConvertToDate(value) {
       if (value instanceof Date) return true;
-      const str = String(value).trim();
-      return !isNaN(Date.parse(str)) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str);
+      if (typeof window.moment !== 'undefined') {
+        return window.moment(value).isValid();
+      }
+      return !isNaN(Date.parse(value));
     },
 
     extractTextContent(htmlContent) {
@@ -71,7 +75,6 @@ function addFormattedRichTextComponent(editor) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
       
-      // Find all text nodes and replace with formatted content
       const walker = document.createTreeWalker(
         tempDiv,
         NodeFilter.SHOW_TEXT,
@@ -96,17 +99,14 @@ function addFormattedRichTextComponent(editor) {
       return tempDiv.innerHTML;
     },
 
-    // Enhanced method to check if a condition string is a number condition
     isNumberCondition(condition) {
       const conditionPattern = /^(<|<=|>|>=|=|!=)\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*\(\s*value\s*\)\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*\(\s*value\s*\)\s*<=\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*value\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*value\s*<=\s*\d+(\.\d+)?$/;
       return conditionPattern.test(condition.trim());
     },
 
-    // Parse and evaluate number conditions
     parseNumberCondition(condition) {
       const trimmed = condition.trim();
       
-      // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
       const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
       const rangeMatch = trimmed.match(rangePattern);
       
@@ -135,7 +135,6 @@ function addFormattedRichTextComponent(editor) {
         };
       }
       
-      // Handle simple conditions: <1000, >=500, =100, !=50, etc.
       const simplePattern = /^(<|<=|>|>=|=|!=)\s*(\d+(?:\.\d+)?)$/;
       const simpleMatch = trimmed.match(simplePattern);
       
@@ -167,7 +166,6 @@ function addFormattedRichTextComponent(editor) {
       return null;
     },
 
-    // Extract all numbers from text content
     extractNumbers(content) {
       const text = this.extractTextContent(content);
       const numberPattern = /\b\d+(?:\.\d+)?\b/g;
@@ -175,7 +173,6 @@ function addFormattedRichTextComponent(editor) {
       return matches ? matches.map(match => parseFloat(match)) : [];
     },
 
-    // Check if any number in the content matches the condition
     evaluateNumberCondition(content, condition) {
       const conditionObj = this.parseNumberCondition(condition);
       if (!conditionObj) return false;
@@ -186,11 +183,6 @@ function addFormattedRichTextComponent(editor) {
 
     validateFormat(value, formatType) {
       const textContent = this.extractTextContent(value);
-      
-      if (formatType.includes('+')) {
-        const [primary] = formatType.split('+');
-        return this.validateFormat(textContent, primary);
-      }
       
       switch (formatType) {
         case 'text':
@@ -206,10 +198,12 @@ function addFormattedRichTextComponent(editor) {
           }
           return { valid: true };
         case 'date':
+        case 'time':
+        case 'datetime':
           if (!this.canConvertToDate(textContent)) {
             return { 
               valid: false, 
-              error: `"${textContent}" cannot be converted to date.` 
+              error: `"${textContent}" cannot be converted to ${formatType}.` 
             };
           }
           return { valid: true };
@@ -229,13 +223,29 @@ function addFormattedRichTextComponent(editor) {
     parseDate(value) {
       const textContent = this.extractTextContent(value);
       if (textContent instanceof Date) return textContent;
+      
+      if (typeof window.moment !== 'undefined') {
+        const parsed = window.moment(textContent);
+        return parsed.isValid() ? parsed.toDate() : new Date();
+      }
+      
       const parsed = new Date(textContent);
       return isNaN(parsed.getTime()) ? new Date() : parsed;
     },
 
+    // Using Numeral.js for number formatting
     formatNumber(value, pattern) {
       const num = this.parseNumber(value);
       
+      if (typeof window.numeral !== 'undefined') {
+        try {
+          return window.numeral(num).format(pattern);
+        } catch (e) {
+          console.warn('Numeral.js format error:', e);
+        }
+      }
+      
+      // Fallback formatting
       switch (pattern) {
         case '0':
           return Math.round(num).toString();
@@ -243,39 +253,70 @@ function addFormattedRichTextComponent(editor) {
           return num.toFixed(1);
         case '0.00':
           return num.toFixed(2);
-        case '#,###':
+        case '0,0':
           return new Intl.NumberFormat('en-US').format(num);
-        case '#,###.##':
+        case '0,0.0':
+          return new Intl.NumberFormat('en-US', { minimumFractionDigits: 1 }).format(num);
+        case '0,0.00':
           return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(num);
-        case '#,##,###':
-          return new Intl.NumberFormat('en-IN').format(num);
-        case '#,##,###.##':
-          return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(num);
         default:
           return num.toString();
       }
     },
 
+    // Using Numeral.js for currency formatting
     formatCurrency(value, pattern) {
       const num = this.parseNumber(value);
+      
+      if (typeof window.numeral !== 'undefined') {
+        try {
+          return window.numeral(num).format(pattern);
+        } catch (e) {
+          console.warn('Numeral.js currency format error:', e);
+        }
+      }
+      
+      // Fallback currency formatting
       const currencySymbol = pattern.charAt(0);
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
       const locale = currencySymbol === '₹' ? 'en-IN' : 'en-US';
 
-      return currencySymbol + ' ' + new Intl.NumberFormat(locale, {
+      return currencySymbol + new Intl.NumberFormat(locale, {
         minimumFractionDigits: decimals > 0 ? decimals : 0,
         maximumFractionDigits: decimals > 0 ? decimals : 0
       }).format(num);
     },
 
+    // Using Numeral.js for percentage formatting
     formatPercentage(value, pattern) {
       const num = this.parseNumber(value);
+      
+      if (typeof window.numeral !== 'undefined') {
+        try {
+          return window.numeral(num / 100).format(pattern);
+        } catch (e) {
+          console.warn('Numeral.js percentage format error:', e);
+        }
+      }
+      
+      // Fallback percentage formatting
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
       return num.toFixed(decimals) + '%';
     },
 
+    // Using Moment.js for date formatting
     formatDate(value, pattern) {
       const date = this.parseDate(value);
+      
+      if (typeof window.moment !== 'undefined') {
+        try {
+          return window.moment(date).format(pattern);
+        } catch (e) {
+          console.warn('Moment.js format error:', e);
+        }
+      }
+      
+      // Fallback date formatting
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
       const day = date.getDate();
@@ -298,38 +339,54 @@ function addFormattedRichTextComponent(editor) {
       }
     },
 
-    formatCombined(value, pattern) {
-      const num = this.parseNumber(value);
+    formatTime(value, pattern) {
+      const date = this.parseDate(value);
       
-      if (pattern.includes('₹')) {
-        return '₹' + new Intl.NumberFormat('en-IN').format(num);
-      } else if (pattern.startsWith('$')) {
-        return '$' + new Intl.NumberFormat('en-US').format(num);
-      } else if (pattern.startsWith('€')) {
-        return '€' + new Intl.NumberFormat('en-US').format(num);
-      } else if (pattern.startsWith('¥')) {
-        return '¥' + new Intl.NumberFormat('en-US').format(num);
+      if (typeof window.moment !== 'undefined') {
+        try {
+          return window.moment(date).format(pattern);
+        } catch (e) {
+          console.warn('Moment.js time format error:', e);
+        }
       }
       
-      if (pattern.includes('%')) {
-        const decimals = pattern.includes('.##') ? 2 : pattern.includes('.00') ? 2 : 0;
-        const locale = pattern.includes('#,##,###') ? 'en-IN' : 'en-US';
-        return new Intl.NumberFormat(locale, { 
-          minimumFractionDigits: decimals,
-          maximumFractionDigits: decimals 
-        }).format(num) + '%';
+      // Fallback time formatting
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const seconds = date.getSeconds();
+      
+      switch (pattern) {
+        case 'HH:mm':
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        case 'hh:mm A':
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          const hours12 = hours % 12 || 12;
+          return `${hours12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        case 'HH:mm:ss':
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        default:
+          return date.toLocaleTimeString();
+      }
+    },
+
+    formatDateTime(value, pattern) {
+      const date = this.parseDate(value);
+      
+      if (typeof window.moment !== 'undefined') {
+        try {
+          return window.moment(date).format(pattern);
+        } catch (e) {
+          console.warn('Moment.js datetime format error:', e);
+        }
       }
       
-      return this.extractTextContent(value);
+      // Fallback datetime formatting
+      return date.toLocaleString();
     },
 
     applyFormat(value, formatType, pattern) {
-      if (formatType.includes('+')) {
-        const formattedText = this.formatCombined(value, pattern);
-        return this.preserveRichTextStructure(value, formattedText);
-      }
-      
       let formattedText;
+      
       switch (formatType) {
         case 'number':
           formattedText = this.formatNumber(value, pattern);
@@ -343,6 +400,12 @@ function addFormattedRichTextComponent(editor) {
         case 'date':
           formattedText = this.formatDate(value, pattern);
           break;
+        case 'time':
+          formattedText = this.formatTime(value, pattern);
+          break;
+        case 'datetime':
+          formattedText = this.formatDateTime(value, pattern);
+          break;
         default:
           return value;
       }
@@ -353,30 +416,15 @@ function addFormattedRichTextComponent(editor) {
 
   // Get all format options
   function getAllFormatOptions() {
-    const options = Object.keys(formatConfigs).map(key => ({
+    return Object.keys(formatConfigs).map(key => ({
       value: key,
       label: `${formatConfigs[key].icon} ${formatConfigs[key].label}`
     }));
-    
-    Object.keys(combinedFormats).forEach(key => {
-      options.push({
-        value: key,
-        label: `${combinedFormats[key].icon} ${combinedFormats[key].label}`
-      });
-    });
-    
-    return options;
   }
 
   // Get format label for hover tooltip
   function getFormatLabel(formatType) {
-    if (formatConfigs[formatType]) {
-      return formatConfigs[formatType].label;
-    }
-    if (combinedFormats[formatType]) {
-      return combinedFormats[formatType].label;
-    }
-    return 'Text';
+    return formatConfigs[formatType]?.label || 'Text';
   }
 
   // Custom RTE actions
@@ -453,7 +501,7 @@ function addFormattedRichTextComponent(editor) {
     }
   ];
 
-  // Add the formatted-rich-text component with enhanced conditional formatting
+  // Add the formatted-rich-text component
   editor.DomComponents.addType('formatted-rich-text', {
     model: {
       defaults: {
@@ -490,14 +538,14 @@ function addFormattedRichTextComponent(editor) {
             type: 'text',
             name: 'hide-words',
             label: 'Hide Words/Conditions',
-            placeholder: 'Examples:\n• word1, word2, phrase\n• <1000 (hide if any number < 1000)\n• >=500 (hide if any number >= 500)\n• 100<value<1000 (hide if any number between 100-1000)',
+            placeholder: 'Examples: word1, word2, <1000, >=500',
             changeProp: 1
           },
           {
             type: 'text',
             name: 'highlight-words',
             label: 'Highlight Words/Conditions',
-            placeholder: 'Examples:\n• word1, word2, phrase\n• >1000 (highlight if any number > 1000)\n• <=100 (highlight if any number <= 100)\n• 50<=value<=200 (highlight if any number between 50-200)',
+            placeholder: 'Examples: word1, word2, >1000, <=100',
             changeProp: 1
           },
           {
@@ -549,54 +597,50 @@ function addFormattedRichTextComponent(editor) {
         this.updateTooltip();
       },
 
-      // FIXED: Enhanced handleJsonPathChange that works with your existing JSON system
-handleJsonPathChange() {
-  console.log('=== COMPONENT JSON PATH CHANGE ===');
-  const jsonPath = this.get('my-input-json');
-  console.log('JSON Path:', jsonPath);
-  
-  // CRITICAL FIX: Force stop RTE before updating
-  if (this.view && this.view.rteActive) {
-    console.log('RTE active, forcing stop before JSON update');
-    this.view.stopRTE();
-  }
-  
-  if (jsonPath && jsonPath.trim()) {
-    try {
-      const commonJson = JSON.parse(localStorage.getItem("common_json"));
-      const fullJsonPath = `commonJson.${custom_language}.${jsonPath}`;
-      const value = eval(fullJsonPath);
-      console.log('Evaluated value:', value);
-      
-      if (value !== undefined && value !== null) {
-        const stringValue = String(value);
-        console.log('Setting raw-content to:', stringValue);
+      handleJsonPathChange() {
+        console.log('=== COMPONENT JSON PATH CHANGE ===');
+        const jsonPath = this.get('my-input-json');
+        console.log('JSON Path:', jsonPath);
         
-        // Set raw-content and trigger immediate update
-        this.set('raw-content', stringValue, { silent: true });
-        this.updateContent();
-        console.log('Content updated');
+        // FIXED: Force stop RTE before updating
+        if (this.view && this.view.rteActive) {
+          console.log('RTE active, forcing stop before JSON update');
+          this.view.forceStopRTE();
+        }
         
-        // CRITICAL FIX: Force immediate view update
-        if (this.view && this.view.el) {
-          this.view.render();
-          console.log('View rendered immediately');
-          
-          // Force canvas refresh
-          if (this.em) {
-            this.em.trigger('change:canvasOffset');
+        if (jsonPath && jsonPath.trim()) {
+          try {
+            const commonJson = JSON.parse(localStorage.getItem("common_json"));
+            const fullJsonPath = `commonJson.${custom_language}.${jsonPath}`;
+            const value = eval(fullJsonPath);
+            console.log('Evaluated value:', value);
+            
+            if (value !== undefined && value !== null) {
+              const stringValue = String(value);
+              console.log('Setting raw-content to:', stringValue);
+              
+              this.set('raw-content', stringValue, { silent: true });
+              this.updateContent();
+              console.log('Content updated');
+              
+              if (this.view && this.view.el) {
+                this.view.render();
+                console.log('View rendered immediately');
+                
+                if (this.em) {
+                  this.em.trigger('change:canvasOffset');
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Error evaluating JSON path:", e);
           }
         }
-      }
-    } catch (e) {
-      console.error("Error evaluating JSON path:", e);
-    }
-  }
-},
+      },
 
       updateFormatPattern() {
         const formatType = this.get('format-type') || 'text';
-        let config = formatConfigs[formatType] || combinedFormats[formatType];
+        const config = formatConfigs[formatType];
         
         if (config) {
           const patternTrait = this.getTrait('format-pattern');
@@ -612,14 +656,11 @@ handleJsonPathChange() {
         }
       },
 
-      // Helper method to escape regex special characters
       escapeRegex(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       },
 
-      // FIXED: Improved conditional formatting with better content preservation
       applyConditionalFormatting(content) {
-        // FIXED: Return early if content is empty or null
         if (!content || typeof content !== 'string') {
           return content || '';
         }
@@ -629,12 +670,9 @@ handleJsonPathChange() {
         const highlightWords = this.get('highlight-words') || '';
         const highlightColor = this.get('highlight-color') || '#ffff00';
 
-        // FIXED: Clean up existing conditional formatting more precisely
-        // Only remove spans that were specifically added by our conditional formatting
         processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
         processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
 
-        // FIXED: Early return if no conditions to preserve content integrity
         const hasHideConditions = hideWords.trim().length > 0;
         const hasHighlightConditions = highlightWords.trim().length > 0;
         
@@ -642,21 +680,16 @@ handleJsonPathChange() {
           return processedContent;
         }
 
-        // Apply hide functionality with conditional support
         if (hasHideConditions) {
           const conditions = hideWords.split(',').map(cond => cond.trim()).filter(cond => cond);
           
           conditions.forEach(condition => {
             if (condition) {
-              // Check if it's a number condition
               if (formatHelpers.isNumberCondition(condition)) {
-                // Apply number condition logic
                 if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
-                  // Hide the entire text block by wrapping it
                   processedContent = `<span class="hidden-word" style="display: none;">${processedContent}</span>`;
                 }
               } else {
-                // Apply word-based hiding (existing logic)
                 const escapedWord = this.escapeRegex(condition);
                 const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
                 processedContent = processedContent.replace(regex, 
@@ -667,17 +700,13 @@ handleJsonPathChange() {
           });
         }
 
-        // Apply highlight functionality with conditional support
         if (hasHighlightConditions) {
           const conditions = highlightWords.split(',').map(cond => cond.trim()).filter(cond => cond);
           
           conditions.forEach(condition => {
             if (condition) {
-              // Check if it's a number condition
               if (formatHelpers.isNumberCondition(condition)) {
-                // Apply number condition logic
                 if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
-                  // Highlight numbers that meet the condition
                   const numbers = formatHelpers.extractNumbers(processedContent);
                   const conditionObj = formatHelpers.parseNumberCondition(condition);
                   
@@ -694,9 +723,7 @@ handleJsonPathChange() {
                   }
                 }
               } else {
-                // Apply word-based highlighting (existing logic)
                 const escapedWord = this.escapeRegex(condition);
-                // FIXED: Improved regex to avoid double-wrapping
                 const regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
                 processedContent = processedContent.replace(regex, 
                   `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
@@ -709,18 +736,15 @@ handleJsonPathChange() {
         return processedContent;
       },
 
-      // FIXED: Enhanced updateContent method with better state management
       updateContent() {
         const formatType = this.get('format-type') || 'text';
         const pattern = this.get('format-pattern') || 'None';
         let rawContent = this.get('raw-content') || '';
 
-        // FIXED: Ensure rawContent is always a string and handle edge cases
         if (typeof rawContent !== 'string') {
           rawContent = String(rawContent);
         }
 
-        // FIXED: Store previous content to check for actual changes
         const previousContent = this.get('content');
 
         let formattedContent;
@@ -736,16 +760,13 @@ handleJsonPathChange() {
           }
         }
 
-        // Apply conditional formatting (show/hide and highlight)
         const finalContent = this.applyConditionalFormatting(formattedContent);
         
-        // FIXED: Only update if content actually changed to prevent infinite loops
         if (finalContent !== previousContent) {
           this.set('content', finalContent);
         }
       },
 
-      // FIXED: Add method to handle external JSON updates
       updateFromJsonPath(jsonPath) {
         if (jsonPath && jsonPath.trim()) {
           this.set('my-input-json', jsonPath, { silent: true });
@@ -772,6 +793,7 @@ handleJsonPathChange() {
         this.listenTo(this.model, 'change:is-editing', this.handleEditingChange);
         this.listenTo(this.model, 'change:content', this.render);
         this.rteActive = false;
+        this.rteTimeout = null;
       },
 
       handleSingleClick(e) {
@@ -787,257 +809,361 @@ handleJsonPathChange() {
         }
       },
 
-enableRichTextEditing(e) {
-  console.log('=== DOUBLE CLICK DETECTED ===');
-  e.preventDefault();
-  e.stopPropagation();
+      enableRichTextEditing(e) {
+        console.log('=== DOUBLE CLICK DETECTED ===');
+        e.preventDefault();
+        e.stopPropagation();
 
-  // Check if already in RTE mode
-  if (this.rteActive) {
-    console.log('RTE already active, ignoring double click');
-    return;
-  }
+        // FIXED: Clear any pending timeout
+        if (this.rteTimeout) {
+          clearTimeout(this.rteTimeout);
+          this.rteTimeout = null;
+        }
 
-  // Check if content is hidden
-  const hideWords = this.model.get('hide-words') || '';
-  if (hideWords.trim()) {
-    const content = this.model.get('content') || '';
-    if (content.includes('class="hidden-word"') && content.includes('display: none')) {
-      console.log('Content is hidden, cannot edit');
-      return;
-    }
-  }
+        // Check if already in RTE mode
+        if (this.rteActive) {
+          console.log('RTE already active, ignoring double click');
+          return;
+        }
 
-  console.log('Enabling RTE...');
-  this.model.enableRTE();
-},
+        // Check if content is hidden
+        const hideWords = this.model.get('hide-words') || '';
+        if (hideWords.trim()) {
+          const content = this.model.get('content') || '';
+          if (content.includes('class="hidden-word"') && content.includes('display: none')) {
+            console.log('Content is hidden, cannot edit');
+            return;
+          }
+        }
+
+        console.log('Enabling RTE...');
+        this.model.enableRTE();
+      },
 
       startRTE() {
-  console.log('=== STARTING RTE ===');
-  
-  if (this.rteActive) {
-    console.log('RTE already active, aborting start');
-    return;
-  }
+        console.log('=== STARTING RTE ===');
+        
+        if (this.rteActive) {
+          console.log('RTE already active, aborting start');
+          return;
+        }
 
-  const em = this.model.em;
-  if (!em) {
-    console.log('No editor manager found');
-    return;
-  }
+        const em = this.model.em;
+        if (!em) {
+          console.log('No editor manager found');
+          return;
+        }
 
-  const rte = em.get('RichTextEditor');
-  if (!rte) {
-    console.log('No RTE found');
-    return;
-  }
+        const rte = em.get('RichTextEditor');
+        if (!rte) {
+          console.log('No RTE found');
+          return;
+        }
 
-  console.log('Setting rteActive to true');
-  this.rteActive = true;
+        // FIXED: Set state immediately to prevent double initialization
+        this.rteActive = true;
 
-  // Store original actions
-  this.originalActions = rte.getAll().slice();
-  console.log('Stored original actions:', this.originalActions.length);
-  
-  // Clear existing actions
-  this.originalActions.forEach(action => {
-    try {
-      rte.remove(action.name);
-    } catch (e) {
-      console.log('Error removing action:', action.name);
-    }
-  });
+        // Store original actions
+        this.originalActions = rte.getAll().slice();
+        console.log('Stored original actions:', this.originalActions.length);
+        
+        // Clear existing actions
+        this.originalActions.forEach(action => {
+          try {
+            rte.remove(action.name);
+          } catch (e) {
+            console.log('Error removing action:', action.name);
+          }
+        });
 
-  // Add custom actions
-  customRteActions.forEach(action => {
-    try {
-      rte.add(action.name, action);
-    } catch (e) {
-      console.log('Error adding action:', action.name);
-    }
-  });
+        // Add custom actions
+        customRteActions.forEach(action => {
+          try {
+            rte.add(action.name, action);
+          } catch (e) {
+            console.log('Error adding action:', action.name);
+          }
+        });
 
-  // Set content from raw content for editing
-  const rawContent = this.model.get('raw-content') || '';
-  console.log('Setting element content to raw content:', rawContent);
-  this.el.innerHTML = rawContent;
+        // FIXED: Set raw content for editing and store formatted content
+        const rawContent = this.model.get('raw-content') || '';
+        const formattedContent = this.model.get('content') || '';
+        
+        console.log('Raw content for editing:', rawContent);
+        console.log('Formatted content stored:', formattedContent);
+        
+        // Store the formatted content to restore later
+        this.storedFormattedContent = formattedContent;
+        
+        // Set element content to raw content for editing
+        this.el.innerHTML = rawContent;
 
-  // Enable RTE
-  try {
-    console.log('Enabling RTE on element');
-    rte.enable(this, null, { 
-      actions: customRteActions.map(a => a.name)
-    });
-    console.log('RTE enabled successfully');
-  } catch (e) {
-    console.error('RTE enable error:', e);
-  }
+        // Enable RTE with enhanced configuration
+        try {
+          console.log('Enabling RTE on element');
+          rte.enable(this, null, { 
+            actions: customRteActions.map(a => a.name),
+            styleWithCSS: false
+          });
+          console.log('RTE enabled successfully');
+        } catch (e) {
+          console.error('RTE enable error:', e);
+          this.rteActive = false;
+          return;
+        }
 
-  // Enhanced content change handler
-  this.rteChangeHandler = () => {
-    const content = this.el.innerHTML;
-    console.log("Content changed in RTE:", content);
-    this.model.set('raw-content', content, { silent: true });
-  };
+        // FIXED: Enhanced content change handler with debouncing
+        this.rteChangeHandler = this.debounce(() => {
+          const content = this.el.innerHTML;
+          console.log("Content changed in RTE:", content);
+          this.model.set('raw-content', content, { silent: true });
+        }, 150);
 
-  console.log('Adding event listeners');
-  this.el.addEventListener('input', this.rteChangeHandler);
-  this.el.addEventListener('blur', this.handleRTEBlur.bind(this));
-  
-  // Add escape key handler
-  this.escapeHandler = (e) => {
-    if (e.key === 'Escape') {
-      console.log('Escape key pressed, closing RTE');
-      this.handleRTEBlur();
-    }
-  };
-  document.addEventListener('keydown', this.escapeHandler);
-  
-  console.log('RTE startup complete');
-},
+        console.log('Adding event listeners');
+        this.el.addEventListener('input', this.rteChangeHandler);
+        this.el.addEventListener('paste', this.handleRTEPaste.bind(this));
+        
+        // FIXED: Use focusout instead of blur for better event handling
+        this.el.addEventListener('focusout', this.handleRTEFocusOut.bind(this));
+        
+        // Add escape key handler
+        this.escapeHandler = (e) => {
+          if (e.key === 'Escape') {
+            console.log('Escape key pressed, closing RTE');
+            this.handleRTEFocusOut();
+          }
+        };
+        document.addEventListener('keydown', this.escapeHandler);
+        
+        // FIXED: Focus the element after a short delay
+        setTimeout(() => {
+          if (this.rteActive && this.el) {
+            this.el.focus();
+            console.log('Element focused');
+          }
+        }, 100);
+        
+        console.log('RTE startup complete');
+      },
+
+      // FIXED: Add debounce utility function
+      debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      },
+
+      // FIXED: Handle paste events properly
+      handleRTEPaste(e) {
+        console.log('Paste event detected');
+        // Let the default paste happen, then update raw content
+        setTimeout(() => {
+          const content = this.el.innerHTML;
+          console.log("Content after paste:", content);
+          this.model.set('raw-content', content, { silent: true });
+        }, 10);
+      },
 
       stopRTE() {
-  console.log('=== STOPPING RTE ===');
-  
-  if (!this.rteActive) {
-    console.log('RTE not active, nothing to stop');
-    return;
-  }
+        console.log('=== STOPPING RTE ===');
+        
+        if (!this.rteActive) {
+          console.log('RTE not active, nothing to stop');
+          return;
+        }
 
-  const em = this.model.em;
-  if (!em) {
-    console.log('No editor manager found');
-    return;
-  }
+        const em = this.model.em;
+        if (!em) {
+          console.log('No editor manager found');
+          return;
+        }
 
-  const rte = em.get('RichTextEditor');
-  if (!rte) {
-    console.log('No RTE found');
-    return;
-  }
+        const rte = em.get('RichTextEditor');
+        if (!rte) {
+          console.log('No RTE found');
+          return;
+        }
 
-  console.log('Setting rteActive to false');
-  this.rteActive = false;
+        // FIXED: Set state immediately to prevent race conditions
+        this.rteActive = false;
 
-  // Remove event listeners
-  if (this.rteChangeHandler) {
-    console.log('Removing event listeners');
-    this.el.removeEventListener('input', this.rteChangeHandler);
-    this.el.removeEventListener('blur', this.handleRTEBlur);
-    this.rteChangeHandler = null;
-  }
+        // Remove event listeners first
+        if (this.rteChangeHandler) {
+          console.log('Removing event listeners');
+          this.el.removeEventListener('input', this.rteChangeHandler);
+          this.el.removeEventListener('paste', this.handleRTEPaste);
+          this.el.removeEventListener('focusout', this.handleRTEFocusOut);
+          this.rteChangeHandler = null;
+        }
 
-  // Remove escape key handler
-  if (this.escapeHandler) {
-    console.log('Removing escape key handler');
-    document.removeEventListener('keydown', this.escapeHandler);
-    this.escapeHandler = null;
-  }
+        // Remove escape key handler
+        if (this.escapeHandler) {
+          console.log('Removing escape key handler');
+          document.removeEventListener('keydown', this.escapeHandler);
+          this.escapeHandler = null;
+        }
 
-  // Disable RTE
-  try {
-    console.log('Disabling RTE');
-    rte.disable(this);
-    console.log('RTE disabled successfully');
-  } catch (e) {
-    console.error('RTE disable error:', e);
-  }
+        // Disable RTE
+        try {
+          console.log('Disabling RTE');
+          rte.disable(this);
+          console.log('RTE disabled successfully');
+        } catch (e) {
+          console.error('RTE disable error:', e);
+        }
 
-  // Restore original actions
-  if (this.originalActions) {
-    console.log('Restoring original actions');
-    
-    // Remove custom actions first
-    customRteActions.forEach(action => {
-      try {
-        rte.remove(action.name);
-      } catch (e) {
-        console.log('Error removing custom action:', action.name);
+        // Restore original actions
+        if (this.originalActions) {
+          console.log('Restoring original actions');
+          
+          // Remove custom actions first
+          customRteActions.forEach(action => {
+            try {
+              rte.remove(action.name);
+            } catch (e) {
+              console.log('Error removing custom action:', action.name);
+            }
+          });
+
+          // Add back original actions
+          this.originalActions.forEach(action => {
+            try {
+              rte.add(action.name, action);
+            } catch (e) {
+              console.log('Error restoring action:', action.name);
+            }
+          });
+          
+          this.originalActions = null;
+          console.log('Original actions restored');
+        }
+
+        // FIXED: Clear any pending timeouts
+        if (this.rteTimeout) {
+          clearTimeout(this.rteTimeout);
+          this.rteTimeout = null;
+        }
+
+        // Ensure element is not editable
+        this.el.contentEditable = false;
+        this.el.blur();
+        
+        console.log('RTE stop complete');
+      },
+
+      // FIXED: Force stop method for external calls
+      forceStopRTE() {
+        console.log('=== FORCE STOP RTE ===');
+        if (this.rteActive) {
+          console.log('Forcing RTE to stop');
+          this.stopRTE();
+          this.model.set('is-editing', false, { silent: true });
+        }
+      },
+
+      // FIXED: Use focusout instead of blur for better handling
+      handleRTEFocusOut(e) {
+        console.log('=== RTE FOCUS OUT TRIGGERED ===');
+        
+        // FIXED: Add delay to prevent premature closing when clicking RTE toolbar
+        if (this.rteTimeout) {
+          clearTimeout(this.rteTimeout);
+        }
+        
+        this.rteTimeout = setTimeout(() => {
+          if (!this.rteActive) {
+            console.log('RTE already inactive, ignoring focus out');
+            return;
+          }
+          
+          const content = this.el.innerHTML;
+          console.log('Content on focus out:', content);
+          
+          const formatType = this.model.get('format-type');
+          console.log('Format type:', formatType);
+          
+          // Validate format before applying
+          const validation = formatHelpers.validateFormat(content, formatType);
+          
+          if (!validation.valid) {
+            console.log('Validation failed:', validation.error);
+            alert(validation.error);
+            // Revert to previous content
+            const previousContent = this.model.get('raw-content');
+            this.el.innerHTML = previousContent;
+          } else {
+            console.log('Validation passed, updating content');
+            this.model.set('raw-content', content, { silent: true });
+            this.model.updateContent();
+          }
+          
+          // Disable editing
+          console.log('Disabling RTE from focus out handler');
+          this.model.disableRTE();
+        }, 200); // 200ms delay to allow toolbar interactions
+      },
+
+      // FIXED: Enhanced render method
+      onRender() {
+        console.log('=== VIEW RENDER ===');
+        console.log('RTE Active:', this.rteActive);
+        
+        // Ensure element is not editable by default
+        this.el.contentEditable = false;
+        
+        // Set tooltip based on format type
+        const formatType = this.model.get('format-type') || 'text';
+        const label = getFormatLabel(formatType);
+        this.el.setAttribute('title', label);
+        
+        // Get current content
+        const content = this.model.get('content') || '';
+        console.log('Content to render:', content);
+        console.log('Current element innerHTML:', this.el.innerHTML);
+        
+        // FIXED: Only update content if not in RTE mode and content has changed
+        if (!this.rteActive) {
+          if (this.el.innerHTML !== content) {
+            console.log('Updating element innerHTML (not in RTE mode)');
+            this.el.innerHTML = content;
+          }
+        } else {
+          console.log('Skipping innerHTML update - RTE is active');
+        }
+        
+        // FIXED: Ensure proper styling
+        this.el.style.minHeight = '40px';
+        this.el.style.padding = '12px';
+        this.el.style.wordWrap = 'break-word';
+        this.el.style.overflowWrap = 'break-word';
+      },
+
+      // FIXED: Override destroy method to cleanup
+      destroy() {
+        console.log('=== VIEW DESTROY ===');
+        
+        // Force stop RTE if active
+        if (this.rteActive) {
+          this.forceStopRTE();
+        }
+        
+        // Clear any pending timeouts
+        if (this.rteTimeout) {
+          clearTimeout(this.rteTimeout);
+          this.rteTimeout = null;
+        }
+        
+        // Call parent destroy
+        if (this.constructor.__super__ && this.constructor.__super__.destroy) {
+          this.constructor.__super__.destroy.apply(this, arguments);
+        }
       }
-    });
-
-    // Add back original actions
-    this.originalActions.forEach(action => {
-      try {
-        rte.add(action.name, action);
-      } catch (e) {
-        console.log('Error restoring action:', action.name);
-      }
-    });
-    
-    this.originalActions = null;
-    console.log('Original actions restored');
-  }
-
-  // Ensure element is not editable
-  console.log('Setting contentEditable to false');
-  this.el.contentEditable = false;
-  
-  console.log('RTE stop complete');
-},
-
-forceStopRTE() {
-  console.log('=== FORCE STOP RTE ===');
-  if (this.view && this.view.rteActive) {
-    console.log('Forcing RTE to stop');
-    this.view.stopRTE();
-    this.set('is-editing', false, { silent: true });
-  }
-},
-      handleRTEBlur() {
-  console.log('=== RTE BLUR TRIGGERED ===');
-  
-  const content = this.el.innerHTML;
-  console.log('Content on blur:', content);
-  
-  const formatType = this.model.get('format-type');
-  console.log('Format type:', formatType);
-  
-  // Validate format before applying
-  const validation = formatHelpers.validateFormat(content, formatType);
-  
-  if (!validation.valid) {
-    console.log('Validation failed:', validation.error);
-    alert(validation.error);
-    // Revert to previous content
-    const previousContent = this.model.get('raw-content');
-    this.el.innerHTML = previousContent;
-  } else {
-    console.log('Validation passed, updating content');
-    this.model.set('raw-content', content, { silent: true });
-    this.model.updateContent();
-  }
-  
-  // Disable editing
-  console.log('Disabling RTE from blur handler');
-  this.model.disableRTE();
-},
-
-onRender() {
-  console.log('=== VIEW RENDER ===');
-  console.log('RTE Active:', this.rteActive);
-  
-  // Ensure element is not editable by default
-  this.el.contentEditable = false;
-  
-  // Set tooltip based on format type
-  const formatType = this.model.get('format-type') || 'text';
-  const label = getFormatLabel(formatType);
-  this.el.setAttribute('title', label);
-  
-  // Get current content
-  const content = this.model.get('content') || '';
-  console.log('Content to render:', content);
-  console.log('Current element innerHTML:', this.el.innerHTML);
-  
-  // CRITICAL FIX: Always update content if not in RTE mode
-  if (!this.rteActive) {
-    console.log('Updating element innerHTML (not in RTE mode)');
-    this.el.innerHTML = content;
-  } else {
-    console.log('Skipping innerHTML update - RTE is active');
-  }
-},
     }
   });
 
@@ -1065,15 +1191,25 @@ onRender() {
       transition: all 0.2s ease;
       word-wrap: break-word;
       overflow-wrap: break-word;
+      cursor: pointer;
     }
     
     [data-gjs-type="formatted-rich-text"]:hover {
-
+      background-color: rgba(0, 123, 255, 0.05);
+      border-color: rgba(0, 123, 255, 0.2);
     }
     
     [data-gjs-type="formatted-rich-text"][contenteditable="true"] {
-      border: 1px dashed #007bff;
+      border: 2px dashed #007bff !important;
+      background-color: rgba(0, 123, 255, 0.1) !important;
       cursor: text;
+      outline: none;
+    }
+    
+    [data-gjs-type="formatted-rich-text"][contenteditable="true"]:focus {
+      border-color: #0056b3 !important;
+      background-color: rgba(0, 123, 255, 0.15) !important;
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
     }
     
     .gjs-selected[data-gjs-type="formatted-rich-text"] {
@@ -1123,6 +1259,22 @@ onRender() {
       opacity: 0.8;
     }
     
+    /* Loading state */
+    [data-gjs-type="formatted-rich-text"].loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    
+    [data-gjs-type="formatted-rich-text"].loading::after {
+      content: "Loading...";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 12px;
+      color: #666;
+    }
+    
     /* Responsive text sizes using GrapesJS responsive classes */
     @media (max-width: 768px) {
       [data-gjs-type="formatted-rich-text"] {
@@ -1146,51 +1298,93 @@ onRender() {
       padding: 8px;
       text-align: center;
       font-weight: 500;
+      transition: transform 0.2s ease;
     }
     
     .gjs-block-formatted-rich-text:hover {
       transform: translateY(-2px);
     }
     
+    /* RTE Toolbar Enhancement */
+    .gjs-rte-toolbar {
+      z-index: 10000 !important;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 4px;
+    }
+    
+    .gjs-rte-action {
+      transition: all 0.2s ease;
+    }
+    
+    .gjs-rte-action:hover {
+      background-color: rgba(0, 123, 255, 0.1);
+    }
+    
     /* Editing state indicator */
     [data-gjs-type="formatted-rich-text"][contenteditable="true"]::before {
+      content: "✏️ Editing";
       position: absolute;
-      top: -20px;
+      top: -25px;
       left: 0;
-      font-size: 10px;
+      background: #007bff;
       color: white;
+      font-size: 10px;
       padding: 2px 6px;
       border-radius: 3px;
       z-index: 1000;
+      white-space: nowrap;
     }
     
-    /* Trait textarea styling for better UX */
-    .gjs-pn-panel .gjs-pn-buttons textarea[name="hide-words"],
-    .gjs-pn-panel .gjs-pn-buttons textarea[name="highlight-words"] {
-      min-height: 80px;
-      font-family: monospace;
-      font-size: 12px;
-      line-height: 1.4;
-      resize: vertical;
+    /* Better visual feedback */
+    [data-gjs-type="formatted-rich-text"].format-error {
+      border-color: #dc3545 !important;
+      background-color: rgba(220, 53, 69, 0.1) !important;
+    }
+    
+    [data-gjs-type="formatted-rich-text"].format-success {
+      border-color: #28a745 !important;
+      background-color: rgba(40, 167, 69, 0.1) !important;
     }
   `);
 
-  console.log('Enhanced Formatted Rich Text component with conditional number formatting initialized successfully!');
+  console.log('Enhanced Formatted Rich Text component with library support initialized successfully!');
+  
+  // FIXED: Add initialization check for required libraries
+  const checkLibraries = () => {
+    const warnings = [];
+    
+    if (typeof window.numeral === 'undefined') {
+      warnings.push('Numeral.js library not found. Number and currency formatting will use fallback methods.');
+    }
+    
+    if (typeof window.moment === 'undefined') {
+      warnings.push('Moment.js library not found. Date formatting will use fallback methods.');
+    }
+    
+    if (warnings.length > 0) {
+      console.warn('Library Dependencies:', warnings.join(' '));
+      console.info('To get full formatting features, add these to your index.html:');
+      console.info('<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>');
+      console.info('<script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>');
+    }
+  };
+  
+  // Check libraries after a short delay to ensure they're loaded
+  setTimeout(checkLibraries, 100);
   
   // Return helper functions for external use
   return {
     formatHelpers,
     customRteActions,
     getAllFormatOptions,
+    formatConfigs,
     
-    // Additional utility methods for conditional formatting
+    // Utility methods for external integration
     utils: {
-      // Test if a condition string is valid
       isValidCondition(condition) {
         return formatHelpers.isNumberCondition(condition) || condition.trim().length > 0;
       },
       
-      // Parse a condition and return its type and details
       parseCondition(condition) {
         if (formatHelpers.isNumberCondition(condition)) {
           return {
@@ -1204,14 +1398,33 @@ onRender() {
         };
       },
       
-      // Evaluate a condition against content
       evaluateCondition(content, condition) {
         if (formatHelpers.isNumberCondition(condition)) {
           return formatHelpers.evaluateNumberCondition(content, condition);
         }
-        // For text conditions, check if the word exists
         const text = formatHelpers.extractTextContent(content);
         return text.toLowerCase().includes(condition.toLowerCase());
+      },
+      
+      // FIXED: Method to manually refresh all formatted text components
+      refreshAllComponents() {
+        const components = editor.DomComponents.getWrapper().find('[data-gjs-type="formatted-rich-text"]');
+        components.forEach(component => {
+          if (component.view && !component.view.rteActive) {
+            component.updateContent();
+            component.view.render();
+          }
+        });
+      },
+      
+      // FIXED: Method to force stop all active RTEs
+      stopAllRTEs() {
+        const components = editor.DomComponents.getWrapper().find('[data-gjs-type="formatted-rich-text"]');
+        components.forEach(component => {
+          if (component.view && component.view.rteActive) {
+            component.view.forceStopRTE();
+          }
+        });
       }
     }
   };

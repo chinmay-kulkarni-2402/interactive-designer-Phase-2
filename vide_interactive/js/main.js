@@ -91,6 +91,8 @@ const editor = InteractiveDesigner.init({
       "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
       "https://code.highcharts.com/stock/highstock.js",
       "https://code.highcharts.com/highcharts-more.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
 
 
 
@@ -908,7 +910,32 @@ function generatePrintDialog() {
             .page-section-dashed-line {
               display: none !important;
             }
+             .page-container {
+              page-break-after: always !important;
+              margin: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+              width: 100% !important;
+              height: auto !important;
+              display: block !important;
+              overflow: visible !important;
+            }
             
+            .page-content {
+              width: 100% !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: visible !important;
+            }
+            
+            .main-content-area {
+              width: 100% !important;
+              height: 1027px !important;
+              overflow: visible !important;
+              position: relative !important;
+            }
+
             .page-section {
               border: none !important;
               background: transparent !important;
@@ -956,7 +983,6 @@ function generatePrintDialog() {
               color: #333;
               background: white;
               margin: 0;
-              padding: 20px;
             }
           }
           
