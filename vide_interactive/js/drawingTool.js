@@ -291,13 +291,46 @@ function drawingTool(editor) {
     });
 
     // Add block to block manager
-    editor.BlockManager.add('drawing-canvas-block', {
-        label: '🖌️ Drawing Canvas',
-        category: 'Media',
-        content: {
-            type: 'drawing-canvas'
-        }
-    });
+editor.BlockManager.add('drawing-canvas-block', {
+    label: `
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" 
+             xmlns="http://www.w3.org/2000/svg">
+            
+            <!-- Centered large rectangle -->
+            <rect x="10" y="10" width="40" height="40" rx="4" ry="4" 
+                  stroke="white" stroke-width="3" fill="none"/>
+            
+            <!-- Random white fill strokes inside the rectangle -->
+            <g opacity="0.6">
+                <line x1="14" y1="16" x2="34" y2="18" stroke="white" stroke-width="2"/>
+                <line x1="20" y1="24" x2="44" y2="26" stroke="white" stroke-width="1.5"/>
+                <line x1="12" y1="32" x2="40" y2="34" stroke="white" stroke-width="2"/>
+                <circle cx="28" cy="38" r="2" fill="white" opacity="0.7"/>
+                <circle cx="36" cy="20" r="1.5" fill="white" opacity="0.5"/>
+                <circle cx="18" cy="28" r="1" fill="white" opacity="0.6"/>
+            </g>
+
+            <!-- Pencil (angled and properly proportioned) -->
+            <g transform="rotate(-20 30 30)">
+                <!-- Pencil body -->
+                <rect x="20" y="26" width="24" height="6" rx="1" ry="1"
+                      fill="white" stroke="white" stroke-width="1"/>
+                <!-- Pencil tip -->
+                <polygon points="44,28 48,30 44,32" 
+                         fill="white" stroke="white" stroke-width="1"/>
+                <!-- Pencil eraser -->
+                <rect x="16" y="26" width="4" height="6" rx="1" ry="1"
+                      fill="white" stroke="white" stroke-width="1"/>
+            </g>
+        </svg>
+        Drawing Canvas
+    `,
+    category: 'Basic',
+    content: {
+        type: 'drawing-canvas'
+    }
+});
+
 
     // Initialize Konva stage and layer
     const modal = document.getElementById('drawing-modal');
@@ -388,116 +421,145 @@ function drawingTool(editor) {
     }
 
     function initializeCanvas(width = 600, height = 300) {
-        const container = document.getElementById('konva-container');
-        container.innerHTML = '';
+    const container = document.getElementById('konva-container');
+    container.innerHTML = '';
+    
+    stage = new Konva.Stage({
+        container: 'konva-container',
+        width: width,
+        height: height
+    });
+
+    layer = new Konva.Layer();
+    stage.add(layer);
+
+    // Add transformer for selection with improved configuration
+    transformer = new Konva.Transformer({
+        rotateEnabled: true,
+        enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                       'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+        boundBoxFunc: (oldBox, newBox) => {
+            // Prevent negative scaling
+            if (newBox.width < 5 || newBox.height < 5) {
+                return oldBox;
+            }
+            return newBox;
+        },
+        // Ensure transformer updates properly
+        shouldOverdrawWholeArea: true
+    });
+    layer.add(transformer);
+
+    setupEventListeners();
+    layer.draw();
+    saveState();
+}
+
+    function setupEventListeners() {
+    stage.on('mousedown touchstart', handleMouseDown);
+    stage.on('mousemove touchmove', handleMouseMove);
+    stage.on('mouseup touchend', handleMouseUp);
+    
+    // Click to select objects (only for select tool)
+    stage.on('click tap', handleClick);
+    
+    // Prevent dragging when not using select or move tool
+    stage.on('dragstart', (e) => {
+        if (currentTool !== 'select' && currentTool !== 'move') {
+            e.evt.preventDefault();
+        }
+    });
+}
+
+    function handleClick(e) {
+    // Only handle selection when select tool is active
+    if (currentTool === 'select') {
+        if (e.target === stage) {
+            transformer.nodes([]);
+            layer.draw();
+            return;
+        }
+
+        const clickedOnEmpty = e.target === stage;
+        if (clickedOnEmpty) {
+            transformer.nodes([]);
+            layer.draw();
+            return;
+        }
+
+        const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+        const isSelected = transformer.nodes().indexOf(e.target) >= 0;
+
+        if (!metaPressed && !isSelected) {
+            transformer.nodes([e.target]);
+        } else if (metaPressed && isSelected) {
+            const nodes = transformer.nodes().slice();
+            nodes.splice(nodes.indexOf(e.target), 1);
+            transformer.nodes(nodes);
+        } else if (metaPressed && !isSelected) {
+            const nodes = transformer.nodes().concat([e.target]);
+            transformer.nodes(nodes);
+        }
         
-        stage = new Konva.Stage({
-            container: 'konva-container',
-            width: width,
-            height: height
-        });
-
-        layer = new Konva.Layer();
-        stage.add(layer);
-
-        // Add transformer for selection
+        // Force transformer to update its position and size
+        transformer.forceUpdate();
+        layer.draw();
+    } else if (currentTool === 'paint') {
+        // Paint bucket functionality - flood fill algorithm
+        const pos = stage.getPointerPosition();
+        
+        // Get current canvas as image data
+        const canvas = stage.toCanvas();
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Apply flood fill
+        const filledImageData = floodFill(imageData, Math.floor(pos.x), Math.floor(pos.y), currentColor, 10);
+        
+        // Create new image from filled data
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(filledImageData, 0, 0);
+        
+        // Clear current layer and add filled image
+        layer.destroyChildren();
+        
+        // Recreate transformer
         transformer = new Konva.Transformer({
             rotateEnabled: true,
             enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
+                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+            boundBoxFunc: (oldBox, newBox) => {
+                // Prevent negative scaling
+                if (newBox.width < 5 || newBox.height < 5) {
+                    return oldBox;
+                }
+                return newBox;
+            }
         });
         layer.add(transformer);
-
-        setupEventListeners();
-        layer.draw();
-        saveState();
-    }
-
-    function setupEventListeners() {
-        stage.on('mousedown touchstart', handleMouseDown);
-        stage.on('mousemove touchmove', handleMouseMove);
-        stage.on('mouseup touchend', handleMouseUp);
         
-        // Click to select objects
-        stage.on('click tap', handleClick);
-    }
-
-    function handleClick(e) {
-        if (currentTool === 'select') {
-            if (e.target === stage) {
-                transformer.nodes([]);
-                layer.draw();
-                return;
-            }
-
-            const clickedOnEmpty = e.target === stage;
-            if (clickedOnEmpty) {
-                transformer.nodes([]);
-                layer.draw();
-                return;
-            }
-
-            const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
-            const isSelected = transformer.nodes().indexOf(e.target) >= 0;
-
-            if (!metaPressed && !isSelected) {
-                transformer.nodes([e.target]);
-            } else if (metaPressed && isSelected) {
-                const nodes = transformer.nodes().slice();
-                nodes.splice(nodes.indexOf(e.target), 1);
-                transformer.nodes(nodes);
-            } else if (metaPressed && !isSelected) {
-                const nodes = transformer.nodes().concat([e.target]);
-                transformer.nodes(nodes);
-            }
-            layer.draw();
-        } else if (currentTool === 'paint') {
-            // Paint bucket functionality - flood fill algorithm
-            const pos = stage.getPointerPosition();
-            
-            // Get current canvas as image data
-            const canvas = stage.toCanvas();
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Apply flood fill
-            const filledImageData = floodFill(imageData, Math.floor(pos.x), Math.floor(pos.y), currentColor, 10);
-            
-            // Create new image from filled data
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.putImageData(filledImageData, 0, 0);
-            
-            // Clear current layer and add filled image
-            layer.destroyChildren();
-            
-            // Recreate transformer
-            transformer = new Konva.Transformer({
-                rotateEnabled: true,
-                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                               'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
+        // Add the filled image to layer
+        const img = new Image();
+        img.onload = () => {
+            const konvaImg = new Konva.Image({
+                x: 0,
+                y: 0,
+                image: img,
+                width: canvas.width,
+                height: canvas.height
             });
-            layer.add(transformer);
-            
-            // Add the filled image to layer
-            const img = new Image();
-            img.onload = () => {
-                const konvaImg = new Konva.Image({
-                    x: 0,
-                    y: 0,
-                    image: img,
-                    width: canvas.width,
-                    height: canvas.height
-                });
-                layer.add(konvaImg);
-                layer.draw();
-                saveState();
-            };
-            img.src = tempCanvas.toDataURL();
-        }
+            layer.add(konvaImg);
+            layer.draw();
+            saveState();
+        };
+        img.src = tempCanvas.toDataURL();
     }
+    // For all other tools (pencil, eraser, line, etc.), do nothing on click
+    // This prevents unwanted selection/transformation behavior
+}
 
     function handleMouseDown(e) {
         if (currentTool === 'select' || currentTool === 'move') return;
@@ -696,8 +758,12 @@ function drawingTool(editor) {
 
     // Set active tool
 function setActiveTool(tool) {
-    // Clear any selections when switching tools
-    if (transformer) {
+    // Clear any selections when switching away from select tool
+    if (currentTool !== 'select' && tool !== 'select' && transformer) {
+        transformer.nodes([]);
+        layer.draw();
+    } else if (tool !== 'select' && transformer) {
+        // Clear selections when switching to any non-select tool
         transformer.nodes([]);
         layer.draw();
     }
@@ -749,6 +815,7 @@ function setActiveTool(tool) {
     
     updateSizeIndicator();
 }
+
 
 function setActiveToolAlternative(tool) {
     // Clear any selections when switching tools
@@ -958,94 +1025,126 @@ function createToolCursor(emoji, size = 5) {
 
     // Clear canvas
     document.getElementById('clear-btn').onclick = () => {
-        layer.destroyChildren();
-        transformer = new Konva.Transformer({
-            rotateEnabled: true,
-            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
-        });
-        layer.add(transformer);
-        layer.draw();
-        saveState();
-    };
+    layer.destroyChildren();
+    transformer = new Konva.Transformer({
+        rotateEnabled: true,
+        enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                       'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+        boundBoxFunc: (oldBox, newBox) => {
+            if (newBox.width < 5 || newBox.height < 5) {
+                return oldBox;
+            }
+            return newBox;
+        },
+        shouldOverdrawWholeArea: true
+    });
+    layer.add(transformer);
+    layer.draw();
+    saveState();
+};
 
     // Undo functionality
     document.getElementById('undo-btn').onclick = () => {
-        if (historyIndex > 0) {
-            historyIndex--;
-            layer.destroyChildren();
-            const objects = JSON.parse(history[historyIndex]);
-            objects.children.forEach(obj => {
-                if (obj.className !== 'Transformer') {
-                    const shape = Konva.Node.create(obj);
-                    layer.add(shape);
+    if (historyIndex > 0) {
+        historyIndex--;
+        layer.destroyChildren();
+        const objects = JSON.parse(history[historyIndex]);
+        objects.children.forEach(obj => {
+            if (obj.className !== 'Transformer') {
+                const shape = Konva.Node.create(obj);
+                layer.add(shape);
+            }
+        });
+        
+        transformer = new Konva.Transformer({
+            rotateEnabled: true,
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+            boundBoxFunc: (oldBox, newBox) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                    return oldBox;
                 }
-            });
-            
-            transformer = new Konva.Transformer({
-                rotateEnabled: true,
-                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                               'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
-            });
-            layer.add(transformer);
-            layer.draw();
-        }
-    };
+                return newBox;
+            },
+            shouldOverdrawWholeArea: true
+        });
+        layer.add(transformer);
+        layer.draw();
+    }
+};
 
     // Redo functionality
     document.getElementById('redo-btn').onclick = () => {
-        if (historyIndex < history.length - 1) {
-            historyIndex++;
-            layer.destroyChildren();
-            const objects = JSON.parse(history[historyIndex]);
-            objects.children.forEach(obj => {
-                if (obj.className !== 'Transformer') {
-                    const shape = Konva.Node.create(obj);
-                    layer.add(shape);
+    if (historyIndex < history.length - 1) {
+        historyIndex++;
+        layer.destroyChildren();
+        const objects = JSON.parse(history[historyIndex]);
+        objects.children.forEach(obj => {
+            if (obj.className !== 'Transformer') {
+                const shape = Konva.Node.create(obj);
+                layer.add(shape);
+            }
+        });
+        
+        transformer = new Konva.Transformer({
+            rotateEnabled: true,
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
+                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+            boundBoxFunc: (oldBox, newBox) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                    return oldBox;
                 }
-            });
-            
-            transformer = new Konva.Transformer({
-                rotateEnabled: true,
-                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                               'bottom-right', 'bottom-center', 'bottom-left', 'middle-left']
-            });
-            layer.add(transformer);
-            layer.draw();
-        }
-    };
+                return newBox;
+            },
+            shouldOverdrawWholeArea: true
+        });
+        layer.add(transformer);
+        layer.draw();
+    }
+};
 
     // Load image
     document.getElementById('load-image-btn').onclick = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const konvaImg = new Konva.Image({
-                            x: 50,
-                            y: 50,
-                            image: img,
-                            width: Math.min(img.width, 200),
-                            height: Math.min(img.height, 200),
-                            draggable: true
-                        });
-                        layer.add(konvaImg);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const konvaImg = new Konva.Image({
+                        x: 50,
+                        y: 50,
+                        image: img,
+                        width: Math.min(img.width, 200),
+                        height: Math.min(img.height, 200),
+                        draggable: true
+                    });
+                    
+                    // Add event listeners for proper transformer updates
+                    konvaImg.on('dragend', () => {
+                        transformer.forceUpdate();
                         layer.draw();
+                    });
+                    
+                    konvaImg.on('transformend', () => {
                         saveState();
-                    };
-                    img.src = event.target.result;
+                    });
+                    
+                    layer.add(konvaImg);
+                    layer.draw();
+                    saveState();
                 };
-                reader.readAsDataURL(file);
-            }
-        };
-        input.click();
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
     };
+    input.click();
+};
 
     // Canvas resize functionality
     document.getElementById('resize-canvas-btn').onclick = () => {
