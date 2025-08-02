@@ -501,10 +501,88 @@ function generatePrintDialog() {
     // Process HTML to handle page breaks properly
     const processedHTML = processPageBreaks(editorHTML);
 
-    // Function to convert Bootstrap classes to inline styles for print
+    // Enhanced function to convert Bootstrap classes and preserve table structure
     function convertBootstrapToInlineStyles(html) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
+      
+      // First, handle all DataTables and convert them to simple tables for print
+      const dataTables = tempDiv.querySelectorAll('table.dataTable, table[id*="table"]');
+      dataTables.forEach(table => {
+        // Remove DataTables wrapper and controls
+        const wrapper = table.closest('.dataTables_wrapper');
+        if (wrapper) {
+          // Extract the table from wrapper
+          const parent = wrapper.parentNode;
+          parent.insertBefore(table, wrapper);
+          parent.removeChild(wrapper);
+        }
+        
+        // Clean up table classes and add print-friendly classes
+        table.className = 'table table-bordered print-table';
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.style.pageBreakInside = 'auto';
+        table.style.border = '1px solid #333';
+        
+        // Process table headers
+        const headers = table.querySelectorAll('thead th, thead td');
+        headers.forEach(header => {
+          header.style.border = '1px solid #333';
+          header.style.padding = '8px';
+          header.style.backgroundColor = '#f2f2f2';
+          header.style.fontWeight = 'bold';
+          header.style.textAlign = 'left';
+          header.style.verticalAlign = 'middle';
+          
+          // Handle header content divs
+          const headerDiv = header.querySelector('div');
+          if (headerDiv) {
+            header.innerHTML = headerDiv.textContent || headerDiv.innerHTML;
+          }
+        });
+        
+        // Process table body cells
+        const cells = table.querySelectorAll('tbody td, tbody th');
+        cells.forEach(cell => {
+          cell.style.border = '1px solid #333';
+          cell.style.padding = '8px';
+          cell.style.textAlign = 'left';
+          cell.style.verticalAlign = 'middle';
+          cell.style.wordBreak = 'break-word';
+          
+          // Handle cell content divs and preserve formula results
+          const cellDiv = cell.querySelector('div.formula-cell, div');
+          if (cellDiv) {
+            // For formula cells, use the displayed result, not the formula
+            const displayText = cellDiv.textContent || cellDiv.innerHTML;
+            cell.innerHTML = displayText;
+            
+            // Remove formula indicators for print
+            cell.style.position = 'relative';
+          }
+        });
+        
+        // Process table rows for better print handling
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+          row.style.pageBreakInside = 'avoid';
+          row.style.breakInside = 'avoid';
+        });
+        
+        // Ensure thead is properly displayed
+        const thead = table.querySelector('thead');
+        if (thead) {
+          thead.style.display = 'table-header-group';
+          thead.style.pageBreakAfter = 'avoid';
+        }
+        
+        // Ensure tbody is properly displayed
+        const tbody = table.querySelector('tbody');
+        if (tbody) {
+          tbody.style.display = 'table-row-group';
+        }
+      });
       
       // Process all elements with Bootstrap classes
       const allElements = tempDiv.querySelectorAll('*');
@@ -527,7 +605,6 @@ function generatePrintDialog() {
           computedStyles.flexWrap = 'wrap';
           computedStyles.margin = '0';
           computedStyles.width = '100%';
-          // Ensure row maintains its height
           computedStyles.minHeight = 'auto';
         }
         
@@ -563,45 +640,16 @@ function generatePrintDialog() {
           }
         });
         
-        // For columns, calculate and preserve actual content height
+        // For columns, ensure proper height calculation
         if (isColumn) {
-          // Get the actual computed height of the element
-          const actualElement = document.querySelector(`[class*="col"]`);
-          if (actualElement) {
-            const computedHeight = window.getComputedStyle(element).height;
-            const computedMinHeight = window.getComputedStyle(element).minHeight;
-            
-            // Use the larger of computed height or content height
-            if (computedHeight && computedHeight !== 'auto' && computedHeight !== '0px') {
-              computedStyles.minHeight = computedHeight;
-            } else {
-              // Calculate content height by measuring the element's content
-              const contentHeight = element.scrollHeight;
-              if (contentHeight > 0) {
-                computedStyles.minHeight = `${contentHeight}px`;
-              } else {
-                // Ensure minimum height for columns with content
-                const hasContent = element.textContent.trim().length > 0 || element.children.length > 0;
-                if (hasContent) {
-                  computedStyles.minHeight = 'auto';
-                  computedStyles.height = 'auto';
-                } else {
-                  computedStyles.minHeight = '45px';
-                }
-              }
-            }
+          const hasContent = element.textContent.trim().length > 0 || element.children.length > 0;
+          if (hasContent) {
+            computedStyles.minHeight = 'auto';
+            computedStyles.height = 'auto';
           } else {
-            // Fallback: ensure columns have proper height
-            const hasContent = element.textContent.trim().length > 0 || element.children.length > 0;
-            if (hasContent) {
-              computedStyles.minHeight = 'auto';
-              computedStyles.height = 'auto';
-            } else {
-              computedStyles.minHeight = '45px';
-            }
+            computedStyles.minHeight = '45px';
           }
           
-          // Ensure columns don't collapse
           computedStyles.boxSizing = 'border-box';
           computedStyles.display = 'block';
         }
@@ -652,13 +700,111 @@ function generatePrintDialog() {
             size: auto !important;
           }
           
-          /* Force all elements to preserve their computed styles */
+          /* Enhanced table print styles */
           @media print {
             * {
               -webkit-print-color-adjust: exact !important;
               color-adjust: exact !important;
               print-color-adjust: exact !important;
               box-sizing: border-box !important;
+            }
+            
+            /* Table-specific print styles */
+            table.print-table,
+            table.table,
+            table.dataTable,
+            table[id*="table"] {
+              width: 100% !important;
+              border-collapse: collapse !important;
+              border: 1px solid #333 !important;
+              page-break-inside: auto !important;
+              margin: 10px 0 !important;
+              font-size: 12px !important;
+              display: table !important;
+            }
+            
+            table.print-table thead,
+            table.table thead,
+            table.dataTable thead,
+            table[id*="table"] thead {
+              display: table-header-group !important;
+              page-break-after: avoid !important;
+              page-break-inside: avoid !important;
+              break-after: avoid !important;
+              break-inside: avoid !important;
+            }
+            
+            table.print-table tbody,
+            table.table tbody,
+            table.dataTable tbody,
+            table[id*="table"] tbody {
+              display: table-row-group !important;
+            }
+            
+            table.print-table tr,
+            table.table tr,
+            table.dataTable tr,
+            table[id*="table"] tr {
+              display: table-row !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            
+            table.print-table th,
+            table.print-table td,
+            table.table th,
+            table.table td,
+            table.dataTable th,
+            table.dataTable td,
+            table[id*="table"] th,
+            table[id*="table"] td {
+              display: table-cell !important;
+              border: 1px solid #333 !important;
+              padding: 6px 8px !important;
+              text-align: left !important;
+              vertical-align: middle !important;
+              word-break: break-word !important;
+              font-size: 11px !important;
+              line-height: 1.3 !important;
+            }
+            
+            table.print-table th,
+            table.table th,
+            table.dataTable th,
+            table[id*="table"] th {
+              background-color: #f2f2f2 !important;
+              font-weight: bold !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            /* Hide DataTables controls */
+            .dataTables_wrapper .dataTables_length,
+            .dataTables_wrapper .dataTables_filter,
+            .dataTables_wrapper .dataTables_info,
+            .dataTables_wrapper .dataTables_paginate,
+            .dataTables_wrapper .dataTables_processing,
+            .dt-buttons,
+            .dataTables_scrollHead,
+            .dataTables_scrollFoot {
+              display: none !important;
+              visibility: hidden !important;
+              height: 0 !important;
+              width: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            
+            /* Force table visibility on all pages */
+            .dataTables_wrapper,
+            .dataTables_scroll,
+            .dataTables_scrollBody {
+              display: block !important;
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              position: static !important;
             }
             
             /* Preserve all background colors and images */
@@ -782,11 +928,6 @@ function generatePrintDialog() {
               height: auto !important;
             }
             
-            /* Ensure columns with inline styles preserve their height */
-            [class*="col-"][style*="min-height"] {
-              /* Inline styles will take precedence */
-            }
-            
             /* Bootstrap utility classes */
             .d-flex { display: flex !important; }
             .d-block { display: block !important; }
@@ -810,23 +951,6 @@ function generatePrintDialog() {
             .text-center { text-align: center !important; }
             .text-right { text-align: right !important; }
             .text-justify { text-align: justify !important; }
-            
-            /* Spacing utilities */
-            .m-0 { margin: 0 !important; }
-            .mt-0 { margin-top: 0 !important; }
-            .mr-0 { margin-right: 0 !important; }
-            .mb-0 { margin-bottom: 0 !important; }
-            .ml-0 { margin-left: 0 !important; }
-            .mx-0 { margin-left: 0 !important; margin-right: 0 !important; }
-            .my-0 { margin-top: 0 !important; margin-bottom: 0 !important; }
-            
-            .p-0 { padding: 0 !important; }
-            .pt-0 { padding-top: 0 !important; }
-            .pr-0 { padding-right: 0 !important; }
-            .pb-0 { padding-bottom: 0 !important; }
-            .pl-0 { padding-left: 0 !important; }
-            .px-0 { padding-left: 0 !important; padding-right: 0 !important; }
-            .py-0 { padding-top: 0 !important; padding-bottom: 0 !important; }
             
             /* Hide on print */
             .${HIDE_CLASS} {
@@ -863,45 +987,6 @@ function generatePrintDialog() {
               break-before: page !important;
             }
             
-            /* Table fixes */
-            table.table-bordered {
-              display: table !important;
-              width: 100% !important;
-              border-collapse: collapse !important;
-              margin: 0 !important;
-              position: relative !important;
-            }
-            
-            table.table-bordered thead, table.table-bordered tbody {
-              display: table-row-group !important;
-            }
-            
-            table.table-bordered tr {
-              display: table-row !important;
-            }
-            
-            table.table-bordered th, table.table-bordered td {
-              display: table-cell !important;
-              border: 1px solid #ddd !important;
-              padding: 8px !important;
-              text-align: left !important;
-              vertical-align: middle !important;
-            }
-            
-            table.table-bordered th {
-              background-color: #f2f2f2 !important;
-              font-weight: bold !important;
-            }
-            
-            table.table-bordered th div {
-              display: block !important;
-              margin-right: 0 !important;
-            }
-            
-            table.table-bordered th span {
-              display: none !important;
-            }
-            
             /* Editor specific elements */
             .page-indicator,
             .virtual-sections-panel,
@@ -910,7 +995,8 @@ function generatePrintDialog() {
             .page-section-dashed-line {
               display: none !important;
             }
-             .page-container {
+            
+            .page-container {
               page-break-after: always !important;
               margin: 0 !important;
               box-shadow: none !important;
@@ -931,7 +1017,7 @@ function generatePrintDialog() {
             
             .main-content-area {
               width: 100% !important;
-              height: 1027px !important;
+              height: auto !important;
               overflow: visible !important;
               position: relative !important;
             }
@@ -969,9 +1055,12 @@ function generatePrintDialog() {
               z-index: 1 !important;
             }
             
-            /* Force inline styles to take precedence */
-            *[style] {
-              /* Inline styles will automatically have higher specificity */
+            /* Ensure tables appear on all pages */
+            .page-container table,
+            .main-content-area table {
+              display: table !important;
+              visibility: visible !important;
+              opacity: 1 !important;
             }
           }
           

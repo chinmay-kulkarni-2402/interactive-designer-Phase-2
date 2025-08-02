@@ -14,24 +14,23 @@ function customTable(editor) {
 
   // Function to load formula parser script
   function loadFormulaParser() {
-  if (formulaParserLoaded) return Promise.resolve();
+    if (formulaParserLoaded) return Promise.resolve();
 
-  return new Promise((resolve, reject) => {
-    const iframe = editor.Canvas.getFrameEl(); // GrapesJS method
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    return new Promise((resolve, reject) => {
+      const iframe = editor.Canvas.getFrameEl(); // GrapesJS method
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-    const script = iframeDoc.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.umd.js";
-    script.onload = () => {
-      formulaParserLoaded = true;
-      resolve();
-    };
-    script.onerror = reject;
+      const script = iframeDoc.createElement('script');
+      script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.umd.js";
+      script.onload = () => {
+        formulaParserLoaded = true;
+        resolve();
+      };
+      script.onerror = reject;
 
-    iframeDoc.head.appendChild(script);
-  });
-}
-
+      iframeDoc.head.appendChild(script);
+    });
+  }
 
   // Function to show toast/warning
   function showToast(message, type = 'warning') {
@@ -48,7 +47,7 @@ function customTable(editor) {
       z-index: 10000;
       max-width: 300px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      ${type === 'warning' ? 'background-color: #f39c12;' : 'background-color: #e74c3c;'}
+      ${type === 'warning' ? 'background-color: #f39c12;' : type === 'success' ? 'background-color: #27ae60;' : 'background-color: #e74c3c;'}
     `;
     toast.textContent = message;
     document.body.appendChild(toast);
@@ -60,14 +59,19 @@ function customTable(editor) {
     }, 3000);
   }
 
-  // Function to get selected component or find droppable container
+  // Enhanced function to get target container that works with page system
   function getTargetContainer() {
     const selected = editor.getSelected();
     
+    // First priority: Check if something is selected and can accept children
     if (selected) {
-      // Check if selected component can accept children
       const droppable = selected.get('droppable');
       if (droppable !== false) {
+        // Check if it's a main content area (preferred for pages)
+        if (selected.getEl()?.classList.contains('main-content-area') || 
+            selected.closest('.main-content-area')) {
+          return selected.closest('.main-content-area') || selected;
+        }
         return selected;
       }
       
@@ -75,13 +79,51 @@ function customTable(editor) {
       let parent = selected.parent();
       while (parent) {
         if (parent.get('droppable') !== false) {
+          // Prefer main content area if available
+          if (parent.getEl()?.classList.contains('main-content-area') || 
+              parent.closest('.main-content-area')) {
+            return parent.closest('.main-content-area') || parent;
+          }
           return parent;
         }
         parent = parent.parent();
       }
     }
     
-    // If no suitable container found, use the main canvas
+    // Second priority: Look for main content area in current page
+    const allPages = editor.getWrapper().find('.page-container');
+    if (allPages.length > 0) {
+      // Try to find the currently visible or active page
+      const canvasBody = editor.Canvas.getBody();
+      let targetPage = null;
+      
+      // Find the page that's currently in view or the first page
+      allPages.forEach(page => {
+        const pageEl = page.getEl();
+        if (pageEl && canvasBody.contains(pageEl)) {
+          const rect = pageEl.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          // Check if page is visible in viewport
+          if (rect.top < viewportHeight && rect.bottom > 0) {
+            targetPage = page;
+          }
+        }
+      });
+      
+      // If no page is in view, use the first page
+      if (!targetPage) {
+        targetPage = allPages.at(0);
+      }
+      
+      if (targetPage) {
+        const mainContentArea = targetPage.find('.main-content-area')[0];
+        if (mainContentArea) {
+          return mainContentArea;
+        }
+      }
+    }
+    
+    // Third priority: Use the main canvas wrapper
     const wrapper = editor.DomComponents.getWrapper();
     return wrapper;
   }
@@ -158,6 +200,50 @@ function customTable(editor) {
         color: #007bff;
         font-weight: bold;
       }
+
+      /* Page-aware table styles */
+      .page-container .dataTables_wrapper {
+        max-width: 100%;
+        overflow: hidden;
+      }
+      
+      .main-content-area .dataTables_wrapper {
+        width: 100% !important;
+        box-sizing: border-box;
+      }
+      
+      /* Print styles for tables in pages */
+      @media print {
+        .page-container table.dataTable {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          font-size: 10px !important;
+          page-break-inside: avoid !important;
+        }
+        
+        .page-container .dataTables_wrapper .dataTables_length,
+        .page-container .dataTables_wrapper .dataTables_filter,
+        .page-container .dataTables_wrapper .dataTables_info,
+        .page-container .dataTables_wrapper .dataTables_paginate,
+        .page-container .dataTables_wrapper .dt-buttons {
+          display: none !important;
+        }
+        
+        .page-container table.dataTable thead th,
+        .page-container table.dataTable tbody td {
+          border: 1px solid #000 !important;
+          padding: 4px !important;
+          text-align: left !important;
+        }
+        
+        .page-container table.dataTable thead th {
+          background-color: #f5f5f5 !important;
+          font-weight: bold !important;
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
     `; 
     head.appendChild(style);  
   });
@@ -167,12 +253,33 @@ function customTable(editor) {
     const targetContainer = getTargetContainer();
     
     if (!targetContainer) {
-      showToast('No suitable container found for placing the table');
+      showToast('No suitable container found for placing the table', 'error');
       return;
+    }
+
+    // Check if target is within a page system
+    const isInPageSystem = targetContainer.closest('.page-container') || 
+                          targetContainer.find('.page-container').length > 0 ||
+                          targetContainer.getEl()?.closest('.page-container');
+    
+    let containerInfo = 'main canvas';
+    if (isInPageSystem) {
+      const pageContainer = targetContainer.closest('.page-container');
+      if (pageContainer) {
+        const pageIndex = pageContainer.getAttributes()['data-page-index'];
+        containerInfo = `Page ${parseInt(pageIndex) + 1}`;
+      } else {
+        containerInfo = 'page content area';
+      }
+    } else if (targetContainer.get('tagName')) {
+      containerInfo = targetContainer.get('tagName') || 'selected container';
     }
 
     editor.Modal.setTitle('Create New Table');
     editor.Modal.setContent(`<div class="new-table-form">
+      <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; color: #1976d2;">
+        <strong>Target:</strong> Table will be added to ${containerInfo}
+      </div>
       <div>
         <label for="nColumns">Number of columns</label>
         <input type="number" class="form-control" value="3" name="nColumns" id="nColumns" min="1">
@@ -298,9 +405,17 @@ function customTable(editor) {
       const cols = parseInt(document.getElementById('nColumns').value);  
       const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
 
-      let row = document.createElement('div');  
-      row.style.padding = '10px 0px';  
-      row.style.position = 'relative';  
+      // Create a wrapper div for better page integration
+      let tableWrapper = document.createElement('div');  
+      tableWrapper.style.cssText = `
+        padding: 10px 0px;
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        box-sizing: border-box;
+      `;
+      tableWrapper.className = 'table-wrapper-' + uniqueID;
 
       let table = document.createElement('table');  
       table.setAttribute('width','100%'); 
@@ -376,9 +491,9 @@ function customTable(editor) {
       
       var scrollXCol = colsScroll < cols;
       table.appendChild(tbody); 
-      row.appendChild(table);   
+      tableWrapper.appendChild(table);   
       
-      // Generate the DataTable script
+      // Generate the DataTable script with page-aware functionality
       let tableScript = `
         <script class="table-script-${uniqueID}"> 
           (function() {
@@ -389,20 +504,50 @@ function customTable(editor) {
                 return;
               }
               
-              jQuery('#table${uniqueID}').DataTable({
+              // Check if we're in a page system
+              const tableElement = document.getElementById('table${uniqueID}');
+              const isInPageSystem = tableElement && tableElement.closest('.page-container');
+              
+              // Configure DataTable options based on context
+              const dtOptions = {
                 dom: 'Bfrtip',
                 paging: ${tblPagination},
                 "info": ${tblPagination}, 
                 "lengthChange": true,
-                fixedHeader: true, 
+                fixedHeader: false, // Disable for page system compatibility
                 "scrollX": ${scrollXCol}, 
-                fixedColumns: true, 
+                fixedColumns: ${scrollXCol}, 
                 searching: ${tblSearch},  
                 buttons: ${downloadBtn},
                 drawCallback: function() {
                   setupFormulaHandlers('${uniqueID}');
-                }
-              });
+                  
+                  // Ensure table fits within page boundaries
+                  if (isInPageSystem) {
+                    const wrapper = this.closest('.dataTables_wrapper');
+                    if (wrapper) {
+                      wrapper.style.maxWidth = '100%';
+                      wrapper.style.overflow = 'hidden';
+                    }
+                  }
+                },
+                responsive: isInPageSystem ? {
+                  details: {
+                    display: jQuery.fn.dataTable.Responsive.display.childRowImmediate,
+                    type: 'none',
+                    target: ''
+                  }
+                } : false
+              };
+              
+              // Initialize DataTable
+              const dataTable = jQuery('#table${uniqueID}').DataTable(dtOptions);
+              
+              // Store reference for cleanup
+              if (window.pageTableInstances) {
+                window.pageTableInstances = window.pageTableInstances || {};
+                window.pageTableInstances['table${uniqueID}'] = dataTable;
+              }
               
               // Initial setup of formula handlers
               setupFormulaHandlers('${uniqueID}');
@@ -477,20 +622,73 @@ function customTable(editor) {
           })();
         </script>`;  
       
-      // Add the table to the selected container
-      const tableComponent = container.append(row.outerHTML)[0];
-      
-      // Add the script component
-      container.append(tableScript);
-      
-      editor.Modal.close();
-      row.remove();
-      
-      showToast(`Table created successfully in ${container.get('tagName') || 'container'}!`, 'success');
+      try {
+        // Add the table to the selected container
+        const tableComponent = container.append(tableWrapper.outerHTML)[0];
+        
+        // Set table wrapper properties for better integration
+        if (tableComponent) {
+          tableComponent.set({
+            draggable: true,
+            droppable: false,
+            editable: false,
+            selectable: true,
+            removable: true,
+            copyable: true,
+            'custom-name': `Table ${uniqueID}`,
+            tagName: 'div'
+          });
+          
+          // Add responsive styling
+          tableComponent.addStyle({
+            'max-width': '100%',
+            'overflow': 'hidden',
+            'box-sizing': 'border-box',
+            'margin': '10px 0'
+          });
+        }
+        
+        // Add the script component
+        container.append(tableScript);
+        
+        editor.Modal.close();
+        
+        // Clean up temporary elements
+        if (tableWrapper.parentNode) {
+          tableWrapper.parentNode.removeChild(tableWrapper);
+        }
+        
+        // Determine container type for success message
+        let containerType = 'container';
+        const pageContainer = container.closest('.page-container');
+        if (pageContainer) {
+          const pageIndex = pageContainer.getAttributes()['data-page-index'];
+          containerType = `Page ${parseInt(pageIndex) + 1}`;
+        } else if (container.getEl()?.classList.contains('main-content-area')) {
+          containerType = 'content area';
+        } else if (container.get('tagName')) {
+          containerType = container.get('tagName');
+        }
+        
+        showToast(`Table created successfully in ${containerType}!`, 'success');
+        
+        // If in page system, trigger any overflow checking
+        if (pageContainer && window.pageSetupManager) {
+          setTimeout(() => {
+            if (window.pageSetupManager.checkContentOverflow) {
+              window.pageSetupManager.checkContentOverflow();
+            }
+          }, 1000);
+        }
+        
+      } catch (error) {
+        console.error('Error creating table:', error);
+        showToast('Error creating table. Please try again.', 'error');
+      }
     };
   }  
    
-  // Event listener when a component drag ends
+  // Event listener when a component drag ends - enhanced for page system
   editor.on('component:drag:end', function (event) { 
     var selectedComponent = editor.getSelected();
     if (selectedComponent) {
@@ -499,14 +697,32 @@ function customTable(editor) {
         var firstChild = childComponents.models[0]; 
         var childTagName = firstChild.get('tagName');  
         if (childTagName === 'table') {  
-          var htmlContent = editor.getHtml();  
-          var css = editor.getCss();    
-          updateComponents(editor.getHtml()); 
-          var modifiedHtml = addInlineCssToCaptions(htmlContent); 
-          setTimeout(() => {  
-            editor.setComponents(modifiedHtml);  
-            editor.setStyle(css);  
-          }, 1000); 
+          // Handle table in page system
+          const pageContainer = selectedComponent.closest('.page-container');
+          if (pageContainer) {
+            console.log('Table moved within page system, updating layout...');
+            // Give time for the table to settle before updating
+            setTimeout(() => {
+              var htmlContent = editor.getHtml();  
+              var css = editor.getCss();    
+              updateComponents(editor.getHtml()); 
+              var modifiedHtml = addInlineCssToCaptions(htmlContent); 
+              setTimeout(() => {  
+                editor.setComponents(modifiedHtml);  
+                editor.setStyle(css);  
+              }, 500); 
+            }, 200);
+          } else {
+            // Original behavior for non-page system
+            var htmlContent = editor.getHtml();  
+            var css = editor.getCss();    
+            updateComponents(editor.getHtml()); 
+            var modifiedHtml = addInlineCssToCaptions(htmlContent); 
+            setTimeout(() => {  
+              editor.setComponents(modifiedHtml);  
+              editor.setStyle(css);  
+            }, 1000); 
+          }
         } 
       }  
     } 
@@ -553,4 +769,138 @@ function customTable(editor) {
       // Could add custom toolbar buttons here for quick table insertion
     }
   });
+
+  // Cleanup function for page system integration
+  editor.on('component:remove', function(component) {
+    // Clean up any DataTable instances when components are removed
+    try {
+      if (component && typeof component.getEl === 'function') {
+        const element = component.getEl();
+        if (element && typeof element.querySelectorAll === 'function') {
+          const tables = element.querySelectorAll('table[id^="table"]');
+          tables.forEach(table => {
+            const tableId = table.id;
+            if (window.pageTableInstances && window.pageTableInstances[tableId]) {
+              try {
+                window.pageTableInstances[tableId].destroy();
+                delete window.pageTableInstances[tableId];
+              } catch (error) {
+                console.warn('Error destroying DataTable:', error);
+              }
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('Error in table cleanup:', error);
+    }
+  });
+
+  // Page system integration - ensure tables work properly when pages are created/modified
+  // Use more common GrapesJS events instead of custom page events
+  editor.on('component:add component:update', function(component) {
+    // Only process if this might be related to page structure changes
+    if (component && (
+      component.get('tagName') === 'div' || 
+      component.getClasses().includes('page-container') ||
+      component.getClasses().includes('main-content-area')
+    )) {
+      // Re-initialize any tables that might have been affected by page changes
+      setTimeout(() => {
+        try {
+          const canvasBody = editor.Canvas.getBody();
+          if (canvasBody && typeof canvasBody.querySelectorAll === 'function') {
+            const tables = canvasBody.querySelectorAll('table[id^="table"]');
+            tables.forEach(table => {
+              const tableId = table.id;
+              // Check if table needs re-initialization
+              if (!window.pageTableInstances || !window.pageTableInstances[tableId]) {
+                // Find and re-execute the table script
+                const scriptId = tableId.replace('table', '');
+                const scriptElement = canvasBody.querySelector(`.table-script-${scriptId}`);
+                if (scriptElement && scriptElement.textContent) {
+                  try {
+                    eval(scriptElement.textContent);
+                  } catch (error) {
+                    console.warn('Error re-initializing table:', error);
+                  }
+                }
+              }
+            });
+          }
+        } catch (error) {
+          console.warn('Error in page system table integration:', error);
+        }
+      }, 500);
+    }
+  });
+
+  // Enhanced print handling for page system
+  if (typeof window !== 'undefined') {
+    // Store original print function
+    const originalPrint = window.print;
+    
+    window.print = function() {
+      try {
+        // Before printing, ensure all tables are properly formatted
+        const tables = document.querySelectorAll('table[id^="table"]');
+        tables.forEach(table => {
+          try {
+            // Ensure table attributes for print
+            table.setAttribute("border", "1");
+            table.style.borderCollapse = "collapse";
+            table.style.width = "100%";
+            table.style.fontFamily = "Arial, sans-serif";
+            
+            // Hide DataTable controls for print
+            const wrapper = table.closest('.dataTables_wrapper');
+            if (wrapper) {
+              const controls = wrapper.querySelectorAll('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate, .dt-buttons');
+              controls.forEach(control => {
+                control.style.display = 'none';
+              });
+            }
+          } catch (error) {
+            console.warn('Error preparing table for print:', error);
+          }
+        });
+        
+        // Call original print function
+        originalPrint.call(this);
+        
+        // Restore controls after print (with delay to ensure print dialog has appeared)
+        setTimeout(() => {
+          try {
+            const tables = document.querySelectorAll('table[id^="table"]');
+            tables.forEach(table => {
+              try {
+                const wrapper = table.closest('.dataTables_wrapper');
+                if (wrapper) {
+                  const controls = wrapper.querySelectorAll('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate, .dt-buttons');
+                  controls.forEach(control => {
+                    control.style.display = '';
+                  });
+                }
+              } catch (error) {
+                console.warn('Error restoring table controls after print:', error);
+              }
+            });
+          } catch (error) {
+            console.warn('Error in print restoration:', error);
+          }
+        }, 1000);
+      } catch (error) {
+        console.warn('Error in custom print function, using original:', error);
+        // Fallback to original print if there's an error
+        originalPrint.call(this);
+      }
+    };
+  }
+
+  // Initialize page table instances storage
+  if (typeof window !== 'undefined' && !window.pageTableInstances) {
+    window.pageTableInstances = {};
+  }
+
+  console.log('Custom Table function initialized with page system integration');
 }

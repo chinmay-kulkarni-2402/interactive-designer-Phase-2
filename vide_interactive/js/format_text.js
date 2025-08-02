@@ -1,9 +1,5 @@
 function addFormattedRichTextComponent(editor) {
-  // Load external libraries for formatting (add these to your index.html)
-  // <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-  // <script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>
-  
-  // Format configurations with library support
+  // Format configurations
   const formatConfigs = {
     text: {
       label: 'Text',
@@ -13,43 +9,45 @@ function addFormattedRichTextComponent(editor) {
     },
     number: {
       label: 'Number',
-      patterns: ['0', '0.0', '0.00', '0,0', '0,0.0', '0,0.00', '0.[00]', '0.[0000]'],
-      defaultPattern: '0,0',
+      patterns: ['0', '0.0', '0.00', '#,###', '#,###.##', '#,##,###', '#,##,###.##'],
+      defaultPattern: '#,##,###',
       icon: '🔢'
     },
     currency: {
       label: 'Currency',
-      patterns: ['$0', '$0.00', '€0.00', '₹0.00', '¥0', '£0.00', '($0.00)', '$0,0.00'],
-      defaultPattern: '₹0.00',
+      patterns: ['$ 0', '$ 0.00', '€ 0.00', '₹ 0.00', '¥ 0', '£ 0.00'],
+      defaultPattern: '₹ 0.00',
       icon: '💰'
     },
     percentage: {
       label: 'Percentage',
-      patterns: ['0%', '0.0%', '0.00%', '0.[00]%'],
+      patterns: ['0%', '0.0%', '0.00%'],
       defaultPattern: '0.00%',
       icon: '📊'
     },
     date: {
       label: 'Date',
-      patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY', 'MMMM Do YYYY', 'dddd, MMMM Do YYYY'],
+      patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY'],
       defaultPattern: 'MM/DD/YYYY',
       icon: '📅'
-    },
-    time: {
-      label: 'Time',
-      patterns: ['HH:mm', 'hh:mm A', 'HH:mm:ss', 'hh:mm:ss A'],
-      defaultPattern: 'HH:mm',
-      icon: '🕐'
-    },
-    datetime: {
-      label: 'Date & Time',
-      patterns: ['MM/DD/YYYY HH:mm', 'DD/MM/YYYY HH:mm', 'YYYY-MM-DD HH:mm', 'MMM DD, YYYY hh:mm A'],
-      defaultPattern: 'MM/DD/YYYY HH:mm',
-      icon: '📅🕐'
     }
   };
 
-  // Enhanced format helper functions using libraries
+  // Combined format patterns
+  const combinedFormats = {
+    'number+currency': {
+      label: 'Number + Currency',
+      icon: '🔢💰',
+      patterns: ['₹ #,##,###', '$ #,###.##', '€ #,###.00', '¥ #,###']
+    },
+    'number+percentage': {
+      label: 'Number + Percentage',
+      icon: '🔢📊',
+      patterns: ['#,###%', '#,###.##%', '#,##,###.00%']
+    }
+  };
+
+  // Enhanced format helper functions with conditional support
   const formatHelpers = {
     canConvertToNumber(value) {
       if (typeof value === 'number') return true;
@@ -59,10 +57,8 @@ function addFormattedRichTextComponent(editor) {
 
     canConvertToDate(value) {
       if (value instanceof Date) return true;
-      if (typeof window.moment !== 'undefined') {
-        return window.moment(value).isValid();
-      }
-      return !isNaN(Date.parse(value));
+      const str = String(value).trim();
+      return !isNaN(Date.parse(str)) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str);
     },
 
     extractTextContent(htmlContent) {
@@ -75,6 +71,7 @@ function addFormattedRichTextComponent(editor) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
       
+      // Find all text nodes and replace with formatted content
       const walker = document.createTreeWalker(
         tempDiv,
         NodeFilter.SHOW_TEXT,
@@ -99,14 +96,17 @@ function addFormattedRichTextComponent(editor) {
       return tempDiv.innerHTML;
     },
 
+    // Enhanced method to check if a condition string is a number condition
     isNumberCondition(condition) {
       const conditionPattern = /^(<|<=|>|>=|=|!=)\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*\(\s*value\s*\)\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*\(\s*value\s*\)\s*<=\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*value\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*value\s*<=\s*\d+(\.\d+)?$/;
       return conditionPattern.test(condition.trim());
     },
 
+    // Parse and evaluate number conditions
     parseNumberCondition(condition) {
       const trimmed = condition.trim();
       
+      // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
       const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
       const rangeMatch = trimmed.match(rangePattern);
       
@@ -135,6 +135,7 @@ function addFormattedRichTextComponent(editor) {
         };
       }
       
+      // Handle simple conditions: <1000, >=500, =100, !=50, etc.
       const simplePattern = /^(<|<=|>|>=|=|!=)\s*(\d+(?:\.\d+)?)$/;
       const simpleMatch = trimmed.match(simplePattern);
       
@@ -166,6 +167,7 @@ function addFormattedRichTextComponent(editor) {
       return null;
     },
 
+    // Extract all numbers from text content
     extractNumbers(content) {
       const text = this.extractTextContent(content);
       const numberPattern = /\b\d+(?:\.\d+)?\b/g;
@@ -173,6 +175,7 @@ function addFormattedRichTextComponent(editor) {
       return matches ? matches.map(match => parseFloat(match)) : [];
     },
 
+    // Check if any number in the content matches the condition
     evaluateNumberCondition(content, condition) {
       const conditionObj = this.parseNumberCondition(condition);
       if (!conditionObj) return false;
@@ -183,6 +186,11 @@ function addFormattedRichTextComponent(editor) {
 
     validateFormat(value, formatType) {
       const textContent = this.extractTextContent(value);
+      
+      if (formatType.includes('+')) {
+        const [primary] = formatType.split('+');
+        return this.validateFormat(textContent, primary);
+      }
       
       switch (formatType) {
         case 'text':
@@ -198,12 +206,10 @@ function addFormattedRichTextComponent(editor) {
           }
           return { valid: true };
         case 'date':
-        case 'time':
-        case 'datetime':
           if (!this.canConvertToDate(textContent)) {
             return { 
               valid: false, 
-              error: `"${textContent}" cannot be converted to ${formatType}.` 
+              error: `"${textContent}" cannot be converted to date.` 
             };
           }
           return { valid: true };
@@ -223,29 +229,13 @@ function addFormattedRichTextComponent(editor) {
     parseDate(value) {
       const textContent = this.extractTextContent(value);
       if (textContent instanceof Date) return textContent;
-      
-      if (typeof window.moment !== 'undefined') {
-        const parsed = window.moment(textContent);
-        return parsed.isValid() ? parsed.toDate() : new Date();
-      }
-      
       const parsed = new Date(textContent);
       return isNaN(parsed.getTime()) ? new Date() : parsed;
     },
 
-    // Using Numeral.js for number formatting
     formatNumber(value, pattern) {
       const num = this.parseNumber(value);
       
-      if (typeof window.numeral !== 'undefined') {
-        try {
-          return window.numeral(num).format(pattern);
-        } catch (e) {
-          console.warn('Numeral.js format error:', e);
-        }
-      }
-      
-      // Fallback formatting
       switch (pattern) {
         case '0':
           return Math.round(num).toString();
@@ -253,70 +243,39 @@ function addFormattedRichTextComponent(editor) {
           return num.toFixed(1);
         case '0.00':
           return num.toFixed(2);
-        case '0,0':
+        case '#,###':
           return new Intl.NumberFormat('en-US').format(num);
-        case '0,0.0':
-          return new Intl.NumberFormat('en-US', { minimumFractionDigits: 1 }).format(num);
-        case '0,0.00':
+        case '#,###.##':
           return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(num);
+        case '#,##,###':
+          return new Intl.NumberFormat('en-IN').format(num);
+        case '#,##,###.##':
+          return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(num);
         default:
           return num.toString();
       }
     },
 
-    // Using Numeral.js for currency formatting
     formatCurrency(value, pattern) {
       const num = this.parseNumber(value);
-      
-      if (typeof window.numeral !== 'undefined') {
-        try {
-          return window.numeral(num).format(pattern);
-        } catch (e) {
-          console.warn('Numeral.js currency format error:', e);
-        }
-      }
-      
-      // Fallback currency formatting
       const currencySymbol = pattern.charAt(0);
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
       const locale = currencySymbol === '₹' ? 'en-IN' : 'en-US';
 
-      return currencySymbol + new Intl.NumberFormat(locale, {
+      return currencySymbol + ' ' + new Intl.NumberFormat(locale, {
         minimumFractionDigits: decimals > 0 ? decimals : 0,
         maximumFractionDigits: decimals > 0 ? decimals : 0
       }).format(num);
     },
 
-    // Using Numeral.js for percentage formatting
     formatPercentage(value, pattern) {
       const num = this.parseNumber(value);
-      
-      if (typeof window.numeral !== 'undefined') {
-        try {
-          return window.numeral(num / 100).format(pattern);
-        } catch (e) {
-          console.warn('Numeral.js percentage format error:', e);
-        }
-      }
-      
-      // Fallback percentage formatting
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
       return num.toFixed(decimals) + '%';
     },
 
-    // Using Moment.js for date formatting
     formatDate(value, pattern) {
       const date = this.parseDate(value);
-      
-      if (typeof window.moment !== 'undefined') {
-        try {
-          return window.moment(date).format(pattern);
-        } catch (e) {
-          console.warn('Moment.js format error:', e);
-        }
-      }
-      
-      // Fallback date formatting
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
       const day = date.getDate();
@@ -339,54 +298,38 @@ function addFormattedRichTextComponent(editor) {
       }
     },
 
-    formatTime(value, pattern) {
-      const date = this.parseDate(value);
+    formatCombined(value, pattern) {
+      const num = this.parseNumber(value);
       
-      if (typeof window.moment !== 'undefined') {
-        try {
-          return window.moment(date).format(pattern);
-        } catch (e) {
-          console.warn('Moment.js time format error:', e);
-        }
+      if (pattern.includes('₹')) {
+        return '₹' + new Intl.NumberFormat('en-IN').format(num);
+      } else if (pattern.startsWith('$')) {
+        return '$' + new Intl.NumberFormat('en-US').format(num);
+      } else if (pattern.startsWith('€')) {
+        return '€' + new Intl.NumberFormat('en-US').format(num);
+      } else if (pattern.startsWith('¥')) {
+        return '¥' + new Intl.NumberFormat('en-US').format(num);
       }
       
-      // Fallback time formatting
-      const hours = date.getHours();
-      const minutes = date.getMinutes();
-      const seconds = date.getSeconds();
-      
-      switch (pattern) {
-        case 'HH:mm':
-          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-        case 'hh:mm A':
-          const ampm = hours >= 12 ? 'PM' : 'AM';
-          const hours12 = hours % 12 || 12;
-          return `${hours12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-        case 'HH:mm:ss':
-          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        default:
-          return date.toLocaleTimeString();
-      }
-    },
-
-    formatDateTime(value, pattern) {
-      const date = this.parseDate(value);
-      
-      if (typeof window.moment !== 'undefined') {
-        try {
-          return window.moment(date).format(pattern);
-        } catch (e) {
-          console.warn('Moment.js datetime format error:', e);
-        }
+      if (pattern.includes('%')) {
+        const decimals = pattern.includes('.##') ? 2 : pattern.includes('.00') ? 2 : 0;
+        const locale = pattern.includes('#,##,###') ? 'en-IN' : 'en-US';
+        return new Intl.NumberFormat(locale, { 
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals 
+        }).format(num) + '%';
       }
       
-      // Fallback datetime formatting
-      return date.toLocaleString();
+      return this.extractTextContent(value);
     },
 
     applyFormat(value, formatType, pattern) {
-      let formattedText;
+      if (formatType.includes('+')) {
+        const formattedText = this.formatCombined(value, pattern);
+        return this.preserveRichTextStructure(value, formattedText);
+      }
       
+      let formattedText;
       switch (formatType) {
         case 'number':
           formattedText = this.formatNumber(value, pattern);
@@ -400,12 +343,6 @@ function addFormattedRichTextComponent(editor) {
         case 'date':
           formattedText = this.formatDate(value, pattern);
           break;
-        case 'time':
-          formattedText = this.formatTime(value, pattern);
-          break;
-        case 'datetime':
-          formattedText = this.formatDateTime(value, pattern);
-          break;
         default:
           return value;
       }
@@ -416,15 +353,30 @@ function addFormattedRichTextComponent(editor) {
 
   // Get all format options
   function getAllFormatOptions() {
-    return Object.keys(formatConfigs).map(key => ({
+    const options = Object.keys(formatConfigs).map(key => ({
       value: key,
       label: `${formatConfigs[key].icon} ${formatConfigs[key].label}`
     }));
+    
+    Object.keys(combinedFormats).forEach(key => {
+      options.push({
+        value: key,
+        label: `${combinedFormats[key].icon} ${combinedFormats[key].label}`
+      });
+    });
+    
+    return options;
   }
 
   // Get format label for hover tooltip
   function getFormatLabel(formatType) {
-    return formatConfigs[formatType]?.label || 'Text';
+    if (formatConfigs[formatType]) {
+      return formatConfigs[formatType].label;
+    }
+    if (combinedFormats[formatType]) {
+      return combinedFormats[formatType].label;
+    }
+    return 'Text';
   }
 
   // Custom RTE actions
@@ -737,35 +689,39 @@ function addFormattedRichTextComponent(editor) {
       },
 
       updateContent() {
-        const formatType = this.get('format-type') || 'text';
-        const pattern = this.get('format-pattern') || 'None';
-        let rawContent = this.get('raw-content') || '';
+  const formatType = this.get('format-type') || 'text';
+  const pattern = this.get('format-pattern') || 'None';
+  let rawContent = this.get('raw-content') || '';
 
-        if (typeof rawContent !== 'string') {
-          rawContent = String(rawContent);
-        }
+  if (typeof rawContent !== 'string') {
+    rawContent = String(rawContent);
+  }
 
-        const previousContent = this.get('content');
+  const previousContent = this.get('content');
 
-        let formattedContent;
-        
-        if (formatType === 'text' || pattern === 'None') {
-          formattedContent = rawContent;
-        } else {
-          try {
-            formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
-          } catch (error) {
-            console.warn('Format error:', error);
-            formattedContent = rawContent;
-          }
-        }
+  let formattedContent;
+  
+  if (formatType === 'text' || pattern === 'None') {
+    formattedContent = rawContent;
+  } else {
+    try {
+      formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
+    } catch (error) {
+      console.warn('Format error:', error);
+      formattedContent = rawContent;
+    }
+  }
 
-        const finalContent = this.applyConditionalFormatting(formattedContent);
-        
-        if (finalContent !== previousContent) {
-          this.set('content', finalContent);
-        }
-      },
+  const finalContent = this.applyConditionalFormatting(formattedContent);
+  
+  if (finalContent !== previousContent) {
+    this.set('content', finalContent);
+    // FIXED: Update raw-content to match when formatting is applied
+    if (formatType !== 'text' && pattern !== 'None') {
+      this.set('raw-content', formatHelpers.extractTextContent(finalContent), { silent: true });
+    }
+  }
+},
 
       updateFromJsonPath(jsonPath) {
         if (jsonPath && jsonPath.trim()) {
@@ -797,8 +753,86 @@ function addFormattedRichTextComponent(editor) {
       },
 
       handleSingleClick(e) {
-        // Allow normal GrapesJS selection behavior on single click
+  // Check if the clicked element is a link or inside a link
+  const clickedElement = e.target;
+  const linkElement = clickedElement.closest('a');
+  
+  if (linkElement) {
+    // Prevent the event from bubbling up to avoid selecting the text component
+    e.stopPropagation();
+    
+    // Get the editor manager
+    const em = this.model.em;
+    if (!em) return;
+    
+    // Create a temporary DOM component for the link
+    const linkComponent = {
+      tagName: 'a',
+      attributes: {
+        href: linkElement.getAttribute('href') || '',
+        target: linkElement.getAttribute('target') || '_self'
       },
+      content: linkElement.innerHTML
+    };
+    
+    // Create traits for the link
+    const linkTraits = [
+      {
+        type: 'text',
+        name: 'href',
+        label: 'Href',
+        value: linkElement.getAttribute('href') || ''
+      },
+      {
+        type: 'select',
+        name: 'target',
+        label: 'Target',
+        options: [
+          { value: '_self', label: 'This window' },
+          { value: '_blank', label: 'New window' }
+        ],
+        value: linkElement.getAttribute('target') || '_self'
+      }
+    ];
+    
+    // Show the traits panel with link-specific traits
+    const traitManager = em.get('TraitManager');
+    if (traitManager) {
+      // Clear existing traits
+      traitManager.getCurrent().forEach(trait => {
+        traitManager.removeTrait(trait.get('name'));
+      });
+      
+      // Add link traits
+      linkTraits.forEach(traitConfig => {
+        const trait = traitManager.addTrait(traitConfig);
+        
+        // Handle trait changes
+        trait.on('change:value', () => {
+          const traitName = trait.get('name');
+          const traitValue = trait.get('value');
+          
+          // Update the actual link element
+          if (traitName === 'href') {
+            linkElement.setAttribute('href', traitValue);
+          } else if (traitName === 'target') {
+            linkElement.setAttribute('target', traitValue);
+          }
+          
+          // Update the model's raw content
+          this.model.set('raw-content', this.el.innerHTML, { silent: true });
+        });
+      });
+      
+      // Trigger trait update
+      traitManager.trigger('update');
+    }
+    
+    return;
+  }
+  
+  // If not clicking on a link, allow normal GrapesJS selection behavior
+},
 
       handleEditingChange() {
         const isEditing = this.model.get('is-editing');
@@ -810,141 +844,186 @@ function addFormattedRichTextComponent(editor) {
       },
 
       enableRichTextEditing(e) {
-        console.log('=== DOUBLE CLICK DETECTED ===');
-        e.preventDefault();
-        e.stopPropagation();
+  console.log('=== DOUBLE CLICK DETECTED ===');
+  e.preventDefault();
+  e.stopPropagation();
 
-        // FIXED: Clear any pending timeout
-        if (this.rteTimeout) {
-          clearTimeout(this.rteTimeout);
-          this.rteTimeout = null;
-        }
+  // FIXED: Clear any pending timeout
+  if (this.rteTimeout) {
+    clearTimeout(this.rteTimeout);
+    this.rteTimeout = null;
+  }
 
-        // Check if already in RTE mode
-        if (this.rteActive) {
-          console.log('RTE already active, ignoring double click');
-          return;
-        }
+  // FIXED: Force stop any existing RTE first
+  if (this.rteActive) {
+    console.log('RTE already active, forcing stop first');
+    this.forceStopRTE();
+    // Wait a bit before starting new RTE session
+    setTimeout(() => {
+      this.model.enableRTE();
+    }, 100);
+    return;
+  }
 
-        // Check if content is hidden
-        const hideWords = this.model.get('hide-words') || '';
-        if (hideWords.trim()) {
-          const content = this.model.get('content') || '';
-          if (content.includes('class="hidden-word"') && content.includes('display: none')) {
-            console.log('Content is hidden, cannot edit');
-            return;
-          }
-        }
+  // Check if content is hidden
+  const hideWords = this.model.get('hide-words') || '';
+  if (hideWords.trim()) {
+    const content = this.model.get('content') || '';
+    if (content.includes('class="hidden-word"') && content.includes('display: none')) {
+      console.log('Content is hidden, cannot edit');
+      return;
+    }
+  }
 
-        console.log('Enabling RTE...');
-        this.model.enableRTE();
-      },
+  console.log('Enabling RTE...');
+  this.model.enableRTE();
+},
 
       startRTE() {
-        console.log('=== STARTING RTE ===');
-        
-        if (this.rteActive) {
-          console.log('RTE already active, aborting start');
-          return;
-        }
+  console.log('=== STARTING RTE ===');
+  
+  if (this.rteActive) {
+    console.log('RTE already active, aborting start');
+    return;
+  }
 
-        const em = this.model.em;
-        if (!em) {
-          console.log('No editor manager found');
-          return;
-        }
+  const em = this.model.em;
+  if (!em) {
+    console.log('No editor manager found');
+    return;
+  }
 
-        const rte = em.get('RichTextEditor');
-        if (!rte) {
-          console.log('No RTE found');
-          return;
-        }
+  const rte = em.get('RichTextEditor');
+  if (!rte) {
+    console.log('No RTE found');
+    return;
+  }
 
-        // FIXED: Set state immediately to prevent double initialization
-        this.rteActive = true;
+  // FIXED: Set state immediately to prevent double initialization
+  this.rteActive = true;
 
-        // Store original actions
-        this.originalActions = rte.getAll().slice();
-        console.log('Stored original actions:', this.originalActions.length);
-        
-        // Clear existing actions
-        this.originalActions.forEach(action => {
-          try {
-            rte.remove(action.name);
-          } catch (e) {
-            console.log('Error removing action:', action.name);
-          }
-        });
+  // Store original actions
+  this.originalActions = rte.getAll().slice();
+  console.log('Stored original actions:', this.originalActions.length);
+  
+  // Clear existing actions
+  this.originalActions.forEach(action => {
+    try {
+      rte.remove(action.name);
+    } catch (e) {
+      console.log('Error removing action:', action.name);
+    }
+  });
 
-        // Add custom actions
-        customRteActions.forEach(action => {
-          try {
-            rte.add(action.name, action);
-          } catch (e) {
-            console.log('Error adding action:', action.name);
-          }
-        });
+  // Add custom actions
+  customRteActions.forEach(action => {
+    try {
+      rte.add(action.name, action);
+    } catch (e) {
+      console.log('Error adding action:', action.name);
+    }
+  });
 
-        // FIXED: Set raw content for editing and store formatted content
-        const rawContent = this.model.get('raw-content') || '';
-        const formattedContent = this.model.get('content') || '';
-        
-        console.log('Raw content for editing:', rawContent);
-        console.log('Formatted content stored:', formattedContent);
-        
-        // Store the formatted content to restore later
-        this.storedFormattedContent = formattedContent;
-        
-        // Set element content to raw content for editing
-        this.el.innerHTML = rawContent;
+  // FIXED: Proper content handling for editing
+  const rawContent = this.model.get('raw-content') || '';
+  console.log('Raw content for editing:', rawContent);
+  
+  // Set element content to raw content for editing
+  this.el.innerHTML = rawContent;
+  
+  // FIXED: Make element editable BEFORE enabling RTE
+  this.el.contentEditable = true;
 
-        // Enable RTE with enhanced configuration
-        try {
-          console.log('Enabling RTE on element');
-          rte.enable(this, null, { 
-            actions: customRteActions.map(a => a.name),
-            styleWithCSS: false
-          });
-          console.log('RTE enabled successfully');
-        } catch (e) {
-          console.error('RTE enable error:', e);
-          this.rteActive = false;
-          return;
-        }
+  // Enable RTE with enhanced configuration
+  try {
+    console.log('Enabling RTE on element');
+    rte.enable(this, null, { 
+      actions: customRteActions.map(a => a.name),
+      styleWithCSS: false
+    });
+    console.log('RTE enabled successfully');
+  } catch (e) {
+    console.error('RTE enable error:', e);
+    this.rteActive = false;
+    this.el.contentEditable = false;
+    return;
+  }
 
-        // FIXED: Enhanced content change handler with debouncing
-        this.rteChangeHandler = this.debounce(() => {
-          const content = this.el.innerHTML;
-          console.log("Content changed in RTE:", content);
-          this.model.set('raw-content', content, { silent: true });
-        }, 150);
+  // FIXED: Enhanced content change handler with debouncing
+  this.rteChangeHandler = this.debounce(() => {
+    const content = this.el.innerHTML;
+    console.log("Content changed in RTE:", content);
+    this.model.set('raw-content', content, { silent: true });
+  }, 150);
 
-        console.log('Adding event listeners');
-        this.el.addEventListener('input', this.rteChangeHandler);
-        this.el.addEventListener('paste', this.handleRTEPaste.bind(this));
-        
-        // FIXED: Use focusout instead of blur for better event handling
-        this.el.addEventListener('focusout', this.handleRTEFocusOut.bind(this));
-        
-        // Add escape key handler
-        this.escapeHandler = (e) => {
-          if (e.key === 'Escape') {
-            console.log('Escape key pressed, closing RTE');
-            this.handleRTEFocusOut();
-          }
-        };
-        document.addEventListener('keydown', this.escapeHandler);
-        
-        // FIXED: Focus the element after a short delay
-        setTimeout(() => {
-          if (this.rteActive && this.el) {
-            this.el.focus();
-            console.log('Element focused');
-          }
-        }, 100);
-        
-        console.log('RTE startup complete');
-      },
+  console.log('Adding event listeners');
+  this.el.addEventListener('input', this.rteChangeHandler);
+  this.el.addEventListener('paste', this.handleRTEPaste.bind(this));
+  
+  // FIXED: Add global click handler to detect outside clicks
+// In startRTE, replace the globalClickHandler assignment:
+this.globalClickHandler = (e) => {
+  if (!this.el.contains(e.target) && !e.target.closest('.gjs-rte-toolbar')) {
+    console.log('Clicked outside, stopping RTE');
+    this.handleRTEExit(); // Changed from handleRTEFocusOut
+  }
+};
+
+// And update escape handler:
+this.escapeHandler = (e) => {
+  if (e.key === 'Escape') {
+    console.log('Escape key pressed, closing RTE');
+    this.handleRTEExit(); // Changed from handleRTEFocusOut
+  }
+};
+  
+  // FIXED: Add event listeners with proper timing
+  setTimeout(() => {
+    document.addEventListener('click', this.globalClickHandler);
+    document.addEventListener('keydown', this.escapeHandler);
+  }, 100);
+  
+  // FIXED: Focus the element with proper timing and cursor positioning
+  setTimeout(() => {
+    if (this.rteActive && this.el) {
+      this.el.focus();
+      
+      // FIXED: Set cursor to end of content
+      const range = document.createRange();
+      const selection = window.getSelection();
+      
+      // Find the last text node
+      const walker = document.createTreeWalker(
+        this.el,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+      
+      let lastTextNode = null;
+      let node;
+      while (node = walker.nextNode()) {
+        lastTextNode = node;
+      }
+      
+      if (lastTextNode) {
+        range.setStart(lastTextNode, lastTextNode.textContent.length);
+        range.setEnd(lastTextNode, lastTextNode.textContent.length);
+      } else {
+        // If no text nodes, set range to end of element
+        range.selectNodeContents(this.el);
+        range.collapse(false);
+      }
+      
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      console.log('Element focused with cursor positioned');
+    }
+  }, 200);
+  
+  console.log('RTE startup complete');
+},
 
       // FIXED: Add debounce utility function
       debounce(func, wait) {
@@ -971,143 +1050,155 @@ function addFormattedRichTextComponent(editor) {
       },
 
       stopRTE() {
-        console.log('=== STOPPING RTE ===');
-        
-        if (!this.rteActive) {
-          console.log('RTE not active, nothing to stop');
-          return;
-        }
+  console.log('=== STOPPING RTE ===');
+  
+  if (!this.rteActive) {
+    console.log('RTE not active, nothing to stop');
+    return;
+  }
 
-        const em = this.model.em;
-        if (!em) {
-          console.log('No editor manager found');
-          return;
-        }
+  const em = this.model.em;
+  if (!em) {
+    console.log('No editor manager found');
+    return;
+  }
 
-        const rte = em.get('RichTextEditor');
-        if (!rte) {
-          console.log('No RTE found');
-          return;
-        }
+  const rte = em.get('RichTextEditor');
+  if (!rte) {
+    console.log('No RTE found');
+    return;
+  }
 
-        // FIXED: Set state immediately to prevent race conditions
-        this.rteActive = false;
+  // FIXED: Set state immediately to prevent race conditions
+  this.rteActive = false;
 
-        // Remove event listeners first
-        if (this.rteChangeHandler) {
-          console.log('Removing event listeners');
-          this.el.removeEventListener('input', this.rteChangeHandler);
-          this.el.removeEventListener('paste', this.handleRTEPaste);
-          this.el.removeEventListener('focusout', this.handleRTEFocusOut);
-          this.rteChangeHandler = null;
-        }
+  // Remove event listeners first
+  if (this.rteChangeHandler) {
+    console.log('Removing event listeners');
+    this.el.removeEventListener('input', this.rteChangeHandler);
+    this.el.removeEventListener('paste', this.handleRTEPaste);
+    this.rteChangeHandler = null;
+  }
 
-        // Remove escape key handler
-        if (this.escapeHandler) {
-          console.log('Removing escape key handler');
-          document.removeEventListener('keydown', this.escapeHandler);
-          this.escapeHandler = null;
-        }
+  // FIXED: Remove global event handlers
+  if (this.globalClickHandler) {
+    console.log('Removing global click handler');
+    document.removeEventListener('click', this.globalClickHandler);
+    this.globalClickHandler = null;
+  }
 
-        // Disable RTE
-        try {
-          console.log('Disabling RTE');
-          rte.disable(this);
-          console.log('RTE disabled successfully');
-        } catch (e) {
-          console.error('RTE disable error:', e);
-        }
+  if (this.escapeHandler) {
+    console.log('Removing escape key handler');
+    document.removeEventListener('keydown', this.escapeHandler);
+    this.escapeHandler = null;
+  }
 
-        // Restore original actions
-        if (this.originalActions) {
-          console.log('Restoring original actions');
-          
-          // Remove custom actions first
-          customRteActions.forEach(action => {
-            try {
-              rte.remove(action.name);
-            } catch (e) {
-              console.log('Error removing custom action:', action.name);
-            }
-          });
+  // Disable RTE
+  try {
+    console.log('Disabling RTE');
+    rte.disable(this);
+    console.log('RTE disabled successfully');
+  } catch (e) {
+    console.error('RTE disable error:', e);
+  }
 
-          // Add back original actions
-          this.originalActions.forEach(action => {
-            try {
-              rte.add(action.name, action);
-            } catch (e) {
-              console.log('Error restoring action:', action.name);
-            }
-          });
-          
-          this.originalActions = null;
-          console.log('Original actions restored');
-        }
+  // Restore original actions
+  if (this.originalActions) {
+    console.log('Restoring original actions');
+    
+    // Remove custom actions first
+    customRteActions.forEach(action => {
+      try {
+        rte.remove(action.name);
+      } catch (e) {
+        console.log('Error removing custom action:', action.name);
+      }
+    });
 
-        // FIXED: Clear any pending timeouts
-        if (this.rteTimeout) {
-          clearTimeout(this.rteTimeout);
-          this.rteTimeout = null;
-        }
+    // Add back original actions
+    this.originalActions.forEach(action => {
+      try {
+        rte.add(action.name, action);
+      } catch (e) {
+        console.log('Error restoring action:', action.name);
+      }
+    });
+    
+    this.originalActions = null;
+    console.log('Original actions restored');
+  }
 
-        // Ensure element is not editable
-        this.el.contentEditable = false;
-        this.el.blur();
-        
-        console.log('RTE stop complete');
-      },
+  // FIXED: Clear any pending timeouts
+  if (this.rteTimeout) {
+    clearTimeout(this.rteTimeout);
+    this.rteTimeout = null;
+  }
+
+  // FIXED: Ensure element is properly reset
+  this.el.contentEditable = false;
+  this.el.blur();
+  
+  console.log('RTE stop complete');
+},
 
       // FIXED: Force stop method for external calls
       forceStopRTE() {
-        console.log('=== FORCE STOP RTE ===');
-        if (this.rteActive) {
-          console.log('Forcing RTE to stop');
-          this.stopRTE();
-          this.model.set('is-editing', false, { silent: true });
-        }
-      },
+  console.log('=== FORCE STOP RTE ===');
+  if (this.rteActive) {
+    console.log('Forcing RTE to stop');
+    
+    // FIXED: Clear timeouts before stopping
+    if (this.rteTimeout) {
+      clearTimeout(this.rteTimeout);
+      this.rteTimeout = null;
+    }
+    
+    this.stopRTE();
+    this.model.set('is-editing', false, { silent: true });
+    
+    // FIXED: Ensure element state is reset
+    if (this.el) {
+      this.el.contentEditable = false;
+      this.el.blur();
+    }
+  }
+},
 
       // FIXED: Use focusout instead of blur for better handling
-      handleRTEFocusOut(e) {
-        console.log('=== RTE FOCUS OUT TRIGGERED ===');
-        
-        // FIXED: Add delay to prevent premature closing when clicking RTE toolbar
-        if (this.rteTimeout) {
-          clearTimeout(this.rteTimeout);
-        }
-        
-        this.rteTimeout = setTimeout(() => {
-          if (!this.rteActive) {
-            console.log('RTE already inactive, ignoring focus out');
-            return;
-          }
-          
-          const content = this.el.innerHTML;
-          console.log('Content on focus out:', content);
-          
-          const formatType = this.model.get('format-type');
-          console.log('Format type:', formatType);
-          
-          // Validate format before applying
-          const validation = formatHelpers.validateFormat(content, formatType);
-          
-          if (!validation.valid) {
-            console.log('Validation failed:', validation.error);
-            alert(validation.error);
-            // Revert to previous content
-            const previousContent = this.model.get('raw-content');
-            this.el.innerHTML = previousContent;
-          } else {
-            console.log('Validation passed, updating content');
-            this.model.set('raw-content', content, { silent: true });
-            this.model.updateContent();
-          }
-          
-          // Disable editing
-          console.log('Disabling RTE from focus out handler');
-          this.model.disableRTE();
-        }, 200); // 200ms delay to allow toolbar interactions
-      },
+      // FIXED: Remove handleRTEFocusOut method completely and replace with this simpler version
+handleRTEExit() {
+  console.log('=== RTE EXIT TRIGGERED ===');
+  
+  if (!this.rteActive) {
+    console.log('RTE already inactive, ignoring exit');
+    return;
+  }
+  
+  const content = this.el.innerHTML;
+  console.log('Content on exit:', content);
+  
+  const formatType = this.model.get('format-type');
+  console.log('Format type:', formatType);
+  
+  // Validate format before applying
+  const validation = formatHelpers.validateFormat(content, formatType);
+  
+  if (!validation.valid) {
+    console.log('Validation failed:', validation.error);
+    alert(validation.error);
+    // Revert to previous content
+    const previousContent = this.model.get('raw-content');
+    this.el.innerHTML = previousContent;
+  } else {
+    console.log('Validation passed, updating content');
+    this.model.set('raw-content', content, { silent: true });
+    this.model.updateContent();
+  }
+  
+  // Disable editing
+  console.log('Disabling RTE from exit handler');
+  this.model.disableRTE();
+},
 
       // FIXED: Enhanced render method
       onRender() {
@@ -1347,85 +1438,6 @@ function addFormattedRichTextComponent(editor) {
     }
   `);
 
-  console.log('Enhanced Formatted Rich Text component with library support initialized successfully!');
+  console.log('Text component initialized successfully!');
   
-  // FIXED: Add initialization check for required libraries
-  const checkLibraries = () => {
-    const warnings = [];
-    
-    if (typeof window.numeral === 'undefined') {
-      warnings.push('Numeral.js library not found. Number and currency formatting will use fallback methods.');
-    }
-    
-    if (typeof window.moment === 'undefined') {
-      warnings.push('Moment.js library not found. Date formatting will use fallback methods.');
-    }
-    
-    if (warnings.length > 0) {
-      console.warn('Library Dependencies:', warnings.join(' '));
-      console.info('To get full formatting features, add these to your index.html:');
-      console.info('<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>');
-      console.info('<script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>');
-    }
-  };
-  
-  // Check libraries after a short delay to ensure they're loaded
-  setTimeout(checkLibraries, 100);
-  
-  // Return helper functions for external use
-  return {
-    formatHelpers,
-    customRteActions,
-    getAllFormatOptions,
-    formatConfigs,
-    
-    // Utility methods for external integration
-    utils: {
-      isValidCondition(condition) {
-        return formatHelpers.isNumberCondition(condition) || condition.trim().length > 0;
-      },
-      
-      parseCondition(condition) {
-        if (formatHelpers.isNumberCondition(condition)) {
-          return {
-            type: 'number',
-            details: formatHelpers.parseNumberCondition(condition)
-          };
-        }
-        return {
-          type: 'text',
-          details: { value: condition.trim() }
-        };
-      },
-      
-      evaluateCondition(content, condition) {
-        if (formatHelpers.isNumberCondition(condition)) {
-          return formatHelpers.evaluateNumberCondition(content, condition);
-        }
-        const text = formatHelpers.extractTextContent(content);
-        return text.toLowerCase().includes(condition.toLowerCase());
-      },
-      
-      // FIXED: Method to manually refresh all formatted text components
-      refreshAllComponents() {
-        const components = editor.DomComponents.getWrapper().find('[data-gjs-type="formatted-rich-text"]');
-        components.forEach(component => {
-          if (component.view && !component.view.rteActive) {
-            component.updateContent();
-            component.view.render();
-          }
-        });
-      },
-      
-      // FIXED: Method to force stop all active RTEs
-      stopAllRTEs() {
-        const components = editor.DomComponents.getWrapper().find('[data-gjs-type="formatted-rich-text"]');
-        components.forEach(component => {
-          if (component.view && component.view.rteActive) {
-            component.view.forceStopRTE();
-          }
-        });
-      }
-    }
-  };
 }
