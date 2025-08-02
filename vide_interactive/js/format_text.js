@@ -9,16 +9,17 @@ function addFormattedRichTextComponent(editor) {
     },
     number: {
       label: 'Number',
-      patterns: ['0', '0.0', '0.00', '#,###', '#,###.##', '#,##,###', '#,##,###.##'],
+      patterns: ['0', '0.0', '0.00', '#,###', '#,###.##', '#,##,###', '#,##,###.##', '#,##,###.###'],
       defaultPattern: '#,##,###',
       icon: '🔢'
     },
     currency: {
       label: 'Currency',
-      patterns: ['$ 0', '$ 0.00', '€ 0.00', '₹ 0.00', '¥ 0', '£ 0.00'],
+      patterns: ['$ 0', '$ 0.00', '₹ 0.00', '₹ 0', '¥ 0', '£ 0.00', '€ 0.00', 'Rp 0.000', 'OMR 0.000'],
       defaultPattern: '₹ 0.00',
       icon: '💰'
     },
+
     percentage: {
       label: 'Percentage',
       patterns: ['0%', '0.0%', '0.00%'],
@@ -30,20 +31,6 @@ function addFormattedRichTextComponent(editor) {
       patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY'],
       defaultPattern: 'MM/DD/YYYY',
       icon: '📅'
-    }
-  };
-
-  // Combined format patterns
-  const combinedFormats = {
-    'number+currency': {
-      label: 'Number + Currency',
-      icon: '🔢💰',
-      patterns: ['₹ #,##,###', '$ #,###.##', '€ #,###.00', '¥ #,###']
-    },
-    'number+percentage': {
-      label: 'Number + Percentage',
-      icon: '🔢📊',
-      patterns: ['#,###%', '#,###.##%', '#,##,###.00%']
     }
   };
 
@@ -251,22 +238,47 @@ function addFormattedRichTextComponent(editor) {
           return new Intl.NumberFormat('en-IN').format(num);
         case '#,##,###.##':
           return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(num);
+          case '#,##,###.###':
+          return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 3 }).format(num);
         default:
           return num.toString();
       }
     },
 
     formatCurrency(value, pattern) {
-      const num = this.parseNumber(value);
-      const currencySymbol = pattern.charAt(0);
-      const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
-      const locale = currencySymbol === '₹' ? 'en-IN' : 'en-US';
+  const num = this.parseNumber(value);
+  // Extract currency symbol or code (leading non-digit, non-space part)
+  const symbolMatch = pattern.match(/^([^\d\s]+|[A-Z]{3})\s*/);
+  const currencySymbol = symbolMatch ? symbolMatch[1] : '';
+  // Determine decimal places from pattern (e.g., '.00' -> 2, '.000' -> 3)
+  const decimalsMatch = pattern.match(/\.0+/);
+  const decimals = decimalsMatch ? decimalsMatch[0].length - 1 : 0;
 
-      return currencySymbol + ' ' + new Intl.NumberFormat(locale, {
-        minimumFractionDigits: decimals > 0 ? decimals : 0,
-        maximumFractionDigits: decimals > 0 ? decimals : 0
-      }).format(num);
-    },
+  let locale;
+  let options = {
+    minimumFractionDigits: decimals > 0 ? decimals : 0,
+    maximumFractionDigits: decimals > 0 ? decimals : 0,
+    useGrouping: true
+  };
+
+  if (currencySymbol === '₹') {
+    // Indian numbering system: en-IN already uses 00,00,000 grouping
+    locale = 'en-IN';
+  } else if (currencySymbol === 'Rp') {
+    // Indonesian formatting: use id-ID (dot as thousand separator, comma as decimal)
+    locale = 'id-ID';
+  } else {
+    // Default western grouping
+    locale = 'en-US';
+  }
+
+  const formattedNumber = new Intl.NumberFormat(locale, options).format(num);
+
+  // For symbols like 'OMR' (three-letter code), keep as-is; others prepend with space
+  const separator = /^[A-Z]{3}$/.test(currencySymbol) ? ' ' : ' ';
+  return currencySymbol + separator + formattedNumber;
+},
+
 
     formatPercentage(value, pattern) {
       const num = this.parseNumber(value);
@@ -296,31 +308,6 @@ function addFormattedRichTextComponent(editor) {
         default:
           return date.toLocaleDateString();
       }
-    },
-
-    formatCombined(value, pattern) {
-      const num = this.parseNumber(value);
-      
-      if (pattern.includes('₹')) {
-        return '₹' + new Intl.NumberFormat('en-IN').format(num);
-      } else if (pattern.startsWith('$')) {
-        return '$' + new Intl.NumberFormat('en-US').format(num);
-      } else if (pattern.startsWith('€')) {
-        return '€' + new Intl.NumberFormat('en-US').format(num);
-      } else if (pattern.startsWith('¥')) {
-        return '¥' + new Intl.NumberFormat('en-US').format(num);
-      }
-      
-      if (pattern.includes('%')) {
-        const decimals = pattern.includes('.##') ? 2 : pattern.includes('.00') ? 2 : 0;
-        const locale = pattern.includes('#,##,###') ? 'en-IN' : 'en-US';
-        return new Intl.NumberFormat(locale, { 
-          minimumFractionDigits: decimals,
-          maximumFractionDigits: decimals 
-        }).format(num) + '%';
-      }
-      
-      return this.extractTextContent(value);
     },
 
     applyFormat(value, formatType, pattern) {
@@ -358,13 +345,6 @@ function addFormattedRichTextComponent(editor) {
       label: `${formatConfigs[key].icon} ${formatConfigs[key].label}`
     }));
     
-    Object.keys(combinedFormats).forEach(key => {
-      options.push({
-        value: key,
-        label: `${combinedFormats[key].icon} ${combinedFormats[key].label}`
-      });
-    });
-    
     return options;
   }
 
@@ -372,9 +352,6 @@ function addFormattedRichTextComponent(editor) {
   function getFormatLabel(formatType) {
     if (formatConfigs[formatType]) {
       return formatConfigs[formatType].label;
-    }
-    if (combinedFormats[formatType]) {
-      return combinedFormats[formatType].label;
     }
     return 'Text';
   }

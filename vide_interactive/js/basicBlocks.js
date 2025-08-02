@@ -364,7 +364,7 @@
             labelColumn39: "2 Columns 3/9",
             labelText: "Text",
             labelSeparator: "Separator",
-            labelSection:"Dynamic Header Footer",
+            labelSection:"Sections",
             labelLink: "Link",
             labelImage: "Image",
             labelVideo: "Video",

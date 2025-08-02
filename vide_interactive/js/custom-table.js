@@ -21,7 +21,7 @@ function customTable(editor) {
       const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
       const script = iframeDoc.createElement('script');
-      script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.umd.js";
+      script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
       script.onload = () => {
         formulaParserLoaded = true;
         resolve();
