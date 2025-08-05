@@ -28,7 +28,7 @@ const editor = InteractiveDesigner.init({
     addQRBarcodeComponent,
     registerCustomShapes,
     customJsonTable,
-    SourceAudioPlugin ,
+    addLiveLineChartComponent,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -64,10 +64,6 @@ const editor = InteractiveDesigner.init({
       traitName: "hideOnPrint",
       className: "hide-on-print",
     },
-    grapesjsPluginBackgroundAudio: {
-      blockLabel: 'BG Audio',
-      blockCategory: 'Media',
-    },
   },
   canvas: {
     styles: [
@@ -95,7 +91,11 @@ const editor = InteractiveDesigner.init({
       "https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js",
       "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
       "https://code.highcharts.com/stock/highstock.js",
+      "https://code.highcharts.com/highcharts-3d.js",
       "https://code.highcharts.com/highcharts-more.js",
+      "https://code.highcharts.com/modules/data.js",
+      "https://code.highcharts.com/modules/exporting.js",
+      "https://code.highcharts.com/modules/accessibility.js",
       "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
       "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
       "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
@@ -169,12 +169,6 @@ editor.Panels.addPanel({ id: "devices-c" })
       attributes: { title: "Change Language", id: "multiLanguage" },
       className: "fa fa-language",
     },
-    {
-      id: "backgroundMusic",
-      attributes: { title: "Add Background Music", id: "backgroundMusic" },
-      className: "fa fa-music",
-      command: 'open-background-music-modal', 
-    },
     // {
     //   id: "filterTable",
     //   attributes: { title: "Report Parameter", id: "filterTable" },
@@ -190,139 +184,6 @@ save.addEventListener("click", savePage, true);
 var importPage = document.getElementById("importPage");
 importPage.addEventListener("click", importSinglePages, true);
 
-// var backMusic = document.getElementById("backgroundMusic");
-// backMusic.addEventListener("click", addBackgroundMusic, true);
-
-
-editor.Commands.add('open-background-music-modal', {
-  run(editor) {
-    const modal = editor.Modal;
-    const container = document.createElement('div');
-    container.style.padding = '10px';
-
-    // Check if there's already an <audio> component and grab its src and loop status
-    const existingAudioComp = editor.getWrapper().find('audio')[0];
-    const existingSrc = existingAudioComp ? existingAudioComp.getAttributes().src || '' : '';
-    const existingLoopAttr = existingAudioComp
-      ? !('loop' in existingAudioComp.getAttributes()) // if loop attr missing, it was play once
-      : false;
-
-    container.innerHTML = `
-      <div style="margin-bottom: 10px;">
-        <label><strong>Audio File Path:</strong></label><br/>
-        <input type="text" id="bg-audio-path" style="width: 100%;" placeholder="Enter audio URL or path" value="${existingSrc}"/>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label>
-          <input type="checkbox" id="bg-audio-once" ${existingLoopAttr ? 'checked' : ''}/>
-          Play only once
-        </label>
-      </div>
-      <button id="add-bg-audio-btn" class="gjs-btn gjs-btn-prim">${existingAudioComp ? 'Update' : 'Add'} Background Music</button>
-    `;
-
-    modal.setTitle('Background Music'); 
-    modal.setContent(container);
-    modal.open();
-
-    setTimeout(() => {
-      document.getElementById('add-bg-audio-btn').onclick = () => {
-        const audioPath = document.getElementById('bg-audio-path').value.trim();
-        const playOnce = document.getElementById('bg-audio-once').checked;
-
-        if (!audioPath) {
-          alert('Please enter a valid audio file path.');
-          return;
-        }
-
-        // If existing audio component, update its attributes instead of duplicating
-        if (existingAudioComp) {
-          existingAudioComp.addAttributes({
-            src: audioPath,
-            preload: 'auto',
-            controls: true,
-            ...(playOnce ? {} : { loop: true }),
-          });
-        } else {
-          // Generate unique ID for the audio element
-          const audioId = 'bg-audio-' + Date.now();
-
-          const audioAttrs = {
-            src: audioPath,
-            id: audioId,
-            preload: 'auto',
-            controls: true,
-          };
-
-          if (!playOnce) {
-            audioAttrs.loop = true;
-          }
-
-          // Create the audio component
-          editor.addComponents({
-            tagName: 'audio',
-            attributes: audioAttrs,
-            style: {}, // visible since controls are on
-          });
-
-          // Add initialization script to handle playback attempt on first interaction
-          const scriptContent = `
-            // Background Music Play-on-interaction Script
-            document.addEventListener('DOMContentLoaded', function() {
-              const bgAudio = document.getElementById('${audioId}');
-              if (bgAudio) {
-                const playAudio = () => {
-                  bgAudio.play().catch(e => {
-                    console.log('Audio play blocked by browser');
-                    if (!bgAudio.controls) {
-                      const playBtn = document.createElement('button');
-                      playBtn.innerText = '🎵 Play Background Music';
-                      playBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;';
-                      playBtn.onclick = () => {
-                        bgAudio.play();
-                        playBtn.remove();
-                      };
-                      document.body.appendChild(playBtn);
-                    }
-                  });
-                };
-                
-                // Wait for first user interaction to try playing
-                document.addEventListener('click', playAudio, { once: true });
-                document.addEventListener('keydown', playAudio, { once: true });
-              }
-            });
-          `;
-
-          const head = editor.getWrapper().find('head')[0];
-          if (head) {
-            head.append({
-              tagName: 'script',
-              content: scriptContent
-            });
-          } else {
-            editor.addComponents({
-              tagName: 'script',
-              content: scriptContent
-            });
-          }
-        }
-
-        modal.close();
-
-        // Show success message
-        editor.Modal.setTitle('Success');
-        editor.Modal.setContent('<div style="padding: 20px; text-align: center;">Background music configured successfully!</div>');
-        editor.Modal.open();
-        setTimeout(() => editor.Modal.close(), 2000);
-      };
-    }, 0);
-  }
-});
-
-
-// Backend URL configuration
-const BACKEND_URL = "http://localhost:3000";
 // var filterBtn = document.getElementById("filterTable");
 // let filtersEnabled = false;
 // const activeFilters = new Map(); // Store active filters per table & column
@@ -1411,4 +1272,12 @@ editor.on("run:core:canvas-clear", () => {
   transitions = {};
   clickStates = {};
   currentSlideIndex = 1;
+
+  let pageManager = null;
+  let pageSetupManager = null;
+  // Safely attempt to get page manager plugin
+  pageManager = editor.Plugins?.get?.("page-manager-component");
+
+  // Initialize Page Setup Manager
+  pageSetupManager = new PageSetupManager(editor);
 });

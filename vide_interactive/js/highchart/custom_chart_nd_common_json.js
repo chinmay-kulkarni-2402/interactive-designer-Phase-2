@@ -59,11 +59,13 @@ function customChartCommonJson(editor) {
           { value: 'bubble', label: 'Bubble chart' },
           { value: 'spiderweb', label: 'Spiderweb chart' },
           { value: 'candlestick', label: 'CandleStick chart' },
+          { value: 'candlestick-live', label: 'Candlestick live chart' },
           { value: 'ohlc', label: 'OHLC chart' },
-          { value: 'drilldown_bar', label: 'Dual axis line and column chart' },
-          { value: 'drilldown_bar', label: '3D Donut chart' },
-          { value: 'drilldown_bar', label: '3D pie chart' },
-          { value: 'drilldown_bar', label: '3D Column chart' },
+          { value: 'ohlc-live', label: 'OHLC live chart' },
+          { value: 'line-column', label: 'Dual axis line and column chart' },
+          { value: 'donut-3d', label: '3D Donut chart' },
+          { value: 'pie-3d', label: '3D pie chart' },
+          { value: 'column-3d', label: '3D Column chart' },
           { value: 'stacked-column', label: 'Stacked Column chart' },
           { value: 'stacked-bar', label: 'Stacked Bar chart' },
           { value: 'drilldown_pie', label: 'Drilldown Pie chart' },
@@ -112,18 +114,52 @@ function customChartCommonJson(editor) {
       text: "Suggestion",
       class: "json-suggestion-btn",
   }));
+  const swap_axis_Trait = ["swapAxis"].map((name) => ({
+    changeProp: 1,
+    type: "select",
+    label: "Swap X/Y Axis",
+    options: [
+        { value: 'false', label: 'Normal' },
+        { value: 'true', label: 'Inverted' },
+    ],
+    default: 'false',
+    name,
+}));
 
-  const all_Traits = [
-      name_Trait,
-      ...chartTitle_Trait,
-      ...Select_title_Align_Trait,
-      ...Select_chart_Trait,
-      ...json_path_Trait,
-      ...json_button_sugesstionTrait,
-      ...chart_yAxis_Trait,
-      ...Select_chart_layout_Trait,
-  ];
+const legend_colors_Trait = ["legendColors"].map((name) => ({
+    changeProp: 1,
+    type: "text",
+    label: "Legend Colors",
+    placeholder: "e.g., #FF0000,#00FF00,#0000FF",
+    name,
+}));
 
+const getTraitsForChartType = (chartType) => {
+    const baseTraits = [
+        name_Trait,
+        ...chartTitle_Trait,
+        ...Select_title_Align_Trait,
+        ...Select_chart_Trait,
+        ...json_path_Trait,
+        ...json_button_sugesstionTrait,
+        ...chart_yAxis_Trait,
+        ...Select_chart_layout_Trait,
+        ...legend_colors_Trait, // Always include legend colors
+    ];
+
+    // Charts that support axis inversion
+    const invertibleCharts = [
+        'bar', 'column', 'line', 'area', 'scatter', 
+        'stacked-column', 'stacked-bar', 'line-column', 'bubble' // Added bubble
+    ];
+    
+    if (invertibleCharts.includes(chartType)) {
+        baseTraits.splice(-1, 0, ...swap_axis_Trait); // Insert before legend colors
+    }
+    
+    return baseTraits;
+};
+  const all_Traits = getTraitsForChartType('pie');
   let jsonData = [];
   let common_json = null;
   try {
@@ -171,7 +207,20 @@ function customChartCommonJson(editor) {
             let chartType = "{[ SelectChart ]}" || "pie";
             let chart_yAxis = "{[ ChartyAxis ]}" || "Values";
             let chart_layout = "{[ SelectChartLayout ]}" || "horizontal";
-
+            let swapAxis = "{[ swapAxis ]}" === "true" || false;
+            let legendColors = "{[ legendColors ]}" || "";
+            let customColors = null;
+            if (legendColors && legendColors.trim()) {
+                // Filter out empty strings and validate hex colors
+                customColors = legendColors.split(',')
+                    .map(color => color.trim())
+                    .filter(color => color && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color));
+                
+                // If no valid colors found, set to null
+                if (customColors.length === 0) {
+                    customColors = null;
+                }
+            }
             // Fallback data handling for export scenarios
             let language = 'english';
             let project_type = 'developmentJsonType';
@@ -254,10 +303,10 @@ function customChartCommonJson(editor) {
                         pie: {
                             allowPointSelect: true,
                             cursor: "pointer",
+                            colors: customColors,
                             dataLabels: {
                                 enabled: false
                             },
-                            colors: null,
                             showInLegend: true,
                             animation: false // Disable animation for export
                         }
@@ -292,7 +341,8 @@ function customChartCommonJson(editor) {
                         plotBorderWidth: null,
                         plotShadow: false,
                         type: "bar",
-                        animation: false
+                        animation: false,
+                        inverted: swapAxis
                     },
                     title: {
                         text: chart_Title,
@@ -318,7 +368,8 @@ function customChartCommonJson(editor) {
                                 enabled: true
                             },
                             animation: false
-                        }
+                        },
+                                            colors: customColors,
                     },
                     legend: {
                         layout: chart_layout,
@@ -356,7 +407,8 @@ function customChartCommonJson(editor) {
                         plotBorderWidth: null,
                         plotShadow: false,
                         type: "line",
-                        animation: false
+                        animation: false,
+                        inverted: swapAxis
                     },
                     title: {
                         text: chart_Title,
@@ -384,6 +436,7 @@ function customChartCommonJson(editor) {
                                 connectorAllowed: false
                             },
                             pointStart: 2010,
+                                                colors: customColors,
                             animation: false
                         }
                     },
@@ -430,7 +483,8 @@ function customChartCommonJson(editor) {
                         plotBorderWidth: null,
                         plotShadow: false,
                         type: "column",
-                        animation: false
+                        animation: false,
+                        inverted: swapAxis
                     },
                     title: {
                         text: chart_Title,
@@ -460,7 +514,8 @@ function customChartCommonJson(editor) {
                                 enabled: true
                             },
                             animation: false
-                        }
+                        },
+                                            colors: customColors,
                     },
                     legend: {
                         layout: chart_layout,
@@ -476,6 +531,7 @@ function customChartCommonJson(editor) {
                     credits: {
                         enabled: false
                     },
+
                     series: seriesData.series
                 };
             }
@@ -501,7 +557,8 @@ function customChartCommonJson(editor) {
                 seriesData2 = {
                     chart: {
                         type: 'column',
-                        animation: false
+                        animation: false,
+                        inverted: swapAxis
                     },
                     title: {
                         text: chart_Title,
@@ -547,8 +604,10 @@ function customChartCommonJson(editor) {
                                 enabled: true
                             },
                             animation: false
-                        }
+                        },
+                                            colors: customColors,
                     },
+
                     series: seriesData.series
                 };
             }
@@ -574,7 +633,8 @@ function customChartCommonJson(editor) {
                 seriesData2 = {
                     chart: {
                         type: 'bar',
-                        animation: false
+                        animation: false,
+                        inverted: swapAxis
                     },
                     title: {
                         text: chart_Title,
@@ -599,8 +659,10 @@ function customChartCommonJson(editor) {
                                 enabled: true
                             },
                             animation: false
-                        }
+                        },
+                                            colors: customColors,
                     },
+
                     series: seriesData.series
                 };
             }
@@ -648,6 +710,7 @@ function customChartCommonJson(editor) {
                         text: chart_Title,
                         align: chart_Title_align
                     },
+
                     xAxis: {
                         type: "category"
                     },
@@ -666,7 +729,8 @@ function customChartCommonJson(editor) {
                                 enabled: true,
                                 format: "{point.y:.1f}%"
                             },
-                            animation: false
+                            animation: false,
+                                                colors: customColors,
                         }
                     },
                     legend: {
@@ -718,6 +782,7 @@ function customChartCommonJson(editor) {
                         text: chart_Title,
                         align: chart_Title_align
                     },
+
                     tooltip: {
                         pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>"
                     },
@@ -736,7 +801,7 @@ function customChartCommonJson(editor) {
                             dataLabels: {
                                 enabled: false
                             },
-                            colors: null,
+                            colors: customColors,
                             showInLegend: true,
                             animation: false
                         }
@@ -782,6 +847,7 @@ function customChartCommonJson(editor) {
                         text: chart_Title,
                         align: chart_Title_align
                     },
+
                     yAxis: {
                         title: {
                             text: chart_yAxis
@@ -805,7 +871,8 @@ function customChartCommonJson(editor) {
                                 connectorAllowed: false
                             },
                             pointStart: 2010,
-                            animation: false
+                            animation: false,
+                                                colors: customColors,
                         }
                     },
                     responsive: {
@@ -882,6 +949,7 @@ function customChartCommonJson(editor) {
                         text: chart_Title,
                         align: chart_Title_align
                     },
+
                     accessibility: {
                         point: {
                             valueSuffix: '%'
@@ -898,6 +966,7 @@ function customChartCommonJson(editor) {
                             allowPointSelect: true,
                             cursor: 'pointer',
                             borderRadius: 8,
+                            colors: customColors,
                             dataLabels: [
                                 {
                                     enabled: true,
@@ -957,7 +1026,8 @@ function customChartCommonJson(editor) {
                         animation: false,
                         zooming: {
                             type: 'xy'
-                        }
+                        },
+                        inverted: swapAxis
                     },
                     title: {
                         text: chart_Title || 'Olympics athletes by height and weight',
@@ -1003,8 +1073,10 @@ function customChartCommonJson(editor) {
                                 }
                             },
                             jitter: { x: 0.005 }
-                        }
+                        },
+                                            colors: customColors,
                     },
+
                     series: seriesData.series,
                     credits: { enabled: false }
                 };
@@ -1035,7 +1107,8 @@ function customChartCommonJson(editor) {
                 seriesData2 = {
                     chart: {
                         type: 'area',
-                        animation: false
+                        animation: false,
+                        inverted: swapAxis
                     },
                     title: {
                         text: chart_Title || 'Historic and Estimated Population Growth by Region',
@@ -1075,13 +1148,15 @@ function customChartCommonJson(editor) {
                                 lineWidth: 1,
                                 lineColor: '#666666'
                             }
-                        }
+                        },
+                                            colors: customColors,
                     },
                     legend: {
                         layout: chart_layout || 'vertical',
                         align: 'right',
                         [chartAlign || 'verticalAlign']: 'middle'
                     },
+
                     series: seriesData.series,
                     credits: { enabled: false }
                 };
@@ -1120,12 +1195,14 @@ function customChartCommonJson(editor) {
                         plotBorderWidth: 1,
                         zooming: {
                             type: 'xy'
-                        }
+                        },
+                        inverted: swapAxis  
                     },
                     title: {
                         text: chart_Title || 'Sugar and fat intake per country',
                         align: chart_Title_align || 'center'
                     },
+
                     accessibility: {
                         point: {
                             valueDescriptionFormat:
@@ -1194,7 +1271,8 @@ function customChartCommonJson(editor) {
                                 enabled: true,
                                 format: '{point.name}'
                             }
-                        }
+                        },
+                                            colors: customColors,
                     },
                     series: seriesData.series,
                     credits: { enabled: false }
@@ -1230,6 +1308,7 @@ function customChartCommonJson(editor) {
                         x: -80,
                         align: chart_Title_align || 'center'
                     },
+
                     accessibility: {
                         description:
                             'A spiderweb chart compares the allocated budget against actual spending. Each spoke represents a department. The chart shows departments like Marketing and IT overspending the most.'
@@ -1290,110 +1369,620 @@ function customChartCommonJson(editor) {
             }
 
             if (chartType === 'candlestick') {
-                // Only fetch if not already present
-
-
-                if (!seriesData.series) {
-                seriesData.fetch = async () => {
-                    const data = await fetch('https://demo-live-data.highcharts.com/aapl-ohlc.json')
-                    .then(res => res.json());
-
-                    console.log(data); // Confirm correct format
-
-                    seriesData.series = [{
-                    type: 'candlestick',
-                    name: 'AAPL Stock Price',
-                    data: data, // ✅ Use data directly (no extra brackets)
-                    dataGrouping: {
-                        units: [
-                        ['week', [1]],
-                        ['month', [1, 2, 3, 4, 6]]
-                        ]
-                    }
-                    }];
-                };
-                }
-
-
-                seriesData2 = {
-                    isStock: true, // custom flag to decide between `Highcharts.chart` or `Highcharts.stockChart`
-                    options: {
-                        rangeSelector: {
-                            selected: 1
-                        },
-                        title: {
-                            text: chart_Title || 'AAPL Stock Price',
-                            align: chart_Title_align || 'center'
-                        },
-                        legend: {
-                            enabled: false
-                        },
-                        series: seriesData.series || [],
-                        credits: { enabled: false }
-                    }
-                };
-
-                // If data not fetched yet, fetch and then render
-                if (seriesData.fetch && typeof seriesData.fetch === 'function') {
-                    seriesData.fetch().then(() => {
-                        seriesData2.options.series = seriesData.series;
-                        Highcharts.stockChart('container', seriesData2.options);
-                    });
-                } else {
-                    Highcharts.stockChart('container', seriesData2.options);
-                }
-            }
-
-            if (chartType === 'ohlc') {
-                // Only fetch once
                 if (!seriesData.series) {
                     seriesData = {
-                        fetch: async () => {
-                            const data = await fetch('https://demo-live-data.highcharts.com/aapl-ohlc.json')
-                                .then(res => res.json());
-
-                            seriesData.series = [{
-                                type: 'ohlc',
-                                name: 'AAPL Stock Price',
-                                data: data,
-                                dataGrouping: {
-                                    units: [
-                                        ['week', [1]],
-                                        ['month', [1, 2, 3, 4, 6]]
-                                    ]
-                                }
-                            }];
-                        }
+                        series: [{
+                            type: 'candlestick',
+                            name: 'AAPL',
+                            data: [
+                                [Date.UTC(2024, 4, 1), 140.0, 145.0, 138.0, 143.0],
+                                [Date.UTC(2024, 4, 2), 143.0, 147.0, 141.0, 146.5],
+                                [Date.UTC(2024, 4, 3), 146.5, 150.0, 145.0, 148.0],
+                                [Date.UTC(2024, 4, 4), 148.0, 149.0, 144.0, 145.0],
+                                [Date.UTC(2024, 4, 5), 145.0, 146.0, 140.0, 142.0]
+                            ]
+                        }]
                     };
                 }
 
                 seriesData2 = {
-                    isStock: true,
-                    options: {
-                        rangeSelector: {
-                            selected: 2
-                        },
+                    chart: {
+                        type: 'candlestick',
+                        animation: false
+                    },
+                    title: {
+                        text: chart_Title || 'AAPL Stock Price (Demo)',
+                        align: chart_Title_align || 'center'
+                    },
+                    xAxis: {
+                        type: 'datetime'
+                    },
+                    yAxis: {
                         title: {
-                            text: chart_Title || 'AAPL Stock Price',
-                            align: chart_Title_align || 'center'
-                        },
-                        legend: {
-                            enabled: false
-                        },
-                        series: seriesData.series || [],
-                        credits: { enabled: false }
+                            text: 'Stock Price'
+                        }
+                    },
+                    tooltip: {
+                        split: true,
+                        valueDecimals: 2
+                    },
+                    plotOptions: {
+                        series: {
+                            color: customColors ? customColors[0] : '#d32f2f',
+                            upColor: customColors ? customColors[1] : '#388e3c'
+                        }
+                    },
+                    series: seriesData.series,
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
+                            },
+                            chartOptions: {
+                                xAxis: {
+                                    labels: {
+                                        rotation: -45
+                                    }
+                                }
+                            }
+                        }]
+                    },
+                    credits: {
+                        enabled: false
                     }
                 };
+            }
 
-                // Fetch and render if not already fetched
-                if (seriesData.fetch && typeof seriesData.fetch === 'function') {
-                    seriesData.fetch().then(() => {
-                        seriesData2.options.series = seriesData.series;
-                        Highcharts.stockChart('container', seriesData2.options);
-                    });
-                } else {
-                    Highcharts.stockChart('container', seriesData2.options);
+            if (chartType === 'candlestick-live') {
+                const symbol = 'btcusdt';
+                const interval = '1m';
+
+                seriesData = {
+                    series: [{
+                    type: 'candlestick',
+                    name: 'BTC/USDT',
+                    id: 'live-series',
+                    data: [] // will be filled from WebSocket
+                    }]
+                };
+
+                seriesData2 = {
+                    chart: {
+                    type: 'candlestick',
+                    events: {
+                        load: function () {
+                        const chart = this;
+                        const series = chart.get('live-series');
+
+                        // Fetch initial historical candles (e.g., last 100 candles)
+                        fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`)
+                            .then(res => res.json())
+                            .then(data => {
+                            const ohlc = data.map(d => [
+                                d[0],       // time
+                                parseFloat(d[1]), // open
+                                parseFloat(d[2]), // high
+                                parseFloat(d[3]), // low
+                                parseFloat(d[4])  // close
+                            ]);
+                            series.setData(ohlc, true, false, false);
+                            });
+
+                        // Open WebSocket for live updates
+                        const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`);
+
+                        ws.onmessage = function (event) {
+                            const msg = JSON.parse(event.data);
+                            const k = msg.k;
+
+                            const point = [
+                            k.t,                         // open time
+                            parseFloat(k.o),             // open
+                            parseFloat(k.h),             // high
+                            parseFloat(k.l),             // low
+                            parseFloat(k.c)              // close
+                            ];
+
+                            const last = series.data[series.data.length - 1];
+                            if (last && last.x === point[0]) {
+                            // update last candle
+                            last.update({
+                                open: point[1],
+                                high: point[2],
+                                low: point[3],
+                                close: point[4]
+                            }, true, false);
+                            } else {
+                            // add new candle
+                            series.addPoint(point, true, series.data.length > 100);
+                            }
+                        };
+                        }
+                    }
+                    },
+                    title: {
+                    text: chart_Title || 'Live BTC/USDT Candlestick Chart',
+                    align: chart_Title_align || 'center'
+                    },
+
+                    xAxis: {
+                    type: 'datetime'
+                    },
+                    yAxis: {
+                    title: {
+                        text: 'Price'
+                    }
+                    },
+                    tooltip: {
+                    split: true,
+                    valueDecimals: 2
+                    },
+                    plotOptions: {
+                        candlestick: {
+                            color: customColors ? customColors[0] : '#d32f2f',
+                            upColor: customColors ? customColors[1] : '#388e3c'
+                        }
+                    },
+                    series: seriesData.series,
+                    credits: {
+                    enabled: false
+                    }
+                };
                 }
+
+            if (chartType === 'ohlc') {
+                seriesData = {
+                    series: [{
+                    type: 'ohlc',
+                    name: 'Demo OHLC',
+                    id: 'ohlc-static-series',
+                    data: [
+                        [Date.UTC(2023, 7, 1), 100, 110, 90, 105],
+                        [Date.UTC(2023, 7, 2), 105, 115, 95, 100],
+                        [Date.UTC(2023, 7, 3), 100, 108, 97, 107],
+                        [Date.UTC(2023, 7, 4), 107, 112, 102, 104],
+                        [Date.UTC(2023, 7, 5), 104, 118, 100, 117]
+                    ]
+                    }]
+                };
+
+                seriesData2 = {
+                    chart: {
+                    type: 'ohlc'
+                    },
+                    title: {
+                    text: chart_Title || 'Static OHLC Chart',
+                    align: chart_Title_align || 'center'
+                    },
+
+                    xAxis: {
+                    type: 'datetime'
+                    },
+                    yAxis: {
+                    title: {
+                        text: 'Price'
+                    }
+                    },
+                    tooltip: {
+                    split: true,
+                    valueDecimals: 2
+                    },
+                    plotOptions: {
+                        ohlc: {
+                            color: customColors ? customColors[0] : '#d32f2f',
+                            upColor: customColors ? customColors[1] : '#388e3c'
+                        }
+                    },
+                    series: seriesData.series,
+                    credits: {
+                    enabled: false
+                    }
+                };
+                }
+
+
+            if (chartType === 'ohlc-live') {
+                const symbol = 'btcusdt';
+                const interval = '1m';
+
+                seriesData = {
+                    series: [{
+                    type: 'ohlc',
+                    name: 'BTC/USDT',
+                    id: 'live-ohlc-series',
+                    data: [] // will be filled dynamically
+                    }]
+                };
+
+                seriesData2 = {
+                    chart: {
+                    type: 'ohlc',
+                    events: {
+                        load: function () {
+                        const chart = this;
+                        const series = chart.get('live-ohlc-series');
+
+                        // Load last 100 OHLC bars
+                        fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`)
+                            .then(res => res.json())
+                            .then(data => {
+                            const ohlc = data.map(d => [
+                                d[0],       // timestamp
+                                parseFloat(d[1]), // open
+                                parseFloat(d[2]), // high
+                                parseFloat(d[3]), // low
+                                parseFloat(d[4])  // close
+                            ]);
+                            series.setData(ohlc, true, false, false);
+                            });
+
+                        // WebSocket connection
+                        const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`);
+
+                        ws.onmessage = function (event) {
+                            const msg = JSON.parse(event.data);
+                            const k = msg.k;
+
+                            const point = [
+                            k.t,
+                            parseFloat(k.o),
+                            parseFloat(k.h),
+                            parseFloat(k.l),
+                            parseFloat(k.c)
+                            ];
+
+                            const last = series.data[series.data.length - 1];
+                            if (last && last.x === point[0]) {
+                            last.update({
+                                open: point[1],
+                                high: point[2],
+                                low: point[3],
+                                close: point[4]
+                            }, true, false);
+                            } else {
+                            series.addPoint(point, true, series.data.length > 100);
+                            }
+                        };
+                        }
+                    }
+                    },
+                    title: {
+                    text: chart_Title || 'Live BTC/USDT OHLC Chart',
+                    align: chart_Title_align || 'center'
+                    },
+
+                    xAxis: {
+                    type: 'datetime'
+                    },
+                    yAxis: {
+                    title: {
+                        text: 'Price'
+                    }
+                    },
+                    tooltip: {
+                    split: true,
+                    valueDecimals: 2
+                    },
+                    plotOptions: {
+                        ohlc: {
+                            color: customColors ? customColors[0] : '#d32f2f',
+                            upColor: customColors ? customColors[1] : '#388e3c'
+                        }
+                    },
+                    series: seriesData.series,
+                    credits: {
+                    enabled: false
+                    }
+                };
+                }
+
+
+            if (chartType === 'line-column') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [{
+                            name: 'Precipitation',
+                            type: 'column',
+                            yAxis: 1,
+                            data: [45.7, 37.0, 28.9, 17.1, 39.2, 18.9, 90.2, 78.5, 74.6, 18.7, 17.1, 16.0],
+                            tooltip: {
+                                valueSuffix: ' mm'
+                            }
+                        }, {
+                            name: 'Temperature',
+                            type: 'spline',
+                            data: [-11.4, -9.5, -14.2, 0.2, 7.0, 12.1, 13.5, 13.6, 8.2, -2.8, -12.0, -15.5],
+                            tooltip: {
+                                valueSuffix: '°C'
+                            }
+                        }]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        zooming: { type: 'xy' },
+                        animation: false,
+                        inverted: swapAxis
+                    },
+                    title: {
+                        text: chart_Title || 'Karasjok weather, 2023',
+                        align: chart_Title_align || 'left'
+                    },
+
+                    xAxis: [{
+                        categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                        crosshair: true
+                    }],
+                    yAxis: [{
+                        labels: {
+                            format: '{value}°C'
+                        },
+                        title: {
+                            text: 'Temperature'
+                        },
+                        lineColor: Highcharts.getOptions().colors[1],
+                        lineWidth: 2
+                    }, {
+                        title: {
+                            text: 'Precipitation'
+                        },
+                        labels: {
+                            format: '{value} mm'
+                        },
+                        lineColor: Highcharts.getOptions().colors[0],
+                        lineWidth: 2,
+                        opposite: true
+                    }],
+                    tooltip: {
+                        shared: true
+                    },
+                    legend: {
+                        align: chart_layout || 'left',
+                        [chartAlign || 'verticalAlign']: 'top'
+                    },
+                    series: seriesData.series,
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
+                            },
+                            chartOptions: {
+                                legend: {
+                                    layout: chart_layout || 'horizontal',
+                                    align: 'center',
+                                    verticalAlign: 'bottom'
+                                }
+                            }
+                        }]
+                    },
+                    credits: {
+                        enabled: false
+                    }
+                };
+            }
+
+            if (chartType === 'donut-3d') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [{
+                            name: 'Medals',
+                            data: [
+                                ['Norway', 16],
+                                ['Germany', 12],
+                                ['USA', 8],
+                                ['Sweden', 8],
+                                ['Netherlands', 8],
+                                ['ROC', 6],
+                                ['Austria', 7],
+                                ['Canada', 4],
+                                ['Japan', 3]
+                            ]
+                        }]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        type: 'pie',
+                        options3d: {
+                            enabled: true,
+                            alpha: 45
+                        },
+                        animation: false
+                    },
+                    title: {
+                        text: chart_Title || 'Beijing 2022 gold medals by country',
+                        align: chart_Title_align || 'center'
+                    },
+
+                    subtitle: {
+                        text: '3D donut in Highcharts'
+                    },
+                    plotOptions: {
+                        pie: {
+                            innerSize: 100,
+                            depth: 45,
+                            colors: customColors
+                        }
+                    },
+                    series: seriesData.series,
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
+                            },
+                            chartOptions: {
+                                legend: {
+                                    enabled: false
+                                }
+                            }
+                        }]
+                    },
+                    credits: {
+                        enabled: false
+                    }
+                };
+            }
+
+            if (chartType === 'pie-3d') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [{
+                            type: 'pie',
+                            name: 'Share',
+                            data: [
+                                ['Samsung', 23],
+                                ['Apple', 18],
+                                {
+                                    name: 'Xiaomi',
+                                    y: 12,
+                                    sliced: true,
+                                    selected: true
+                                },
+                                ['Oppo*', 9],
+                                ['Vivo', 8],
+                                ['Others', 30]
+                            ]
+                        }]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        type: 'pie',
+                        options3d: {
+                            enabled: true,
+                            alpha: 45,
+                            beta: 0
+                        },
+                        animation: false
+                    },
+                    title: {
+                        text: chart_Title || 'Global smartphone shipments market share, Q1 2022',
+                        align: chart_Title_align || 'center'
+                    },
+
+                    accessibility: {
+                        point: {
+                            valueSuffix: '%'
+                        }
+                    },
+                    tooltip: {
+                        pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+                    },
+                    plotOptions: {
+                        pie: {
+                            allowPointSelect: true,
+                            cursor: 'pointer',
+                            depth: 35,
+                            colors: customColors,
+                            dataLabels: {
+                                enabled: true,
+                                format: '{point.name}'
+                            }
+                        }
+                    },
+                    series: seriesData.series,
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
+                            },
+                            chartOptions: {
+                                legend: {
+                                    enabled: false
+                                }
+                            }
+                        }]
+                    },
+                    credits: {
+                        enabled: false
+                    }
+                };
+            }
+
+            if (chartType === 'column-3d') {
+                if (!seriesData.series) {
+                    seriesData = {
+                        series: [{
+                            type: 'column',
+                            data: [
+                                ['Toyota', 1795],
+                                ['Volkswagen', 1242],
+                                ['Volvo', 1074],
+                                ['Tesla', 832],
+                                ['Hyundai', 593],
+                                ['MG', 509],
+                                ['Skoda', 471],
+                                ['BMW', 442],
+                                ['Ford', 385],
+                                ['Nissan', 371]
+                            ],
+                            colorByPoint: true
+                        }]
+                    };
+                }
+
+                seriesData2 = {
+                    chart: {
+                        type: 'column',
+                        options3d: {
+                            enabled: true,
+                            alpha: 15,
+                            beta: 15,
+                            depth: 50,
+                            viewDistance: 25
+                        },
+                        animation: false
+                    },
+                    title: {
+                        text: chart_Title || 'Sold passenger cars in Norway by brand, May 2024',
+                        align: chart_Title_align || 'center'
+                    },
+
+                    xAxis: {
+                        type: 'category'
+                    },
+                    yAxis: {
+                        title: {
+                            enabled: false
+                        }
+                    },
+                    tooltip: {
+                        headerFormat: '<b>{point.key}</b><br>',
+                        pointFormat: 'Cars sold: {point.y}'
+                    },
+                    legend: {
+                        enabled: false
+                    },
+                    plotOptions: {
+                        column: {
+                            depth: 25,
+                            colorByPoint: !customColors
+                        },
+                                            colors: customColors,
+                    },
+                    series: seriesData.series,
+                    responsive: {
+                        rules: [{
+                            condition: {
+                                maxWidth: 500
+                            },
+                            chartOptions: {
+                                xAxis: {
+                                    labels: {
+                                        rotation: -45
+                                    }
+                                }
+                            }
+                        }]
+                    },
+                    credits: {
+                        enabled: false
+                    }
+                };
             }
 
             // Create chart with error handling
@@ -1494,10 +2083,32 @@ function customChartCommonJson(editor) {
         },
       }),
       init() {
-        const events = all_Traits
+        // Handle chart type changes to update traits dynamically
+        this.on('change:SelectChart', () => {
+            const chartType = this.get('SelectChart');
+            const newTraits = getTraitsForChartType(chartType);
+            this.set('traits', [id_Trait, title_Trait, ...newTraits]);
+        });
+
+        // Set up event listeners for all possible traits
+        const allPossibleTraits = [
+            name_Trait,
+            ...chartTitle_Trait,
+            ...Select_title_Align_Trait,
+            ...Select_chart_Trait,
+            ...json_path_Trait,
+            ...json_button_sugesstionTrait,
+            ...chart_yAxis_Trait,
+            ...Select_chart_layout_Trait,
+            ...swap_axis_Trait,
+            ...legend_colors_Trait,
+        ];
+
+        const events = allPossibleTraits
           .filter(i => ["strings"].indexOf(i.name) < 0)
           .map(i => `change:${i.name}`)
           .join(" ");
+          
         this.on(events, () => {
           this.highchartsInitialized = false;
           this.trigger("change:script");

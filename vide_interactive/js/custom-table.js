@@ -59,6 +59,126 @@ function customTable(editor) {
     }, 3000);
   }
 
+  // Function to evaluate highlighting conditions
+  function evaluateCondition(cellValue, condition) {
+    if (!condition || !condition.trim()) return false;
+    
+    try {
+      // Clean the condition
+      const cleanCondition = condition.trim();
+      
+      // Convert cell value to number if possible
+      const numericValue = parseFloat(cellValue);
+      const isNumeric = !isNaN(numericValue);
+      
+      // Handle different condition types
+      if (cleanCondition.includes('>=')) {
+        const threshold = parseFloat(cleanCondition.replace('>=', '').trim());
+        return isNumeric && numericValue >= threshold;
+      } else if (cleanCondition.includes('<=')) {
+        const threshold = parseFloat(cleanCondition.replace('<=', '').trim());
+        return isNumeric && numericValue <= threshold;
+      } else if (cleanCondition.includes('>')) {
+        const threshold = parseFloat(cleanCondition.replace('>', '').trim());
+        return isNumeric && numericValue > threshold;
+      } else if (cleanCondition.includes('<')) {
+        const threshold = parseFloat(cleanCondition.replace('<', '').trim());
+        return isNumeric && numericValue < threshold;
+      } else if (cleanCondition.includes('=')) {
+        const targetValue = cleanCondition.replace('=', '').trim();
+        const targetNumeric = parseFloat(targetValue);
+        if (!isNaN(targetNumeric)) {
+          return isNumeric && numericValue === targetNumeric;
+        } else {
+          return cellValue.toString().toLowerCase() === targetValue.toLowerCase();
+        }
+      } else if (cleanCondition.includes('!=')) {
+        const targetValue = cleanCondition.replace('!=', '').trim();
+        const targetNumeric = parseFloat(targetValue);
+        if (!isNaN(targetNumeric)) {
+          return isNumeric && numericValue !== targetNumeric;
+        } else {
+          return cellValue.toString().toLowerCase() !== targetValue.toLowerCase();
+        }
+      } else if (cleanCondition.startsWith('contains:')) {
+        const searchTerm = cleanCondition.replace('contains:', '').trim().toLowerCase();
+        return cellValue.toString().toLowerCase().includes(searchTerm);
+      } else if (cleanCondition.startsWith('startswith:')) {
+        const searchTerm = cleanCondition.replace('startswith:', '').trim().toLowerCase();
+        return cellValue.toString().toLowerCase().startsWith(searchTerm);
+      } else if (cleanCondition.startsWith('endswith:')) {
+        const searchTerm = cleanCondition.replace('endswith:', '').trim().toLowerCase();
+        return cellValue.toString().toLowerCase().endsWith(searchTerm);
+      } else {
+        // Exact text match (case insensitive)
+        return cellValue.toString().toLowerCase() === cleanCondition.toLowerCase();
+      }
+    } catch (error) {
+      console.warn('Error evaluating highlight condition:', error);
+      return false;
+    }
+  }
+
+  // Function to apply highlighting to table cells
+function applyHighlighting(tableId, condition, highlightColor) {
+  try {
+    const canvasBody = editor.Canvas.getBody();
+    const table = canvasBody.querySelector(`#${tableId}`);
+    if (!table) return;
+
+    const wrapper = editor.DomComponents.getWrapper();
+
+    // === Always: Clear previous highlights
+    const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
+    prev.forEach(td => {
+      td.style.backgroundColor = '';
+      td.removeAttribute('data-highlighted');
+
+      const id = td.id;
+      if (id) {
+        const comp = wrapper.find(`#${id}`)[0];
+        if (comp) {
+          comp.removeStyle('background-color');
+          comp.removeStyle('background');
+        }
+      }
+    });
+
+    // === Only apply new highlights if condition exists
+    if (condition && condition.trim()) {
+      const bodyCells = table.querySelectorAll('tbody td');
+      bodyCells.forEach(td => {
+        const div = td.querySelector('div');
+        const val = div ? div.textContent.trim() : td.textContent.trim();
+
+        if (evaluateCondition(val, condition)) {
+          const bg = highlightColor || '#ffff99';
+          td.style.backgroundColor = bg;
+          td.setAttribute('data-highlighted', 'true');
+
+          const id = td.id;
+          if (id) {
+            const comp = wrapper.find(`#${id}`)[0];
+            if (comp) {
+              comp.addStyle({
+                'background-color': bg,
+                '-webkit-print-color-adjust': 'exact',
+                'color-adjust': 'exact',
+                'print-color-adjust': 'exact'
+              });
+            }
+          }
+        }
+      });
+    }
+
+  } catch (err) {
+    console.warn('Error applying highlighting:', err);
+  }
+}
+
+
+
   // Enhanced function to get target container that works with page system
   function getTargetContainer() {
     const selected = editor.getSelected();
@@ -136,117 +256,252 @@ function customTable(editor) {
   });
 
   editor.on('load', (block) => {
-    const iframe = editor.getContainer().querySelector('iframe'); 
-    const contentWindow = iframe.contentWindow; 
-    const iframeDocument = contentWindow.document; 
-    const head = iframeDocument.head;  
+  const iframe = editor.getContainer().querySelector('iframe'); 
+  const contentWindow = iframe.contentWindow; 
+  const iframeDocument = contentWindow.document; 
+  const head = iframeDocument.head;  
+  
+  // Add DataTables CSS if not already present
+  if (!head.querySelector('link[href*="datatables"]')) {
+    const datatablesCss = document.createElement('link');
+    datatablesCss.rel = 'stylesheet';
+    datatablesCss.href = 'https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css';
+    head.appendChild(datatablesCss);
     
-    // Add DataTables CSS if not already present
-    if (!head.querySelector('link[href*="datatables"]')) {
-      const datatablesCss = document.createElement('link');
-      datatablesCss.rel = 'stylesheet';
-      datatablesCss.href = 'https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css';
-      head.appendChild(datatablesCss);
-      
-      const buttonsCSS = document.createElement('link');
-      buttonsCSS.rel = 'stylesheet';
-      buttonsCSS.href = 'https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap4.min.css';
-      head.appendChild(buttonsCSS);
+    const buttonsCSS = document.createElement('link');
+    buttonsCSS.rel = 'stylesheet';
+    buttonsCSS.href = 'https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap4.min.css';
+    head.appendChild(buttonsCSS);
+  }
+  
+  const style = document.createElement('style');
+  style.type = 'text/css'; 
+  style.innerHTML = `
+    a.dt-button{
+      border: 1px solid #ccc !important;
+    } 
+    .dataTables_wrapper .dataTables_filter input{
+      border: 1px solid #ccc !important;
+    }
+    .dataTables_wrapper .dataTables_filter input:focus-visible{
+      outline: 0px!important;
     }
     
-    const style = document.createElement('style');
-    style.type = 'text/css'; 
-    style.innerHTML = `
-      a.dt-button{
-        border: 1px solid #ccc !important;
-      } 
-      .dataTables_wrapper .dataTables_filter input{
-        border: 1px solid #ccc !important;
-      }
-      .dataTables_wrapper .dataTables_filter input:focus-visible{
-        outline: 0px!important;
+    .i_designer-dashed *[data-i_designer-highlightable]{
+      border: 1px solid #ccc !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current{
+      border: 1px solid #ccc !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover{
+      border: 1px solid #ccc !important;
+      background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
+    }
+    table.dataTable{
+      border: 1px solid #ccc !important;
+    }
+    table.dataTable thead th{
+      border-bottom: 1px solid #ccc !important;
+    }
+    
+    /* Formula cell styles */
+    .formula-cell {
+      position: relative;
+    }
+    .formula-cell.editing {
+      background-color: #f0f8ff !important;
+    }
+    .formula-cell[data-formula]::before {
+      content: "f(x)";
+      position: absolute;
+      top: -2px;
+      right: 2px;
+      font-size: 10px;
+      color: #007bff;
+      font-weight: bold;
+    }
+
+    /* Updated highlighted cell styles - applied to td/th instead of div */
+    td[data-highlighted="true"], th[data-highlighted="true"] {
+      position: relative;
+    }
+    td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+      content: "★";
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      font-size: 10px;
+      color: #ff6b35;
+      font-weight: bold;
+      z-index: 1;
+    }
+
+    /* Page-aware table styles */
+    .page-container .dataTables_wrapper {
+      max-width: 100%;
+      overflow: hidden;
+    }
+    
+    .main-content-area .dataTables_wrapper {
+      width: 100% !important;
+      box-sizing: border-box;
+    }
+    
+    /* Enhanced print styles for tables in pages with cell highlighting preservation */
+    @media print {
+      .page-container table.dataTable {
+        border-collapse: collapse !important;
+        width: 100% !important;
+        font-size: 10px !important;
+        page-break-inside: avoid !important;
       }
       
-      .i_designer-dashed *[data-i_designer-highlightable]{
-        border: 1px solid #ccc !important;
-      }
-      .dataTables_wrapper .dataTables_paginate .paginate_button.current{
-        border: 1px solid #ccc !important;
-      }
-      .dataTables_wrapper .dataTables_paginate .paginate_button:hover{
-        border: 1px solid #ccc !important;
-        background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
-      }
-      table.dataTable{
-        border: 1px solid #ccc !important;
-      }
-      table.dataTable thead th{
-        border-bottom: 1px solid #ccc !important;
+      .page-container .dataTables_wrapper .dataTables_length,
+      .page-container .dataTables_wrapper .dataTables_filter,
+      .page-container .dataTables_wrapper .dataTables_info,
+      .page-container .dataTables_wrapper .dataTables_paginate,
+      .page-container .dataTables_wrapper .dt-buttons {
+        display: none !important;
       }
       
-      /* Formula cell styles */
-      .formula-cell {
-        position: relative;
+      .page-container table.dataTable thead th,
+      .page-container table.dataTable tbody td {
+        border: 1px solid #000 !important;
+        padding: 4px !important;
+        text-align: left !important;
       }
-      .formula-cell.editing {
-        background-color: #f0f8ff !important;
-      }
-      .formula-cell[data-formula]::before {
-        content: "f(x)";
-        position: absolute;
-        top: -2px;
-        right: 2px;
-        font-size: 10px;
-        color: #007bff;
-        font-weight: bold;
+      
+      .page-container table.dataTable thead th {
+        background-color: #f5f5f5 !important;
+        font-weight: bold !important;
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
-      /* Page-aware table styles */
-      .page-container .dataTables_wrapper {
-        max-width: 100%;
-        overflow: hidden;
+      /* Preserve cell highlighting in print - critical for PDF generation */
+      td[data-highlighted="true"], th[data-highlighted="true"] {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       
-      .main-content-area .dataTables_wrapper {
-        width: 100% !important;
-        box-sizing: border-box;
+      /* Ensure background colors are preserved in print/PDF */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       
-      /* Print styles for tables in pages */
-      @media print {
-        .page-container table.dataTable {
-          border-collapse: collapse !important;
-          width: 100% !important;
-          font-size: 10px !important;
-          page-break-inside: avoid !important;
-        }
-        
-        .page-container .dataTables_wrapper .dataTables_length,
-        .page-container .dataTables_wrapper .dataTables_filter,
-        .page-container .dataTables_wrapper .dataTables_info,
-        .page-container .dataTables_wrapper .dataTables_paginate,
-        .page-container .dataTables_wrapper .dt-buttons {
-          display: none !important;
-        }
-        
-        .page-container table.dataTable thead th,
-        .page-container table.dataTable tbody td {
-          border: 1px solid #000 !important;
-          padding: 4px !important;
-          text-align: left !important;
-        }
-        
-        .page-container table.dataTable thead th {
-          background-color: #f5f5f5 !important;
-          font-weight: bold !important;
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
+      /* Hide the star indicator in print to avoid clutter */
+      td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+        display: none !important;
       }
-    `; 
-    head.appendChild(style);  
-  });
+    }
+  `; 
+  head.appendChild(style);  
+});
+  // Add custom table component type with traits
+editor.DomComponents.addType('enhanced-table', {
+  isComponent: el => el.tagName === 'TABLE' && el.id && el.id.startsWith('table'),
+  model: {
+    defaults: {
+      tagName: 'table',
+      traits: [
+        {
+          type: 'text',
+          name: 'highlight-condition',
+          label: 'Highlight Condition',
+          placeholder: 'e.g., >50, <=100, =text, contains:word',
+          changeProp: 1,
+        },
+        {
+          type: 'color',
+          name: 'highlight-color',
+          label: 'Highlight Color',
+          placeholder: '#ffff99',
+          changeProp: 1,
+        },
+        // {
+        //   type: 'button',
+        //   name: 'apply-highlight',
+        //   label: 'Apply Highlighting',
+        //   text: 'Apply',
+        //   command: 'apply-table-highlighting',
+        // },
+        // {
+        //   type: 'button',
+        //   name: 'clear-highlight',
+        //   label: 'Clear Highlighting', 
+        //   text: 'Clear',
+        //   command: 'clear-table-highlighting',
+        // }
+      ],
+      'custom-name': 'Enhanced Table'
+    },
+    
+    init() {
+      this.on('change:highlight-condition change:highlight-color', this.handleHighlightChange);
+    },
+
+    handleHighlightChange() {
+      const tableId = this.getId();
+      const condition = this.get('highlight-condition');
+      const color = this.get('highlight-color');
+      
+      if (condition) {
+        applyHighlighting(tableId, condition, color);
+        // Trigger update to ensure GrapesJS recognizes changes
+        editor.trigger('component:update', this);
+      }
+    }
+  }
+});
+
+  // Add commands for highlighting
+editor.Commands.add('apply-table-highlighting', {
+  run(editor) {
+    const selected = editor.getSelected();
+    if (selected && selected.get('tagName') === 'table') {
+      const tableId = selected.getId();
+      const condition = selected.get('highlight-condition');
+      const color = selected.get('highlight-color');
+      
+      if (!condition) {
+        showToast('Please enter a highlight condition first', 'warning');
+        return;
+      }
+      
+      applyHighlighting(tableId, condition, color);
+      showToast('Cell highlighting applied successfully!', 'success');
+      
+      // Trigger editor update to ensure GrapesJS recognizes the changes
+      editor.trigger('component:update', selected);
+    }
+  }
+});
+
+// Enhanced command for clearing highlighting with GrapesJS sync
+editor.Commands.add('clear-table-highlighting', {
+  run(editor) {
+    const selected = editor.getSelected();
+    if (selected && selected.get('tagName') === 'table') {
+      const tableId = selected.getId();
+      
+      // Clear highlighting by applying empty condition
+      applyHighlighting(tableId, '', '');
+      
+      // Clear the traits
+      selected.set('highlight-condition', '');
+      selected.set('highlight-color', '');
+      
+      showToast('Highlighting cleared successfully!', 'success');
+      
+      // Trigger editor update
+      editor.trigger('component:update', selected);
+    }
+  }
+});
  
   // Define a function to add table using popup model
   function addTable() {
@@ -277,9 +532,7 @@ function customTable(editor) {
 
     editor.Modal.setTitle('Create New Table');
     editor.Modal.setContent(`<div class="new-table-form">
-      <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; color: #1976d2;">
-        <strong>Target:</strong> Table will be added to ${containerInfo}
-      </div>
+     
       <div>
         <label for="nColumns">Number of columns</label>
         <input type="number" class="form-control" value="3" name="nColumns" id="nColumns" min="1">
@@ -649,7 +902,21 @@ function customTable(editor) {
         }
         
         // Add the script component
-        container.append(tableScript);
+        const scriptComponent = container.append(tableScript)[0];
+        
+        // Add the actual table component with enhanced-table type for traits
+        const actualTable = tableComponent.find('table')[0];
+        if (actualTable) {
+          actualTable.set({
+            type: 'enhanced-table',
+            'custom-name': `Enhanced Table ${uniqueID}`,
+            attributes: {
+              id: `table${uniqueID}`,
+              class: 'table table-striped table-bordered',
+              width: '100%'
+            }
+          });
+        }
         
         editor.Modal.close();
         
@@ -670,7 +937,7 @@ function customTable(editor) {
           containerType = container.get('tagName');
         }
         
-        showToast(`Table created successfully in ${containerType}!`, 'success');
+        showToast(`Enhanced table with highlighting created successfully in ${containerType}!`, 'success');
         
         // If in page system, trigger any overflow checking
         if (pageContainer && window.pageSetupManager) {
@@ -835,72 +1102,98 @@ function customTable(editor) {
     }
   });
 
-  // Enhanced print handling for page system
-  if (typeof window !== 'undefined') {
-    // Store original print function
-    const originalPrint = window.print;
-    
-    window.print = function() {
-      try {
-        // Before printing, ensure all tables are properly formatted
-        const tables = document.querySelectorAll('table[id^="table"]');
-        tables.forEach(table => {
-          try {
-            // Ensure table attributes for print
-            table.setAttribute("border", "1");
-            table.style.borderCollapse = "collapse";
-            table.style.width = "100%";
-            table.style.fontFamily = "Arial, sans-serif";
-            
-            // Hide DataTable controls for print
-            const wrapper = table.closest('.dataTables_wrapper');
-            if (wrapper) {
-              const controls = wrapper.querySelectorAll('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate, .dt-buttons');
-              controls.forEach(control => {
-                control.style.display = 'none';
-              });
-            }
-          } catch (error) {
-            console.warn('Error preparing table for print:', error);
-          }
-        });
-        
-        // Call original print function
-        originalPrint.call(this);
-        
-        // Restore controls after print (with delay to ensure print dialog has appeared)
-        setTimeout(() => {
-          try {
-            const tables = document.querySelectorAll('table[id^="table"]');
-            tables.forEach(table => {
-              try {
-                const wrapper = table.closest('.dataTables_wrapper');
-                if (wrapper) {
-                  const controls = wrapper.querySelectorAll('.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate, .dt-buttons');
-                  controls.forEach(control => {
-                    control.style.display = '';
-                  });
-                }
-              } catch (error) {
-                console.warn('Error restoring table controls after print:', error);
-              }
-            });
-          } catch (error) {
-            console.warn('Error in print restoration:', error);
-          }
-        }, 1000);
-      } catch (error) {
-        console.warn('Error in custom print function, using original:', error);
-        // Fallback to original print if there's an error
-        originalPrint.call(this);
+  // Enhanced event listener for table selection to apply highlighting traits
+  editor.on('component:selected', function(component) {
+    if (component && component.get('tagName') === 'table' && component.getId() && component.getId().startsWith('table')) {
+      // Ensure this is recognized as an enhanced table
+      if (component.get('type') !== 'enhanced-table') {
+        component.set('type', 'enhanced-table');
       }
-    };
-  }
+      
+      // Apply any existing highlighting conditions
+      const condition = component.get('highlight-condition');
+      const color = component.get('highlight-color');
+      
+      if (condition) {
+        setTimeout(() => {
+          applyHighlighting(component.getId(), condition, color);
+        }, 100);
+      }
+    }
+  });
+
+  // Enhanced print handling for page system
+if (typeof window !== 'undefined') {
+  // Store original print function
+  const originalPrint = window.print;
+  
+  window.print = function() {
+    try {
+      // Before printing, ensure all highlighted cells use GrapesJS background colors
+      const tables = document.querySelectorAll('table[id^="table"]');
+      tables.forEach(table => {
+        try {
+          // Ensure table attributes for print
+          table.setAttribute("border", "1");
+          table.style.borderCollapse = "collapse";
+          table.style.width = "100%";
+          table.style.fontFamily = "Arial, sans-serif";
+          
+          // Find highlighted cells and ensure background color is properly set
+          const highlightedCells = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
+          highlightedCells.forEach(cell => {
+            // Get background color from GrapesJS component if available
+            const cellComponent = editor.DomComponents.getComponentFromElement(cell);
+            let bgColor = '#ffff99'; // default
+            
+            if (cellComponent) {
+              const componentBgColor = cellComponent.getStyle()['background-color'];
+              if (componentBgColor) {
+                bgColor = componentBgColor;
+              }
+            }
+            
+            // Apply inline styles for print compatibility
+            cell.style.backgroundColor = bgColor;
+            cell.style.webkitPrintColorAdjust = 'exact';
+            cell.style.colorAdjust = 'exact';
+            cell.style.printColorAdjust = 'exact';
+          });
+          
+        } catch (error) {
+          console.warn('Error preparing table for print:', error);
+        }
+      });
+      
+      // Call original print function
+      originalPrint.call(this);
+      
+    } catch (error) {
+      console.warn('Error in custom print function, using original:', error);
+      originalPrint.call(this);
+    }
+  };
+}
 
   // Initialize page table instances storage
   if (typeof window !== 'undefined' && !window.pageTableInstances) {
     window.pageTableInstances = {};
   }
 
-  console.log('Custom Table function initialized with page system integration');
+  // Global function to update highlighting for external access
+window.updateTableHighlighting = function(tableId, condition, color) {
+  applyHighlighting(tableId, condition, color);
+  
+  // Find the table component and trigger update
+  const canvasBody = editor.Canvas.getBody();
+  const tableEl = canvasBody.querySelector(`#${tableId}`);
+  if (tableEl) {
+    const tableComponent = editor.DomComponents.getComponentFromElement(tableEl);
+    if (tableComponent) {
+      editor.trigger('component:update', tableComponent);
+    }
+  }
+};
+
+  console.log('Enhanced Custom Table function initialized with highlighting traits and page system integration');
 }
