@@ -92,7 +92,7 @@ function showQRPopup(component, editor) {
         <label style="display: block; margin-bottom: 8px; color: #374151; font-weight: 600; font-size: 14px;">
           📝 Text/Data to Encode
         </label>
-        <input type="text" id="qr-text" placeholder="Enter URL, text, or data (e.g., https://example.com)" 
+        <input type="text" id="qr-text" 
                style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; box-sizing: border-box;" />
       </div>
       
@@ -194,7 +194,7 @@ function showQRPopup(component, editor) {
         </div>
       </div>
 
-      <!-- Format Requirements Info -->
+      <!-- Format Requirements Info 
       <div id="format-info" style="margin-bottom: 20px; padding: 12px 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b; border-radius: 8px; display: none;">
         <div style="display: flex; align-items: start; gap: 8px;">
           <span style="font-size: 16px;">💡</span>
@@ -203,7 +203,7 @@ function showQRPopup(component, editor) {
             <div id="format-details" style="color: #78350f; font-size: 12px; line-height: 1.4;"></div>
           </div>
         </div>
-      </div>
+      </div> -->
       
       <!-- Generate Button -->
       <div style="text-align: center;">
@@ -252,49 +252,49 @@ function showQRPopup(component, editor) {
   };
 
   // Show format requirements and QR options
-  typeSelect.onchange = () => {
-    const selectedType = typeSelect.value;
-    const is2D = ['qr', 'datamatrix', 'pdf417', 'aztec'].includes(selectedType);
+  // typeSelect.onchange = () => {
+  //   const selectedType = typeSelect.value;
+  //   const is2D = ['qr', 'datamatrix', 'pdf417', 'aztec'].includes(selectedType);
     
-    // Show QR options only for QR codes
-    qrOptions.style.display = selectedType === 'qr' ? 'block' : 'none';
+  //   // Show QR options only for QR codes
+  //   qrOptions.style.display = 'none';
     
-    // Update placeholder based on type
-    const placeholders = {
-      'qr': 'https://example.com or any text',
-      'upc': '123456789012 (12 digits)',
-      'ean13': '1234567890123 (13 digits)',
-      'ean8': '12345678 (8 digits)',
-      'upce': '123456 (6-8 digits)',
-      'code128': 'ABC123 (letters & numbers)',
-      'code39': 'HELLO123 (uppercase + numbers)',
-      'code93': 'Test123 (letters & numbers)',
-      'codabar': '12345 (numbers + symbols)',
-      'itf': '1234 (even number of digits)',
-      'postnet': '12345 (ZIP code)',
-      'planet': '12345678901 (11 or 13 digits)',
-      'pharmacode': '12345 (number 3-131070)',
-      'gs1_128': '(01)12345678901231',
-      'msi': '123456789 (numbers only)',
-      'datamatrix': 'Any text or data',
-      'pdf417': 'Document text or data',
-      'aztec': 'Transport or ticket data'
-    };
+  //   // Update placeholder based on type
+  //   const placeholders = {
+  //     'qr': 'https://example.com or any text',
+  //     'upc': '123456789012 (12 digits)',
+  //     'ean13': '1234567890123 (13 digits)',
+  //     'ean8': '12345678 (8 digits)',
+  //     'upce': '123456 (6-8 digits)',
+  //     'code128': 'ABC123 (letters & numbers)',
+  //     'code39': 'HELLO123 (uppercase + numbers)',
+  //     'code93': 'Test123 (letters & numbers)',
+  //     'codabar': '12345 (numbers + symbols)',
+  //     'itf': '1234 (even number of digits)',
+  //     'postnet': '12345 (ZIP code)',
+  //     'planet': '12345678901 (11 or 13 digits)',
+  //     'pharmacode': '12345 (number 3-131070)',
+  //     'gs1_128': '(01)12345678901231',
+  //     'msi': '123456789 (numbers only)',
+  //     'datamatrix': 'Any text or data',
+  //     'pdf417': 'Document text or data',
+  //     'aztec': 'Transport or ticket data'
+  //   };
     
-    textInput.placeholder = placeholders[selectedType] || 'Enter data to encode';
+  //   textInput.placeholder = placeholders[selectedType] || 'Enter data to encode';
     
-    // Show format requirements
-    const requirements = getFormatRequirements(selectedType);
-    if (requirements) {
-      formatDetails.innerHTML = requirements;
-      formatInfo.style.display = 'block';
-    } else {
-      formatInfo.style.display = 'none';
-    }
-  };
+  //   // // Show format requirements
+  //   // const requirements = getFormatRequirements(selectedType);
+  //   // if (requirements) {
+  //   //   formatDetails.innerHTML = requirements;
+  //   //   formatInfo.style.display = 'block';
+  //   // } else {
+  //   //   formatInfo.style.display = 'none';
+  //   // }
+  // };
 
   // Initialize QR options visibility
-  typeSelect.onchange();
+ // typeSelect.onchange();
 
   content.querySelector('#generate-btn').onclick = async () => {
     const text = content.querySelector('#qr-text').value.trim();
@@ -362,25 +362,25 @@ function showQRPopup(component, editor) {
   };
 }
 
-function getFormatRequirements(type) {
-  const requirements = {
-    'upc': 'UPC-A: Exactly 12 digits (e.g., 123456789012)',
-    'ean13': 'EAN-13: Exactly 13 digits (e.g., 1234567890123)',
-    'ean8': 'EAN-8: Exactly 8 digits (e.g., 12345678)',
-    'upce': 'UPC-E: 6, 7, or 8 digits (e.g., 123456)',
-    'code39': 'Code 39: Letters, numbers, and symbols: - . $ / + % SPACE',
-    'code93': 'Code 93: Letters, numbers, and symbols',
-    'codabar': 'Codabar: Numbers 0-9 and symbols: - $ : / . +',
-    'itf': 'ITF: Even number of digits only (e.g., 1234)',
-    'postnet': 'POSTNET: 5, 9, or 11 digits (ZIP codes)',
-    'planet': 'PLANET: 11 or 13 digits',
-    'pharmacode': 'Pharmacode: Numbers 3-131070 only',
-    'gs1_128': 'GS1-128: Use Application Identifiers (e.g., (01)12345678901231)',
-    'msi': 'MSI: Numbers 0-9 only'
-  };
+// function getFormatRequirements(type) {
+//   const requirements = {
+//     'upc': 'UPC-A: Exactly 12 digits (e.g., 123456789012)',
+//     'ean13': 'EAN-13: Exactly 13 digits (e.g., 1234567890123)',
+//     'ean8': 'EAN-8: Exactly 8 digits (e.g., 12345678)',
+//     'upce': 'UPC-E: 6, 7, or 8 digits (e.g., 123456)',
+//     'code39': 'Code 39: Letters, numbers, and symbols: - . $ / + % SPACE',
+//     'code93': 'Code 93: Letters, numbers, and symbols',
+//     'codabar': 'Codabar: Numbers 0-9 and symbols: - $ : / . +',
+//     'itf': 'ITF: Even number of digits only (e.g., 1234)',
+//     'postnet': 'POSTNET: 5, 9, or 11 digits (ZIP codes)',
+//     'planet': 'PLANET: 11 or 13 digits',
+//     'pharmacode': 'Pharmacode: Numbers 3-131070 only',
+//     'gs1_128': 'GS1-128: Use Application Identifiers (e.g., (01)12345678901231)',
+//     'msi': 'MSI: Numbers 0-9 only'
+//   };
   
-  return requirements[type] || null;
-}
+//   return requirements[type] || null;
+// }
 
 async function generateQRCodeBase64(text, options = {}) {
   // Check if QRCode library is available
@@ -468,10 +468,10 @@ async function generateBarcodeBase64(text, format, options = {}) {
     'code128': 'CODE128',
     'code39': 'CODE39',
     'code93': 'CODE93',
-    'ean13': 'EAN-13',
-    'ean8': 'EAN-8',
-    'upc': 'UPC (A)',
-    'upce': 'UPC (E)',
+    'ean13': 'EAN13',
+    'ean8': 'EAN8',
+    'upc': 'UPC',
+    'upce': 'UPC',
     'itf': 'ITF14',
     'msi': 'MSI',
     'codabar': 'codabar',
@@ -489,7 +489,7 @@ async function generateBarcodeBase64(text, format, options = {}) {
   
   try {
     // Validate input based on format
-    validateBarcodeInput(text, format);
+    // validateBarcodeInput(text, format);
     
     // Special handling for postal codes
     if (format === 'postnet' || format === 'planet') {
@@ -537,60 +537,58 @@ async function generateBarcodeBase64(text, format, options = {}) {
   }
 }
 
-function validateBarcodeInput(text, format) {
-  switch (format) {
-    case 'upc':
-      if (!/^\d{11,12}$/.test(text)) {
-        throw new Error('UPC-A requires 11-12 digits');
-      }
-      break;
-    case 'ean13':
-      if (!/^\d{12,13}$/.test(text)) {
-        throw new Error('EAN-13 requires 12-13 digits');
-      }
-      break;
-    case 'ean8':
-      if (!/^\d{7,8}$/.test(text)) {
-        throw new Error('EAN-8 requires 7-8 digits');
-      }
-      break;
-    case 'upce':
-      if (!/^\d{6,8}$/.test(text)) {
-        throw new Error('UPC-E requires 6-8 digits');
-      }
-      break;
-    case 'itf':
-      if (!/^\d+$/.test(text) || text.length % 2 !== 0) {
-        throw new Error('ITF requires an even number of digits');
-      }
-      break;
-    case 'postnet':
-      if (!/^\d{5}$|^\d{9}$|^\d{11}$/.test(text)) {
-        throw new Error('POSTNET requires 5, 9, or 11 digits');
-      }
-      break;
-    case 'planet':
-      if (!/^\d{11}$|^\d{13}$/.test(text)) {
-        throw new Error('PLANET requires 11 or 13 digits');
-      }
-      break;
-    case 'pharmacode':
-      const num = parseInt(text);
-      if (isNaN(num) || num < 3 || num > 131070) {
-        throw new Error('Pharmacode requires a number between 3 and 131070');
-      }
-      break;
-    case 'msi':
-      if (!/^\d+$/.test(text)) {
-        throw new Error('MSI requires only digits');
-      }
-      break;
-    case 'code39':
-      // Code 39 allows uppercase letters, numbers, and some symbols
-      if (!/^[A-Z0-9\-.\$\/+%\s]+$/.test(text)) {
-        throw new Error('Code 39 supports uppercase letters, numbers, and symbols: - . $ / + % SPACE');
-      }
-      break;
-  }
-}
+// function validateBarcodeInput(text, format) {
+//   switch (format) {
+//     case 'upc':
+//       if (!/^\d{11,12}$/.test(text)) {
+//         throw new Error('UPC-A requires 11-12 digits');
+//       }
+//       break;
+//     case 'ean13':
+//       if (!/^\d{12,13}$/.test(text)) {
+//         throw new Error('EAN-13 requires 12-13 digits');
+//       }
+//       break;
+//     case 'ean8':
+//       if (!/^\d{7,8}$/.test(text)) {
+//         throw new Error('EAN-8 requires 7-8 digits');
+//       }
+//       break;
+//     case 'upce':
+
+//       break;
+//     case 'itf':
+//       if (!/^\d+$/.test(text) || text.length % 2 !== 0) {
+//         throw new Error('ITF requires an even number of digits');
+//       }
+//       break;
+//     case 'postnet':
+//       if (!/^\d{5}$|^\d{9}$|^\d{11}$/.test(text)) {
+//         throw new Error('POSTNET requires 5, 9, or 11 digits');
+//       }
+//       break;
+//     case 'planet':
+//       if (!/^\d{11}$|^\d{13}$/.test(text)) {
+//         throw new Error('PLANET requires 11 or 13 digits');
+//       }
+//       break;
+//     case 'pharmacode':
+//       const num = parseInt(text);
+//       if (isNaN(num) || num < 3 || num > 131070) {
+//         throw new Error('Pharmacode requires a number between 3 and 131070');
+//       }
+//       break;
+//     case 'msi':
+//       if (!/^\d+$/.test(text)) {
+//         throw new Error('MSI requires only digits');
+//       }
+//       break;
+//     case 'code39':
+//       // Code 39 allows uppercase letters, numbers, and some symbols
+//       if (!/^[A-Z0-9\-.\$\/+%\s]+$/.test(text)) {
+//         throw new Error('Code 39 supports uppercase letters, numbers, and symbols: - . $ / + % SPACE');
+//       }
+//       break;
+//   }
+// }
 }

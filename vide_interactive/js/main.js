@@ -28,7 +28,7 @@ const editor = InteractiveDesigner.init({
     addQRBarcodeComponent,
     registerCustomShapes,
     customJsonTable,
-    addBackgroundAudioComponent ,
+    SourceAudioPlugin ,
     "basic-block-component",
     "countdown-component",
     "forms-component",
