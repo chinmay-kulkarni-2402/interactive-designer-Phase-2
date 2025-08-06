@@ -471,6 +471,17 @@ function addFormattedRichTextComponent(editor) {
             changeProp: 1
           },
           {
+            type: 'select',
+            name: 'highlight-condition-type',
+            label: 'Highlight Condition',
+            options: [
+              { value: 'contains', label: 'Contains' },
+              { value: 'starts-with', label: 'Starts With' },
+              { value: 'ends-with', label: 'Ends With' }
+            ],
+            changeProp: 1
+          },
+          {
             type: 'text',
             name: 'highlight-words',
             label: 'Highlight Words/Conditions',
@@ -482,13 +493,14 @@ function addFormattedRichTextComponent(editor) {
             name: 'highlight-color',
             label: 'Highlight Color',
             changeProp: 1
-          }
+          },
         ],
         'format-type': 'text',
         'format-pattern': 'None',
         'raw-content': 'Insert your text here',
         'is-editing': false,
         'hide-words': '',
+        'highlight-condition-type': '',
         'highlight-words': '',
         'highlight-color': '#ffff00'
       },
@@ -500,6 +512,7 @@ function addFormattedRichTextComponent(editor) {
         this.on('change:highlight-words', this.updateContent);
         this.on('change:highlight-color', this.updateContent);
         this.on('change:my-input-json', this.handleJsonPathChange);
+        this.on('change:highlight-condition-type', this.updateContent);
         this.updateFormatPattern();
         this.updateTooltip();
       },
@@ -589,81 +602,98 @@ function addFormattedRichTextComponent(editor) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       },
 
-      applyConditionalFormatting(content) {
-        if (!content || typeof content !== 'string') {
-          return content || '';
+applyConditionalFormatting(content) {
+  if (!content || typeof content !== 'string') {
+    return content || '';
+  }
+
+  let processedContent = content;
+  const hideWords = this.get('hide-words') || '';
+  const highlightWords = this.get('highlight-words') || '';
+  const highlightColor = this.get('highlight-color') || '#ffff00';
+  const highlightConditionType = this.get('highlight-condition-type') || '';
+
+  processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
+  processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
+
+  const hasHideConditions = hideWords.trim().length > 0;
+  const hasHighlightConditions = highlightWords.trim().length > 0;
+  
+  if (!hasHideConditions && !hasHighlightConditions) {
+    return processedContent;
+  }
+
+  if (hasHideConditions) {
+    const conditions = hideWords.split(',').map(cond => cond.trim()).filter(cond => cond);
+    
+    conditions.forEach(condition => {
+      if (condition) {
+        if (formatHelpers.isNumberCondition(condition)) {
+          if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
+            processedContent = `<span class="hidden-word" style="display: none;">${processedContent}</span>`;
+          }
+        } else {
+          const escapedWord = this.escapeRegex(condition);
+          const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+          processedContent = processedContent.replace(regex, 
+            `<span class="hidden-word" style="display: none;">${condition}</span>`
+          );
         }
+      }
+    });
+  }
 
-        let processedContent = content;
-        const hideWords = this.get('hide-words') || '';
-        const highlightWords = this.get('highlight-words') || '';
-        const highlightColor = this.get('highlight-color') || '#ffff00';
-
-        processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
-        processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
-
-        const hasHideConditions = hideWords.trim().length > 0;
-        const hasHighlightConditions = highlightWords.trim().length > 0;
-        
-        if (!hasHideConditions && !hasHighlightConditions) {
-          return processedContent;
-        }
-
-        if (hasHideConditions) {
-          const conditions = hideWords.split(',').map(cond => cond.trim()).filter(cond => cond);
-          
-          conditions.forEach(condition => {
-            if (condition) {
-              if (formatHelpers.isNumberCondition(condition)) {
-                if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
-                  processedContent = `<span class="hidden-word" style="display: none;">${processedContent}</span>`;
+  if (hasHighlightConditions) {
+    const conditions = highlightWords.split(',').map(cond => cond.trim()).filter(cond => cond);
+    
+    conditions.forEach(condition => {
+      if (condition) {
+        if (formatHelpers.isNumberCondition(condition)) {
+          if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
+            const numbers = formatHelpers.extractNumbers(processedContent);
+            const conditionObj = formatHelpers.parseNumberCondition(condition);
+            
+            if (conditionObj) {
+              numbers.forEach(num => {
+                if (conditionObj.evaluate(num)) {
+                  const escapedNum = this.escapeRegex(num.toString());
+                  const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
+                  processedContent = processedContent.replace(regex, 
+                    `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
+                  );
                 }
-              } else {
-                const escapedWord = this.escapeRegex(condition);
-                const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
-                processedContent = processedContent.replace(regex, 
-                  `<span class="hidden-word" style="display: none;">${condition}</span>`
-                );
-              }
+              });
             }
-          });
-        }
-
-        if (hasHighlightConditions) {
-          const conditions = highlightWords.split(',').map(cond => cond.trim()).filter(cond => cond);
+          }
+        } else {
+          // Enhanced text matching based on condition type
+          let regex;
           
-          conditions.forEach(condition => {
-            if (condition) {
-              if (formatHelpers.isNumberCondition(condition)) {
-                if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
-                  const numbers = formatHelpers.extractNumbers(processedContent);
-                  const conditionObj = formatHelpers.parseNumberCondition(condition);
-                  
-                  if (conditionObj) {
-                    numbers.forEach(num => {
-                      if (conditionObj.evaluate(num)) {
-                        const escapedNum = this.escapeRegex(num.toString());
-                        const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
-                        processedContent = processedContent.replace(regex, 
-                          `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
-                        );
-                      }
-                    });
-                  }
-                }
-              } else {
-                const escapedWord = this.escapeRegex(condition);
-                const regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
-                processedContent = processedContent.replace(regex, 
-                  `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
-                );
-              }
-            }
-          });
+          if (highlightConditionType === 'contains') {
+            const escapedWord = this.escapeRegex(condition);
+            regex = new RegExp(`(?!<[^>]*?>)\\b(\\w*${escapedWord}\\w*)\\b(?![^<]*?<\\/span>)`, 'gi');
+          } else if (highlightConditionType === 'starts-with') {
+            const escapedWord = this.escapeRegex(condition);
+            regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord}\\w*)(?![^<]*?<\/span>)`, 'gi');
+          } else if (highlightConditionType === 'ends-with') {
+            const escapedWord = this.escapeRegex(condition);
+            regex = new RegExp(`(?!<[^>]*?>)\\b(\\w*${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
+          } else {
+            // Default behavior (exact word match)
+            const escapedWord = this.escapeRegex(condition);
+            regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
+          }
+          
+          processedContent = processedContent.replace(regex, 
+            `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+          );
         }
+      }
+    });
+  }
 
-        return processedContent;
-      },
+  return processedContent;
+},
 
       updateContent() {
   const formatType = this.get('format-type') || 'text';

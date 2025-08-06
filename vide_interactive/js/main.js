@@ -1273,11 +1273,4 @@ editor.on("run:core:canvas-clear", () => {
   clickStates = {};
   currentSlideIndex = 1;
 
-  let pageManager = null;
-  let pageSetupManager = null;
-  // Safely attempt to get page manager plugin
-  pageManager = editor.Plugins?.get?.("page-manager-component");
-
-  // Initialize Page Setup Manager
-  pageSetupManager = new PageSetupManager(editor);
 });

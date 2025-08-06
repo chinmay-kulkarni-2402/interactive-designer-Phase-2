@@ -187,7 +187,6 @@ const getTraitsForChartType = (chartType) => {
         traits: [id_Trait, title_Trait, ...all_Traits],
         style: {
           padding: "2px",
-          minHeight: "400px",
           width: "100%",
         },
         script: function () { 

@@ -406,7 +406,15 @@ editor.DomComponents.addType('enhanced-table', {
   isComponent: el => el.tagName === 'TABLE' && el.id && el.id.startsWith('table'),
   model: {
     defaults: {
-      tagName: 'table',
+      tagName: 'table', // Fix 2: Change from 'div' to 'table'
+      selectable: true,
+      hoverable: true, // Fix 3: Add hoverable
+      editable: true,  // Fix 4: Allow inline editing
+      droppable: false,
+      draggable: true,
+      removable: true,
+      copyable: true,
+      resizable: false,
       traits: [
         {
           type: 'text',
@@ -880,43 +888,48 @@ editor.Commands.add('clear-table-highlighting', {
         const tableComponent = container.append(tableWrapper.outerHTML)[0];
         
         // Set table wrapper properties for better integration
-        if (tableComponent) {
-          tableComponent.set({
-            draggable: true,
-            droppable: false,
-            editable: false,
-            selectable: true,
-            removable: true,
-            copyable: true,
-            'custom-name': `Table ${uniqueID}`,
-            tagName: 'div'
-          });
-          
-          // Add responsive styling
-          tableComponent.addStyle({
-            'max-width': '100%',
-            'overflow': 'hidden',
-            'box-sizing': 'border-box',
-            'margin': '10px 0'
-          });
-        }
+    if (tableComponent) {
+      tableComponent.set({
+        draggable: false, // Fix 13: Only table should be draggable, not wrapper
+        droppable: false,
+        editable: false,
+        selectable: false, // Fix 14: Wrapper shouldn't be selectable
+        removable: false,
+        copyable: false,
+        'custom-name': `Table Wrapper ${uniqueID}`,
+        tagName: 'div'
+      });
+    }
         
         // Add the script component
         const scriptComponent = container.append(tableScript)[0];
         
         // Add the actual table component with enhanced-table type for traits
-        const actualTable = tableComponent.find('table')[0];
-        if (actualTable) {
-          actualTable.set({
-            type: 'enhanced-table',
-            'custom-name': `Enhanced Table ${uniqueID}`,
-            attributes: {
-              id: `table${uniqueID}`,
-              class: 'table table-striped table-bordered',
-              width: '100%'
-            }
-          });
+           const actualTable = tableComponent.find('table')[0];
+    if (actualTable) {
+      // Fix 11: Properly configure the table component
+      actualTable.set({
+        type: 'enhanced-table',
+        'custom-name': `Enhanced Table ${uniqueID}`,
+        tagName: 'table', // Ensure correct tagName
+        selectable: true,
+        hoverable: true,
+        editable: true,
+        removable: true,
+        draggable: true,
+        attributes: {
+          id: `table${uniqueID}`,
+          class: 'table table-striped table-bordered',
+          width: '100%'
         }
+      });
+      
+      // Fix 12: Add selection styling
+      actualTable.addStyle({
+        'cursor': 'pointer',
+        'user-select': 'none'
+      });
+    }
         
         editor.Modal.close();
         
