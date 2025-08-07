@@ -1,7 +1,38 @@
 function customTableOfContents(editor) {
   const domc = editor.DomComponents;
 
-  // Define TOC component type
+  let isTOCButtonAdded = false;
+
+  // ✅ Check if a component type is eligible for TOC title trait
+  function isEligibleForTOC(comp) {
+    const type = comp.get('type');
+    const eligibleTypes = [
+      'text', 'textnode', 'link', 'paragraph',
+      'list', 'heading', 'quote', 'link-block', 'formatted-rich-text',
+    ];
+    return eligibleTypes.includes(type);
+  }
+
+  // ✅ Utility: Recursively get all components
+  function getAllComponents(component) {
+    let all = [component];
+    component.components().forEach(child => {
+      all = all.concat(getAllComponents(child));
+    });
+    return all;
+  }
+
+  // ✅ Utility: Set inner list content of TOC
+  function setTOCContent(component, htmlContent) {
+    const listComp = component.components().find(c =>
+      ['ul', 'ol'].includes(c.get('tagName'))
+    );
+    if (listComp) {
+      listComp.components(htmlContent, { parse: true });
+    }
+  }
+
+  // ✅ Define TOC block type
   domc.addType('toc-block', {
     model: {
       defaults: {
@@ -28,10 +59,8 @@ function customTableOfContents(editor) {
         `,
         styles: `
           .table-of-contents {
-            border: 1px dashed #555;
             padding: 10px;
             margin: 10px 0;
-            background: #f8f8f8;
             font-family: sans-serif;
           }
 
@@ -80,59 +109,32 @@ function customTableOfContents(editor) {
     },
   });
 
-  // Add block to BlockManager
+  // ✅ Add TOC block to BlockManager
   editor.BlockManager.add('table-of-contents', {
     label: 'Table of Contents',
     category: 'Basic',
     content: { type: 'toc-block' },
   });
 
-  let isTOCAdded = false;
-
-  // 🔁 Apply to all component types
-  const allTypes = Object.keys(domc.getTypes());
-  allTypes.forEach((type) => {
-    const typeDef = domc.getType(type);
-    if (!typeDef) return;
-
-    const model = typeDef.model;
-    const origInit = model.prototype.init;
-
-    model.prototype.init = function () {
-      origInit && origInit.apply(this, arguments);
-
-      const hasTOC = !!editor.getWrapper().find('.table-of-contents').length;
-      if (hasTOC && !this.get('traits').some(t => t.name === 'data-toc-title')) {
-        this.addTrait({
-          type: 'text',
-          name: 'data-toc-title',
-          label: 'TOC Title',
-          placeholder: 'e.g. Chapter 1',
-        });
-      }
-    };
-  });
-
-  // ✅ Utility: Recursively get all components
-  function getAllComponents(component) {
-    let all = [component];
-    component.components().forEach(child => {
-      all = all.concat(getAllComponents(child));
-    });
-    return all;
-  }
-
-  // 🔁 Patch existing components when TOC is added
+  // ✅ Enhance eligible components when TOC is added
   editor.on('component:add', (model) => {
     if (!model || typeof model.get !== 'function') return;
 
     if (model.get('type') === 'toc-block') {
-      isTOCAdded = true;
+      const existingTOCs = editor.getWrapper().find('.table-of-contents');
 
+      if (existingTOCs.length > 1) {
+        alert('⚠️ Only one Table of Contents block is allowed.');
+        model.remove(); // Remove duplicate TOC
+        return;
+      }
+
+      // ✅ Add trait to eligible components only once
       const allComponents = getAllComponents(editor.getWrapper());
       allComponents.forEach(comp => {
         if (
           typeof comp.addTrait === 'function' &&
+          isEligibleForTOC(comp) &&
           !comp.getTraits().some(t => t.name === 'data-toc-title')
         ) {
           comp.addTrait({
@@ -143,20 +145,51 @@ function customTableOfContents(editor) {
           });
         }
       });
+
+      // ✅ Add button to panel only once
+      if (!isTOCButtonAdded) {
+        editor.Panels.addButton('options', {
+          id: 'generate-toc',
+          className: 'fa fa-list',
+          command: 'generate-toc',
+          attributes: { title: 'Generate Table of Contents' },
+        });
+        isTOCButtonAdded = true;
+      }
     }
   });
 
-  // 🧠 Set TOC inner content
-  function setTOCContent(component, htmlContent) {
-    const listComp = component.components().find(c =>
-      ['ul', 'ol'].includes(c.get('tagName'))
-    );
-    if (listComp) {
-      listComp.components(htmlContent, { parse: true });
-    }
-  }
+  // ✅ Dynamically apply trait to eligible components during init
+  const allTypes = Object.keys(domc.getTypes());
+  allTypes.forEach((type) => {
+    const typeDef = domc.getType(type);
+    if (!typeDef || !typeDef.model) return;
 
-  // ⚡ TOC Generation Command
+    const model = typeDef.model;
+    const origInit = model.prototype.init;
+
+    model.prototype.init = function () {
+      origInit && origInit.apply(this, arguments);
+
+      const hasTOC = !!editor.getWrapper().find('.table-of-contents').length;
+
+      if (
+        hasTOC &&
+        isEligibleForTOC(this) &&
+        typeof this.addTrait === 'function' &&
+        !this.getTraits().some(t => t.name === 'data-toc-title')
+      ) {
+        this.addTrait({
+          type: 'text',
+          name: 'data-toc-title',
+          label: 'TOC Title',
+          placeholder: 'e.g. Chapter 1',
+        });
+      }
+    };
+  });
+
+  // ✅ Generate TOC content from elements with data-toc-title
   editor.Commands.add('generate-toc', {
     run(editor) {
       const comps = editor.getWrapper().find('.table-of-contents');
@@ -184,19 +217,12 @@ function customTableOfContents(editor) {
 
       const htmlContent = `<${listType}>${items.join('')}</${listType}>`;
       setTOCContent(tocComp, htmlContent);
+
       console.log(`✅ TOC generated with ${items.length} items.`);
     },
   });
 
-  // 📎 Add button to panel
-  editor.Panels.addButton('options', {
-    id: 'generate-toc',
-    className: 'fa fa-list',
-    command: 'generate-toc',
-    attributes: { title: 'Generate Table of Contents' },
-  });
-
-  // 📤 Smooth scroll script on export
+  // ✅ Add smooth scroll script on export
   editor.on('export:html', ({ head, body }) => {
     const scrollScript = `
       <script>
