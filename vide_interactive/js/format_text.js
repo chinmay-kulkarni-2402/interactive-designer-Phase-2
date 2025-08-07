@@ -15,7 +15,7 @@ function addFormattedRichTextComponent(editor) {
     },
     currency: {
       label: 'Currency',
-      patterns: ['$ 0', '$ 0.00', '₹ 0.00', '₹ 0', '¥ 0', '£ 0.00', '€ 0.00', 'Rp 0.000', 'OMR 0.000'],
+      patterns: ['$ 0', '$ 0.00', '₹ 0.00', '₹ 0', '¥ 0', '£ 0.00', '€ 0.00', 'IDR 0.000', 'OMR 0.000'],
       defaultPattern: '₹ 0.00',
       icon: '💰'
     },
@@ -264,7 +264,7 @@ function addFormattedRichTextComponent(editor) {
   if (currencySymbol === '₹') {
     // Indian numbering system: en-IN already uses 00,00,000 grouping
     locale = 'en-IN';
-  } else if (currencySymbol === 'Rp') {
+  } else if (currencySymbol === 'IDR') {
     // Indonesian formatting: use id-ID (dot as thousand separator, comma as decimal)
     locale = 'id-ID';
   } else {

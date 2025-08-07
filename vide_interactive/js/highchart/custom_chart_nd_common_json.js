@@ -2423,6 +2423,8 @@ editor.on('component:selected', (component) => {
   }  
 
   // =============================
+
+  // =================================
   setTimeout(() => {
       var language = document.getElementById("multiLanguage");
       language.addEventListener("click", languageChange, true);

@@ -5,10 +5,13 @@ class PageSetupManager {
   constructor(editor) {
     this._lastAppliedHeaderText = "";
     this._lastAppliedFooterText = "";
+    this._overflowAttempts = new Map();
+    this._maxOverflowAttempts = 3;
     this._isProcessingOverflow = false;
     this._overflowCheckTimeout = null;
-    this._maxOverflowAttempts = 3;
-    this._overflowAttempts = new Map();
+    this._componentAddHandler = null;
+    this._componentUpdateHandler = null;
+    this._pasteHandler = null;
     this.editor = editor
     this.pageSettings = {
       format: "a4",
@@ -115,10 +118,7 @@ class PageSetupManager {
     this.initSharedRegionSync()
     this.setupSectionSelection()
     this.addPageBreakComponent()
-    this.initializeAutoPagination();
-    const MAX_HEIGHT = 1027; // or dynamically get from `.main-content-area`
-
-
+    const MAX_HEIGHT = 1027;
   }
 
   // Add page break component to GrapesJS
@@ -390,381 +390,370 @@ class PageSetupManager {
     }
   }
 
+  preserveContentForModeSwitch() {
+    try {
+      console.log("🔄 Preserving GrapesJS components for mode switch...");
 
+      const contentBackup = {
+        headers: {},
+        footers: {}
+      };
 
-  // FIXED: Restore all preserved content
-  // restoreAllContent() {
-  //   if (!this.isInitialized || this.pageContents.size === 0) return;
-  //   try {
-  //     const allPages = this.editor.getWrapper().find(".page-container");
-  //     console.log("Restoring content for", allPages.length, "pages");
+      // Get all pages and extract their header/footer COMPONENTS
+      const allPages = this.editor.getWrapper().find('.page-container');
 
-  //     allPages.forEach((pageComponent, index) => {
-  //       const preserved = this.pageContents.get(index);
-  //       if (!preserved) return;
+      allPages.forEach((page, index) => {
+        const pageNumber = index + 1;
 
-  //       // Get current page settings to check for new text
-  //       const currentPageSettings = this.pageSettings.pages[index];
-  //       const hasNewHeaderText = currentPageSettings?.header?.enabled && currentPageSettings?.header?.text;
-  //       const hasNewFooterText = currentPageSettings?.footer?.enabled && currentPageSettings?.footer?.text;
+        // Find all header regions on this page
+        const headerRegions = page.find('[data-shared-region^="header"]');
+        headerRegions.forEach(headerRegion => {
+          const regionType = headerRegion.getAttributes()['data-shared-region'];
+          const headerElement = headerRegion.find('.page-header-element')[0];
 
-  //       // 🔁 Restore Main Content
-  //       const mainContentArea = pageComponent.find(".main-content-area")[0];
-  //       if (mainContentArea && preserved.mainContent?.length > 0) {
-  //         mainContentArea.components().reset();
-  //         preserved.mainContent.forEach((compData) => {
-  //           const newComp = mainContentArea.append(compData.html)[0];
-  //           if (newComp) {
-  //             newComp.setStyle(compData.styles || {});
-  //             newComp.addAttributes(compData.attributes || {});
-  //           }
-  //         });
-  //       }
+          if (headerElement && headerElement.components().length > 0) {
+            // Store actual GrapesJS component data, not HTML
+            contentBackup.headers[regionType] = {
+              components: headerElement.components().map(comp => ({
+                html: comp.toHTML(),
+                styles: comp.getStyle(),
+                attributes: comp.getAttributes(),
+                type: comp.get('type'),
+                content: comp.get('content')
+              })),
+              elementStyles: headerElement.getStyle(),
+              elementAttributes: headerElement.getAttributes()
+            };
+            console.log(`📦 Preserved header components from ${regionType} on page ${pageNumber}`);
+          }
+        });
 
-  //       // 🔁 Restore Header (with enhanced logic for manual content)
-  //       const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
-  //       if (headerRegion) {
-  //         const isHeaderEnabled = currentPageSettings?.header?.enabled;
+        // Find all footer regions on this page  
+        const footerRegions = page.find('[data-shared-region^="footer"]');
+        footerRegions.forEach(footerRegion => {
+          const regionType = footerRegion.getAttributes()['data-shared-region'];
+          const footerElement = footerRegion.find('.page-footer-element')[0];
 
-  //         if (isHeaderEnabled) {
-  //           if (preserved.header?.components?.length > 0) {
-  //             // There's preserved content, check if it's just basic text or rich content
-  //             const hasRichContent = this.hasRichHeaderFooterContent(preserved.header.components);
+          if (footerElement && footerElement.components().length > 0) {
+            // Store actual GrapesJS component data, not HTML
+            contentBackup.footers[regionType] = {
+              components: footerElement.components().map(comp => ({
+                html: comp.toHTML(),
+                styles: comp.getStyle(),
+                attributes: comp.getAttributes(),
+                type: comp.get('type'),
+                content: comp.get('content')
+              })),
+              elementStyles: footerElement.getStyle(),
+              elementAttributes: footerElement.getAttributes()
+            };
+            console.log(`📦 Preserved footer components from ${regionType} on page ${pageNumber}`);
+          }
+        });
+      });
 
-  //             if (hasRichContent) {
-  //               // Preserve rich content (text areas, images, etc.) and ignore input field text
-  //               console.log(`Restoring rich header content for page ${index + 1}`);
-  //               headerRegion.components().reset();
-  //               headerRegion.addAttributes(preserved.header.attributes || {});
-  //               preserved.header.components.forEach((compData) => {
-  //                 const newComp = headerRegion.append(compData.html)[0];
-  //                 if (newComp) {
-  //                   newComp.setStyle(compData.styles || {});
-  //                   newComp.addAttributes(compData.attributes || {});
-  //                 }
-  //               });
-  //             } else if (hasNewHeaderText) {
-  //               // No rich content but has new text from input field
-  //               console.log(`Applying new header text to page ${index + 1}: "${currentPageSettings.header.text}"`);
-  //               headerRegion.components().reset();
+      // Store the backup for later restoration
+      this._modeSwitchContentBackup = contentBackup;
 
-  //               const textComp = headerRegion.append(`
-  //               <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
-  //                 ${currentPageSettings.header.text}
-  //               </div>
-  //             `)[0];
+      console.log("✅ GrapesJS component backup created:", contentBackup);
 
-  //               if (textComp) {
-  //                 textComp.set({
-  //                   droppable: false,
-  //                   editable: true,
-  //                   selectable: true,
-  //                   draggable: false,
-  //                   copyable: false,
-  //                   removable: true,
-  //                   "custom-name": "Header Text"
-  //                 });
-  //               }
-  //             } else {
-  //               // No new text, restore old content
-  //               console.log(`Restoring old header content for page ${index + 1}`);
-  //               headerRegion.components().reset();
-  //               headerRegion.addAttributes(preserved.header.attributes || {});
-  //               preserved.header.components.forEach((compData) => {
-  //                 const newComp = headerRegion.append(compData.html)[0];
-  //                 if (newComp) {
-  //                   newComp.setStyle(compData.styles || {});
-  //                   newComp.addAttributes(compData.attributes || {});
-  //                 }
-  //               });
-  //             }
-  //           } else if (hasNewHeaderText) {
-  //             // No preserved content but has new text
-  //             console.log(`Applying new header text to page ${index + 1}: "${currentPageSettings.header.text}"`);
-  //             headerRegion.components().reset();
+    } catch (error) {
+      console.error("❌ Error preserving components for mode switch:", error);
+    }
+  }
 
-  //             const textComp = headerRegion.append(`
-  //             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
-  //               ${currentPageSettings.header.text}
-  //             </div>
-  //           `)[0];
+  restoreContentAfterModeSwitch() {
+    try {
+      if (!this._modeSwitchContentBackup) {
+        console.log("ℹ️ No component backup found for restoration");
+        return;
+      }
 
-  //             if (textComp) {
-  //               textComp.set({
-  //                 droppable: false,
-  //                 editable: true,
-  //                 selectable: true,
-  //                 draggable: false,
-  //                 copyable: false,
-  //                 removable: true,
-  //                 "custom-name": "Header Text"
-  //               });
-  //             }
-  //           } else {
-  //             // Header enabled but no content
-  //             console.log(`Header enabled but no content for page ${index + 1} - leaving empty`);
-  //             headerRegion.components().reset();
-  //           }
-  //         } else {
-  //           // Header disabled, clear content
-  //           console.log(`Header disabled for page ${index + 1} - clearing content`);
-  //           headerRegion.components().reset();
-  //         }
-  //       }
+      console.log("🔄 Restoring GrapesJS components after mode switch...");
 
-  //       // 🔁 Restore Footer (with enhanced logic for manual content)
-  //       const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0];
-  //       if (footerRegion) {
-  //         const isFooterEnabled = currentPageSettings?.footer?.enabled;
+      const backup = this._modeSwitchContentBackup;
 
-  //         if (isFooterEnabled) {
-  //           if (preserved.footer?.components?.length > 0) {
-  //             // There's preserved content, check if it's just basic text or rich content
-  //             const hasRichContent = this.hasRichHeaderFooterContent(preserved.footer.components);
+      // Get all pages after recreation
+      const allPages = this.editor.getWrapper().find('.page-container');
 
-  //             if (hasRichContent) {
-  //               // Preserve rich content (text areas, images, etc.) and ignore input field text
-  //               console.log(`Restoring rich footer content for page ${index + 1}`);
-  //               footerRegion.components().reset();
-  //               footerRegion.addAttributes(preserved.footer.attributes || {});
-  //               preserved.footer.components.forEach((compData) => {
-  //                 const newComp = footerRegion.append(compData.html)[0];
-  //                 if (newComp) {
-  //                   newComp.setStyle(compData.styles || {});
-  //                   newComp.addAttributes(compData.attributes || {});
-  //                 }
-  //               });
-  //             } else if (hasNewFooterText) {
-  //               // No rich content but has new text from input field
-  //               console.log(`Applying new footer text to page ${index + 1}: "${currentPageSettings.footer.text}"`);
-  //               footerRegion.components().reset();
+      allPages.forEach((page, index) => {
+        const pageNumber = index + 1;
 
-  //               const textComp = footerRegion.append(`
-  //               <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
-  //                 ${currentPageSettings.footer.text}
-  //               </div>
-  //             `)[0];
+        // RESTORE HEADER COMPONENTS
+        const headerRegions = page.find('[data-shared-region^="header"]');
+        headerRegions.forEach(headerRegion => {
+          const newRegionType = headerRegion.getAttributes()['data-shared-region'];
+          const headerElement = headerRegion.find('.page-header-element')[0];
 
-  //               if (textComp) {
-  //                 textComp.set({
-  //                   droppable: false,
-  //                   editable: true,
-  //                   selectable: true,
-  //                   draggable: false,
-  //                   copyable: false,
-  //                   removable: true,
-  //                   "custom-name": "Footer Text"
-  //                 });
-  //               }
-  //             } else {
-  //               // No new text, restore old content
-  //               console.log(`Restoring old footer content for page ${index + 1}`);
-  //               footerRegion.components().reset();
-  //               footerRegion.addAttributes(preserved.footer.attributes || {});
-  //               preserved.footer.components.forEach((compData) => {
-  //                 const newComp = footerRegion.append(compData.html)[0];
-  //                 if (newComp) {
-  //                   newComp.setStyle(compData.styles || {});
-  //                   newComp.addAttributes(compData.attributes || {});
-  //                 }
-  //               });
-  //             }
-  //           } else if (hasNewFooterText) {
-  //             // No preserved content but has new text
-  //             console.log(`Applying new footer text to page ${index + 1}: "${currentPageSettings.footer.text}"`);
-  //             footerRegion.components().reset();
+          if (!headerElement) return;
 
-  //             const textComp = footerRegion.append(`
-  //             <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
-  //               ${currentPageSettings.footer.text}
-  //             </div>
-  //           `)[0];
+          let contentToRestore = null;
 
-  //             if (textComp) {
-  //               textComp.set({
-  //                 droppable: false,
-  //                 editable: true,
-  //                 selectable: true,
-  //                 draggable: false,
-  //                 copyable: false,
-  //                 removable: true,
-  //                 "custom-name": "Footer Text"
-  //               });
-  //             }
-  //           } else {
-  //             // Footer enabled but no content
-  //             console.log(`Footer enabled but no content for page ${index + 1} - leaving empty`);
-  //             footerRegion.components().reset();
-  //           }
-  //         } else {
-  //           // Footer disabled, clear content
-  //           console.log(`Footer disabled for page ${index + 1} - clearing content`);
-  //           footerRegion.components().reset();
-  //         }
-  //       }
-  //     });
+          // Map old content to new regions based on mode transition
+          if (newRegionType === 'header') {
+            // For "all" regions, prefer any existing content
+            contentToRestore = backup.headers['header'] ||
+              backup.headers['header-even'] ||
+              backup.headers['header-odd'];
+          } else if (newRegionType === 'header-even') {
+            // For even regions, prefer even content, fallback to all
+            contentToRestore = backup.headers['header-even'] ||
+              backup.headers['header'];
+          } else if (newRegionType === 'header-odd') {
+            // For odd regions, prefer odd content, fallback to all
+            contentToRestore = backup.headers['header-odd'] ||
+              backup.headers['header'];
+          }
 
-  //     console.log("✅ Finished restoring content");
-  //   } catch (error) {
-  //     console.error("❌ Error restoring all content:", error);
-  //   }
-  // }
+          // Restore the GrapesJS components if found
+          if (contentToRestore && contentToRestore.components) {
+            headerElement.components().reset();
 
+            contentToRestore.components.forEach(compData => {
+              try {
+                const newComp = headerElement.append(compData.html)[0];
+                if (newComp) {
+                  newComp.setStyle(compData.styles || {});
+                  newComp.addAttributes(compData.attributes || {});
+                  if (compData.content) {
+                    newComp.set('content', compData.content);
+                  }
+                }
+              } catch (error) {
+                console.warn("Warning: Could not restore component:", error);
+              }
+            });
+
+            // Restore header element styles and attributes
+            if (contentToRestore.elementStyles) {
+              headerElement.setStyle(contentToRestore.elementStyles);
+            }
+            if (contentToRestore.elementAttributes) {
+              headerElement.addAttributes(contentToRestore.elementAttributes);
+            }
+
+            console.log(`✅ Restored header components to page ${pageNumber} (${newRegionType})`);
+          }
+        });
+
+        // RESTORE FOOTER COMPONENTS (same logic)
+        const footerRegions = page.find('[data-shared-region^="footer"]');
+        footerRegions.forEach(footerRegion => {
+          const newRegionType = footerRegion.getAttributes()['data-shared-region'];
+          const footerElement = footerRegion.find('.page-footer-element')[0];
+
+          if (!footerElement) return;
+
+          let contentToRestore = null;
+
+          if (newRegionType === 'footer') {
+            contentToRestore = backup.footers['footer'] ||
+              backup.footers['footer-even'] ||
+              backup.footers['footer-odd'];
+          } else if (newRegionType === 'footer-even') {
+            contentToRestore = backup.footers['footer-even'] ||
+              backup.footers['footer'];
+          } else if (newRegionType === 'footer-odd') {
+            contentToRestore = backup.footers['footer-odd'] ||
+              backup.footers['footer'];
+          }
+
+          // Restore the GrapesJS components if found
+          if (contentToRestore && contentToRestore.components) {
+            footerElement.components().reset();
+
+            contentToRestore.components.forEach(compData => {
+              try {
+                const newComp = footerElement.append(compData.html)[0];
+                if (newComp) {
+                  newComp.setStyle(compData.styles || {});
+                  newComp.addAttributes(compData.attributes || {});
+                  if (compData.content) {
+                    newComp.set('content', compData.content);
+                  }
+                }
+              } catch (error) {
+                console.warn("Warning: Could not restore component:", error);
+              }
+            });
+
+            // Restore footer element styles and attributes
+            if (contentToRestore.elementStyles) {
+              footerElement.setStyle(contentToRestore.elementStyles);
+            }
+            if (contentToRestore.elementAttributes) {
+              footerElement.addAttributes(contentToRestore.elementAttributes);
+            }
+
+            console.log(`✅ Restored footer components to page ${pageNumber} (${newRegionType})`);
+          }
+        });
+      });
+
+      // Clean up the backup
+      delete this._modeSwitchContentBackup;
+
+      console.log("✅ GrapesJS component restoration complete");
+
+    } catch (error) {
+      console.error("❌ Error restoring components after mode switch:", error);
+    }
+  }
 
 
   restoreAllContent() {
-  if (!this.isInitialized || this.pageContents.size === 0) return;
-  try {
-    const allPages = this.editor.getWrapper().find(".page-container");
-    console.log("Restoring content for", allPages.length, "pages");
-    
-    allPages.forEach((pageComponent, index) => {
-      const preserved = this.pageContents.get(index);
-      if (!preserved) return;
-      
-      // Get current page settings to check for new text
-      const currentPageSettings = this.pageSettings.pages[index];
-      const hasNewHeaderText = currentPageSettings?.header?.enabled && currentPageSettings?.header?.text;
-      const hasNewFooterText = currentPageSettings?.footer?.enabled && currentPageSettings?.footer?.text;
-      
-      // 🔁 Restore Main Content
-      const mainContentArea = pageComponent.find(".main-content-area")[0];
-      if (mainContentArea && preserved.mainContent?.length > 0) {
-        mainContentArea.components().reset();
-        preserved.mainContent.forEach((compData) => {
-          const newComp = mainContentArea.append(compData.html)[0];
-          if (newComp) {
-            newComp.setStyle(compData.styles || {});
-            newComp.addAttributes(compData.attributes || {});
-          }
-        });
-      }
-      
-      // 🔁 Restore Header
-      const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
-      if (headerRegion) {
-        const isHeaderEnabled = currentPageSettings?.header?.enabled;
-        
-        if (isHeaderEnabled) {
-          // Check if user changed the header text input OR if there's new text and no preserved content
-          const shouldUseInputText = this._headerTextChanged || 
-                                     (hasNewHeaderText && (!preserved.header?.components?.length));
-          
-          if (shouldUseInputText && hasNewHeaderText) {
-            console.log(`🔄 Using input field header text for page ${index + 1}: "${currentPageSettings.header.text}"`);
-            headerRegion.components().reset();
-            
-            const textComp = headerRegion.append(`
+    if (!this.isInitialized || this.pageContents.size === 0) return;
+    try {
+      const allPages = this.editor.getWrapper().find(".page-container");
+      console.log("Restoring content for", allPages.length, "pages");
+
+      allPages.forEach((pageComponent, index) => {
+        const preserved = this.pageContents.get(index);
+        if (!preserved) return;
+
+        // Get current page settings to check for new text
+        const currentPageSettings = this.pageSettings.pages[index];
+        const hasNewHeaderText = currentPageSettings?.header?.enabled && currentPageSettings?.header?.text;
+        const hasNewFooterText = currentPageSettings?.footer?.enabled && currentPageSettings?.footer?.text;
+
+        // 🔁 Restore Main Content
+        const mainContentArea = pageComponent.find(".main-content-area")[0];
+        if (mainContentArea && preserved.mainContent?.length > 0) {
+          mainContentArea.components().reset();
+          preserved.mainContent.forEach((compData) => {
+            const newComp = mainContentArea.append(compData.html)[0];
+            if (newComp) {
+              newComp.setStyle(compData.styles || {});
+              newComp.addAttributes(compData.attributes || {});
+            }
+          });
+        }
+
+        // 🔁 Restore Header
+        const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
+        if (headerRegion) {
+          const isHeaderEnabled = currentPageSettings?.header?.enabled;
+
+          if (isHeaderEnabled) {
+            // Check if user changed the header text input OR if there's new text and no preserved content
+            const shouldUseInputText = this._headerTextChanged ||
+              (hasNewHeaderText && (!preserved.header?.components?.length));
+
+            if (shouldUseInputText && hasNewHeaderText) {
+              console.log(`🔄 Using input field header text for page ${index + 1}: "${currentPageSettings.header.text}"`);
+              headerRegion.components().reset();
+
+              const textComp = headerRegion.append(`
               <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
                 ${currentPageSettings.header.text}
               </div>
             `)[0];
-            
-            if (textComp) {
-              textComp.set({
-                droppable: false,
-                editable: true,
-                selectable: true,
-                draggable: false,
-                copyable: false,
-                removable: true,
-                "custom-name": "Header Text"
-              });
-            }
-          } else if (preserved.header?.components?.length > 0) {
-            // Restore preserved content
-            console.log(`Restoring preserved header content for page ${index + 1}`);
-            headerRegion.components().reset();
-            headerRegion.addAttributes(preserved.header.attributes || {});
-            preserved.header.components.forEach((compData) => {
-              const newComp = headerRegion.append(compData.html)[0];
-              if (newComp) {
-                newComp.setStyle(compData.styles || {});
-                newComp.addAttributes(compData.attributes || {});
+
+              if (textComp) {
+                textComp.set({
+                  droppable: false,
+                  editable: true,
+                  selectable: true,
+                  draggable: false,
+                  copyable: false,
+                  removable: true,
+                  "custom-name": "Header Text"
+                });
               }
-            });
+            } else if (preserved.header?.components?.length > 0) {
+              // Restore preserved content
+              console.log(`Restoring preserved header content for page ${index + 1}`);
+              headerRegion.components().reset();
+              headerRegion.addAttributes(preserved.header.attributes || {});
+              preserved.header.components.forEach((compData) => {
+                const newComp = headerRegion.append(compData.html)[0];
+                if (newComp) {
+                  newComp.setStyle(compData.styles || {});
+                  newComp.addAttributes(compData.attributes || {});
+                }
+              });
+            } else {
+              // Header enabled but no content
+              console.log(`Header enabled but no content for page ${index + 1} - leaving empty`);
+              headerRegion.components().reset();
+            }
           } else {
-            // Header enabled but no content
-            console.log(`Header enabled but no content for page ${index + 1} - leaving empty`);
+            // Header disabled, clear content
+            console.log(`Header disabled for page ${index + 1} - clearing content`);
             headerRegion.components().reset();
           }
-        } else {
-          // Header disabled, clear content
-          console.log(`Header disabled for page ${index + 1} - clearing content`);
-          headerRegion.components().reset();
         }
-      }
-      
-      // 🔁 Restore Footer (same logic as header)
-      const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0];
-      if (footerRegion) {
-        const isFooterEnabled = currentPageSettings?.footer?.enabled;
-        
-        if (isFooterEnabled) {
-          // Check if user changed the footer text input OR if there's new text and no preserved content
-          const shouldUseInputText = this._footerTextChanged || 
-                                     (hasNewFooterText && (!preserved.footer?.components?.length));
-          
-          if (shouldUseInputText && hasNewFooterText) {
-            console.log(`🔄 Using input field footer text for page ${index + 1}: "${currentPageSettings.footer.text}"`);
-            footerRegion.components().reset();
-            
-            const textComp = footerRegion.append(`
+
+        // 🔁 Restore Footer (same logic as header)
+        const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0];
+        if (footerRegion) {
+          const isFooterEnabled = currentPageSettings?.footer?.enabled;
+
+          if (isFooterEnabled) {
+            // Check if user changed the footer text input OR if there's new text and no preserved content
+            const shouldUseInputText = this._footerTextChanged ||
+              (hasNewFooterText && (!preserved.footer?.components?.length));
+
+            if (shouldUseInputText && hasNewFooterText) {
+              console.log(`🔄 Using input field footer text for page ${index + 1}: "${currentPageSettings.footer.text}"`);
+              footerRegion.components().reset();
+
+              const textComp = footerRegion.append(`
               <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
                 ${currentPageSettings.footer.text}
               </div>
             `)[0];
-            
-            if (textComp) {
-              textComp.set({
-                droppable: false,
-                editable: true,
-                selectable: true,
-                draggable: false,
-                copyable: false,
-                removable: true,
-                "custom-name": "Footer Text"
-              });
-            }
-          } else if (preserved.footer?.components?.length > 0) {
-            // Restore preserved content
-            console.log(`Restoring preserved footer content for page ${index + 1}`);
-            footerRegion.components().reset();
-            footerRegion.addAttributes(preserved.footer.attributes || {});
-            preserved.footer.components.forEach((compData) => {
-              const newComp = footerRegion.append(compData.html)[0];
-              if (newComp) {
-                newComp.setStyle(compData.styles || {});
-                newComp.addAttributes(compData.attributes || {});
+
+              if (textComp) {
+                textComp.set({
+                  droppable: false,
+                  editable: true,
+                  selectable: true,
+                  draggable: false,
+                  copyable: false,
+                  removable: true,
+                  "custom-name": "Footer Text"
+                });
               }
-            });
+            } else if (preserved.footer?.components?.length > 0) {
+              // Restore preserved content
+              console.log(`Restoring preserved footer content for page ${index + 1}`);
+              footerRegion.components().reset();
+              footerRegion.addAttributes(preserved.footer.attributes || {});
+              preserved.footer.components.forEach((compData) => {
+                const newComp = footerRegion.append(compData.html)[0];
+                if (newComp) {
+                  newComp.setStyle(compData.styles || {});
+                  newComp.addAttributes(compData.attributes || {});
+                }
+              });
+            } else {
+              // Footer enabled but no content
+              console.log(`Footer enabled but no content for page ${index + 1} - leaving empty`);
+              footerRegion.components().reset();
+            }
           } else {
-            // Footer enabled but no content
-            console.log(`Footer enabled but no content for page ${index + 1} - leaving empty`);
+            // Footer disabled, clear content
+            console.log(`Footer disabled for page ${index + 1} - clearing content`);
             footerRegion.components().reset();
           }
-        } else {
-          // Footer disabled, clear content
-          console.log(`Footer disabled for page ${index + 1} - clearing content`);
-          footerRegion.components().reset();
         }
-      }
-    });
-    
-    // Track what was applied this time
-    const currentPageSettings = this.pageSettings.pages[0];
-    this._lastAppliedHeaderText = currentPageSettings?.header?.text || "";
-    this._lastAppliedFooterText = currentPageSettings?.footer?.text || "";
-    
-    // Reset change flags after restoration
-    this._headerTextChanged = false;
-    this._footerTextChanged = false;
-    
-    console.log("✅ Finished restoring content");
-  } catch (error) {
-    console.error("❌ Error restoring all content:", error);
+      });
+
+      // Track what was applied this time
+      const currentPageSettings = this.pageSettings.pages[0];
+      this._lastAppliedHeaderText = currentPageSettings?.header?.text || "";
+      this._lastAppliedFooterText = currentPageSettings?.footer?.text || "";
+
+      // Reset change flags after restoration
+      this._headerTextChanged = false;
+      this._footerTextChanged = false;
+
+      console.log("✅ Finished restoring content");
+    } catch (error) {
+      console.error("❌ Error restoring all content:", error);
+    }
   }
-}
 
   hasRichHeaderFooterContent(components) {
     if (!components || components.length === 0) return false;
@@ -787,7 +776,6 @@ class PageSetupManager {
     // If it's a dragged component (not just the basic text we add), preserve it
     return hasTextArea || hasImage || hasCustomComponent || hasCustomClasses || hasComplexStyles;
   }
-
 
   // Store shared content to preserve during operations
   preserveSharedContent() {
@@ -843,7 +831,6 @@ class PageSetupManager {
       console.error("❌ Error preserving shared content:", error);
     }
   }
-
 
   // Restore shared content after operations
   restoreSharedContent() {
@@ -989,59 +976,62 @@ class PageSetupManager {
     })
   }
 
- syncSharedRegion(regionType, sourceRegion) {
-  // 🚫 GLOBAL: Prevent ALL syncing when text was explicitly changed
-  if ((regionType === "header" && this._headerTextChanged) || 
-      (regionType === "footer" && this._footerTextChanged)) {
-    console.log(`🚫 GLOBAL BLOCK: Skipping ${regionType} sync - user changed text via input field`);
-    return;
-  }
-
-  // 🚫 Prevent ALL syncing when using odd/even modes
-  if (this._shouldSyncHeaderFooterGlobally === false) {
-    console.log(`🚫 Syncing disabled for ${regionType} due to odd/even mode`);
-    return;
-  }
-
-  if (this._syncInProgress) return;
-  this._syncInProgress = true;
-  try {
-    const allRegions = this.editor.getWrapper().find(`[data-shared-region="${regionType}"]`);
-    if (allRegions.length <= 1) {
-      this._syncInProgress = false;
+  syncSharedRegion(regionType, sourceRegion) {
+    // 🚫 Prevent syncing when text was explicitly changed via input field
+    if ((regionType.includes("header") && this._headerTextChanged) ||
+      (regionType.includes("footer") && this._footerTextChanged)) {
+      console.log(`🚫 GLOBAL BLOCK: Skipping ${regionType} sync - user changed text via input field`);
       return;
     }
-    const sourceComponents = sourceRegion.components();
-    const sourceAttributes = sourceRegion.getAttributes();
-    allRegions.forEach((targetRegion) => {
-      if (targetRegion === sourceRegion) return;
-      // 🔄 Reset and copy components
-      targetRegion.components().reset();
-      sourceComponents.forEach((comp) => {
-        const clonedComp = comp.clone();
-        targetRegion.append(clonedComp);
+
+    if (this._syncInProgress) return;
+    this._syncInProgress = true;
+
+    try {
+      // Find all regions of the SAME type (e.g., all "header-even" regions)
+      const allRegions = this.editor.getWrapper().find(`[data-shared-region="${regionType}"]`);
+      if (allRegions.length <= 1) {
+        this._syncInProgress = false;
+        return;
+      }
+
+      const sourceComponents = sourceRegion.components();
+      const sourceAttributes = sourceRegion.getAttributes();
+
+      console.log(`✅ WORD-STYLE SYNC: Syncing ${regionType} to ${allRegions.length} matching pages`);
+
+      // Sync to ALL regions of the same type
+      allRegions.forEach((targetRegion) => {
+        if (targetRegion === sourceRegion) return;
+
+        // 🔄 Reset and copy components to all matching regions
+        targetRegion.components().reset();
+        sourceComponents.forEach((comp) => {
+          const clonedComp = comp.clone();
+          targetRegion.append(clonedComp);
+        });
+
+        // ✅ Copy attributes (excluding data-shared-region)
+        const filteredAttributes = { ...sourceAttributes };
+        delete filteredAttributes["data-shared-region"];
+        Object.keys(filteredAttributes).forEach((key) => {
+          targetRegion.addAttributes({ [key]: filteredAttributes[key] });
+        });
       });
-      // ✅ Copy attributes (excluding data-shared-region)
-      const filteredAttributes = { ...sourceAttributes };
-      delete filteredAttributes["data-shared-region"];
-      Object.keys(filteredAttributes).forEach((key) => {
-        targetRegion.addAttributes({ [key]: filteredAttributes[key] });
-      });
-      // ❌ Do NOT touch styles at all — height must remain as set by updateSinglePageVisuals()
-    });
-    console.log(`✅ Synced ${regionType} across ${allRegions.length} pages (styles untouched)`);
-  } catch (error) {
-    console.error(`❌ Error syncing shared region ${regionType}:`, error);
-  } finally {
-    this._syncInProgress = false;
+
+      console.log(`✅ Synced ${regionType} across ${allRegions.length} pages of the same type`);
+    } catch (error) {
+      console.error(`❌ Error syncing shared region ${regionType}:`, error);
+    } finally {
+      this._syncInProgress = false;
+    }
   }
-}
 
   resetTextChangeFlags() {
-  this._headerTextChanged = false;
-  this._footerTextChanged = false;
-  console.log("🔄 Reset header/footer text change flags");
-}
+    this._headerTextChanged = false;
+    this._footerTextChanged = false;
+    console.log("🔄 Reset header/footer text change flags");
+  }
 
   setupSectionSelection() {
     this.editor.on("component:selected", (model) => {
@@ -1730,7 +1720,7 @@ class PageSetupManager {
         }
 
         .size-controls {
-          display: grid;
+          display: block;
           grid-template-columns: 1fr 1fr;
           gap: 10px;
           margin-top: 10px;
@@ -2627,15 +2617,7 @@ class PageSetupManager {
     const headerHeight = this._lastHeaderHeight ?? this.pageSettings.headerFooter.headerHeight ?? 12.7;
     const footerHeight = this._lastFooterHeight ?? this.pageSettings.headerFooter.footerHeight ?? 12.7;
     const headerApplyMode = this._lastHeaderApplyMode ?? "all";
-    const footerApplyMode = this._lastFooterApplyMode ?? "all";
-    const headerCustomStart = this._lastHeaderCustomStart ?? 1;
-    const headerCustomEnd = this._lastHeaderCustomEnd ?? this.pageSettings.numberOfPages;
-    const footerCustomStart = this._lastFooterCustomStart ?? 1;
-    const footerCustomEnd = this._lastFooterCustomEnd ?? this.pageSettings.numberOfPages;
-
-    // Get current header and footer text content
-    const headerText = globalHeader.text || "";
-    const footerText = globalFooter.text || "";
+    const footerApplyMode = this._lastFooterApplyMode ?? "all"
 
     let pageOptions = ""
     for (let i = 1; i <= this.pageSettings.numberOfPages; i++) {
@@ -2643,376 +2625,418 @@ class PageSetupManager {
       pageOptions += `<option value="${i}" ${selected}>Page ${i}</option>`
     }
 
-    this.editor.Modal.setTitle("Enhanced Page Elements Settings")
+    this.editor.Modal.setTitle("Word-Style Page Elements Settings")
     this.editor.Modal.setContent(`
-    <div class="page-settings-content" style="color: #000 !important;">
-      <div class="page-setup-section">
-        <h3>📋 Page Information</h3>
-        <div class="page-info-grid">
-          <div class="page-info-item">
-            <label>Format:</label>
-            <span class="page-info-value">${this.pageSettings.format.toUpperCase()}</span>
-          </div>
-          <div class="page-info-item">
-            <label>Orientation:</label>
-            <span class="page-info-value">${this.pageSettings.orientation.charAt(0).toUpperCase() + this.pageSettings.orientation.slice(1)}</span>
-          </div>
-          <div class="page-info-item">
-            <label>Total Pages:</label>
-            <span class="page-info-value">${this.pageSettings.numberOfPages}</span>
-          </div>
-          <div class="page-info-item">
-            <label>Dimensions:</label>
-            <span class="page-info-value">${this.pageSettings.width} × ${this.pageSettings.height} mm</span>
-          </div>
-          <div class="page-info-item">
-            <label>Margins:</label>
-            <span class="page-info-value">${this.pageSettings.margins.top}/${this.pageSettings.margins.bottom}/${this.pageSettings.margins.left}/${this.pageSettings.margins.right} mm</span>
-          </div>
-          <div class="page-info-item">
-            <label>Content Area:</label>
-            <span class="page-info-value">${(this.pageSettings.width - this.pageSettings.margins.left - this.pageSettings.margins.right).toFixed(1)} × ${(this.pageSettings.height - this.pageSettings.margins.top - this.pageSettings.margins.bottom).toFixed(1)} mm</span>
-          </div>
+  <div class="page-settings-content" style="color: #000 !important;">
+    <div class="page-setup-section">
+      <h3>📋 Page Information</h3>
+      <div class="page-info-grid">
+        <div class="page-info-item">
+          <label>Format:</label>
+          <span class="page-info-value">${this.pageSettings.format.toUpperCase()}</span>
+        </div>
+        <div class="page-info-item">
+          <label>Orientation:</label>
+          <span class="page-info-value">${this.pageSettings.orientation.charAt(0).toUpperCase() + this.pageSettings.orientation.slice(1)}</span>
+        </div>
+        <div class="page-info-item">
+          <label>Total Pages:</label>
+          <span class="page-info-value">${this.pageSettings.numberOfPages}</span>
+        </div>
+        <div class="page-info-item">
+          <label>Dimensions:</label>
+          <span class="page-info-value">${this.pageSettings.width} × ${this.pageSettings.height} mm</span>
+        </div>
+        <div class="page-info-item">
+          <label>Margins:</label>
+          <span class="page-info-value">${this.pageSettings.margins.top}/${this.pageSettings.margins.bottom}/${this.pageSettings.margins.left}/${this.pageSettings.margins.right} mm</span>
+        </div>
+        <div class="page-info-item">
+          <label>Content Area:</label>
+          <span class="page-info-value">${(this.pageSettings.width - this.pageSettings.margins.left - this.pageSettings.margins.right).toFixed(1)} × ${(this.pageSettings.height - this.pageSettings.margins.top - this.pageSettings.margins.bottom).toFixed(1)} mm</span>
         </div>
       </div>
+    </div>
 
-      <div class="page-setup-section format-change-section">
-        <h3>📐 Change Page Format & Orientation</h3>
-        <div class="format-change-warning">
-          <strong>⚠️ Warning:</strong> Changing format or orientation will automatically adjust content positions to maintain relative positioning. Content at center will remain centered, content at edges will be repositioned proportionally.
+    <div class="page-setup-section format-change-section">
+      <h3>📐 Change Page Format & Orientation</h3>
+      <div class="format-change-warning">
+        <strong>⚠️ Warning:</strong> Changing format or orientation will automatically adjust content positions to maintain relative positioning. Content at center will remain centered, content at edges will be repositioned proportionally.
+      </div>
+      <div class="format-change-controls">
+        <div>
+          <label class="page-setup-label">New Format:</label>
+          <select id="settingsPageFormat" class="page-setup-control">
+            <option value="a4" ${this.pageSettings.format === "a4" ? "selected" : ""}>A4 (210 × 297 mm)</option>
+            <option value="a3" ${this.pageSettings.format === "a3" ? "selected" : ""}>A3 (297 × 420 mm)</option>
+            <option value="a2" ${this.pageSettings.format === "a2" ? "selected" : ""}>A2 (420 × 594 mm)</option>
+            <option value="a1" ${this.pageSettings.format === "a1" ? "selected" : ""}>A1 (594 × 841 mm)</option>
+            <option value="a0" ${this.pageSettings.format === "a0" ? "selected" : ""}>A0 (841 × 1189 mm)</option>
+            <option value="letter" ${this.pageSettings.format === "letter" ? "selected" : ""}>Letter (8.5 × 11 in)</option>
+            <option value="legal" ${this.pageSettings.format === "legal" ? "selected" : ""}>Legal (8.5 × 14 in)</option>
+            <option value="a5" ${this.pageSettings.format === "a5" ? "selected" : ""}>A5 (148 × 210 mm)</option>
+            <option value="custom" ${this.pageSettings.format === "custom" ? "selected" : ""}>Custom Size</option>
+          </select>
         </div>
-        <div class="format-change-controls">
+        <div>
+          <label class="page-setup-label">New Orientation:</label>
+          <select id="settingsPageOrientation" class="page-setup-control">
+            <option value="portrait" ${this.pageSettings.orientation === "portrait" ? "selected" : ""}>Portrait</option>
+            <option value="landscape" ${this.pageSettings.orientation === "landscape" ? "selected" : ""}>Landscape</option>
+          </select>
+        </div>
+      </div>
+      <div id="settingsCustomSizeSection" class="page-setup-custom-size ${this.pageSettings.format === "custom" ? "active" : ""}">
+        <h4>Custom Dimensions</h4>
+        <div class="page-setup-custom-row">
           <div>
-            <label class="page-setup-label">New Format:</label>
-            <select id="settingsPageFormat" class="page-setup-control">
-              <option value="a4" ${this.pageSettings.format === "a4" ? "selected" : ""}>A4 (210 × 297 mm)</option>
-              <option value="a3" ${this.pageSettings.format === "a3" ? "selected" : ""}>A3 (297 × 420 mm)</option>
-              <option value="a2" ${this.pageSettings.format === "a2" ? "selected" : ""}>A2 (420 × 594 mm)</option>
-              <option value="a1" ${this.pageSettings.format === "a1" ? "selected" : ""}>A1 (594 × 841 mm)</option>
-              <option value="a0" ${this.pageSettings.format === "a0" ? "selected" : ""}>A0 (841 × 1189 mm)</option>
-              <option value="letter" ${this.pageSettings.format === "letter" ? "selected" : ""}>Letter (8.5 × 11 in)</option>
-              <option value="legal" ${this.pageSettings.format === "legal" ? "selected" : ""}>Legal (8.5 × 14 in)</option>
-              <option value="a5" ${this.pageSettings.format === "a5" ? "selected" : ""}>A5 (148 × 210 mm)</option>
-              <option value="custom" ${this.pageSettings.format === "custom" ? "selected" : ""}>Custom Size</option>
-            </select>
+            <label>Width:</label>
+            <input type="number" id="settingsCustomWidth" class="page-setup-control" value="${this.pageSettings.width}" min="50" max="2000">
           </div>
           <div>
-            <label class="page-setup-label">New Orientation:</label>
-            <select id="settingsPageOrientation" class="page-setup-control">
-              <option value="portrait" ${this.pageSettings.orientation === "portrait" ? "selected" : ""}>Portrait</option>
-              <option value="landscape" ${this.pageSettings.orientation === "landscape" ? "selected" : ""}>Landscape</option>
-            </select>
+            <label>Height:</label>
+            <input type="number" id="settingsCustomHeight" class="page-setup-control" value="${this.pageSettings.height}" min="50" max="2000">
           </div>
-        </div>
-        <div id="settingsCustomSizeSection" class="page-setup-custom-size ${this.pageSettings.format === "custom" ? "active" : ""}">
-          <h4>Custom Dimensions</h4>
-          <div class="page-setup-custom-row">
-            <div>
-              <label>Width:</label>
-              <input type="number" id="settingsCustomWidth" class="page-setup-control" value="${this.pageSettings.width}" min="50" max="2000">
-            </div>
-            <div>
-              <label>Height:</label>
-              <input type="number" id="settingsCustomHeight" class="page-setup-control" value="${this.pageSettings.height}" min="50" max="2000">
-            </div>
-          </div>
-        </div>
-        <div style="margin-top: 15px;">
-          <strong>Preview:</strong> <span id="formatPreviewDimensions">${this.pageSettings.width} × ${this.pageSettings.height} mm</span>
-        </div>
-        <div style="margin-top: 15px;">
-          <button id="applyFormatChange" class="page-setup-btn page-setup-btn-primary">Apply Format Change</button>
         </div>
       </div>
-
-      <div class="page-setup-section">
-        <h3>🎨 Page Background</h3>
-        <div class="page-setup-row">
-          <label class="page-setup-label">Background Color:</label>
-          <div class="background-color-controls">
-            <input type="color" id="settingsPageBackgroundColor" class="page-setup-control" value="${this.pageSettings.backgroundColor || "#ffffff"}">
-            <div class="color-preview" id="settingsBackgroundColorPreview" style="background-color: ${this.pageSettings.backgroundColor || "#ffffff"};"></div>
-          </div>
-        </div>
-        <p style="font-size: 12px; color: #666; margin-top: 5px;">Background color will be preserved in headers, footers, and print/PDF output</p>
+      <div style="margin-top: 15px;">
+        <strong>Preview:</strong> <span id="formatPreviewDimensions">${this.pageSettings.width} × ${this.pageSettings.height} mm</span>
       </div>
+      <div style="margin-top: 15px;">
+        <button id="applyFormatChange" class="page-setup-btn page-setup-btn-primary">Apply Format Change</button>
+      </div>
+    </div>
 
-      <div class="page-setup-section">
-        <h3>💧 Page Watermark Settings</h3>
-        <div class="page-setup-row">
-          <label>
-            <input type="checkbox" id="settingsWatermarkEnabled" ${this.pageSettings.watermark.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Watermark
-          </label>
+    <div class="page-setup-section">
+      <h3>🎨 Page Background</h3>
+      <div class="page-setup-row">
+        <label class="page-setup-label">Background Color:</label>
+        <div class="background-color-controls">
+          <input type="color" id="settingsPageBackgroundColor" class="page-setup-control" value="${this.pageSettings.backgroundColor || "#ffffff"}">
+          <div class="color-preview" id="settingsBackgroundColorPreview" style="background-color: ${this.pageSettings.backgroundColor || "#ffffff"};"></div>
         </div>
-        <div id="settingsWatermarkControls" class="watermark-controls ${this.pageSettings.watermark.enabled ? "active" : ""}">
-          <div class="page-setup-row">
-            <label class="page-setup-label">Type:</label>
-            <div class="watermark-type-controls">
-              <div class="watermark-type-btn ${this.pageSettings.watermark.type === "text" ? "active" : ""}" data-type="text">Text</div>
-              <div class="watermark-type-btn ${this.pageSettings.watermark.type === "image" ? "active" : ""}" data-type="image">Image</div>
-              <div class="watermark-type-btn ${this.pageSettings.watermark.type === "both" ? "active" : ""}" data-type="both">Both</div>
-            </div>
-          </div>
-          
-          <div id="settingsWatermarkTextControls" style="display: ${this.pageSettings.watermark.type === "text" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
-            <div class="page-setup-row">
-              <label class="page-setup-label">Text:</label>
-              <input type="text" id="settingsWatermarkText" class="page-setup-control" value="${this.pageSettings.watermark.text.content}" placeholder="Enter watermark text">
-            </div>
-            <div class="size-controls">
-              <div>
-                <label>Font Size:</label>
-                <input type="number" id="settingsWatermarkFontSize" class="page-setup-control" value="${this.pageSettings.watermark.text.fontSize}" min="12" max="100">
-              </div>
-              <div>
-                <label>Color:</label>
-                <input type="color" id="settingsWatermarkColor" class="page-setup-control" value="${this.pageSettings.watermark.text.color}">
-              </div>
-              <div>
-                <label>Opacity:</label>
-                <input type="range" id="settingsWatermarkOpacity" class="page-setup-control" value="${Math.round(this.pageSettings.watermark.text.opacity * 100)}" min="10" max="80">
-              </div>
-              <div>
-                <label>Rotation:</label>
-                <input type="range" id="settingsWatermarkRotation" class="page-setup-control" value="${this.pageSettings.watermark.text.rotation}" min="-90" max="90">
-              </div>
-            </div>
-          </div>
+      </div>
+      <p style="font-size: 12px; color: #666; margin-top: 5px;">Background color will be preserved in headers, footers, and print/PDF output</p>
+    </div>
 
-          <div id="settingsWatermarkImageControls" style="display: ${this.pageSettings.watermark.type === "image" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
-            <div class="page-setup-row">
-              <label class="page-setup-label">Image URL:</label>
-              <input type="url" id="settingsWatermarkImageUrl" class="page-setup-control" value="${this.pageSettings.watermark.image.url}" placeholder="Enter image URL">
+    <div class="page-setup-section">
+      <h3>💧 Page Watermark Settings</h3>
+      <div class="page-setup-row">
+        <label>
+          <input type="checkbox" id="settingsWatermarkEnabled" ${this.pageSettings.watermark.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Watermark
+        </label>
+      </div>
+      <div id="settingsWatermarkControls" class="watermark-controls ${this.pageSettings.watermark.enabled ? "active" : ""}">
+        <div class="page-setup-row">
+          <label class="page-setup-label">Type:</label>
+          <div class="watermark-type-controls">
+            <div class="watermark-type-btn ${this.pageSettings.watermark.type === "text" ? "active" : ""}" data-type="text">Text</div>
+            <div class="watermark-type-btn ${this.pageSettings.watermark.type === "image" ? "active" : ""}" data-type="image">Image</div>
+           <!-- <div class="watermark-type-btn ${this.pageSettings.watermark.type === "both" ? "active" : ""}" data-type="both">Both</div> -->
+          </div>
+        </div>
+        
+        <div id="settingsWatermarkTextControls" style="display: ${this.pageSettings.watermark.type === "text" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
+          <div class="page-setup-row">
+            <label class="page-setup-label">Text:</label>
+            <input type="text" id="settingsWatermarkText" class="page-setup-control" value="${this.pageSettings.watermark.text.content}" placeholder="Enter watermark text">
+          </div>
+          <div class="size-controls">
+            <div>
+              <label>Font Size:</label>
+              <input type="number" id="settingsWatermarkFontSize" class="page-setup-control" value="${this.pageSettings.watermark.text.fontSize}" min="12" max="100">
             </div>
-            <div class="size-controls">
-              <div>
-                <label>Width (px):</label>
-                <input type="number" id="settingsWatermarkImageWidth" class="page-setup-control" value="${this.pageSettings.watermark.image.width}" min="50" max="500">
-              </div>
-              <div>
-                <label>Height (px):</label>
-                <input type="number" id="settingsWatermarkImageHeight" class="page-setup-control" value="${this.pageSettings.watermark.image.height}" min="50" max="500">
-              </div>
+            <div>
+              <label>Color:</label>
+              <input type="color" id="settingsWatermarkColor" class="page-setup-control" value="${this.pageSettings.watermark.text.color}">
+            </div>
+            <div>
+              <label>Opacity:</label>
+              <input type="range" id="settingsWatermarkOpacity" class="page-setup-control" value="${Math.round(this.pageSettings.watermark.text.opacity * 100)}" min="10" max="80">
+            </div>
+            <div>
+              <label>Rotation:</label>
+              <input type="range" id="settingsWatermarkRotation" class="page-setup-control" value="${this.pageSettings.watermark.text.rotation}" min="-90" max="90">
             </div>
           </div>
+        </div>
 
-          <div class="page-setup-row">
-            <label class="page-setup-label">Position:</label>
-            <div class="position-grid">
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "center" ? "selected" : ""}" data-position="center">Center</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
-  <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
+        <div id="settingsWatermarkImageControls" style="display: ${this.pageSettings.watermark.type === "image" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
+
+  <div class="page-setup-row">
+    <label class="page-setup-label">Image URL:</label>
+    <input type="url" id="settingsWatermarkImageUrl" class="page-setup-control"
+           value="${this.pageSettings.watermark.image.url}" placeholder="Enter image URL">
+  </div>
+
+  <div class="page-setup-row">
+    <label class="page-setup-label">Or Upload Image:</label>
+    <input type="file" id="settingsWatermarkImageFile" accept="image/*" class="page-setup-control">
+  </div>
+
+  <div class="size-controls">
+    <div>
+      <label>Width (px):</label>
+      <input type="number" id="settingsWatermarkImageWidth" class="page-setup-control"
+             value="${this.pageSettings.watermark.image.width}" min="50" max="500">
+    </div>
+    <div>
+      <label>Height (px):</label>
+      <input type="number" id="settingsWatermarkImageHeight" class="page-setup-control"
+             value="${this.pageSettings.watermark.image.height}" min="50" max="500">
+    </div>
+  </div>
+
 </div>
-          </div>
-        </div>
-      </div>
 
-      <div class="page-setup-section">
-        <h3>📏 Page Margins (mm)</h3>
-        <div class="margins-grid">
-          <div>
-            <label>Top:</label>
-            <input type="number" id="settingsMarginTop" class="page-setup-control" value="${this.pageSettings.margins.top}" min="0" max="50">
-          </div>
-          <div>
-            <label>Bottom:</label>
-            <input type="number" id="settingsMarginBottom" class="page-setup-control" value="${this.pageSettings.margins.bottom}" min="0" max="50">
-          </div>
-          <div>
-            <label>Left:</label>
-            <input type="number" id="settingsMarginLeft" class="page-setup-control" value="${this.pageSettings.margins.left}" min="0" max="50">
-          </div>
-          <div>
-            <label>Right:</label>
-            <input type="number" id="settingsMarginRight" class="page-setup-control" value="${this.pageSettings.margins.right}" min="0" max="50">
-          </div>
-        </div>
-      </div>
 
-      <div class="page-setup-section">
-        <!-- Header Controls -->
-        <div class="header-footer-section">
-          <h4>📋 Header</h4>
-          <div class="page-setup-row">
-            <label><input type="checkbox" id="settingsHeaderEnabled" ${this.pageSettings.headerFooter.headerEnabled ? "checked" : ""}> Enable Header</label>
-          </div>
-         
-          <div class="size-input-group">
-            <label>Height:</label>
-            <input type="number" id="settingsHeaderHeight" value="${headerHeight}" min="5" max="50" step="0.1">
-            <span style="font-size: 12px; color: #666;">mm</span>
-          </div>
-          <div class="page-setup-row">
-            <label class="page-setup-label">Apply Header Settings To:</label>
-            <select id="headerApplyMode" class="page-setup-control">
-              <option value="all" ${headerApplyMode === "all" ? "selected" : ""}>All Pages</option>
-              <option value="even" ${headerApplyMode === "even" ? "selected" : ""}>Even Pages</option>
-              <option value="odd" ${headerApplyMode === "odd" ? "selected" : ""}>Odd Pages</option>
-              <option value="custom" ${headerApplyMode === "custom" ? "selected" : ""}>Custom Range</option>
-            </select>
-          </div>
-          <div class="page-setup-row custom-range" id="headerCustomRangeInputs" style="display: ${headerApplyMode === "custom" ? "block" : "none"};">
-            <input type="text" id="headerCustomPageList" placeholder="e.g. 1,3,5-7" value="${this._lastHeaderCustomPageList || ''}" style="width: 100%;">
-          </div>
-        </div>
-
-        <!-- Footer Controls -->
-        <div class="header-footer-section">
-          <h4>📋 Footer</h4>
-          <div class="page-setup-row">
-            <label><input type="checkbox" id="settingsFooterEnabled" ${this.pageSettings.headerFooter.footerEnabled ? "checked" : ""}> Enable Footer</label>
-          </div>
-          
-          <div class="size-input-group">
-            <label>Height:</label>
-            <input type="number" id="settingsFooterHeight" value="${footerHeight}" min="5" max="50" step="0.1">
-            <span style="font-size: 12px; color: #666;">mm</span>
-          </div>
-          <div class="page-setup-row">
-            <label class="page-setup-label">Apply Footer Settings To:</label>
-            <select id="footerApplyMode" class="page-setup-control">
-              <option value="all" ${footerApplyMode === "all" ? "selected" : ""}>All Pages</option>
-              <option value="even" ${footerApplyMode === "even" ? "selected" : ""}>Even Pages</option>
-              <option value="odd" ${footerApplyMode === "odd" ? "selected" : ""}>Odd Pages</option>
-              <option value="custom" ${footerApplyMode === "custom" ? "selected" : ""}>Custom Range</option>
-            </select>
-          </div>
-          <div class="page-setup-row custom-range" id="footerCustomRangeInputs" style="display: ${footerApplyMode === "custom" ? "block" : "none"};">
-            <input type="text" id="footerCustomPageList" placeholder="e.g. 2,4-6,9" value="${this._lastFooterCustomPageList || ''}" style="width: 100%;">
-          </div>
-        </div>
-      </div>
-
-      <div class="page-setup-section">
-        <h3>🔢 Enhanced Page Number Settings</h3>
-        <div class="page-setup-row">
-          <label>
-            <input type="checkbox" id="pageNumberEnabled" ${globalPageNumber.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Page Numbers
-          </label>
-        </div>
-        <div class="page-setup-row">
-          <label class="page-setup-label">Start From Page:</label>
-          <select id="pageNumberStartFrom" class="page-setup-control">
-            ${pageOptions}
-          </select>
-        </div>
-        <p style="font-size: 12px; color: #666; margin: 10px 0;">Pages before the selected page will be excluded from numbering</p>
-        <div class="page-setup-row">
-          <label class="page-setup-label">Format:</label>
-          <select id="pageNumberFormat" class="page-setup-control">
-            <option value="Page {n}" ${globalPageNumber.format === "Page {n}" ? "selected" : ""}>Page {n}</option>
-            <option value="{n}" ${globalPageNumber.format === "{n}" ? "selected" : ""}>{n}</option>
-            <option value="{n} of {total}" ${globalPageNumber.format === "{n} of {total}" ? "selected" : ""}>{n} of {total}</option>
-            <option value="- {n} -" ${globalPageNumber.format === "- {n} -" ? "selected" : ""}>- {n} -</option>
-            <option value="[{n}]" ${globalPageNumber.format === "[{n}]" ? "selected" : ""}>[{n}]</option>
-          </select>
-        </div>
         <div class="page-setup-row">
           <label class="page-setup-label">Position:</label>
           <div class="position-grid">
-            <div class="position-option ${globalPageNumber.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
-            <div class="position-option ${globalPageNumber.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
-            <div class="position-option ${globalPageNumber.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
-            <div class="position-option ${globalPageNumber.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
-            <div class="position-option ${globalPageNumber.position === "center-center" ? "selected" : ""}" data-position="center-center">Center</div>
-            <div class="position-option ${globalPageNumber.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div>
-            <div class="position-option ${globalPageNumber.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
-            <div class="position-option ${globalPageNumber.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
-            <div class="position-option ${globalPageNumber.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "center" ? "selected" : ""}" data-position="center">Center</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
+            <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
           </div>
         </div>
-        <div class="size-controls">
-          <div>
-            <label>Font Size:</label>
-            <input type="number" id="pageNumberFontSize" class="page-setup-control" value="${globalPageNumber.fontSize || 11}" min="8" max="20">
-          </div>
-          <div>
-            <label>Text Color:</label>
-            <input type="color" id="pageNumberColor" class="page-setup-control" value="${globalPageNumber.color || "#333333"}">
-          </div>
-          <div>
-            <label>Background:</label>
-            <input type="color" id="pageNumberBackgroundColor" class="page-setup-control" value="${globalPageNumber.backgroundColor || "#ffffff"}">
-          </div>
-          <div>
-            <label>
-              <input type="checkbox" id="pageNumberShowBorder" ${globalPageNumber.showBorder ? "checked" : ""} style="border: 2px solid #000 !important;"> Show Border
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="page-setup-section">
-        <h3>🗑️ Page Management</h3>
-        <div class="page-setup-row">
-          <button id="deletePages" class="page-setup-btn page-setup-btn-secondary">Delete Pages</button>
-        </div>
-      </div>
-      
-      <div class="page-setup-actions">
-        <button id="applyPageElementsSettings" class="page-setup-btn page-setup-btn-primary">Apply Settings</button>
-        <button id="resetPageElementsSettings" class="page-setup-btn page-setup-btn-secondary">Reset</button>
       </div>
     </div>
-  `)
+
+    <div class="page-setup-section">
+      <h3>📏 Page Margins (mm)</h3>
+      <div class="margins-grid">
+        <div>
+          <label>Top:</label>
+          <input type="number" id="settingsMarginTop" class="page-setup-control" value="${this.pageSettings.margins.top}" min="0" max="50">
+        </div>
+        <div>
+          <label>Bottom:</label>
+          <input type="number" id="settingsMarginBottom" class="page-setup-control" value="${this.pageSettings.margins.bottom}" min="0" max="50">
+        </div>
+        <div>
+          <label>Left:</label>
+          <input type="number" id="settingsMarginLeft" class="page-setup-control" value="${this.pageSettings.margins.left}" min="0" max="50">
+        </div>
+        <div>
+          <label>Right:</label>
+          <input type="number" id="settingsMarginRight" class="page-setup-control" value="${this.pageSettings.margins.right}" min="0" max="50">
+        </div>
+      </div>
+    </div>
+
+    <div class="page-setup-section">
+      <div class="word-style-notice" style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #1976d2 !important;">📝 Word-Style Headers & Footers</h4>
+        <p style="margin: 0; font-size: 12px; color: #1565c0 !important;">
+          <strong>All Pages:</strong> Same content on every page<br>
+          <strong>Even Pages Only:</strong> Headers/footers appear only on pages 2, 4, 6...<br>
+          <strong>Odd Pages Only:</strong> Headers/footers appear only on pages 1, 3, 5...<br>
+          <strong>Different Odd & Even:</strong> Separate header/footer content for odd and even pages<br>
+          <strong>Custom Range:</strong> Headers/footers appear only on specified pages
+        </p>
+      </div>
+      
+      <!-- Header Controls -->
+      <div class="header-footer-section">
+        <h4>📋 Header Settings</h4>
+        <div class="page-setup-row">
+          <label><input type="checkbox" id="settingsHeaderEnabled" ${this.pageSettings.headerFooter.headerEnabled ? "checked" : ""}> Enable Header</label>
+        </div>
+       
+        <div class="size-input-group">
+          <label>Height:</label>
+          <input type="number" id="settingsHeaderHeight" value="${headerHeight}" min="5" max="50" step="0.1">
+          <span style="font-size: 12px; color: #666;">mm</span>
+        </div>
+        
+        <div class="page-setup-row">
+          <label class="page-setup-label">Apply Header To:</label>
+          <select id="headerApplyMode" class="page-setup-control">
+            <option value="all" ${headerApplyMode === "all" ? "selected" : ""}>All Pages</option>
+            <option value="even" ${headerApplyMode === "even" ? "selected" : ""}>Even Pages Only (2, 4, 6...)</option>
+            <option value="odd" ${headerApplyMode === "odd" ? "selected" : ""}>Odd Pages Only (1, 3, 5...)</option>
+            <option value="different" ${headerApplyMode === "different" ? "selected" : ""}>Different Odd & Even Pages</option>
+            <option value="custom" ${headerApplyMode === "custom" ? "selected" : ""}>Custom Range</option>
+          </select>
+        </div>
+        
+        <div class="page-setup-row custom-range" id="headerCustomRangeInputs" style="display: ${headerApplyMode === "custom" ? "block" : "none"};">
+          <input type="text" id="headerCustomPageList" placeholder="e.g. 1,3,5-7" value="${this._lastHeaderCustomPageList || ''}" style="width: 100%;">
+        </div>
+      </div>
+
+      <!-- Footer Controls -->
+      <div class="header-footer-section">
+        <h4>📋 Footer Settings</h4>
+        <div class="page-setup-row">
+          <label><input type="checkbox" id="settingsFooterEnabled" ${this.pageSettings.headerFooter.footerEnabled ? "checked" : ""}> Enable Footer</label>
+        </div>
+        
+        <div class="size-input-group">
+          <label>Height:</label>
+          <input type="number" id="settingsFooterHeight" value="${footerHeight}" min="5" max="50" step="0.1">
+          <span style="font-size: 12px; color: #666;">mm</span>
+        </div>
+        
+        <div class="page-setup-row">
+          <label class="page-setup-label">Apply Footer To:</label>
+          <select id="footerApplyMode" class="page-setup-control">
+            <option value="all" ${footerApplyMode === "all" ? "selected" : ""}>All Pages</option>
+            <option value="even" ${footerApplyMode === "even" ? "selected" : ""}>Even Pages Only (2, 4, 6...)</option>
+            <option value="odd" ${footerApplyMode === "odd" ? "selected" : ""}>Odd Pages Only (1, 3, 5...)</option>
+            <option value="different" ${footerApplyMode === "different" ? "selected" : ""}>Different Odd & Even Pages</option>
+            <option value="custom" ${footerApplyMode === "custom" ? "selected" : ""}>Custom Range</option>
+          </select>
+        </div>
+        
+        <div class="page-setup-row custom-range" id="footerCustomRangeInputs" style="display: ${footerApplyMode === "custom" ? "block" : "none"};">
+          <input type="text" id="footerCustomPageList" placeholder="e.g. 2,4-6,9" value="${this._lastFooterCustomPageList || ''}" style="width: 100%;">
+        </div>
+      </div>
+    </div>
+
+    <div class="page-setup-section">
+      <h3>🔢 Enhanced Page Number Settings</h3>
+      <div class="page-setup-row">
+        <label>
+          <input type="checkbox" id="pageNumberEnabled" ${globalPageNumber.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Page Numbers
+        </label>
+      </div>
+      <div class="page-setup-row">
+        <label class="page-setup-label">Start From Page:</label>
+        <select id="pageNumberStartFrom" class="page-setup-control">
+          ${pageOptions}
+        </select>
+      </div>
+      <p style="font-size: 12px; color: #666; margin: 10px 0;">Pages before the selected page will be excluded from numbering</p>
+      <div class="page-setup-row">
+        <label class="page-setup-label">Format:</label>
+        <select id="pageNumberFormat" class="page-setup-control">
+          <option value="Page {n}" ${globalPageNumber.format === "Page {n}" ? "selected" : ""}>Page {n}</option>
+          <option value="{n}" ${globalPageNumber.format === "{n}" ? "selected" : ""}>{n}</option>
+          <option value="{n} of {total}" ${globalPageNumber.format === "{n} of {total}" ? "selected" : ""}>{n} of {total}</option>
+          <option value="- {n} -" ${globalPageNumber.format === "- {n} -" ? "selected" : ""}>- {n} -</option>
+          <option value="[{n}]" ${globalPageNumber.format === "[{n}]" ? "selected" : ""}>[{n}]</option>
+        </select>
+      </div>
+      <div class="page-setup-row">
+        <label class="page-setup-label">Position:</label>
+        <div class="position-grid">
+          <div class="position-option ${globalPageNumber.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
+          <div class="position-option ${globalPageNumber.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
+          <div class="position-option ${globalPageNumber.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
+          <!-- <div class="position-option ${globalPageNumber.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
+          <div class="position-option ${globalPageNumber.position === "center-center" ? "selected" : ""}" data-position="center-center">Center</div>
+          <div class="position-option ${globalPageNumber.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div> -->
+          <div class="position-option ${globalPageNumber.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
+          <div class="position-option ${globalPageNumber.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
+          <div class="position-option ${globalPageNumber.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
+        </div>
+      </div>
+      <div class="size-controls">
+        <div>
+          <label>Font Size:</label>
+          <input type="number" id="pageNumberFontSize" class="page-setup-control" value="${globalPageNumber.fontSize || 11}" min="8" max="20">
+        </div>
+        <div>
+          <label>Text Color:</label>
+          <input type="color" id="pageNumberColor" class="page-setup-control" value="${globalPageNumber.color || "#333333"}">
+        </div>
+        <div>
+          <label>Background:</label>
+          <input type="color" id="pageNumberBackgroundColor" class="page-setup-control" value="${globalPageNumber.backgroundColor || "#ffffff"}">
+        </div>
+        <div>
+          <label>
+            <input type="checkbox" id="pageNumberShowBorder" ${globalPageNumber.showBorder ? "checked" : ""} style="border: 2px solid #000 !important;"> Show Border
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-setup-section">
+      <h3>🗑️ Page Management</h3>
+      <div class="page-setup-row">
+        <button id="deletePages" class="page-setup-btn page-setup-btn-secondary">Delete Pages</button>
+      </div>
+    </div>
+    
+    <div class="page-setup-actions">
+      <button id="applyPageElementsSettings" class="page-setup-btn page-setup-btn-primary">Apply Word-Style Settings</button>
+      <button id="resetPageElementsSettings" class="page-setup-btn page-setup-btn-secondary">Reset</button>
+    </div>
+  </div>
+`)
 
     this.editor.Modal.open()
+    this.populatePageSettingsForm();
 
     setTimeout(() => {
-      this.setupPageElementsListeners()
-      this.updateFormatPreview()
+      this.setupPageElementsListeners();
+      this.updateFormatPreview();
 
+      // ENHANCED: Properly restore all page number settings
       const pageNumberSettings = this.pageSettings.pageNumber || {};
 
-      document.getElementById("pageNumberEnabled").checked = !!pageNumberSettings.enabled;
-      document.getElementById("pageNumberStartFrom").value = pageNumberSettings.startFrom ?? 1;
-      document.getElementById("pageNumberFormat").value = pageNumberSettings.format || "Page {n}";
-      setTimeout(() => {
-        const posInput = document.getElementById("pageNumberPosition");
-        if (posInput) {
-          posInput.value = pageNumberSettings.position || "bottom-right";
-        }
-      }, 0);
+      // 1. Enable/Disable checkbox
+      const enabledCheckbox = document.getElementById("pageNumberEnabled");
+      if (enabledCheckbox) {
+        enabledCheckbox.checked = !!pageNumberSettings.enabled;
+      }
 
+      // 2. Start From dropdown
+      const startFromSelect = document.getElementById("pageNumberStartFrom");
+      if (startFromSelect) {
+        startFromSelect.value = pageNumberSettings.startFrom || 1;
+      }
+
+      // 3. Format dropdown
+      const formatSelect = document.getElementById("pageNumberFormat");
+      if (formatSelect) {
+        formatSelect.value = pageNumberSettings.format || "Page {n}";
+      }
+
+      // 4. Font Size input
       const fontSizeInput = document.getElementById("pageNumberFontSize");
       if (fontSizeInput) {
         const storedSize = pageNumberSettings.fontSize;
-        const cleanSize = parseInt((storedSize || "").replace("px", ""));
-        fontSizeInput.value = cleanSize || 11; // fallback to 11
-      }
-
-      const fontSelect = document.getElementById("pageNumberFontFamily");
-      if (fontSelect) {
-        fontSelect.value = pageNumberSettings.fontFamily || "Arial";
-      }
-      document.getElementById("pageNumberColor").value = pageNumberSettings.color || "#000000";
-      document.getElementById("pageNumberBackgroundColor").value = pageNumberSettings.backgroundColor || "#ffffff";
-      document.getElementById("pageNumberShowBorder").checked = !!pageNumberSettings.showBorder;
-      setTimeout(() => {
-        const visibilityDropdown = document.getElementById("pageNumberVisibility");
-        if (visibilityDropdown) {
-          visibilityDropdown.value = pageNumberSettings.visibility || "all";
+        // Handle both number and string values
+        let fontSize = 11; // default
+        if (typeof storedSize === 'number') {
+          fontSize = storedSize;
+        } else if (typeof storedSize === 'string') {
+          fontSize = parseInt(storedSize.replace("px", "")) || 11;
         }
-      }, 0);
+        fontSizeInput.value = fontSize;
+        console.log("📏 Font size restored:", fontSize);
+      }
 
-      // Restore saved position (value + visual state)
+      // 5. Text Color input
+      const colorInput = document.getElementById("pageNumberColor");
+      if (colorInput) {
+        colorInput.value = pageNumberSettings.color || "#333333";
+      }
+
+      // 6. Background Color input
+      const bgColorInput = document.getElementById("pageNumberBackgroundColor");
+      if (bgColorInput) {
+        bgColorInput.value = pageNumberSettings.backgroundColor || "#ffffff";
+      }
+
+      // 7. Border checkbox
+      const borderCheckbox = document.getElementById("pageNumberShowBorder");
+      if (borderCheckbox) {
+        borderCheckbox.checked = !!pageNumberSettings.showBorder;
+        console.log("🔲 Border restored:", !!pageNumberSettings.showBorder);
+      }
+
+      // 8. Position grid - restore selected position
       const savedPosition = pageNumberSettings.position || "bottom-center";
-
-      // 1. Set hidden input value (for saving later)
-      setTimeout(() => {
-        const positionInput = document.getElementById("pageNumberPosition");
-        if (positionInput) {
-          positionInput.value = savedPosition || "bottom-center";
-        }
-      }, 0);
-
-      // 2. Set selected visual div
       setTimeout(() => {
         const allPositionOptions = document.querySelectorAll(".position-option");
         allPositionOptions.forEach(opt => {
@@ -3022,7 +3046,8 @@ class PageSetupManager {
             console.log("🎯 Position element found and selected visually:", savedPosition);
           }
         });
-      }, 0);
+      }, 50);
+
     }, 100)
   }
 
@@ -3196,280 +3221,6 @@ class PageSetupManager {
     }
   }
 
-  // setupPageElementsListeners() {
-
-  //   const headerModeSelect = document.getElementById("headerApplyMode");
-  //   const footerModeSelect = document.getElementById("footerApplyMode");
-  //   const headerCustom = document.getElementById("headerCustomRangeInputs");
-  //   const footerCustom = document.getElementById("footerCustomRangeInputs");
-
-  //   // === Header Text Input Listener ===
-  //   const headerTextInput = document.getElementById("settingsHeaderText");
-  //   if (headerTextInput) {
-  //     headerTextInput.addEventListener("input", (e) => {
-  //       // Ensure pageSettings.pages[0].header exists
-  //       if (!this.pageSettings.pages[0].header) {
-  //         this.pageSettings.pages[0].header = {};
-  //       }
-  //       this.pageSettings.pages[0].header.text = e.target.value;
-  //       console.log("Header text updated:", e.target.value);
-  //     });
-  //   }
-
-  //   // === Footer Text Input Listener ===
-  //   const footerTextInput = document.getElementById("settingsFooterText");
-  //   if (footerTextInput) {
-  //     footerTextInput.addEventListener("input", (e) => {
-  //       // Ensure pageSettings.pages[0].footer exists
-  //       if (!this.pageSettings.pages[0].footer) {
-  //         this.pageSettings.pages[0].footer = {};
-  //       }
-  //       this.pageSettings.pages[0].footer.text = e.target.value;
-  //       console.log("Footer text updated:", e.target.value);
-  //     });
-  //   }
-
-  //   // === Page Number Settings Listeners ===
-  //   const pageNumberEnabled = document.getElementById("pageNumberEnabled");
-  //   const pageNumberControls = document.getElementById("pageNumberControls");
-
-  //   if (pageNumberEnabled && pageNumberControls) {
-  //     pageNumberEnabled.addEventListener("change", () => {
-  //       pageNumberControls.style.display = pageNumberEnabled.checked ? "block" : "none";
-  //     });
-  //   }
-
-  //   const pageNumberStartFrom = document.getElementById("pageNumberStartFrom");
-  //   if (pageNumberStartFrom) {
-  //     pageNumberStartFrom.addEventListener("input", (e) => {
-  //       const value = parseInt(e.target.value, 10);
-  //       if (!isNaN(value)) {
-  //         this.pageSettings.pageNumber.startFrom = value;
-  //       }
-  //     });
-  //   }
-
-  //   const pageNumberFormat = document.getElementById("pageNumberFormat");
-  //   if (pageNumberFormat) {
-  //     pageNumberFormat.addEventListener("change", (e) => {
-  //       this.pageSettings.pageNumber.format = e.target.value;
-  //     });
-  //   }
-
-  //   document.querySelectorAll(".position-option").forEach((el) => {
-  //     el.addEventListener("click", () => {
-  //       document.querySelectorAll(".position-option").forEach((opt) =>
-  //         opt.classList.remove("selected")
-  //       );
-  //       el.classList.add("selected");
-  //       this.pageSettings.pageNumber.position = el.getAttribute("data-position");
-  //     });
-  //   });
-
-  //   // Watermark Position Listener
-  //   document.querySelectorAll(".watermark-position-option").forEach((el) => {
-  //     el.addEventListener("click", () => {
-  //       // Only affect watermark position options
-  //       document.querySelectorAll(".watermark-position-option").forEach((opt) =>
-  //         opt.classList.remove("selected")
-  //       );
-  //       el.classList.add("selected");
-  //       this.pageSettings.watermark = this.pageSettings.watermark || {};
-  //       this.pageSettings.watermark.position = el.getAttribute("data-position");
-  //       console.log("💧 Watermark position set to:", el.getAttribute("data-position"));
-  //     });
-  //   });
-
-  //   const fontSizeInput = document.getElementById("pageNumberFontSize");
-  //   if (fontSizeInput) {
-  //     fontSizeInput.addEventListener("input", (e) => {
-  //       const value = parseInt(e.target.value, 10);
-  //       if (!isNaN(value)) {
-  //         this.pageSettings.pageNumber.fontSize = value;
-  //       }
-  //     });
-  //   }
-
-  //   const colorInput = document.getElementById("pageNumberColor");
-  //   if (colorInput) {
-  //     colorInput.addEventListener("input", (e) => {
-  //       this.pageSettings.pageNumber.color = e.target.value;
-  //     });
-  //   }
-
-  //   const bgColorInput = document.getElementById("pageNumberBackgroundColor");
-  //   if (bgColorInput) {
-  //     bgColorInput.addEventListener("input", (e) => {
-  //       this.pageSettings.pageNumber.backgroundColor = e.target.value;
-  //     });
-  //   }
-
-  //   const borderToggle = document.getElementById("pageNumberShowBorder");
-  //   if (borderToggle) {
-  //     borderToggle.addEventListener("change", (e) => {
-  //       this.pageSettings.pageNumber.showBorder = e.target.checked;
-  //     });
-  //   }
-
-  //   // === Header/Footer Apply Mode Listeners ===
-  //   if (headerModeSelect && headerCustom) {
-  //     headerModeSelect.addEventListener("change", () => {
-  //       headerCustom.style.display = headerModeSelect.value === "custom" ? "block" : "none";
-  //     });
-  //   }
-
-  //   if (footerModeSelect && footerCustom) {
-  //     footerModeSelect.addEventListener("change", () => {
-  //       footerCustom.style.display = footerModeSelect.value === "custom" ? "block" : "none";
-  //     });
-  //   }
-
-  //   // === Header/Footer Height Listeners ===
-  //   const headerHeightInput = document.getElementById("settingsHeaderHeight");
-  //   if (headerHeightInput) {
-  //     headerHeightInput.addEventListener("input", (e) => {
-  //       const value = parseFloat(e.target.value);
-  //       if (!isNaN(value)) {
-  //         this._lastHeaderHeight = value;
-  //         this.pageSettings.headerFooter.headerHeight = value;
-  //       }
-  //     });
-  //   }
-
-  //   const footerHeightInput = document.getElementById("settingsFooterHeight");
-  //   if (footerHeightInput) {
-  //     footerHeightInput.addEventListener("input", (e) => {
-  //       const value = parseFloat(e.target.value);
-  //       if (!isNaN(value)) {
-  //         this._lastFooterHeight = value;
-  //         this.pageSettings.headerFooter.footerHeight = value;
-  //       }
-  //     });
-  //   }
-
-  //   // === Header/Footer Enable/Disable Listeners ===
-  //   const headerEnabledInput = document.getElementById("settingsHeaderEnabled");
-  //   if (headerEnabledInput) {
-  //     headerEnabledInput.addEventListener("change", (e) => {
-  //       this.pageSettings.headerFooter.headerEnabled = e.target.checked;
-  //     });
-  //   }
-
-  //   const footerEnabledInput = document.getElementById("settingsFooterEnabled");
-  //   if (footerEnabledInput) {
-  //     footerEnabledInput.addEventListener("change", (e) => {
-  //       this.pageSettings.headerFooter.footerEnabled = e.target.checked;
-  //     });
-  //   }
-
-  //   document.addEventListener("click", (e) => {
-  //     if (e.target.classList.contains("position-option")) {
-  //       const selectedPosition = e.target.getAttribute("data-position");
-  //       const parent = e.target.parentElement;
-
-  //       // Update visuals
-  //       parent.querySelectorAll(".position-option").forEach((opt) => opt.classList.remove("selected"));
-  //       e.target.classList.add("selected");
-
-  //       // 🧠 Persist selected position
-  //       this.pageSettings.pageNumber = this.pageSettings.pageNumber || {};
-  //       this.pageSettings.pageNumber.position = selectedPosition;
-  //     }
-
-  //     if (e.target.classList.contains("watermark-type-btn")) {
-  //       const selectedType = e.target.getAttribute("data-type");
-  //       document.querySelectorAll(".watermark-type-btn").forEach((btn) => btn.classList.remove("active"));
-  //       e.target.classList.add("active");
-
-  //       // Toggle type-specific controls
-  //       const textControls = document.getElementById("settingsWatermarkTextControls");
-  //       const imageControls = document.getElementById("settingsWatermarkImageControls");
-
-  //       if (textControls) textControls.style.display = selectedType === "text" || selectedType === "both" ? "block" : "none";
-  //       if (imageControls) imageControls.style.display = selectedType === "image" || selectedType === "both" ? "block" : "none";
-  //     }
-
-  //     if (e.target.id === "settingsBackgroundColorPreview") {
-  //       const colorInput = document.getElementById("settingsPageBackgroundColor");
-  //       if (colorInput) {
-  //         colorInput.click();
-  //       }
-  //     }
-  //   });
-
-  //   document.addEventListener("change", (e) => {
-  //     if (e.target.id === "settingsPageBackgroundColor") {
-  //       const preview = document.getElementById("settingsBackgroundColorPreview");
-  //       if (preview) {
-  //         preview.style.backgroundColor = e.target.value;
-  //       }
-  //     }
-
-  //     if (e.target.id === "settingsWatermarkEnabled") {
-  //       const controls = document.getElementById("settingsWatermarkControls");
-  //       if (controls) {
-  //         if (e.target.checked) {
-  //           controls.classList.add("active");
-  //         } else {
-  //           controls.classList.remove("active");
-  //         }
-  //       }
-  //     }
-
-  //     if (e.target.id === "settingsPageFormat") {
-  //       const customSection = document.getElementById("settingsCustomSizeSection");
-  //       if (customSection) {
-  //         if (e.target.value === "custom") {
-  //           customSection.classList.add("active");
-  //         } else {
-  //           customSection.classList.remove("active");
-  //         }
-  //       }
-  //       this.updateFormatPreview();
-  //     }
-
-  //     if (
-  //       e.target.id === "settingsPageOrientation" ||
-  //       e.target.id === "settingsCustomWidth" ||
-  //       e.target.id === "settingsCustomHeight"
-  //     ) {
-  //       this.updateFormatPreview();
-  //     }
-  //   });
-
-  //   const deletePagesBtn = document.getElementById("deletePages");
-  //   if (deletePagesBtn) {
-  //     deletePagesBtn.addEventListener("click", () => {
-  //       this.editor.Modal.close();
-  //       setTimeout(() => {
-  //         this.showPageDeleteModal();
-  //       }, 100);
-  //     });
-  //   }
-
-  //   const applyBtn = document.getElementById("applyPageElementsSettings");
-  //   if (applyBtn) {
-  //     applyBtn.addEventListener("click", () => {
-  //       this.applyPageElementsSettings();
-  //     });
-  //   }
-
-  //   const resetBtn = document.getElementById("resetPageElementsSettings");
-  //   if (resetBtn) {
-  //     resetBtn.addEventListener("click", () => {
-  //       this.resetPageElementsSettings();
-  //     });
-  //   }
-
-  //   const formatChangeBtn = document.getElementById("applyFormatChange");
-  //   if (formatChangeBtn) {
-  //     formatChangeBtn.addEventListener("click", () => {
-  //       this.applyFormatAndOrientationChange();
-  //     });
-  //   }
-  // }
-
-
 
   setupPageElementsListeners() {
     const headerModeSelect = document.getElementById("headerApplyMode");
@@ -3483,77 +3234,88 @@ class PageSetupManager {
 
     // === Header Text Input Listener ===
     const headerTextInput = document.getElementById("settingsHeaderText");
-  if (headerTextInput) {
-    headerTextInput.addEventListener("input", (e) => {
-      // Always mark as changed when user types
-      this._headerTextChanged = true;
-      console.log("🔄 Header text changed by user input");
-      
-      // Ensure pageSettings.pages[0].header exists
-      if (!this.pageSettings.pages[0].header) {
-        this.pageSettings.pages[0].header = {};
-      }
-      this.pageSettings.pages[0].header.text = e.target.value;
-      console.log("Header text updated:", e.target.value);
-    });
-
-    // Also detect when user focuses and changes the field
-    headerTextInput.addEventListener("focus", () => {
-      this._headerTextOriginal = headerTextInput.value;
-    });
-
-    headerTextInput.addEventListener("blur", () => {
-      if (headerTextInput.value !== this._headerTextOriginal) {
+    if (headerTextInput) {
+      headerTextInput.addEventListener("input", (e) => {
+        // Always mark as changed when user types
         this._headerTextChanged = true;
-        console.log("🔄 Header text changed on blur");
-      }
-    });
-  }
+        console.log("🔄 Header text changed by user input");
 
-  // === Footer Text Input Listener ===
-  const footerTextInput = document.getElementById("settingsFooterText");
-  if (footerTextInput) {
-    footerTextInput.addEventListener("input", (e) => {
-      // Always mark as changed when user types
-      this._footerTextChanged = true;
-      console.log("🔄 Footer text changed by user input");
-      
-      // Ensure pageSettings.pages[0].footer exists
-      if (!this.pageSettings.pages[0].footer) {
-        this.pageSettings.pages[0].footer = {};
-      }
-      this.pageSettings.pages[0].footer.text = e.target.value;
-      console.log("Footer text updated:", e.target.value);
-    });
+        // Ensure pageSettings.pages[0].header exists
+        if (!this.pageSettings.pages[0].header) {
+          this.pageSettings.pages[0].header = {};
+        }
+        this.pageSettings.pages[0].header.text = e.target.value;
+        console.log("Header text updated:", e.target.value);
+      });
 
-    // Also detect when user focuses and changes the field
-    footerTextInput.addEventListener("focus", () => {
-      this._footerTextOriginal = footerTextInput.value;
-    });
+      // Also detect when user focuses and changes the field
+      headerTextInput.addEventListener("focus", () => {
+        this._headerTextOriginal = headerTextInput.value;
+      });
 
-    footerTextInput.addEventListener("blur", () => {
-      if (footerTextInput.value !== this._footerTextOriginal) {
+      headerTextInput.addEventListener("blur", () => {
+        if (headerTextInput.value !== this._headerTextOriginal) {
+          this._headerTextChanged = true;
+          console.log("🔄 Header text changed on blur");
+        }
+      });
+    }
+
+    // === Footer Text Input Listener ===
+    const footerTextInput = document.getElementById("settingsFooterText");
+    if (footerTextInput) {
+      footerTextInput.addEventListener("input", (e) => {
+        // Always mark as changed when user types
         this._footerTextChanged = true;
-        console.log("🔄 Footer text changed on blur");
-      }
-    });}
+        console.log("🔄 Footer text changed by user input");
+
+        // Ensure pageSettings.pages[0].footer exists
+        if (!this.pageSettings.pages[0].footer) {
+          this.pageSettings.pages[0].footer = {};
+        }
+        this.pageSettings.pages[0].footer.text = e.target.value;
+        console.log("Footer text updated:", e.target.value);
+      });
+
+      // Also detect when user focuses and changes the field
+      footerTextInput.addEventListener("focus", () => {
+        this._footerTextOriginal = footerTextInput.value;
+      });
+
+      footerTextInput.addEventListener("blur", () => {
+        if (footerTextInput.value !== this._footerTextOriginal) {
+          this._footerTextChanged = true;
+          console.log("🔄 Footer text changed on blur");
+        }
+      });
+    }
 
     // === Page Number Settings Listeners ===
     const pageNumberEnabled = document.getElementById("pageNumberEnabled");
     const pageNumberControls = document.getElementById("pageNumberControls");
 
     if (pageNumberEnabled && pageNumberControls) {
-      pageNumberEnabled.addEventListener("change", () => {
-        pageNumberControls.style.display = pageNumberEnabled.checked ? "block" : "none";
+      pageNumberEnabled.addEventListener("change", (e) => {
+        // Initialize if doesn't exist
+        if (!this.pageSettings.pageNumber) {
+          this.pageSettings.pageNumber = {};
+        }
+        this.pageSettings.pageNumber.enabled = e.target.checked;
+        pageNumberControls.style.display = e.target.checked ? "block" : "none";
+        console.log("📝 Page numbers enabled:", e.target.checked);
       });
     }
 
     const pageNumberStartFrom = document.getElementById("pageNumberStartFrom");
     if (pageNumberStartFrom) {
-      pageNumberStartFrom.addEventListener("input", (e) => {
+      pageNumberStartFrom.addEventListener("change", (e) => {
         const value = parseInt(e.target.value, 10);
         if (!isNaN(value)) {
+          if (!this.pageSettings.pageNumber) {
+            this.pageSettings.pageNumber = {};
+          }
           this.pageSettings.pageNumber.startFrom = value;
+          console.log("📝 Page number start from:", value);
         }
       });
     }
@@ -3561,21 +3323,32 @@ class PageSetupManager {
     const pageNumberFormat = document.getElementById("pageNumberFormat");
     if (pageNumberFormat) {
       pageNumberFormat.addEventListener("change", (e) => {
+        if (!this.pageSettings.pageNumber) {
+          this.pageSettings.pageNumber = {};
+        }
         this.pageSettings.pageNumber.format = e.target.value;
+        console.log("📝 Page number format:", e.target.value);
       });
     }
 
     // Page Number Position Listener
     document.querySelectorAll(".position-option").forEach((el) => {
       el.addEventListener("click", () => {
-        // Only affect page number position options
-        document.querySelectorAll(".position-option").forEach((opt) =>
-          opt.classList.remove("selected")
-        );
-        el.classList.add("selected");
-        this.pageSettings.pageNumber = this.pageSettings.pageNumber || {};
-        this.pageSettings.pageNumber.position = el.getAttribute("data-position");
-        console.log("📍 Page number position set to:", el.getAttribute("data-position"));
+        // Only affect page number position options (not watermark)
+        const parent = el.parentElement;
+        if (parent.classList.contains("position-grid")) {
+          parent.querySelectorAll(".position-option").forEach((opt) =>
+            opt.classList.remove("selected")
+          );
+          el.classList.add("selected");
+
+          // Initialize if doesn't exist
+          if (!this.pageSettings.pageNumber) {
+            this.pageSettings.pageNumber = {};
+          }
+          this.pageSettings.pageNumber.position = el.getAttribute("data-position");
+          console.log("📍 Page number position stored:", el.getAttribute("data-position"));
+        }
       });
     });
 
@@ -3598,7 +3371,12 @@ class PageSetupManager {
       fontSizeInput.addEventListener("input", (e) => {
         const value = parseInt(e.target.value, 10);
         if (!isNaN(value)) {
+          // Initialize if doesn't exist
+          if (!this.pageSettings.pageNumber) {
+            this.pageSettings.pageNumber = {};
+          }
           this.pageSettings.pageNumber.fontSize = value;
+          console.log("📏 Font size stored:", value);
         }
       });
     }
@@ -3606,21 +3384,33 @@ class PageSetupManager {
     const colorInput = document.getElementById("pageNumberColor");
     if (colorInput) {
       colorInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.pageNumber) {
+          this.pageSettings.pageNumber = {};
+        }
         this.pageSettings.pageNumber.color = e.target.value;
+        console.log("🎨 Color stored:", e.target.value);
       });
     }
 
     const bgColorInput = document.getElementById("pageNumberBackgroundColor");
     if (bgColorInput) {
       bgColorInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.pageNumber) {
+          this.pageSettings.pageNumber = {};
+        }
         this.pageSettings.pageNumber.backgroundColor = e.target.value;
+        console.log("🎨 Background color stored:", e.target.value);
       });
     }
 
     const borderToggle = document.getElementById("pageNumberShowBorder");
     if (borderToggle) {
       borderToggle.addEventListener("change", (e) => {
+        if (!this.pageSettings.pageNumber) {
+          this.pageSettings.pageNumber = {};
+        }
         this.pageSettings.pageNumber.showBorder = e.target.checked;
+        console.log("🔲 Border stored:", e.target.checked);
       });
     }
 
@@ -3680,13 +3470,18 @@ class PageSetupManager {
         const selectedPosition = e.target.getAttribute("data-position");
         const parent = e.target.parentElement;
 
-        // Update visuals
-        parent.querySelectorAll(".position-option").forEach((opt) => opt.classList.remove("selected"));
-        e.target.classList.add("selected");
+        // Update visuals - only for position grids (page numbers)
+        if (parent.classList.contains("position-grid")) {
+          parent.querySelectorAll(".position-option").forEach((opt) => opt.classList.remove("selected"));
+          e.target.classList.add("selected");
 
-        // 🧠 Persist selected position
-        this.pageSettings.pageNumber = this.pageSettings.pageNumber || {};
-        this.pageSettings.pageNumber.position = selectedPosition;
+          // 🧠 Persist selected position
+          if (!this.pageSettings.pageNumber) {
+            this.pageSettings.pageNumber = {};
+          }
+          this.pageSettings.pageNumber.position = selectedPosition;
+          console.log("📍 Page number position clicked and stored:", selectedPosition);
+        }
       }
 
       if (e.target.classList.contains("watermark-type-btn")) {
@@ -3750,6 +3545,38 @@ class PageSetupManager {
       }
     });
 
+    // === Watermark Image File Upload ===
+    const watermarkFileInput = document.getElementById("settingsWatermarkImageFile");
+    if (watermarkFileInput) {
+      watermarkFileInput.addEventListener("change", (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64 = reader.result;
+            if (!this.pageSettings.watermark) {
+              this.pageSettings.watermark = {};
+            }
+            if (!this.pageSettings.watermark.image) {
+              this.pageSettings.watermark.image = {};
+            }
+
+            this.pageSettings.watermark.image.url = base64;
+
+            // Optionally reflect the value in the URL input
+            const urlInput = document.getElementById("settingsWatermarkImageUrl");
+            if (urlInput) {
+              urlInput.value = base64;
+            }
+
+            console.log("📸 Local image converted to base64 and stored in settings");
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+
     const deletePagesBtn = document.getElementById("deletePages");
     if (deletePagesBtn) {
       deletePagesBtn.addEventListener("click", () => {
@@ -3787,259 +3614,412 @@ class PageSetupManager {
     try {
       this.preserveAllContent();
 
-      // 🟫 Margins & Background
+      // Get all form values
       const marginTop = Math.max(0, parseFloat(document.getElementById("settingsMarginTop")?.value) || 0);
       const marginBottom = Math.max(0, parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0);
       const marginLeft = Math.max(0, parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0);
       const marginRight = Math.max(0, parseFloat(document.getElementById("settingsMarginRight")?.value) || 0);
       const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff";
 
-      // 🟩 Header values
-      const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked || false;
+      // Header settings
+      const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked !== false;
       const headerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7));
       const headerApplyMode = document.getElementById("headerApplyMode")?.value || "all";
       const headerCustomPageList = document.getElementById("headerCustomPageList")?.value || "";
-      const headerText = document.getElementById("settingsHeaderText")?.value || ""; // 🆕 Header text
+      const headerText = document.getElementById("settingsHeaderText")?.value || "";
 
-      // 🟦 Footer values
-      const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked || false;
+      // Footer settings
+      const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked !== false;
       const footerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7));
       const footerApplyMode = document.getElementById("footerApplyMode")?.value || "all";
       const footerCustomPageList = document.getElementById("footerCustomPageList")?.value || "";
-      const footerText = document.getElementById("settingsFooterText")?.value || ""; // 🆕 Footer text
+      const footerText = document.getElementById("settingsFooterText")?.value || "";
 
-      // 🔢 Page Number Settings
+      // Page Number and Watermark settings
       const pageNumberEnabled = document.getElementById("pageNumberEnabled")?.checked || false;
       const pageNumberStartFrom = parseInt(document.getElementById("pageNumberStartFrom")?.value || "1", 10);
       const pageNumberFormat = document.getElementById("pageNumberFormat")?.value || "Page {n}";
       const pageNumberPosition = document.querySelector(".position-option.selected")?.dataset?.position || "bottom-center";
-      console.log("📌 Selected Page Number Position (apply):", pageNumberPosition);
-      const pageNumberFontSize = parseInt(document.getElementById("pageNumberFontSize")?.value || "11", 10);
-      const pageNumberColor = document.getElementById("pageNumberColor")?.value || "#333333";
-      const pageNumberBackgroundColor = document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff";
-      const pageNumberShowBorder = document.getElementById("pageNumberShowBorder")?.checked || false;
+      const storedPageNumber = this.pageSettings.pageNumber || {};
+      const pageNumberFontSize = storedPageNumber.fontSize || parseInt(document.getElementById("pageNumberFontSize")?.value || "11", 10);
+      const pageNumberColor = storedPageNumber.color || document.getElementById("pageNumberColor")?.value || "#333333";
+      const pageNumberBackgroundColor = storedPageNumber.backgroundColor || document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff";
+      const pageNumberShowBorder = storedPageNumber.showBorder !== undefined ? storedPageNumber.showBorder : (document.getElementById("pageNumberShowBorder")?.checked || false);
 
-      // 🔁 Persist for next modal open
+      const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false;
+      const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset?.type || "text";
+      const watermarkTextContent = document.getElementById("settingsWatermarkText")?.value || "CONFIDENTIAL";
+      const watermarkFontSize = parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
+      const watermarkColor = document.getElementById("settingsWatermarkColor")?.value || "#000000";
+      const watermarkOpacity = parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.4;
+      const watermarkRotation = parseInt(document.getElementById("settingsWatermarkRotation")?.value) || 0;
+      const watermarkImageUrl = document.getElementById("settingsWatermarkImageUrl")?.value || "";
+      const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
+      const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
+      const watermarkPosition = document.querySelector(".watermark-position-option.selected")?.dataset?.position || "center";
+
+      // Parse custom page lists
+      const headerCustomPages = this.parsePageList(headerCustomPageList);
+      const footerCustomPages = this.parsePageList(footerCustomPageList);
+
+      console.log("📋 Custom page lists parsed:", {
+        headerPages: headerCustomPages,
+        footerPages: footerCustomPages,
+        headerMode: headerApplyMode,
+        footerMode: footerApplyMode
+      });
+
+      // Store settings for persistence
       this._lastHeaderApplyMode = headerApplyMode;
       this._lastFooterApplyMode = footerApplyMode;
       this._lastHeaderCustomPageList = headerCustomPageList;
       this._lastFooterCustomPageList = footerCustomPageList;
+      this._lastHeaderCustomPages = headerCustomPages;
+      this._lastFooterCustomPages = footerCustomPages;
 
-      // ✅ Store global config
+      // Update global page settings
       this.pageSettings.headerFooter = {
-        headerEnabled,
-        footerEnabled,
+        headerEnabled: headerEnabled,
+        footerEnabled: footerEnabled,
         headerHeight,
         footerHeight,
-        headerText, // 🆕 Store header text globally
-        footerText, // 🆕 Store footer text globally
+        headerText,
+        footerText,
+        headerApplyMode,
+        footerApplyMode,
+        headerCustomPages,
+        footerCustomPages
       };
 
       this.pageSettings.margins = { top: marginTop, bottom: marginBottom, left: marginLeft, right: marginRight };
       this.pageSettings.backgroundColor = newBackgroundColor;
 
-      const position = pageNumberPosition;
-
+      // Store Page Number and Watermark Settings
       this.pageSettings.pageNumber = {
-        enabled: document.getElementById("pageNumberEnabled")?.checked || false,
-        startFrom: parseInt(document.getElementById("pageNumberStartFrom")?.value) || 1,
-        format: document.getElementById("pageNumberFormat")?.value || "{pageNumber}",
-        position: position,
-        fontSize: document.getElementById("pageNumberFontSize")?.value || "12px",
-        fontFamily: document.getElementById("pageNumberFontFamily")?.value || "Arial",
-        color: document.getElementById("pageNumberColor")?.value || "#000000",
-        backgroundColor: document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff",
-        showBorder: document.getElementById("pageNumberShowBorder")?.checked || false,
-        visibility: document.getElementById("pageNumberVisibility")?.value || "all",
+        enabled: pageNumberEnabled,
+        startFrom: pageNumberStartFrom,
+        format: pageNumberFormat,
+        position: pageNumberPosition,
+        fontSize: pageNumberFontSize,
+        fontFamily: storedPageNumber.fontFamily || "Arial",
+        color: pageNumberColor,
+        backgroundColor: pageNumberBackgroundColor,
+        showBorder: pageNumberShowBorder,
+        visibility: storedPageNumber.visibility || "all",
       };
-      console.log("✅ Page number settings saved:", this.pageSettings.pageNumber);
-
-      const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false;
-      const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset?.type || "text";
-
-      const watermarkTextContent = document.getElementById("settingsWatermarkText")?.value || "";
-      const watermarkFontSize = parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
-      const watermarkColor = document.getElementById("settingsWatermarkColor")?.value || "#000000";
-      const watermarkOpacity = parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.4;
-      const watermarkRotation = parseInt(document.getElementById("settingsWatermarkRotation")?.value) || 0;
-
-      const watermarkImageUrl = document.getElementById("settingsWatermarkImageUrl")?.value || "";
-      const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
-      const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
 
       this.pageSettings.watermark = {
-        ...this.pageSettings.watermark,
         enabled: watermarkEnabled,
         type: watermarkType,
-        position: this.pageSettings.watermark?.position || "center", // preserve or default
+        position: watermarkPosition,
         text: {
-                content: watermarkTextContent,
-                fontSize: watermarkFontSize,
-                color: watermarkColor,
-                opacity: watermarkOpacity,
-                rotation: watermarkRotation
-              },
-          image: {
+          content: watermarkTextContent,
+          fontSize: watermarkFontSize,
+          color: watermarkColor,
+          opacity: watermarkOpacity,
+          rotation: watermarkRotation
+        },
+        image: {
           url: watermarkImageUrl,
           width: watermarkImageWidth,
           height: watermarkImageHeight
-          }
-        };
-
-      console.log("✅ Watermark setting saved:", this.pageSettings.watermark);
-
-      const parseCustomPageList = (text) => {
-        const pages = new Set();
-        const parts = text.split(',').map(p => p.trim());
-        for (const part of parts) {
-          if (/^\d+$/.test(part)) {
-            pages.add(Number(part));
-          } else if (/^\d+-\d+$/.test(part)) {
-            const [start, end] = part.split('-').map(Number);
-            if (!isNaN(start) && !isNaN(end) && end >= start) {
-              for (let i = start; i <= end; i++) pages.add(i);
-            }
-          }
         }
-        return pages;
       };
 
-      const headerCustomPages = parseCustomPageList(headerCustomPageList);
-      const footerCustomPages = parseCustomPageList(footerCustomPageList);
+      // ✅ UPDATE INDIVIDUAL PAGE SETTINGS BEFORE SETUP
+      this.updateIndividualPageSettings();
 
-      const shouldApplyTo = (mode, index, customPagesSet) => {
-        const pageNum = index + 1;
-        if (mode === "all") return true;
-        if (mode === "even") return pageNum % 2 === 0;
-        if (mode === "odd") return pageNum % 2 !== 0;
-        if (mode === "custom") return customPagesSet.has(pageNum);
-        return false;
-      };
-
-      this._shouldSyncHeaderFooterGlobally = headerApplyMode === 'all' && footerApplyMode === 'all';
-
-      console.log("🔍 Debug: Apply modes and sync setting:");
-      console.log(`  Header apply mode: ${headerApplyMode}`);
-      console.log(`  Footer apply mode: ${footerApplyMode}`);
-      console.log(`  Should sync globally: ${this._shouldSyncHeaderFooterGlobally}`);
-
-      // 🆕 Helper function to process text with variables
-      const processText = (text, pageIndex) => {
-        if (!text) return "";
-        const pageNum = pageIndex + 1;
-        const totalPages = this.pageSettings.numberOfPages;
-        const currentDate = new Date().toLocaleDateString();
-
-        return text
-          .replace(/\{pageNumber\}/g, pageNum)
-          .replace(/\{totalPages\}/g, totalPages)
-          .replace(/\{date\}/g, currentDate);
-      };
-
-      this.pageSettings.pages.forEach((page, index) => {
-        page.margins = { ...this.pageSettings.margins };
-        page.backgroundColor = newBackgroundColor;
-
-        // 🟩 Header
-        if (!page.header) page.header = {};
-        if (shouldApplyTo(headerApplyMode, index, headerCustomPages)) {
-          page.header.enabled = headerEnabled;
-          page.header.height = headerHeight;
-          page.header.text = processText(headerText, index); // 🆕 Process header text with variables
-        }
-
-        // 🟦 Footer
-        if (!page.footer) page.footer = {};
-        if (shouldApplyTo(footerApplyMode, index, footerCustomPages)) {
-          page.footer.enabled = footerEnabled;
-          page.footer.height = footerHeight;
-          page.footer.text = processText(footerText, index); // 🆕 Process footer text with variables
-        }
-
-        // 🔢 Page Number Visibility and Style (will be rendered later)
-        const pageNum = index + 1;
-        page.pageNumber = {
-          visible: pageNumberEnabled && pageNum >= pageNumberStartFrom,
-          format: pageNumberFormat,
-          position: pageNumberPosition,
-          fontSize: pageNumberFontSize,
-          color: pageNumberColor,
-          backgroundColor: pageNumberBackgroundColor,
-          showBorder: pageNumberShowBorder,
-        };
+      console.log("✅ Custom mode settings applied:", {
+        headerMode: headerApplyMode,
+        footerMode: footerApplyMode,
+        headerCustomPages,
+        footerCustomPages,
+        pageNumbers: pageNumberEnabled,
+        watermark: watermarkEnabled
       });
 
-      // 🎨 Apply layout
+      // Apply background color and recreate pages
       this.applyBackgroundColorToPages(newBackgroundColor);
+      this.preserveContentForModeSwitch();
       this.setupEditorPages();
 
-      // Replace your setTimeout section in applyPageElementsSettings() with this:
-
+      // Restore content and update visuals
       setTimeout(() => {
         this.restoreAllContent();
+        this.restoreContentAfterModeSwitch();
         this.updateAllPageVisuals();
 
-        // Delete the sync flag AFTER visual updates are complete
+        // Apply conditional content clearing based on custom settings
         setTimeout(() => {
-          delete this._shouldSyncHeaderFooterGlobally;
+          this.applyConditionalHeaderFooterContent();
           this.resetTextChangeFlags();
-          console.log("🗑️ Cleaned up sync flag after visual updates completed");
+          console.log("🗑️ Custom mode setup complete");
         }, 300);
       }, 250);
 
       this.editor.Modal.close();
-      console.log("✅ Settings applied successfully");
-      console.log("📝 Header text applied:", headerText);
-      console.log("📝 Footer text applied:", footerText);
+      console.log("✅ Custom header/footer settings applied successfully");
+
     } catch (err) {
       console.error("❌ Error in applyPageElementsSettings:", err);
       alert("Failed to apply settings.");
     }
   }
 
+  populatePageSettingsForm() {
+    const watermark = this.pageSettings?.watermark || {};
+    const watermarkImage = watermark.image || {};
+    const watermarkText = watermark.text || {};
 
-  _parseCustomPageList(str) {
-    const result = new Set();
-    const parts = str.split(",").map(s => s.trim());
-    for (const part of parts) {
-      if (part.includes("-")) {
-        const [start, end] = part.split("-").map(Number);
-        if (!isNaN(start) && !isNaN(end)) {
-          for (let i = start; i <= end; i++) result.add(i);
-        }
-      } else {
-        const num = parseInt(part);
-        if (!isNaN(num)) result.add(num);
+    // Restore watermark toggle
+    document.getElementById("settingsWatermarkEnabled").checked = watermark.enabled || false;
 
-      }
-    }
-    return Array.from(result);
-  }
-
-  shouldApplyToPage(applyTo, customRangeStr, pageNumber) {
-    if (applyTo === 'all') return true;
-    if (applyTo === 'even') return pageNumber % 2 === 0;
-    if (applyTo === 'odd') return pageNumber % 2 !== 0;
-    if (applyTo === 'custom') {
-      const pages = this.parseCustomRange(customRangeStr);
-      return pages.includes(pageNumber);
-    }
-    return false;
-  }
-
-  parseCustomRange(rangeStr) {
-    const pages = new Set();
-    rangeStr.split(',').forEach(part => {
-      if (part.includes('-')) {
-        const [start, end] = part.split('-').map(Number);
-        for (let i = start; i <= end; i++) pages.add(i);
-      } else {
-        const page = Number(part);
-        if (!isNaN(page)) pages.add(page);
+    // Restore watermark type buttons (image / text)
+    document.querySelectorAll(".watermark-type-btn").forEach(btn => {
+      btn.classList.remove("active");
+      if (btn.dataset.type === watermark.type) {
+        btn.classList.add("active");
       }
     });
-    return [...pages];
+
+    // Restore image URL and dimensions
+    document.getElementById("settingsWatermarkImageUrl").value = watermarkImage.url || "";
+    document.getElementById("settingsWatermarkImageWidth").value = watermarkImage.width || 200;
+    document.getElementById("settingsWatermarkImageHeight").value = watermarkImage.height || 200;
+
+    // Restore watermark text
+    document.getElementById("settingsWatermarkText").value = watermarkText.content || "CONFIDENTIAL";
+    document.getElementById("settingsWatermarkFontSize").value = watermarkText.fontSize || 36;
+    document.getElementById("settingsWatermarkColor").value = watermarkText.color || "#000000";
+    document.getElementById("settingsWatermarkOpacity").value = Math.round((watermarkText.opacity || 0.4) * 100);
+    document.getElementById("settingsWatermarkRotation").value = watermarkText.rotation || 0;
+
+    // Restore watermark position
+    document.querySelectorAll(".watermark-position-option").forEach(btn => {
+      btn.classList.remove("selected");
+      if (btn.dataset.position === watermark.position) {
+        btn.classList.add("selected");
+      }
+    });
+
+    // Optionally update image preview (if you added one)
+    const preview = document.getElementById("settingsWatermarkPreview");
+    if (preview && watermarkImage.url) {
+      preview.src = watermarkImage.url;
+      preview.style.display = "block";
+    }
   }
+
+
+  applyConditionalHeaderFooterContent() {
+    try {
+      console.log("🧹 Applying conditional header/footer content based on page settings...");
+      const allPageComponents = this.editor.getWrapper().find(".page-container");
+
+      allPageComponents.forEach((pageComponent, index) => {
+        const pageSettings = this.pageSettings.pages[index];
+        if (!pageSettings) {
+          console.warn(`⚠️ No settings found for page ${index + 1}`);
+          return;
+        }
+
+        const pageNumber = index + 1;
+
+        // Handle header content
+        const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
+        if (headerRegion) {
+          const headerElement = headerRegion.find('.page-header-element')[0];
+          if (headerElement) {
+            const shouldShowHeaderContent = pageSettings.header?.shouldShowContent !== false;
+
+            if (!shouldShowHeaderContent) {
+              // Clear only the content inside the header element, keep the header structure
+              headerElement.components().reset();
+              console.log(`🧹 Cleared header content from page ${pageNumber} (structure remains)`);
+            } else {
+              console.log(`✅ Header content preserved on page ${pageNumber}`);
+            }
+          }
+        }
+
+        // Handle footer content
+        const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0];
+        if (footerRegion) {
+          const footerElement = footerRegion.find('.page-footer-element')[0];
+          if (footerElement) {
+            const shouldShowFooterContent = pageSettings.footer?.shouldShowContent !== false;
+
+            if (!shouldShowFooterContent) {
+              // Clear only the content inside the footer element, keep the footer structure
+              footerElement.components().reset();
+              console.log(`🧹 Cleared footer content from page ${pageNumber} (structure remains)`);
+            } else {
+              console.log(`✅ Footer content preserved on page ${pageNumber}`);
+            }
+          }
+        }
+      });
+
+      console.log("✅ Conditional header/footer content clearing complete");
+    } catch (error) {
+      console.error("❌ Error applying conditional header/footer content:", error);
+    }
+  }
+
+  parsePageList(pageListString) {
+    if (!pageListString || pageListString.trim() === "") {
+      return [];
+    }
+
+    const pages = [];
+    const parts = pageListString.split(',');
+
+    for (const part of parts) {
+      const trimmedPart = part.trim();
+      if (trimmedPart.includes('-')) {
+        // Handle ranges like "5-7"
+        const [start, end] = trimmedPart.split('-').map(num => parseInt(num.trim(), 10));
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            if (!pages.includes(i)) {
+              pages.push(i);
+            }
+          }
+        }
+      } else {
+        // Handle single numbers
+        const pageNum = parseInt(trimmedPart, 10);
+        if (!isNaN(pageNum) && !pages.includes(pageNum)) {
+          pages.push(pageNum);
+        }
+      }
+    }
+
+    return pages.sort((a, b) => a - b);
+  }
+
+
+  updateIndividualPageSettings() {
+    try {
+      const totalPages = this.pageSettings.pages.length;
+      const headerApplyMode = this._lastHeaderApplyMode || "all";
+      const footerApplyMode = this._lastFooterApplyMode || "all";
+      const headerCustomPages = this._lastHeaderCustomPages || [];
+      const footerCustomPages = this._lastFooterCustomPages || [];
+
+      console.log("🔧 Updating individual page settings for", totalPages, "pages");
+      console.log("Header mode:", headerApplyMode, "Custom pages:", headerCustomPages);
+      console.log("Footer mode:", footerApplyMode, "Custom pages:", footerCustomPages);
+
+      for (let i = 0; i < totalPages; i++) {
+        const pageIndex = i;
+        const pageNumber = i + 1; // 1-based page numbering
+
+        // Ensure page settings exist
+        if (!this.pageSettings.pages[pageIndex]) {
+          this.pageSettings.pages[pageIndex] = {
+            id: `page-${pageIndex + 1}`,
+            name: `Page ${pageIndex + 1}`,
+            header: { shouldShowContent: true },
+            footer: { shouldShowContent: true }
+          };
+        }
+
+        // Initialize header/footer objects if they don't exist
+        if (!this.pageSettings.pages[pageIndex].header) {
+          this.pageSettings.pages[pageIndex].header = {};
+        }
+        if (!this.pageSettings.pages[pageIndex].footer) {
+          this.pageSettings.pages[pageIndex].footer = {};
+        }
+
+        // Determine if header should show content based on apply mode
+        let headerShouldShow = true;
+        if (headerApplyMode === "custom") {
+          // In custom mode, only show on pages specified in the custom list
+          headerShouldShow = headerCustomPages.includes(pageNumber);
+        } else if (headerApplyMode === "even") {
+          headerShouldShow = pageNumber % 2 === 0;
+        } else if (headerApplyMode === "odd") {
+          headerShouldShow = pageNumber % 2 !== 0;
+        } else if (headerApplyMode === "first") {
+          headerShouldShow = pageNumber === 1;
+        } else if (headerApplyMode === "except_first") {
+          headerShouldShow = pageNumber !== 1;
+        }
+        // "all" mode shows on all pages (default true)
+
+        // Determine if footer should show content based on apply mode
+        let footerShouldShow = true;
+        if (footerApplyMode === "custom") {
+          // In custom mode, only show on pages specified in the custom list
+          footerShouldShow = footerCustomPages.includes(pageNumber);
+        } else if (footerApplyMode === "even") {
+          footerShouldShow = pageNumber % 2 === 0;
+        } else if (footerApplyMode === "odd") {
+          footerShouldShow = pageNumber % 2 !== 0;
+        } else if (footerApplyMode === "first") {
+          footerShouldShow = pageNumber === 1;
+        } else if (footerApplyMode === "except_first") {
+          footerShouldShow = pageNumber !== 1;
+        }
+        // "all" mode shows on all pages (default true)
+
+        // Update page settings
+        this.pageSettings.pages[pageIndex].header.shouldShowContent = headerShouldShow;
+        this.pageSettings.pages[pageIndex].footer.shouldShowContent = footerShouldShow;
+
+        console.log(`📄 Page ${pageNumber}: Header=${headerShouldShow}, Footer=${footerShouldShow}`);
+      }
+
+      console.log("✅ Individual page settings updated successfully");
+    } catch (error) {
+      console.error("❌ Error updating individual page settings:", error);
+    }
+  }
+
+  // _parseCustomPageList(str) {
+  //   const result = new Set();
+  //   const parts = str.split(",").map(s => s.trim());
+  //   for (const part of parts) {
+  //     if (part.includes("-")) {
+  //       const [start, end] = part.split("-").map(Number);
+  //       if (!isNaN(start) && !isNaN(end)) {
+  //         for (let i = start; i <= end; i++) result.add(i);
+  //       }
+  //     } else {
+  //       const num = parseInt(part);
+  //       if (!isNaN(num)) result.add(num);
+
+  //     }
+  //   }
+  //   return Array.from(result);
+  // }
+
+  // shouldApplyToPage(applyTo, customRangeStr, pageNumber) {
+  //   if (applyTo === 'all') return true;
+  //   if (applyTo === 'even') return pageNumber % 2 === 0;
+  //   if (applyTo === 'odd') return pageNumber % 2 !== 0;
+  //   if (applyTo === 'custom') {
+  //     const pages = this.parseCustomRange(customRangeStr);
+  //     return pages.includes(pageNumber);
+  //   }
+  //   return false;
+  // }
+
+  // parseCustomRange(rangeStr) {
+  //   const pages = new Set();
+  //   rangeStr.split(',').forEach(part => {
+  //     if (part.includes('-')) {
+  //       const [start, end] = part.split('-').map(Number);
+  //       for (let i = start; i <= end; i++) pages.add(i);
+  //     } else {
+  //       const page = Number(part);
+  //       if (!isNaN(page)) pages.add(page);
+  //     }
+  //   });
+  //   return [...pages];
+  // }
 
   applyBackgroundColorToPages(backgroundColor) {
     // Apply background color to all existing page components and their content areas
@@ -4201,13 +4181,77 @@ class PageSetupManager {
       const contentWidth = totalPageWidth - marginLeftPx - marginRightPx
       const contentHeight = totalPageHeight - marginTopPx - marginBottomPx
 
+      // Default header/footer heights
+      const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx)
+      const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx)
+      const mainContentAreaHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight
+
       // Clear existing pages
       this.editor.getWrapper().components().reset()
 
       for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
         const pageData = this.pageSettings.pages[i]
+        const pageNumber = i + 1
+        const isEvenPage = pageNumber % 2 === 0
+        const isOddPage = pageNumber % 2 !== 0
 
-        const pageComponent = this.editor.getWrapper().append(`
+        // Determine which header/footer regions to create based on apply modes
+        const headerApplyMode = this._lastHeaderApplyMode || "all"
+        const footerApplyMode = this._lastFooterApplyMode || "all"
+
+        // Determine shared region types for this page
+        let headerRegionType = ""
+        let footerRegionType = ""
+        let headerLabel = ""
+        let footerLabel = ""
+
+        if (headerApplyMode === "all") {
+          headerRegionType = "header"
+          headerLabel = "Header (Shared across all pages)"
+        } else if (headerApplyMode === "even" && isEvenPage) {
+          headerRegionType = "header-even"
+          headerLabel = "Even Page Header (Pages 2, 4, 6...)"
+        } else if (headerApplyMode === "odd" && isOddPage) {
+          headerRegionType = "header-odd"
+          headerLabel = "Odd Page Header (Pages 1, 3, 5...)"
+        } else if (headerApplyMode === "different") {
+          headerRegionType = isEvenPage ? "header-even" : "header-odd"
+          headerLabel = isEvenPage ? "Even Page Header" : "Odd Page Header"
+        }
+        else if (headerApplyMode === "custom") {
+          const headerCustomPages = this._lastHeaderCustomPages || [];
+          const pageIsInCustomList = headerCustomPages.includes(pageNumber);
+          if (pageIsInCustomList) {
+            headerRegionType = "header";
+            headerLabel = `Custom Header (Page ${pageNumber})`;
+          }
+        }
+
+        if (footerApplyMode === "all") {
+          footerRegionType = "footer"
+          footerLabel = "Footer (Shared across all pages)"
+        } else if (footerApplyMode === "even" && isEvenPage) {
+          footerRegionType = "footer-even"
+          footerLabel = "Even Page Footer (Pages 2, 4, 6...)"
+        } else if (footerApplyMode === "odd" && isOddPage) {
+          footerRegionType = "footer-odd"
+          footerLabel = "Odd Page Footer (Pages 1, 3, 5...)"
+        } else if (footerApplyMode === "different") {
+          footerRegionType = isEvenPage ? "footer-even" : "footer-odd"
+          footerLabel = isEvenPage ? "Even Page Footer" : "Odd Page Footer"
+        }
+        else if (footerApplyMode === "custom") {
+          const footerCustomPages = this._lastFooterCustomPages || [];
+          const pageIsInCustomList = footerCustomPages.includes(pageNumber);
+          if (pageIsInCustomList) {
+            footerRegionType = "footer";
+            footerLabel = `Custom Footer (Page ${pageNumber})`;
+          }
+          // If page not in custom list, footerRegionType stays empty (no footer)
+        }
+
+        // Create page structure
+        let pageHTML = `
         <div class="page-container" data-page-id="${pageData.id}" data-page-index="${i}">
           <div class="page-content" style="
             width: ${contentWidth}px; 
@@ -4216,12 +4260,85 @@ class PageSetupManager {
             position: relative;
             overflow: hidden;
             background-color: ${pageData.backgroundColor || this.pageSettings.backgroundColor};
-          ">
-            <!-- Content will be added here -->
-          </div>
-        </div>
-      `)[0]
+            display: flex;
+            flex-direction: column;
+          ">`
 
+        // Add header if this page should have one
+        if (headerRegionType) {
+          pageHTML += `
+            <!-- Header Section -->
+            <div class="header-wrapper" data-shared-region="${headerRegionType}" style="
+              width: 100%;
+              height: ${defaultHeaderHeight}px;
+              flex-shrink: 0;
+            ">
+              <div class="page-header-element" style="
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                border: 2px dashed transparent;
+                transition: border-color 0.2s ease;
+              ">
+                <!-- Header content will be added here -->
+              </div>
+            </div>`
+        }
+
+        // Add main content
+        pageHTML += `
+            <!-- Main Content Section -->
+            <div class="content-wrapper" style="
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              height: ${mainContentAreaHeight}px;
+            ">
+              <div class="main-content-area" style="
+                width: 100%;
+                height: 100%;
+                border: 2px dashed transparent;
+                transition: border-color 0.2s ease;
+                overflow: hidden;
+                position: relative;
+              ">
+                <!-- Main content will be added here -->
+              </div>
+            </div>`
+
+        // Add footer if this page should have one
+        if (footerRegionType) {
+          pageHTML += `
+            <!-- Footer Section -->
+            <div class="footer-wrapper" data-shared-region="${footerRegionType}" style="
+              width: 100%;
+              height: ${defaultFooterHeight}px;
+              flex-shrink: 0;
+            ">
+              <div class="page-footer-element" style="
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                border: 2px dashed transparent;
+                transition: border-color 0.2s ease;
+              ">
+                <!-- Footer content will be added here -->
+              </div>
+            </div>`
+        }
+
+        pageHTML += `
+          </div>
+        </div>`
+
+        // Create the page component
+        const pageComponent = this.editor.getWrapper().append(pageHTML)[0]
+
+        // Style the page container
         pageComponent.addStyle({
           width: `${totalPageWidth}px`,
           height: `${totalPageHeight}px`,
@@ -4239,6 +4356,7 @@ class PageSetupManager {
           "print-color-adjust": "exact",
         })
 
+        // Configure page content component
         const pageContentComponent = pageComponent.find(".page-content")[0]
         if (pageContentComponent) {
           pageContentComponent.addStyle({
@@ -4262,40 +4380,88 @@ class PageSetupManager {
             "print-color-adjust": "exact",
           })
         }
+
+        // Configure header element properties if it exists
+        if (headerRegionType) {
+          const headerElement = pageComponent.find(".page-header-element")[0]
+          if (headerElement) {
+            headerElement.set({
+              droppable: true,
+              editable: true,
+              selectable: true,
+              draggable: false,
+              copyable: false,
+              removable: false,
+              "custom-name": headerLabel
+            })
+          }
+        }
+
+        // Configure main content area properties  
+        const mainContentArea = pageComponent.find(".main-content-area")[0]
+        if (mainContentArea) {
+          mainContentArea.set({
+            droppable: true,
+            editable: true,
+            selectable: true,
+            "custom-name": "Content Area"
+          })
+        }
+
+        // Configure footer element properties if it exists
+        if (footerRegionType) {
+          const footerElement = pageComponent.find(".page-footer-element")[0]
+          if (footerElement) {
+            footerElement.set({
+              droppable: true,
+              editable: true,
+              selectable: true,
+              draggable: false,
+              copyable: false,
+              removable: false,
+              "custom-name": footerLabel
+            })
+          }
+        }
+
+        console.log(`✅ Page ${pageNumber} created (${isEvenPage ? 'EVEN' : 'ODD'}):`)
+        console.log(`    Header: ${headerRegionType || 'NONE'} - ${headerLabel || 'No header'}`)
+        console.log(`    Footer: ${footerRegionType || 'NONE'} - ${footerLabel || 'No footer'}`)
       }
 
       this.setupCanvasScrolling()
 
-      // ✅ STEP 1: Wait for visuals to be applied
+      // ✅ Now pages are created with complete structure
       setTimeout(() => {
-        this.updateAllPageVisuals()
+        console.log("🔍 Verifying Word-style page structure after creation...")
 
-        // ✅ STEP 2: Wait for visuals to finish rendering
-        setTimeout(() => {
-          console.log("🔍 Checking structure before restoring content...")
+        const pages = this.editor.getWrapper().find(".page-container")
+        pages.forEach((page, index) => {
+          const pageNumber = index + 1
+          const headers = page.find("[data-shared-region^='header']")
+          const footers = page.find("[data-shared-region^='footer']")
+          const content = page.find(".main-content-area")[0]
 
-          const pages = this.editor.getWrapper().find(".page-container")
-          pages.forEach((page, index) => {
-            const header = page.find(".page-header-element")[0]
-            const footer = page.find(".page-footer-element")[0]
-            const content = page.find(".main-content-area")[0]
-            console.log(`Page ${index} has:`, {
-              headerExists: !!header,
-              footerExists: !!footer,
-              contentExists: !!content,
-            })
+          const headerTypes = headers.map(h => h.getAttributes()['data-shared-region']).join(', ')
+          const footerTypes = footers.map(f => f.getAttributes()['data-shared-region']).join(', ')
+
+          console.log(`Page ${pageNumber} has:`, {
+            headerTypes: headerTypes || 'none',
+            footerTypes: footerTypes || 'none',
+            contentExists: !!content,
           })
+        })
 
-          // ✅ Now safe to restore
-          this.restoreAllContent()
+        // ✅ Structure is complete, now restore content 
+        this.restoreAllContent()
 
-        }, 200)
+        console.log("✅ Word-style page setup complete - independent odd/even regions ready")
+
       }, 100)
     } catch (error) {
-      console.error("❌ Error setting up editor pages:", error)
+      console.error("❌ Error setting up Word-style editor pages:", error)
     }
   }
-
 
   setupCanvasScrolling() {
     const canvasContainer = this.editor.Canvas.getElement()
@@ -4332,23 +4498,20 @@ class PageSetupManager {
     const pageComponent = allPages.find(p => p.getAttributes()['data-page-id'] === pageSettings.id);
     if (!pageComponent) return;
 
-    const currentIndex = allPages.indexOf(pageComponent);
     const pageContentComponent = pageComponent.find(".page-content")[0];
     if (!pageContentComponent) return;
 
-    const selectors = [".header-wrapper", ".footer-wrapper", ".page-number-element", ".page-watermark", ".content-wrapper", ".page-number-label"];
-    selectors.forEach(selector => {
-      pageContentComponent.find(selector).forEach(comp => comp.remove());
-    });
-
+    // Remove existing page indicator
     const existingIndicator = pageElement.querySelector(".page-indicator");
     if (existingIndicator) existingIndicator.remove();
 
+    // Add page indicator
     const indicator = document.createElement("div");
     indicator.className = "page-indicator";
     indicator.textContent = `${pageSettings.name}`;
     pageElement.appendChild(indicator);
 
+    // Calculate dimensions
     const mmToPx = 96 / 25.4;
     const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx);
     const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx);
@@ -4360,15 +4523,12 @@ class PageSetupManager {
     const contentWidth = totalPageWidth - marginLeftPx - marginRightPx;
     const contentHeight = totalPageHeight - marginTopPx - marginBottomPx;
 
-    const headerHeight = pageSettings?.header?.enabled
-      ? Math.round(pageSettings.header.height * mmToPx)
-      : 0;
-    const footerHeight = pageSettings?.footer?.enabled
-      ? Math.round(pageSettings.footer.height * mmToPx)
-      : 0;
+    // Headers and footers are ALWAYS present structurally
+    const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx);
+    const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx);
+    const mainContentHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
 
-    const mainContentHeight = contentHeight - headerHeight - footerHeight;
-
+    // Set page content styles
     pageContentComponent.addStyle({
       display: "flex",
       "flex-direction": "column",
@@ -4383,158 +4543,161 @@ class PageSetupManager {
       "color-adjust": "exact"
     });
 
-    console.log(`📏 Page ${pageIndex + 1}:`);
-    console.log(`    Header enabled: ${pageSettings.header?.enabled}, Height (px): ${headerHeight}`);
-    console.log(`    Footer enabled: ${pageSettings.footer?.enabled}, Height (px): ${footerHeight}`);
+    console.log(`📏 Page ${pageIndex + 1} - Headers/Footers structure always present:`);
+    console.log(`    Header height: ${defaultHeaderHeight}px, Footer height: ${defaultFooterHeight}px`);
 
-    if (pageSettings?.header?.enabled) {
-      const header = pageContentComponent.append(`
-    <div class="header-wrapper" data-shared-region="header">
-      <div class="page-header-element" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;"></div>
-    </div>
-  `)[0];
-
-      header.addStyle({ width: "100%", height: `${headerHeight}px` });
-
-      const headerElement = header.find(".page-header-element")[0];
-      headerElement.set({
-        droppable: true, editable: true, selectable: true, draggable: false,
-        copyable: false, removable: false, "custom-name": "Header (Shared across all pages)"
+    // Update existing header styles
+    const existingHeaderWrapper = pageComponent.find(".header-wrapper")[0];
+    if (existingHeaderWrapper) {
+      existingHeaderWrapper.addStyle({
+        width: "100%",
+        height: `${defaultHeaderHeight}px`,
+        "flex-shrink": "0",
+        direction: "ltr",
       });
+      console.log(`✅ Updated header styles for page ${pageIndex + 1}`);
+    } else {
 
-       
     }
 
-    // 🔁 Insert header text only if it's defined in settings and safe to insert
-const headerText = pageSettings?.header?.text;
-if (headerText && headerElement) {
-  const headerComp = this.getComponentByDom(headerElement); // get GJS component from element
-  const existing = headerComp?.components()?.[0];
-
-  // Only insert if empty or system-generated
-  const isSystemGenerated = existing?.getAttributes?.()?.["data-autogen"] === "true";
-
-  if (!existing || isSystemGenerated) {
-    headerComp.components([]); // clear
-    headerComp.append(`<div data-autogen="true">${headerText}</div>`);
-  }
-}
-
-
-    const contentWrapper = pageContentComponent.append(`
-  <div class="content-wrapper" style="flex: 1; display: flex; flex-direction: column;">
-    <div class="main-content-area" style="height: ${mainContentHeight}px;"></div>
-  </div>
-`)[0];
-
-    const mainContentArea = contentWrapper.find(".main-content-area")[0];
-    mainContentArea.set({
-      droppable: true, editable: true, selectable: true, "custom-name": "Content Area"
-    });
-
-    if (pageSettings?.footer?.enabled) {
-      const footer = pageContentComponent.append(`
-    <div class="footer-wrapper" data-shared-region="footer">
-      <div class="page-footer-element" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;"></div>
-    </div>
-  `)[0];
-
-      footer.addStyle({ width: "100%", height: `${footerHeight}px` });
-
-      const footerElement = footer.find(".page-footer-element")[0];
-      footerElement.set({
-        droppable: true, editable: true, selectable: true, draggable: false,
-        copyable: false, removable: false, "custom-name": "Footer (Shared across all pages)"
+    // Update existing main content area styles
+    const existingContentWrapper = pageComponent.find(".content-wrapper")[0];
+    if (existingContentWrapper) {
+      existingContentWrapper.addStyle({
+        "flex": "1",
+        "display": "flex",
+        "flex-direction": "column",
+        "height": `${mainContentHeight}px`
       });
 
-      // 🚫 REMOVED: Footer text rendering - handled by restoreAllContent()
+      const existingMainContentArea = existingContentWrapper.find(".main-content-area")[0];
+      if (existingMainContentArea) {
+        existingMainContentArea.addStyle({
+          "width": "100%",
+          "height": "100%",
+          "overflow": "hidden",
+          "position": "relative"
+        });
+      }
+      console.log(`✅ Updated content area styles for page ${pageIndex + 1}`);
     }
 
+    // Update existing footer styles
+    const existingFooterWrapper = pageComponent.find(".footer-wrapper")[0];
+    if (existingFooterWrapper) {
+      existingFooterWrapper.addStyle({
+        width: "100%",
+        height: `${defaultFooterHeight}px`,
+        "flex-shrink": "0"
+      });
+      console.log(`✅ Updated footer styles for page ${pageIndex + 1}`);
+    }
+
+    // Handle synchronization with proper timing and individual page settings
     setTimeout(() => {
-      const shouldSync = this._shouldSyncHeaderFooterGlobally ?? true;
+      const headerApplyMode = this._lastHeaderApplyMode || "all";
+      const footerApplyMode = this._lastFooterApplyMode || "all";
 
-      console.log(`🔄 Sync check for page ${pageIndex + 1}: shouldSync = ${shouldSync}`);
+      // Check individual page settings for this specific page
+      const shouldSyncHeaders = pageSettings.header?.shouldShowContent !== false;
+      const shouldSyncFooters = pageSettings.footer?.shouldShowContent !== false;
 
-      // Only sync if we're in "all pages" mode
-      if (shouldSync && pageSettings?.header?.enabled) {
+      console.log(`🔄 Sync check for page ${pageIndex + 1}:`);
+      console.log(`    Header apply mode: ${headerApplyMode}, should sync: ${shouldSyncHeaders}`);
+      console.log(`    Footer apply mode: ${footerApplyMode}, should sync: ${shouldSyncFooters}`);
+
+      // Only sync headers if this page should show header content
+      if (shouldSyncHeaders) {
         const header = pageComponent.find('[data-shared-region="header"]')[0];
-        if (header && header.components().length > 0) {
+        if (header) {
           console.log(`🔄 Syncing header for page ${pageIndex + 1}`);
           this.syncSharedRegion("header", header);
         }
       } else {
-        console.log(`🚫 Skipping header sync for page ${pageIndex + 1} (shouldSync: ${shouldSync})`);
+        console.log(`🚫 Skipping header sync for page ${pageIndex + 1} - not in custom page list`);
       }
 
-      if (shouldSync && pageSettings?.footer?.enabled) {
+      // Only sync footers if this page should show footer content
+      if (shouldSyncFooters) {
         const footer = pageComponent.find('[data-shared-region="footer"]')[0];
-        if (footer && footer.components().length > 0) {
+        if (footer) {
           console.log(`🔄 Syncing footer for page ${pageIndex + 1}`);
           this.syncSharedRegion("footer", footer);
         }
       } else {
-        console.log(`🚫 Skipping footer sync for page ${pageIndex + 1} (shouldSync: ${shouldSync})`);
+        console.log(`🚫 Skipping footer sync for page ${pageIndex + 1} - not in custom page list`);
       }
 
-      // 🔢 Add Enhanced Page Number
-      const pn = pageSettings.pageNumber;
-      if (pn?.visible) {
-        const formattedLabel = pn.format.replace("{n}", `${pageIndex + 1}`);
+      // Add Enhanced Page Numbers
+      if (this.pageSettings.pageNumber?.enabled) {
+        const visibility = this.pageSettings.pageNumber.visibility || "all";
+        const startFromIndex = (this.pageSettings.pageNumber.startFrom || 1) - 1;
 
-        const pageNumberDiv = document.createElement("div");
-        pageNumberDiv.className = "page-number-element";
-        pageNumberDiv.innerText = formattedLabel;
+        const shouldShowPageNumber =
+          visibility === "all" ||
+          (visibility === "even" && (pageIndex + 1) % 2 === 0) ||
+          (visibility === "odd" && (pageIndex + 1) % 2 !== 0);
 
-        const styleMap = {
-          position: "absolute",
-          "font-size": `${pn.fontSize}px`,
-          color: pn.color,
-          "background-color": pn.backgroundColor,
-          "border": pn.showBorder ? "1px solid #ccc" : "none",
-          "padding": "2px 6px",
-          "border-radius": "4px",
-          "z-index": "10"
-        };
+        if (pageIndex >= startFromIndex && shouldShowPageNumber) {
+          const totalPagesWithNumbers = this.editor
+            .getWrapper()
+            .find('.page-container')
+            .filter((_, i) => {
+              return (
+                i >= startFromIndex &&
+                (visibility === "all" ||
+                  (visibility === "even" && (i + 1) % 2 === 0) ||
+                  (visibility === "odd" && (i + 1) % 2 !== 0))
+              );
+            }).length;
 
-        // 💡 Apply positioning
-        const pos = pn.position || "bottom-center";
-        switch (pos) {
-          case "top-left":
+          const currentNumber = pageIndex - startFromIndex + 1;
+          const numberText = this.pageSettings.pageNumber.format
+            .replace("{n}", String(currentNumber))
+            .replace("{total}", String(totalPagesWithNumbers));
+
+          const pageNumberDiv = document.createElement("div");
+          pageNumberDiv.className = "page-number";
+          pageNumberDiv.textContent = numberText;
+
+          // Style and position based on selected option
+          const styleMap = {
+            position: "absolute",
+            fontSize: `${this.pageSettings.pageNumber.fontSize || 12}px`,
+            color: this.pageSettings.pageNumber.color || "#000",
+            backgroundColor: this.pageSettings.pageNumber.backgroundColor || "#fff",
+            padding: "4px 8px",
+            borderRadius: "3px",
+            border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
+            zIndex: "99",
+            fontFamily: this.pageSettings.pageNumber.fontFamily || "Arial"
+          };
+
+          const position = this.pageSettings.pageNumber.position || "bottom-center";
+
+          if (position.includes("top")) {
             styleMap.top = "5px";
+          } else {
+            styleMap.bottom = "5px";
+          }
+
+          if (position.includes("left")) {
             styleMap.left = "10px";
-            break;
-          case "top-center":
-            styleMap.top = "5px";
+          } else if (position.includes("right")) {
+            styleMap.right = "10px";
+          } else {
             styleMap.left = "50%";
             styleMap.transform = "translateX(-50%)";
-            break;
-          case "top-right":
-            styleMap.top = "5px";
-            styleMap.right = "10px";
-            break;
-          case "bottom-left":
-            styleMap.bottom = "5px";
-            styleMap.left = "10px";
-            break;
-          case "bottom-center":
-            styleMap.bottom = "5px";
-            styleMap.left = "50%";
-            styleMap.transform = "translateX(-50%)";
-            break;
-          case "bottom-right":
-            styleMap.bottom = "5px";
-            styleMap.right = "10px";
-            break;
+          }
+
+          Object.assign(pageNumberDiv.style, styleMap);
+          pageElement.appendChild(pageNumberDiv);
+          console.log(`🧾 Added page number on page ${pageIndex + 1}: ${numberText}`);
         }
-
-        // Apply styles
-        Object.assign(pageNumberDiv.style, styleMap);
-
-        pageContentComponent.view?.el?.appendChild(pageNumberDiv);
       }
-
     }, 200);
 
+    // Add watermark
     this.addWatermarkToPage(pageContentComponent, pageIndex);
   }
 
@@ -4963,208 +5126,6 @@ if (headerText && headerElement) {
   }
 
 
-  // FIXED: Auto-pagination with proper loop prevention
-  enableAutoPagination() {
-    console.log("🚀 Enabling auto-pagination...");
-
-    // Listen for content changes in all main content areas
-    this.editor.on('component:add component:remove', (component) => {
-      this.debouncedCheckOverflow();
-    });
-
-    // Listen for text changes with longer debounce
-    this.editor.on('component:text:updated', () => {
-      this.debouncedCheckOverflow(500); // Longer delay for text updates
-    });
-  }
-
-  // Debounced overflow checking to prevent rapid-fire calls
-  debouncedCheckOverflow(delay = 200) {
-    if (this._overflowCheckTimeout) {
-      clearTimeout(this._overflowCheckTimeout);
-    }
-
-    this._overflowCheckTimeout = setTimeout(() => {
-      if (!this._isProcessingOverflow) {
-        this.checkContentOverflow();
-      }
-    }, delay);
-  }
-
-  checkContentOverflow() {
-    if (!this.isInitialized || this._isProcessingOverflow) {
-      return;
-    }
-
-    console.log("🔍 Checking content overflow...");
-    this._isProcessingOverflow = true;
-
-    try {
-      const allPages = this.editor.getWrapper().find('.page-container');
-
-      for (let pageIndex = 0; pageIndex < allPages.length; pageIndex++) {
-        const pageComponent = allPages.at(pageIndex);
-        const mainContentArea = pageComponent.find('.main-content-area')[0];
-
-        if (!mainContentArea) continue;
-
-        const contentElement = mainContentArea.view?.el;
-        if (!contentElement) continue;
-
-        // Check if this page has exceeded max attempts
-        const pageId = pageComponent.getAttributes()['data-page-id'];
-        const attempts = this._overflowAttempts.get(pageId) || 0;
-
-        if (attempts >= this._maxOverflowAttempts) {
-          console.log(`⚠️ Page ${pageIndex + 1} exceeded max overflow attempts, skipping`);
-          continue;
-        }
-
-        // Check if content is overflowing
-        const isOverflowing = contentElement.scrollHeight > contentElement.clientHeight;
-
-        if (isOverflowing) {
-          console.log(`📄 Page ${pageIndex + 1} is overflowing (attempt ${attempts + 1})`);
-          this._overflowAttempts.set(pageId, attempts + 1);
-
-          if (this.handleContentOverflow(pageComponent, pageIndex)) {
-            // Successfully handled overflow, break to avoid processing more pages
-            break;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("❌ Error in checkContentOverflow:", error);
-    } finally {
-      this._isProcessingOverflow = false;
-    }
-  }
-
-  handleContentOverflow(pageComponent, pageIndex) {
-    try {
-      const mainContentArea = pageComponent.find('.main-content-area')[0];
-      if (!mainContentArea) return false;
-
-      const components = mainContentArea.components();
-      if (components.length === 0) return false;
-
-      console.log(`🔧 Handling overflow for page ${pageIndex + 1} with ${components.length} components`);
-
-      // For simplicity, just move the last component to next page
-      const lastComponent = components.at(components.length - 1);
-
-      if (lastComponent) {
-        return this.moveComponentToNextPage(lastComponent, pageIndex);
-      }
-
-      return false;
-    } catch (error) {
-      console.error(`❌ Error handling overflow for page ${pageIndex + 1}:`, error);
-      return false;
-    }
-  }
-
-  moveComponentToNextPage(component, currentPageIndex) {
-    try {
-      const nextPageIndex = currentPageIndex + 1;
-      console.log(`📦 Moving component from page ${currentPageIndex + 1} to page ${nextPageIndex + 1}`);
-
-      // Ensure next page exists
-      this.ensurePageExists(nextPageIndex);
-
-      // Clone the component data before removing it
-      const componentHTML = component.toHTML();
-      const componentStyles = component.getStyle();
-      const componentClasses = component.getClasses();
-
-      // Remove from current page
-      component.remove();
-
-      // Wait for the page structure to be ready, then move component
-      this.waitForPageStructure(nextPageIndex, () => {
-        this.addComponentToPage(nextPageIndex, componentHTML, componentStyles, componentClasses);
-      });
-
-      return true;
-    } catch (error) {
-      console.error("❌ Error moving component:", error);
-      return false;
-    }
-  }
-
-  waitForPageStructure(pageIndex, callback, maxAttempts = 10, currentAttempt = 0) {
-    if (currentAttempt >= maxAttempts) {
-      console.error(`❌ Timeout waiting for page ${pageIndex + 1} structure`);
-      return;
-    }
-
-    const allPages = this.editor.getWrapper().find('.page-container');
-    const targetPage = allPages.at(pageIndex);
-
-    if (!targetPage) {
-      console.log(`⏳ Waiting for page ${pageIndex + 1} to exist... (attempt ${currentAttempt + 1})`);
-      setTimeout(() => {
-        this.waitForPageStructure(pageIndex, callback, maxAttempts, currentAttempt + 1);
-      }, 200);
-      return;
-    }
-
-    const mainContentArea = targetPage.find('.main-content-area')[0];
-
-    if (!mainContentArea) {
-      console.log(`⏳ Waiting for page ${pageIndex + 1} main content area... (attempt ${currentAttempt + 1})`);
-      setTimeout(() => {
-        this.waitForPageStructure(pageIndex, callback, maxAttempts, currentAttempt + 1);
-      }, 200);
-      return;
-    }
-
-    console.log(`✅ Page ${pageIndex + 1} structure ready`);
-    callback();
-  }
-
-  addComponentToPage(pageIndex, componentHTML, componentStyles, componentClasses) {
-    try {
-      const allPages = this.editor.getWrapper().find('.page-container');
-      const targetPage = allPages.at(pageIndex);
-      const mainContentArea = targetPage.find('.main-content-area')[0];
-
-      if (!mainContentArea) {
-        console.error(`❌ Main content area not found for page ${pageIndex + 1}`);
-        return;
-      }
-
-      const newComponent = mainContentArea.append(componentHTML)[0];
-      if (newComponent) {
-        newComponent.setStyle(componentStyles);
-        newComponent.setClass(componentClasses);
-        console.log(`✅ Component added to page ${pageIndex + 1}`);
-
-        // Schedule another overflow check for the target page after content settles
-        setTimeout(() => {
-          if (!this._isProcessingOverflow) {
-            this.debouncedCheckOverflow(1000);
-          }
-        }, 500);
-      }
-    } catch (error) {
-      console.error(`❌ Error adding component to page ${pageIndex + 1}:`, error);
-    }
-  }
-
-  ensurePageExists(pageIndex) {
-    const allPages = this.editor.getWrapper().find('.page-container');
-
-    if (pageIndex >= allPages.length) {
-      const pagesToCreate = pageIndex - allPages.length + 1;
-      console.log(`📄 Creating ${pagesToCreate} new page(s)`);
-
-      for (let i = 0; i < pagesToCreate; i++) {
-        this.addNewPage();
-      }
-    }
-  }
-
   addNewPage() {
     if (!this.isInitialized) return;
 
@@ -5217,7 +5178,6 @@ if (headerText && headerElement) {
       return null;
     }
   }
-
   createSinglePage(pageData, pageIndex) {
     try {
       const mmToPx = 96 / 25.4;
