@@ -463,17 +463,24 @@ editor.BlockManager.add('drawing-canvas-block', {
     // Click to select objects (only for select tool)
     stage.on('click tap', handleClick);
     
-    // Prevent dragging when not using select or move tool
+    // Updated dragstart handler to allow dragging for move tool
     stage.on('dragstart', (e) => {
         if (currentTool !== 'select' && currentTool !== 'move') {
             e.evt.preventDefault();
         }
     });
+    
+    // Add dragend handler to save state after moving objects
+    stage.on('dragend', (e) => {
+        if (currentTool === 'move' || currentTool === 'select') {
+            saveState();
+        }
+    });
 }
 
     function handleClick(e) {
-    // Only handle selection when select tool is active
-    if (currentTool === 'select') {
+    // Handle selection for both select and move tools
+    if (currentTool === 'select' || currentTool === 'move') {
         if (e.target === stage) {
             transformer.nodes([]);
             layer.draw();
@@ -487,6 +494,19 @@ editor.BlockManager.add('drawing-canvas-block', {
             return;
         }
 
+        // For move tool, enable dragging on the clicked object
+        if (currentTool === 'move') {
+            // Make sure the clicked object is draggable
+            e.target.draggable(true);
+            
+            // Select the object for visual feedback (optional)
+            transformer.nodes([e.target]);
+            transformer.forceUpdate();
+            layer.draw();
+            return;
+        }
+
+        // Handle multi-selection for select tool
         const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
         const isSelected = transformer.nodes().indexOf(e.target) >= 0;
 
@@ -631,57 +651,7 @@ editor.BlockManager.add('drawing-canvas-block', {
             layer.add(text);
             
             // Make text editable
-            text.on('dblclick', () => {
-                const textPosition = text.absolutePosition();
-                const areaPosition = {
-                    x: stage.container().offsetLeft + textPosition.x,
-                    y: stage.container().offsetTop + textPosition.y,
-                };
-
-                const textarea = document.createElement('textarea');
-                document.body.appendChild(textarea);
-
-                textarea.value = text.text();
-                textarea.style.position = 'absolute';
-                textarea.style.top = areaPosition.y + 'px';
-                textarea.style.left = areaPosition.x + 'px';
-                textarea.style.width = text.width() - text.padding() * 2 + 'px';
-                textarea.style.height = text.height() - text.padding() * 2 + 5 + 'px';
-                textarea.style.fontSize = text.fontSize() + 'px';
-                textarea.style.border = 'none';
-                textarea.style.padding = '0px';
-                textarea.style.margin = '0px';
-                textarea.style.overflow = 'hidden';
-                textarea.style.background = 'none';
-                textarea.style.outline = 'none';
-                textarea.style.resize = 'none';
-                textarea.style.lineHeight = text.lineHeight();
-                textarea.style.fontFamily = text.fontFamily();
-                textarea.style.transformOrigin = 'left top';
-                textarea.style.textAlign = text.align();
-                textarea.style.color = text.fill();
-
-                textarea.focus();
-
-                textarea.addEventListener('keydown', function (e) {
-                    if (e.keyCode === 13 && !e.shiftKey) {
-                        text.text(textarea.value);
-                        document.body.removeChild(textarea);
-                        layer.draw();
-                        saveState();
-                    }
-                    if (e.keyCode === 27) {
-                        document.body.removeChild(textarea);
-                    }
-                });
-
-                textarea.addEventListener('blur', function () {
-                    text.text(textarea.value);
-                    document.body.removeChild(textarea);
-                    layer.draw();
-                    saveState();
-                });
-            });
+            addTextEditingHandler(text);
             
             layer.draw();
             saveState();
@@ -726,6 +696,68 @@ editor.BlockManager.add('drawing-canvas-block', {
         }
     }
 
+    // Function to add text editing handler
+    function addTextEditingHandler(text) {
+        text.on('dblclick', () => {
+            const textPosition = text.absolutePosition();
+            const stageBox = stage.container().getBoundingClientRect();
+            const areaPosition = {
+                x: stageBox.left + textPosition.x,
+                y: stageBox.top + textPosition.y,
+            };
+
+            const textarea = document.createElement('textarea');
+            document.body.appendChild(textarea);
+
+            textarea.value = text.text();
+            textarea.style.position = 'absolute';
+            textarea.style.top = areaPosition.y + 'px';
+            textarea.style.left = areaPosition.x + 'px';
+            textarea.style.width = Math.max(text.width() - text.padding() * 2, 100) + 'px';
+            textarea.style.height = Math.max(text.height() - text.padding() * 2 + 5, 30) + 'px';
+            textarea.style.fontSize = text.fontSize() + 'px';
+            textarea.style.border = '2px solid #007bff';
+            textarea.style.padding = '2px';
+            textarea.style.margin = '0px';
+            textarea.style.overflow = 'hidden';
+            textarea.style.background = 'white';
+            textarea.style.outline = 'none';
+            textarea.style.resize = 'none';
+            textarea.style.lineHeight = text.lineHeight();
+            textarea.style.fontFamily = text.fontFamily();
+            textarea.style.transformOrigin = 'left top';
+            textarea.style.textAlign = text.align();
+            textarea.style.color = text.fill();
+            textarea.style.zIndex = '10001';
+
+            textarea.focus();
+            textarea.select();
+
+            function finishEditing() {
+                if (textarea.parentNode) {
+                    text.text(textarea.value);
+                    document.body.removeChild(textarea);
+                    layer.draw();
+                    saveState();
+                }
+            }
+
+            textarea.addEventListener('keydown', function (e) {
+                if (e.keyCode === 13 && !e.shiftKey) {
+                    e.preventDefault();
+                    finishEditing();
+                }
+                if (e.keyCode === 27) {
+                    if (textarea.parentNode) {
+                        document.body.removeChild(textarea);
+                    }
+                }
+            });
+
+            textarea.addEventListener('blur', finishEditing);
+        });
+    }
+
     // Save state for undo/redo
     function saveState() {
         const state = layer.toJSON();
@@ -762,10 +794,33 @@ function setActiveTool(tool) {
     if (currentTool !== 'select' && tool !== 'select' && transformer) {
         transformer.nodes([]);
         layer.draw();
-    } else if (tool !== 'select' && transformer) {
-        // Clear selections when switching to any non-select tool
+    } else if (tool !== 'select' && tool !== 'move' && transformer) {
+        // Clear selections when switching to drawing tools (but keep for move tool)
         transformer.nodes([]);
         layer.draw();
+    }
+
+    // When switching to move tool, make all objects draggable
+    if (tool === 'move') {
+        layer.children.forEach(child => {
+            if (child !== transformer) {
+                child.draggable(true);
+            }
+        });
+    } else if (tool !== 'select') {
+        // When switching away from move tool to drawing tools, disable dragging
+        layer.children.forEach(child => {
+            if (child !== transformer) {
+                child.draggable(false);
+            }
+        });
+    } else if (tool === 'select') {
+        // For select tool, allow dragging only when selected
+        layer.children.forEach(child => {
+            if (child !== transformer) {
+                child.draggable(true);
+            }
+        });
     }
 
     // Remove active class from all tools
@@ -787,8 +842,10 @@ function setActiveTool(tool) {
         
         switch(tool) {
             case 'select':
-            case 'move':
                 container.style.cursor = 'default';
+                break;
+            case 'move':
+                container.style.cursor = 'move';
                 break;
             case 'pencil':
                 container.style.cursor = createToolCursor('✏️', pencilSize);
@@ -898,6 +955,7 @@ function createToolCursor(emoji, size = 5) {
     const dataURL = canvas.toDataURL();
     return `url('${dataURL}') ${canvasSize/2} ${canvasSize/2}, crosshair`;
 }
+
     function updateSizeIndicator() {
         const currentSize = currentTool === 'eraser' ? eraserSize : pencilSize;
         sizeIndicator.textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} Size: ${currentSize}px`;
@@ -1053,6 +1111,11 @@ function createToolCursor(emoji, size = 5) {
             if (obj.className !== 'Transformer') {
                 const shape = Konva.Node.create(obj);
                 layer.add(shape);
+                
+                // Re-add text editing handlers for text objects
+                if (shape.className === 'Text') {
+                    addTextEditingHandler(shape);
+                }
             }
         });
         
@@ -1083,6 +1146,11 @@ function createToolCursor(emoji, size = 5) {
             if (obj.className !== 'Transformer') {
                 const shape = Konva.Node.create(obj);
                 layer.add(shape);
+                
+                // Re-add text editing handlers for text objects
+                if (shape.className === 'Text') {
+                    addTextEditingHandler(shape);
+                }
             }
         });
         
