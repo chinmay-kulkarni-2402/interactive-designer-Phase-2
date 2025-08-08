@@ -772,9 +772,17 @@ editor.Commands.add('clear-table-highlighting', {
               const isInPageSystem = tableElement && tableElement.closest('.page-container');
               
               // Initialize HyperFormula if formulas are enabled
-              if (tableElement && tableElement.hasAttribute('data-formula-enabled')) {
-                initializeHyperFormula();
-              }
+if (tableElement && tableElement.hasAttribute('data-formula-enabled')) {
+  initializeHyperFormula().then(() => {
+    console.log('HyperFormula initialization completed');
+    setupFormulaHandlers('${uniqueID}');
+  }).catch(error => {
+    console.warn('HyperFormula initialization failed, formulas will use fallback evaluator:', error);
+    setupFormulaHandlers('${uniqueID}');
+  });
+} else {
+  setupFormulaHandlers('${uniqueID}');
+}
               
               // Configure DataTable options based on context
               const dtOptions = {
@@ -822,28 +830,136 @@ editor.Commands.add('clear-table-highlighting', {
             }
             
             // Initialize HyperFormula engine
-            function initializeHyperFormula() {
-              if (typeof HyperFormula === 'undefined') {
-                console.warn('HyperFormula not loaded');
-                return;
-              }
-              
-              try {
-                const options = {
-                  licenseKey: 'gpl-v3',
-                  useColumnIndex: true,
-                  useArrayArithmetic: true,
-                };
-                
-                hyperformulaInstance = HyperFormula.buildEmpty(options);
-                console.log('HyperFormula initialized successfully');
-                
-                // Initialize table data structure
-                initializeTableData();
-              } catch (error) {
-                console.error('Failed to initialize HyperFormula:', error);
-              }
+function initializeHyperFormula() {
+  return new Promise((resolve, reject) => {
+    try {
+      // Get the iframe's window object where HyperFormula was loaded
+      const iframe = document.querySelector('iframe');
+      const iframeWindow = iframe ? iframe.contentWindow : window;
+      
+      // Check if HyperFormula is available in the iframe context
+      const HF = iframeWindow.HyperFormula || window.HyperFormula;
+      
+      if (!HF) {
+        console.error('HyperFormula not found in iframe or main window');
+        reject(new Error('HyperFormula not available'));
+        return;
+      }
+      
+      console.log('HyperFormula found:', HF);
+      
+      const options = {
+        licenseKey: 'gpl-v3',
+        useColumnIndex: true,
+        useArrayArithmetic: true,
+      };
+      
+      hyperformulaInstance = HF.buildEmpty(options);
+      console.log('HyperFormula instance created successfully:', hyperformulaInstance);
+      
+      // Initialize table data structure
+      initializeTableData();
+      resolve(hyperformulaInstance);
+      
+    } catch (error) {
+      console.error('Failed to initialize HyperFormula:', error);
+      hyperformulaInstance = null;
+      reject(error);
+    }
+  });
+}
+
+// ADD this new function
+function simpleFormulaEvaluator(formula, tableData, currentRow, currentCol) {
+  try {
+    let cleanFormula = formula.trim();
+    if (cleanFormula.startsWith('=')) {
+      cleanFormula = cleanFormula.substring(1);
+    }
+    
+    // Replace cell references (A1, B2, etc.) with actual values
+    cleanFormula = cleanFormula.replace(/([A-Z]+)(\d+)/g, (match, colStr, rowStr) => {
+      const row = parseInt(rowStr) - 1;
+      let col = 0;
+      for (let i = 0; i < colStr.length; i++) {
+        col = col * 26 + (colStr.charCodeAt(i) - 64);
+      }
+      col -= 1;
+      
+      if (tableData[row] && tableData[row][col] !== undefined) {
+        const value = tableData[row][col];
+        return typeof value === 'number' ? value : (parseFloat(value) || 0);
+      }
+      return 0;
+    });
+    
+    // Handle basic functions like SUM
+    cleanFormula = cleanFormula.replace(/SUM\(([^)]+)\)/gi, (match, range) => {
+      const rangeMatch = range.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
+      if (rangeMatch) {
+        const startRow = parseInt(rangeMatch[2]) - 1;
+        const endRow = parseInt(rangeMatch[4]) - 1;
+        let startCol = 0, endCol = 0;
+        
+        for (let i = 0; i < rangeMatch[1].length; i++) {
+          startCol = startCol * 26 + (rangeMatch[1].charCodeAt(i) - 64);
+        }
+        startCol -= 1;
+        
+        for (let i = 0; i < rangeMatch[3].length; i++) {
+          endCol = endCol * 26 + (rangeMatch[3].charCodeAt(i) - 64);
+        }
+        endCol -= 1;
+        
+        let sum = 0;
+        for (let r = startRow; r <= endRow; r++) {
+          for (let c = startCol; c <= endCol; c++) {
+            if (tableData[r] && tableData[r][c] !== undefined) {
+              const val = typeof tableData[r][c] === 'number' ? tableData[r][c] : parseFloat(tableData[r][c]);
+              if (!isNaN(val)) sum += val;
             }
+          }
+        }
+        return sum;
+      }
+      return 0;
+    });
+    
+    // Evaluate the mathematical expression safely
+    const result = Function('"use strict"; return (' + cleanFormula + ')')();
+    return { error: false, result: result };
+    
+  } catch (error) {
+    console.warn('Simple formula evaluation error:', error);
+    return { error: true, result: '#ERROR' };
+  }
+}
+
+// ADD this new function
+function getCurrentTableData() {
+  const table = document.getElementById('table${uniqueID}');
+  if (!table) return [];
+  
+  const rows = table.querySelectorAll('tbody tr');
+  const tableData = [];
+  
+  rows.forEach((row, rowIndex) => {
+    const cells = row.querySelectorAll('td');
+    const rowData = [];
+    
+    cells.forEach((cell, colIndex) => {
+      const div = cell.querySelector('div');
+      let value = div ? div.textContent.trim() : '';
+      
+      const numValue = parseFloat(value);
+      rowData.push(isNaN(numValue) ? value : numValue);
+    });
+    
+    tableData.push(rowData);
+  });
+  
+  return tableData;
+}
             console.log('HyperFormula instance created:', hyperformulaInstance);
             // Initialize table data structure for formulas
             function initializeTableData() {
@@ -916,50 +1032,42 @@ editor.Commands.add('clear-table-highlighting', {
             }
             
             // Evaluate formula using HyperFormula
+// REPLACE the existing evaluateFormula function
 function evaluateFormula(formula, currentRow, currentCol) {
-  if (!hyperformulaInstance) {
-    console.warn('HyperFormula not available');
-    return { error: true, result: '#ERROR' };
-  }
+  console.log('Evaluating formula:', formula, 'at position:', currentRow, currentCol);
   
-  try {
-    // Clean the formula (remove = sign if present)
-    let cleanFormula = formula.trim();
-    if (cleanFormula.startsWith('=')) {
-      cleanFormula = cleanFormula.substring(1);
+  const tableData = getCurrentTableData();
+  console.log('Current table data:', tableData);
+  
+  // Try HyperFormula first
+  if (hyperformulaInstance) {
+    try {
+      let cleanFormula = formula.trim();
+      if (cleanFormula.startsWith('=')) {
+        cleanFormula = cleanFormula.substring(1);
+      }
+      
+      updateHyperFormulaData();
+      
+      const tempAddress = { sheet: 0, row: currentRow, col: currentCol };
+      hyperformulaInstance.setCellContents(tempAddress, '=' + cleanFormula);
+      const result = hyperformulaInstance.getCellValue(tempAddress);
+      
+      if (result && typeof result === 'object' && result.type === 'ERROR') {
+        console.log('HyperFormula error, falling back to simple evaluator');
+        return simpleFormulaEvaluator(formula, tableData, currentRow, currentCol);
+      }
+      
+      console.log('HyperFormula result:', result);
+      return { error: false, result: result };
+      
+    } catch (error) {
+      console.warn('HyperFormula evaluation failed, using fallback:', error);
+      return simpleFormulaEvaluator(formula, tableData, currentRow, currentCol);
     }
-    
-    console.log('Evaluating formula:', cleanFormula, 'at position:', currentRow, currentCol); // Debug log
-    
-    // First update the table data in HyperFormula
-    updateHyperFormulaData();
-    
-    // Create a temporary cell to evaluate the formula
-    const tempAddress = { sheet: 0, row: currentRow, col: currentCol };
-    
-    // Set the formula
-    hyperformulaInstance.setCellContents(tempAddress, '=' + cleanFormula);
-    
-    // Get the calculated result
-    const result = hyperformulaInstance.getCellValue(tempAddress);
-    
-    console.log('HyperFormula result:', result); // Debug log
-    
-    // Check if result is an error
-    if (result && typeof result === 'object' && result.type === 'ERROR') {
-      return { error: true, result: '#' + result.type };
-    }
-    
-    // Handle different result types
-    if (result === null || result === undefined) {
-      return { error: false, result: 0 };
-    }
-    
-    return { error: false, result: result };
-    
-  } catch (error) {
-    console.warn('Formula evaluation error:', error);
-    return { error: true, result: '#ERROR' };
+  } else {
+    console.log('HyperFormula not available, using simple evaluator');
+    return simpleFormulaEvaluator(formula, tableData, currentRow, currentCol);
   }
 }
             

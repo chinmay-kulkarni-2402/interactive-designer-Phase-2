@@ -2420,9 +2420,538 @@ editor.on('component:selected', (component) => {
               editor.Modal.close();
           });
       });
-  }  
+    }
 
   // =============================
+// function customTable2(editor){
+//     const props_test_table = (i) => i;  
+//     const id_Trait = {
+//       name: "id",
+//       label: "Id",
+//     };
+  
+//     const title_Trait = {
+//       name: "title",
+//       label: "Title",
+//     }; 
+   
+//     const test_chart_Props = {
+//       name: "Table",   
+//       jsonpath:"",  
+//       pageLength: 5, 
+//       FileDownload:`["copy", "csv", "excel", "pdf", "print","msword"]`,
+//     };
+  
+//     const name_Trait = {
+//       changeProp: 1,
+//       type: "text",
+//       name: "name",
+//       label: "name",
+//       placeholder: "Chart Name",
+//     };  
+  
+//     const Footer_Trait = ["Footer"].map((name) => ({
+//       changeProp: 1,
+//       type: "select", 
+//         options: [
+//             {value: true, label: 'Yes'},
+//             {value: false, label: 'No'}, 
+//           ],
+//       name,
+//     }));
+      
+//     const File_Download_Trait = ["FileDownload"].map((name) => ({
+//         changeProp: 1,
+//         type: "text", 
+//         label:"File Download",
+//         default:`["copy", "csv", "excel", "pdf", "print"]`,
+//         name,
+//     }));
+  
+//     const Pagination_Trait = ["Pagination"].map((name) => ({
+//         changeProp: 1,
+//         type: "select", 
+//         label:"Pagination",
+//         options: [
+//             {value: true, label: 'Yes'},
+//             {value: false, label: 'No'}, 
+//           ],
+//         name,
+//     }));
+  
+//     const PageLength_Trait = ["pageLength"].map((name) => ({
+//       changeProp: 1,
+//       type: "number",  
+//       label:"Page Length",
+//       name,
+//       default:5,
+//       placeholder:"Enter page length"
+//     })); 
+  
+//     const Search_Trait = ["Search"].map((name) => ({
+//         changeProp: 1,
+//         type: "select", 
+//         options: [
+//             {value: true, label: 'Yes'},
+//             {value: false, label: 'No'}, 
+//           ],
+//         name,
+//     }));
+    
+//     const Caption_Trait = ["Caption"].map((name) => ({
+//       changeProp: 1,
+//       type: "select", 
+//       options: [
+//           {value: true, label: 'Yes'},
+//           {value: false, label: 'No'}, 
+//         ],
+//       name,
+//   }));
+  
+    
+//   const CaptionAlign_Trait = ["CaptionAlign"].map((name) => ({
+//     changeProp: 1,
+//     type: "select", 
+//     label:"Caption Align",
+//     options: [
+//         {value: 'left', label: 'Left'},
+//         {value: 'right', label: 'Right'}, 
+//         {value: 'center', label: 'Center'}, 
+//       ],
+//     name,
+//   }));
+  
+//     const json_path_Trait = ["jsonpath"].map((name) => ({
+//         changeProp: 1,
+//         type: "text",
+//         label:"Json Path",
+//         placeholder: "Enter Json Path",
+//         name, 
+//       }));
+
+//     const json_button_sugesstionTrait = ["jsonButtonSugesstionTrait"].map((name) => ({
+//       changeProp: 1,
+//       type: "button",
+//       label:"Json Suggestion",
+//       placeholder: "Json Suggestion", 
+//       name,
+//       id: "json-suggestion-btn",  
+//       text: "Suggestion", 
+//       class:"json-suggestion-btn",  
+//     }));
+    
+//     const all_Traits = [
+//       name_Trait, 
+//       ...Footer_Trait,
+//       ...File_Download_Trait,
+//       ...Pagination_Trait,
+//       ...PageLength_Trait,
+//       ...Search_Trait,
+//       ...Caption_Trait,
+//       ...CaptionAlign_Trait,
+//       ...json_path_Trait, 
+//       ...json_button_sugesstionTrait
+//     ];
+     
+//     let jsonData = [];  
+//     let common_json = JSON.parse(localStorage.getItem("common_json"));  
+//     if(common_json !==null){
+//       jsonData.length= 0;  
+//       jsonData.push(common_json); 
+//       jsonData = JSON.stringify(jsonData); 
+//     }
+    
+//     editor.Components.addType("custom_table", {
+//         model: {
+//           defaults: props_test_table({
+//             ...test_chart_Props,
+//             tagName: "div",
+//             resizable: 1,
+//             droppable: 0,
+//             attributes: { 'data-i_designer-type': 'custom_table' },
+//             custom_line_chartsrc: "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+//             stylable: 1,
+//             traits: [id_Trait, title_Trait, ...all_Traits],
+//             style: {
+//               padding: "10px 0px",
+//             },
+//             // EDITOR SCRIPT - This will be replaced with clean output
+//             script: function () {  
+//               if (this.tableInitialized) return;
+//               this.tableInitialized = true;
+              
+//               const activeFilters = {};
+//               let currentData = null;
+//               let finalTableHTML = '';
+              
+//               const init1 = () => {
+//                 const ctx = this.id;
+//                 const divElement = document.getElementById(ctx);
+//                 let JsonPath1 = "{[ jsonpath ]}";
+//                 let custom_language = localStorage.getItem('language') || 'english';
+//                 const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+//                 const str = jsonDataN[custom_language][JsonPath1];
+//                 const originalTableData = eval(str);
+//                 currentData = JSON.parse(JSON.stringify(originalTableData));
+                
+//                 // Initialize formula parser
+//                 if (!window.globalFormulaParser) {
+//                   window.globalFormulaParser = new formulaParser.Parser();
+//                 }
+//                 const parser = window.globalFormulaParser;
+                
+//                 if (!window.globalCellMap) {
+//                   window.globalCellMap = {};
+//                 }
+//                 const cellMap = window.globalCellMap;
+                
+//                 parser.on('callCellValue', function (cellCoord, done) {
+//                   const label = cellCoord.label;
+//                   done(cellMap[label] || 0);
+//                 });
+                
+//                 const processFormulas = () => {
+//                   const objectKeys = Object.keys(currentData.heading);
+//                   currentData.data.forEach((row, rowIndex) => {
+//                     objectKeys.forEach((key, colIndex) => {
+//                       const colLetter = String.fromCharCode(65 + colIndex);
+//                       const cellRef = colLetter + (rowIndex + 1);
+//                       const rawVal = row[key];
+//                       let processedVal = rawVal;
+                      
+//                       if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
+//                         try {
+//                           const res = parser.parse(rawVal.trim().substring(1));
+//                           processedVal = res.error ? '#ERR' : res.result;
+//                         } catch (e) {
+//                           processedVal = '#ERR';
+//                         }
+//                       }
+                      
+//                       cellMap[cellRef] = isNaN(processedVal) ? 0 : processedVal;
+//                       row[key] = processedVal;
+//                     });
+//                   });
+//                 };
+                
+//                 const generateFinalHTML = () => {
+//                   let filteredData = JSON.parse(JSON.stringify(currentData));
+                  
+//                   // Apply active filters
+//                   if (Object.keys(activeFilters).length > 0) {
+//                     filteredData.data = filteredData.data.filter(row => {
+//                       return Object.keys(activeFilters).every(colKey => {
+//                         const cellVal = String(row[colKey]).toLowerCase();
+//                         const filterVal = activeFilters[colKey].toLowerCase();
+//                         return cellVal.includes(filterVal);
+//                       });
+//                     });
+//                   }
+                  
+//                   const objectKeys = Object.keys(filteredData.heading);
+                  
+//                   let html = '<table width="100%" class="table table-bordered">';
+//                   html += '<thead><tr>';
+//                   objectKeys.forEach(key => {
+//                     html += `<th>${filteredData.heading[key]}</th>`;
+//                   });
+//                   html += '</tr></thead><tbody>';
+                  
+//                   filteredData.data.forEach(row => {
+//                     html += '<tr>';
+//                     objectKeys.forEach(key => {
+//                       html += `<td>${row[key]}</td>`;
+//                     });
+//                     html += '</tr>';
+//                   });
+                  
+//                   html += '</tbody></table>';
+//                   return html;
+//                 };
+                
+//                 const updateFinalOutput = () => {
+//                   processFormulas();
+//                   finalTableHTML = generateFinalHTML();
+                  
+//                   // Update the component's final script
+//                   this.set('script', function() {
+//                     const divElement = document.getElementById(this.id);
+//                     divElement.innerHTML = `${finalTableHTML}`;
+//                   });
+//                 };
+                
+//                 const renderEditorTable = () => {
+//                   let displayData = JSON.parse(JSON.stringify(currentData));
+                  
+//                   // Apply filters for display
+//                   if (Object.keys(activeFilters).length > 0) {
+//                     displayData.data = displayData.data.filter(row => {
+//                       return Object.keys(activeFilters).every(colKey => {
+//                         const cellVal = String(row[colKey]).toLowerCase();
+//                         const filterVal = activeFilters[colKey].toLowerCase();
+//                         return cellVal.includes(filterVal);
+//                       });
+//                     });
+//                   }
+                  
+//                   const objectKeys = Object.keys(displayData.heading);
+//                   const table = document.createElement('table');
+//                   table.setAttribute('width', '100%');
+//                   table.setAttribute('class', 'table table-bordered');
+//                   table.setAttribute('id', 'editor-table-' + ctx);
+                  
+//                   divElement.innerHTML = "";
+                  
+//                   // Header with search functionality
+//                   const thead = document.createElement('thead');
+//                   const headerRow = document.createElement('tr');
+                  
+//                   objectKeys.forEach((key, i) => {
+//                     const th = document.createElement('th');
+                    
+//                     const labelDiv = document.createElement('div');
+//                     labelDiv.textContent = displayData.heading[key];
+//                     labelDiv.style.display = "inline-block";
+//                     labelDiv.style.marginRight = "78%";
+                    
+//                     const searchIcon = document.createElement('span');
+//                     searchIcon.innerHTML = "🔍";
+//                     searchIcon.style.cursor = "pointer";
+//                     searchIcon.addEventListener("click", () => openSearchModal(key, displayData.heading[key]));
+                    
+//                     th.appendChild(labelDiv);
+//                     th.appendChild(searchIcon);
+//                     headerRow.appendChild(th);
+//                   });
+                  
+//                   thead.appendChild(headerRow);
+//                   table.appendChild(thead);
+                  
+//                   // Editable body
+//                   const tbody = document.createElement('tbody');
+//                   displayData.data.forEach((row, rowIndex) => {
+//                     // Find original row index
+//                     const originalRowIndex = currentData.data.findIndex(originalRow => 
+//                       objectKeys.every(key => originalRow[key] === row[key])
+//                     );
+                    
+//                     const tr = document.createElement('tr');
+//                     objectKeys.forEach((key, colIndex) => {
+//                       const td = document.createElement('td');
+//                       const div = document.createElement('div');
+//                       div.setAttribute("contenteditable", "true");
+//                       div.style.outline = "none";
+//                       div.style.minWidth = "60px";
+//                       div.textContent = row[key];
+                      
+//                       div.addEventListener("blur", function () {
+//                         const userInput = div.textContent.trim();
+//                         let newVal = userInput;
+                        
+//                         // Update original data
+//                         if (originalRowIndex !== -1) {
+//                           currentData.data[originalRowIndex][key] = userInput;
+//                         }
+                        
+//                         // Process formula if needed
+//                         if (userInput.startsWith('=')) {
+//                           try {
+//                             const result = parser.parse(userInput.substring(1));
+//                             newVal = result.error ? "#ERR" : result.result;
+//                           } catch (e) {
+//                             newVal = "#ERR";
+//                           }
+//                         }
+                        
+//                         div.textContent = newVal;
+//                         updateFinalOutput();
+//                       });
+                      
+//                       td.appendChild(div);
+//                       tr.appendChild(td);
+//                     });
+//                     tbody.appendChild(tr);
+//                   });
+                  
+//                   table.appendChild(tbody);
+//                   divElement.appendChild(table);
+//                 };
+                
+//                 // Modal for filtering
+//                 const modal = document.createElement('div');
+//                 modal.setAttribute("id", "filter-modal-" + ctx);
+//                 modal.style.cssText = `
+//                   display: none; position: fixed; top: 50%; left: 50%; 
+//                   transform: translate(-50%, -50%); background: #fff; 
+//                   padding: 20px 30px; border: 1px solid #ccc; border-radius: 10px; 
+//                   box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; 
+//                   min-width: 300px; font-family: Arial, sans-serif;
+//                 `;
+                
+//                 modal.innerHTML = `
+//                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+//                     <h4 style="margin: 0;">Filter Column</h4>
+//                     <span id="closeModal${ctx}" style="cursor: pointer; font-size: 18px; font-weight: bold;">&times;</span>
+//                 </div>
+//                 <div id="activeFilters${ctx}" style="margin-bottom: 15px;"></div>
+//                 <label id="modalLabel${ctx}" style="font-weight: bold;"></label><br/>
+//                 <input type="text" id="filterInput${ctx}" style="margin-top: 10px; width: 100%; padding: 6px; border-radius: 5px; border: 1px solid #ccc;"/><br/><br/>
+//                 <div style="text-align: right;">
+//                     <button id="applyFilter${ctx}" style="padding: 6px 12px; margin-right: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Apply</button>
+//                     <button id="clearFilters${ctx}" style="padding: 6px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear All</button>
+//                 </div>
+//                 `;
+                
+//                 document.body.appendChild(modal);
+                
+//                 const updateActiveFiltersDisplay = () => {
+//                   const container = document.getElementById("activeFilters" + ctx);
+//                   container.innerHTML = "";
+                  
+//                   if (Object.keys(activeFilters).length > 0) {
+//                     const filtersDiv = document.createElement('div');
+//                     filtersDiv.style.cssText = `
+//                       border: 1px solid #ddd; border-radius: 5px; padding: 10px; 
+//                       background-color: #f8f9fa; margin-bottom: 10px;
+//                     `;
+                    
+//                     const title = document.createElement('div');
+//                     title.textContent = "Active Filters:";
+//                     title.style.fontWeight = "bold";
+//                     title.style.marginBottom = "8px";
+//                     filtersDiv.appendChild(title);
+                    
+//                     Object.keys(activeFilters).forEach(colKey => {
+//                       const filterDiv = document.createElement('div');
+//                       filterDiv.style.cssText = `
+//                         display: flex; justify-content: space-between; align-items: center; 
+//                         margin-bottom: 5px; padding: 3px 8px; background-color: #e9ecef; 
+//                         border-radius: 3px;
+//                       `;
+                      
+//                       const filterText = document.createElement('span');
+//                       filterText.textContent = `${currentData.heading[colKey]}: ${activeFilters[colKey]}`;
+//                       filterText.style.fontSize = "12px";
+                      
+//                       const deleteBtn = document.createElement('span');
+//                       deleteBtn.innerHTML = "×";
+//                       deleteBtn.style.cssText = `
+//                         cursor: pointer; color: #dc3545; font-weight: bold; margin-left: 10px;
+//                       `;
+//                       deleteBtn.addEventListener("click", () => {
+//                         delete activeFilters[colKey];
+//                         renderEditorTable();
+//                         updateFinalOutput();
+//                         updateActiveFiltersDisplay();
+//                       });
+                      
+//                       filterDiv.appendChild(filterText);
+//                       filterDiv.appendChild(deleteBtn);
+//                       filtersDiv.appendChild(filterDiv);
+//                     });
+                    
+//                     container.appendChild(filtersDiv);
+//                   }
+//                 };
+                
+//                 const openSearchModal = (colKey, colLabel) => {
+//                   modal.style.display = "block";
+//                   modal.setAttribute("data-colkey", colKey);
+//                   document.getElementById("modalLabel" + ctx).textContent = colLabel;
+//                   document.getElementById("filterInput" + ctx).value = activeFilters[colKey] || "";
+//                   updateActiveFiltersDisplay();
+//                 };
+                
+//                 document.getElementById("closeModal" + ctx).onclick = () => {
+//                   modal.style.display = "none";
+//                 };
+                
+//                 document.getElementById("applyFilter" + ctx).onclick = () => {
+//                   const colKey = modal.getAttribute("data-colkey");
+//                   const filterVal = document.getElementById("filterInput" + ctx).value.trim();
+                  
+//                   if (filterVal) {
+//                     activeFilters[colKey] = filterVal;
+//                   } else {
+//                     delete activeFilters[colKey];
+//                   }
+                  
+//                   renderEditorTable();
+//                   updateFinalOutput();
+//                   modal.style.display = "none";
+//                 };
+                
+//                 document.getElementById("clearFilters" + ctx).onclick = () => {
+//                   Object.keys(activeFilters).forEach(key => delete activeFilters[key]);
+//                   renderEditorTable();
+//                   updateFinalOutput();
+//                   modal.style.display = "none";
+//                 };
+                
+//                 // Initial render
+//                 processFormulas();
+//                 renderEditorTable();
+//                 updateFinalOutput();
+//               };
+              
+//               const loadScriptsAndInit = () => {
+//                 if (!window.jQuery) {
+//                   const jqueryScript = document.createElement("script");
+//                   jqueryScript.src = "{[ custom_line_chartsrc ]}";
+//                   jqueryScript.onload = () => loadFormulaParser();
+//                   document.head.appendChild(jqueryScript);
+//                 } else {
+//                   loadFormulaParser();
+//                 }
+//               };
+              
+//               const loadFormulaParser = () => {
+//                 if (!window.formulaParserLoaded) {
+//                   const fScript = document.createElement("script");
+//                   fScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
+//                   fScript.onload = () => {
+//                     window.formulaParserLoaded = true;
+//                     init1();
+//                   };
+//                   document.head.appendChild(fScript);
+//                 } else {
+//                   init1();
+//                 }
+//               };
+              
+//               loadScriptsAndInit();
+              
+//               this.on('removed', function () {
+//                 this.tableInitialized = false;
+//               });
+//             },
+//           }),
+//           init() {
+//             const events = all_Traits
+//               .filter((i) => ["strings"].indexOf(i.name) < 0)
+//               .map((i) => `change:${i.name}`)
+//               .join(" ");
+//                 this.on(events, () => {
+//                 this.tableInitialized = false;  
+//                 this.trigger("change:script");
+//                 });
+//           },
+//         },
+//     });  
+    
+//     editor.Blocks.add("custom_table", {
+//       label: "JSON Table",
+//       category: "Extra",
+//       attributes: {
+//         class: "fa fa-table",
+//       },
+//       content: {
+//         type: "custom_table",
+//       },
+//     });  
+//   } 
+  
+//    customTable2(editor);
 
   // =================================
   setTimeout(() => {
