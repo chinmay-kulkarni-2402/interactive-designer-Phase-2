@@ -224,6 +224,573 @@ function customTable(editor) {
     return wrapper;
   }
 
+  // Function to get available formulas
+  function getAvailableFormulas() {
+    try {
+      // Try to get formulas from hot-formula-parser
+      if (typeof window !== 'undefined' && window.formulaParser && window.formulaParser.SUPPORTED_FORMULAS) {
+        return window.formulaParser.SUPPORTED_FORMULAS.sort();
+      }
+      
+      // Fallback list of common Excel formulas if hot-formula-parser is not available yet
+      return [
+        'ABS', 'ACOS', 'ACOSH', 'AND', 'ASIN', 'ASINH', 'ATAN', 'ATAN2', 'ATANH',
+        'AVERAGE', 'AVERAGEA', 'AVERAGEIF', 'AVERAGEIFS', 'CEILING', 'CHOOSE',
+        'CONCATENATE', 'COS', 'COSH', 'COUNT', 'COUNTA', 'COUNTBLANK', 'COUNTIF',
+        'COUNTIFS', 'DATE', 'DATEVALUE', 'DAY', 'EVEN', 'EXP', 'FACT', 'FALSE',
+        'FIND', 'FLOOR', 'IF', 'INDEX', 'INT', 'ISBLANK', 'ISERROR', 'ISEVEN',
+        'ISLOGICAL', 'ISNA', 'ISNONTEXT', 'ISNUMBER', 'ISODD', 'ISTEXT', 'LEFT',
+        'LEN', 'LN', 'LOG', 'LOG10', 'LOWER', 'MATCH', 'MAX', 'MAXA', 'MID',
+        'MIN', 'MINA', 'MOD', 'MONTH', 'NOT', 'NOW', 'ODD', 'OR', 'PI', 'POWER',
+        'PRODUCT', 'PROPER', 'RAND', 'RANDBETWEEN', 'REPLACE', 'REPT', 'RIGHT',
+        'ROUND', 'ROUNDDOWN', 'ROUNDUP', 'SEARCH', 'SIN', 'SINH', 'SQRT', 'SUBSTITUTE',
+        'SUM', 'SUMIF', 'SUMIFS', 'SUMPRODUCT', 'TAN', 'TANH', 'TIME', 'TIMEVALUE',
+        'TODAY', 'TRIM', 'TRUE', 'TRUNC', 'UPPER', 'VALUE', 'VLOOKUP', 'WEEKDAY',
+        'YEAR'
+      ].sort();
+    } catch (error) {
+      console.warn('Error getting formulas:', error);
+      return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP'].sort();
+    }
+  }
+
+  // Function to show formula suggestions
+  function showFormulaSuggestions(input, cell, currentText) {
+    // Remove existing suggestions
+    const canvasDoc = editor.Canvas.getDocument();
+    const existingSuggestions = canvasDoc.querySelectorAll('.formula-suggestions');
+    existingSuggestions.forEach(el => el.remove());
+
+    // Extract the formula part being typed
+    const formulaMatch = currentText.match(/=([A-Z]*)$/i);
+    if (!formulaMatch) return;
+
+    const typedFormula = formulaMatch[1].toUpperCase();
+    const availableFormulas = getAvailableFormulas();
+    
+    // Filter formulas based on what's typed - show all matching formulas, not limited to 10
+    const matchingFormulas = availableFormulas.filter(formula => 
+      formula.startsWith(typedFormula)
+    );
+
+    if (matchingFormulas.length === 0) return;
+
+    // Create suggestions dropdown
+    const suggestions = canvasDoc.createElement('div');
+    suggestions.className = 'formula-suggestions';
+    suggestions.style.cssText = `
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 10001;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      width: 150px;
+    `;
+
+    matchingFormulas.forEach((formula, index) => {
+      const item = canvasDoc.createElement('div');
+      item.style.cssText = `
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        background-color: ${index === 0 ? '#f0f0f0' : 'white'};
+        font-family: monospace;
+        font-size: 11px;
+      `;
+      item.textContent = formula;
+      
+      item.addEventListener('mouseenter', () => {
+        suggestions.querySelectorAll('div').forEach(div => div.style.backgroundColor = 'white');
+        item.style.backgroundColor = '#f0f0f0';
+      });
+      
+      item.addEventListener('mouseleave', () => {
+        item.style.backgroundColor = 'white';
+      });
+      
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const formula = item.getAttribute('data-formula');
+        
+        // Replace the typed part with the selected formula and add opening parenthesis
+        const newText = currentText.replace(/=([A-Z]*)$/i, `=${formula}(`);
+        
+        // Update the input parameter which is the actual input element
+        input.value = newText;
+        
+        // Update cell content through the div structure
+        const targetDiv = cell.querySelector('div');
+        if (targetDiv) {
+          targetDiv.textContent = newText;
+        } else {
+          cell.textContent = newText;
+        }
+        
+        // Focus the cell and ensure it's in edit mode
+        cell.contentEditable = "true";
+        cell.focus();
+        
+        // Position cursor after the opening parenthesis
+        setTimeout(() => {
+          try {
+            const range = canvasDoc.createRange();
+            const sel = canvasDoc.defaultView.getSelection();
+            
+            // Clear any existing selection
+            sel.removeAllRanges();
+            
+            // Find the text node to position cursor
+            let textNode = null;
+            if (targetDiv && targetDiv.firstChild) {
+              textNode = targetDiv.firstChild;
+            } else if (cell.firstChild) {
+              textNode = cell.firstChild;
+            }
+            
+            if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+              // Position cursor at the end (after opening parenthesis)
+              range.setStart(textNode, newText.length);
+              range.setEnd(textNode, newText.length);
+              sel.addRange(range);
+            } else {
+              // Create text node if needed
+              const newTextNode = canvasDoc.createTextNode(newText);
+              if (targetDiv) {
+                targetDiv.innerHTML = '';
+                targetDiv.appendChild(newTextNode);
+              } else {
+                cell.innerHTML = '';
+                cell.appendChild(newTextNode);
+              }
+              range.setStart(newTextNode, newText.length);
+              range.setEnd(newTextNode, newText.length);
+              sel.addRange(range);
+            }
+            
+            // Keep cell focused and ready for parameter input
+            cell.focus();
+            
+          } catch (error) {
+            console.warn('Error positioning cursor:', error);
+            // Fallback: just focus the cell
+            cell.focus();
+          }
+        }, 100);
+        
+        // Remove suggestions
+        suggestions.remove();
+      });
+      
+      suggestions.appendChild(item);
+    });
+
+    // Position suggestions relative to the cell
+    const cellRect = cell.getBoundingClientRect();
+    const canvasRect = editor.Canvas.getFrameEl().getBoundingClientRect();
+    
+    suggestions.style.left = (cellRect.left - canvasRect.left) + 'px';
+    suggestions.style.top = (cellRect.bottom - canvasRect.top + 25) + 'px';
+
+    // Add to canvas document body
+    canvasDoc.body.appendChild(suggestions);
+
+    // Handle keyboard navigation
+    let selectedIndex = 0;
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, matchingFormulas.length - 1);
+        updateSelection();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, 0);
+        updateSelection();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        suggestions.children[selectedIndex].click();
+      } else if (e.key === 'Escape') {
+        suggestions.remove();
+        canvasDoc.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+
+    const updateSelection = () => {
+      suggestions.querySelectorAll('div').forEach((div, index) => {
+        div.style.backgroundColor = index === selectedIndex ? '#f0f0f0' : 'white';
+      });
+    };
+
+    canvasDoc.addEventListener('keydown', handleKeyDown);
+
+    // Remove suggestions when clicking outside
+    const removeOnClickOutside = (e) => {
+      if (!suggestions.contains(e.target) && !cell.contains(e.target)) {
+        suggestions.remove();
+        canvasDoc.removeEventListener('click', removeOnClickOutside);
+        canvasDoc.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+    
+    setTimeout(() => {
+      canvasDoc.addEventListener('click', removeOnClickOutside);
+    }, 100);
+  }
+
+  // Function to show all formulas in modal
+  function showAllFormulasModal() {
+    const availableFormulas = getAvailableFormulas();
+    
+    // Group formulas by category (first letter for simplicity)
+    const groupedFormulas = {};
+    availableFormulas.forEach(formula => {
+      const firstLetter = formula.charAt(0);
+      if (!groupedFormulas[firstLetter]) {
+        groupedFormulas[firstLetter] = [];
+      }
+      groupedFormulas[firstLetter].push(formula);
+    });
+
+    let modalContent = `
+      <div class="formulas-modal" style="font-family: Arial, sans-serif;">
+        <h3 style="margin-top: 0; color: #333; font-size: 18px;">Available Formulas (${availableFormulas.length} total)</h3>
+        <div style="margin-bottom: 15px;">
+          <input type="text" id="formula-search" placeholder="Search formulas..." 
+                 style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 10px; color: #666; font-size: 12px;">
+          Click any formula to insert it into the currently focused cell
+        </div>
+        <div id="formulas-container" style="max-height: 350px; overflow-y: auto; border: 1px solid #eee; padding: 15px; background: #fafafa;">
+    `;
+
+    // Add grouped formulas
+    Object.keys(groupedFormulas).sort().forEach(letter => {
+      modalContent += `<div class="formula-group" style="margin-bottom: 20px;">`;
+      modalContent += `<h4 style="margin: 0 0 8px 0; color: #444; border-bottom: 2px solid #ddd; padding-bottom: 4px; font-size: 14px; font-weight: bold;">${letter} (${groupedFormulas[letter].length})</h4>`;
+      modalContent += `<div style="display: flex; flex-wrap: wrap; gap: 8px;">`;
+      
+      groupedFormulas[letter].forEach(formula => {
+        modalContent += `
+          <span class="formula-item" data-formula="${formula}" 
+                style="padding: 6px 10px; background: #f8f9fa; border: 1px solid #dee2e6; 
+                       border-radius: 4px; cursor: pointer; font-size: 11px; font-family: 'Courier New', monospace;
+                       transition: all 0.2s ease; display: inline-block; font-weight: 500;
+                       user-select: none; color: #495057;">
+            ${formula}
+          </span>`;
+      });
+      
+      modalContent += `</div></div>`;
+    });
+
+    modalContent += `
+        </div>
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; text-align: right;">
+          <button id="close-formulas-modal" 
+                  style="padding: 10px 20px; background: #007cba; color: white; border: none; 
+                         border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;
+                         transition: background-color 0.2s ease;">
+            Close
+          </button>
+        </div>
+      </div>
+    `;
+
+    editor.Modal.setTitle('Formula Reference');
+    editor.Modal.setContent(modalContent);
+    editor.Modal.open();
+
+    // Add event listeners after modal opens
+    setTimeout(() => {
+      const searchInput = document.getElementById('formula-search');
+      const formulasContainer = document.getElementById('formulas-container');
+      const closeBtn = document.getElementById('close-formulas-modal');
+
+      if (!searchInput || !formulasContainer || !closeBtn) {
+        console.warn('Modal elements not found');
+        return;
+      }
+
+      // Search functionality
+      searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const formulaItems = formulasContainer.querySelectorAll('.formula-item');
+        const groups = formulasContainer.querySelectorAll('.formula-group');
+        
+        formulaItems.forEach(item => {
+          const formula = item.getAttribute('data-formula').toLowerCase();
+          if (formula.includes(searchTerm)) {
+            item.style.display = 'inline-block';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+
+        // Hide empty groups and show count
+        groups.forEach(group => {
+          const visibleItems = group.querySelectorAll('.formula-item[style*="inline-block"], .formula-item:not([style*="none"])');
+          if (visibleItems.length > 0) {
+            group.style.display = 'block';
+          } else {
+            group.style.display = 'none';
+          }
+        });
+      });
+
+      // Formula item click handlers
+      const formulaItems = formulasContainer.querySelectorAll('.formula-item');
+      formulaItems.forEach(item => {
+        // Mouse hover effects
+        item.addEventListener('mouseenter', () => {
+          item.style.backgroundColor = '#007cba';
+          item.style.color = 'white';
+          item.style.borderColor = '#006ba6';
+          item.style.transform = 'translateY(-1px)';
+          item.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+        });
+        
+        item.addEventListener('mouseleave', () => {
+          item.style.backgroundColor = '#f8f9fa';
+          item.style.color = '#495057';
+          item.style.borderColor = '#dee2e6';
+          item.style.transform = 'translateY(0)';
+          item.style.boxShadow = 'none';
+        });
+        
+        // Click handler
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const formula = item.getAttribute('data-formula');
+          
+          // Try to insert into currently focused cell
+          const canvasDoc = editor.Canvas.getDocument();
+          const activeCell = canvasDoc.querySelector('td:focus, th:focus');
+          
+          if (activeCell) {
+            // Get current text content
+            const targetDiv = activeCell.querySelector('div');
+            const currentText = targetDiv ? targetDiv.textContent : activeCell.textContent;
+            
+            let newText;
+            if (currentText.trim() === '' || currentText.trim() === '=') {
+              newText = `=${formula}(`;
+            } else if (currentText.endsWith('=')) {
+              newText = currentText + formula + '(';
+            } else {
+              newText = `=${formula}(`;
+            }
+            
+            // Update cell content
+            if (targetDiv) {
+              targetDiv.textContent = newText;
+            } else {
+              activeCell.textContent = newText;
+            }
+            
+            // Ensure cell is in edit mode and focused
+            activeCell.contentEditable = "true";
+            activeCell.focus();
+            
+            // Position cursor after opening parenthesis
+            setTimeout(() => {
+              try {
+                const range = canvasDoc.createRange();
+                const sel = canvasDoc.defaultView.getSelection();
+                
+                sel.removeAllRanges();
+                
+                let textNode = null;
+                if (targetDiv && targetDiv.firstChild) {
+                  textNode = targetDiv.firstChild;
+                } else if (activeCell.firstChild) {
+                  textNode = activeCell.firstChild;
+                }
+                
+                if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                  range.setStart(textNode, newText.length);
+                  range.setEnd(textNode, newText.length);
+                  sel.addRange(range);
+                } else {
+                  // Create text node if needed
+                  const newTextNode = canvasDoc.createTextNode(newText);
+                  if (targetDiv) {
+                    targetDiv.innerHTML = '';
+                    targetDiv.appendChild(newTextNode);
+                  } else {
+                    activeCell.innerHTML = '';
+                    activeCell.appendChild(newTextNode);
+                  }
+                  range.setStart(newTextNode, newText.length);
+                  range.setEnd(newTextNode, newText.length);
+                  sel.addRange(range);
+                }
+                
+                activeCell.focus();
+                
+              } catch (error) {
+                console.warn('Error positioning cursor:', error);
+                activeCell.focus();
+              }
+            }, 100);
+            
+            showToast(`Formula ${formula} inserted into cell`, 'success');
+            editor.Modal.close();
+            
+          } else {
+            // No active cell - copy to clipboard as fallback
+            const tempInput = document.createElement('input');
+            tempInput.value = `=${formula}()`;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+              document.execCommand('copy');
+              showToast(`Formula ${formula} copied to clipboard!`, 'success');
+            } catch (err) {
+              showToast(`Formula copied: =${formula}()`, 'info');
+            }
+            
+            document.body.removeChild(tempInput);
+          }
+        });
+      });
+
+      // Close button
+      closeBtn.addEventListener('mouseenter', () => {
+        closeBtn.style.backgroundColor = '#006ba6';
+      });
+      
+      closeBtn.addEventListener('mouseleave', () => {
+        closeBtn.style.backgroundColor = '#007cba';
+      });
+      
+      closeBtn.addEventListener('click', () => {
+        editor.Modal.close();
+      });
+      
+      // Focus search input
+      searchInput.focus();
+      
+    }, 150);
+  }
+
+  // Enhanced range parsing for formulas like A1:A5
+  function parseRange(rangeStr, tableElement) {
+    try {
+      // Handle range notation like A1:A5
+      if (rangeStr.includes(':')) {
+        const [startCell, endCell] = rangeStr.split(':');
+        const startCoords = cellRefToCoords(startCell);
+        const endCoords = cellRefToCoords(endCell);
+        
+        if (!startCoords || !endCoords) return [];
+        
+        const cells = [];
+        
+        // Handle both single column/row ranges and rectangular ranges
+        for (let row = startCoords.row; row <= endCoords.row; row++) {
+          for (let col = startCoords.col; col <= endCoords.col; col++) {
+            const cell = getCellAt(tableElement, row, col);
+            if (cell) {
+              const value = getCellValue(cell);
+              cells.push(value);
+            }
+          }
+        }
+        
+        return cells;
+      } else {
+        // Single cell reference
+        const coords = cellRefToCoords(rangeStr);
+        if (coords) {
+          const cell = getCellAt(tableElement, coords.row, coords.col);
+          if (cell) {
+            return [getCellValue(cell)];
+          }
+        }
+      }
+      
+      return [];
+    } catch (error) {
+      console.warn('Error parsing range:', error);
+      return [];
+    }
+  }
+
+  // Helper function to convert cell reference (like A1) to coordinates
+  function cellRefToCoords(cellRef) {
+    try {
+      const match = cellRef.match(/^([A-Z]+)(\d+)$/);
+      if (!match) return null;
+      
+      const colStr = match[1];
+      const rowNum = parseInt(match[2]);
+      
+      // Convert column letters to number (A=0, B=1, ..., Z=25, AA=26, etc.)
+      let col = 0;
+      for (let i = 0; i < colStr.length; i++) {
+        col = col * 26 + (colStr.charCodeAt(i) - 65 + 1);
+      }
+      col -= 1; // Convert to 0-based index
+      
+      return {
+        row: rowNum - 1, // Convert to 0-based index
+        col: col
+      };
+    } catch (error) {
+      console.warn('Error converting cell reference:', error);
+      return null;
+    }
+  }
+
+  // Helper function to get cell at specific coordinates
+  function getCellAt(tableElement, row, col) {
+    try {
+      const rows = tableElement.querySelectorAll('tr');
+      if (row >= 0 && row < rows.length) {
+        const cells = rows[row].querySelectorAll('td, th');
+        if (col >= 0 && col < cells.length) {
+          return cells[col];
+        }
+      }
+      return null;
+    } catch (error) {
+      console.warn('Error getting cell at coordinates:', error);
+      return null;
+    }
+  }
+
+  // Helper function to get cell value
+  function getCellValue(cell) {
+    try {
+      // Check for formula first
+      const formula = cell.getAttribute('data-formula');
+      if (formula && formula.startsWith('=')) {
+        // Return the calculated value, not the formula
+        const displayValue = cell.querySelector('div') ? cell.querySelector('div').textContent : cell.textContent;
+        const numValue = parseFloat(displayValue);
+        return isNaN(numValue) ? displayValue : numValue;
+      }
+      
+      // Return regular cell value
+      const textValue = cell.querySelector('div') ? cell.querySelector('div').textContent : cell.textContent;
+      const numValue = parseFloat(textValue);
+      return isNaN(numValue) ? textValue : numValue;
+    } catch (error) {
+      console.warn('Error getting cell value:', error);
+      return '';
+    }
+  }
+
   // Detect table block drag stop
   editor.on('block:drag:stop', (block) => {  
     if (block.get('tagName') === 'table') {
@@ -272,6 +839,14 @@ function customTable(editor) {
         color: #ff6b35;
         font-weight: bold;
         z-index: 1;
+      }
+
+      /* Formula suggestions styling */
+      .formula-suggestions {
+        font-family: Arial, sans-serif !important;
+      }
+      .formula-suggestions div:hover {
+        background-color: #f0f0f0 !important;
       }
 
       /* Page-aware table styles */
@@ -343,6 +918,33 @@ function customTable(editor) {
     const script = document.createElement('script');
     script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
     head.appendChild(script);
+
+    // Wait for hot-formula-parser to load and then store supported formulas
+    script.onload = () => {
+      try {
+        if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
+          window.formulaParser = iframe.contentWindow.formulaParser;
+        }
+      } catch (error) {
+        console.warn('Could not access formula parser:', error);
+      }
+    };
+  });
+
+  // Add formula icon to navbar
+  editor.on('load', () => {
+    // Add formula button to the navbar
+    const panelManager = editor.Panels;
+    
+    panelManager.addButton('options', {
+      id: 'show-formulas',
+      className: 'fa fa-calculator',
+      command: 'show-all-formulas',
+      attributes: {
+        title: 'Show All Formulas',
+        'data-tooltip-pos': 'bottom'
+      }
+    });
   });
 
   // Add custom table component type with highlighting traits
@@ -438,6 +1040,13 @@ function customTable(editor) {
         // Trigger editor update
         editor.trigger('component:update', selected);
       }
+    }
+  });
+
+  // Add command to show all formulas
+  editor.Commands.add('show-all-formulas', {
+    run(editor) {
+      showAllFormulasModal();
     }
   });
 
@@ -714,11 +1323,12 @@ function customTable(editor) {
     }
   }
 
-  // Formula editing handler - EXACT COPY FROM ORIGINAL
+  // Enhanced Formula editing handler with range support and suggestions
   function enableFormulaEditing(tableId) {
     const iframeDoc = editor.Canvas.getDocument();
     const parser = new iframeDoc.defaultView.formulaParser.Parser();
 
+    // Enhanced parser with range support
     parser.on('callCellValue', function(cellCoord, done) {
       let col = cellCoord.column.index;
       let row = cellCoord.row.index;
@@ -741,6 +1351,40 @@ function customTable(editor) {
       }
     });
 
+    // Enhanced parser for range support (A1:A5)
+    parser.on('callRangeValue', function(startCellCoord, endCellCoord, done) {
+      let tableElem = iframeDoc.getElementById(tableId);
+      let values = [];
+      
+      let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+      let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+      let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+      let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
+      
+      for (let row = startRow; row <= endRow; row++) {
+        for (let col = startCol; col <= endCol; col++) {
+          let cell = tableElem.rows[row]?.cells[col];
+          if (cell) {
+            let val = cell.getAttribute('data-formula') || cell.innerText;
+            if (val.startsWith('=')) {
+              try {
+                let res = parser.parse(val.substring(1));
+                values.push(res.result);
+              } catch {
+                values.push(0);
+              }
+            } else {
+              values.push(parseFloat(val) || 0);
+            }
+          } else {
+            values.push(0);
+          }
+        }
+      }
+      
+      done(values);
+    });
+
     // Function to attach event listeners to cells
     function attachCellListeners() {
       const tableElem = iframeDoc.getElementById(tableId);
@@ -755,6 +1399,8 @@ function customTable(editor) {
 
         cell.addEventListener('focus', handleCellFocus);
         cell.addEventListener('blur', handleCellBlur);
+        cell.addEventListener('input', handleCellInput);
+        cell.addEventListener('keydown', handleCellKeydown);
       });
     }
 
@@ -763,24 +1409,118 @@ function customTable(editor) {
       if (formula) this.innerText = formula;
     }
 
+    function handleCellInput(e) {
+      const cell = this;
+      const currentText = cell.innerText;
+      
+      // Show formula suggestions when typing after '='
+      if (currentText.includes('=') && currentText.length > 1) {
+        const lastEqualIndex = currentText.lastIndexOf('=');
+        const afterEqual = currentText.substring(lastEqualIndex);
+        
+        // Check if we're typing a formula (letters after =)
+        if (/=[A-Z]*$/i.test(afterEqual)) {
+          showFormulaSuggestions(e, cell, currentText);
+        }
+      }
+    }
+
+    function handleCellKeydown(e) {
+      // Handle Tab key for navigation
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const cell = this;
+        const table = cell.closest('table');
+        const allCells = Array.from(table.querySelectorAll('td, th'));
+        const currentIndex = allCells.indexOf(cell);
+        
+        let nextIndex;
+        if (e.shiftKey) {
+          nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+        } else {
+          nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+        }
+        
+        allCells[nextIndex].focus();
+      }
+    }
+
     function handleCellBlur() {
       const cell = this;
       let val = cell.innerText.trim();
       
+      // Remove any existing formula suggestions
+      const iframeDoc = editor.Canvas.getDocument();
+      const suggestions = iframeDoc.querySelectorAll('.formula-suggestions');
+      suggestions.forEach(s => s.remove());
+      
       if (val.startsWith('=')) {
         cell.setAttribute('data-formula', val);
         try {
-          let res = parser.parse(val.substring(1));
-          cell.innerText = res.result !== undefined ? res.result : '#ERROR';
-        } catch {
+          // Validate formula syntax before parsing
+          const formulaContent = val.substring(1);
+          if (formulaContent.trim() === '') {
+            throw new Error('Empty formula');
+          }
+          
+          // Check for basic syntax errors
+          const openParens = (formulaContent.match(/\(/g) || []).length;
+          const closeParens = (formulaContent.match(/\)/g) || []).length;
+          
+          if (openParens !== closeParens) {
+            throw new Error('Mismatched parentheses');
+          }
+          
+          // Try to parse the formula
+          let res = parser.parse(formulaContent);
+          
+          // Check if result is valid
+          if (res.result !== undefined && res.result !== null && !isNaN(res.result) && res.result !== '#ERROR') {
+            cell.innerText = res.result;
+          } else if (res.result === '#ERROR' || isNaN(res.result)) {
+            throw new Error('Formula evaluation error');
+          } else {
+            cell.innerText = res.result || '#ERROR';
+          }
+          
+        } catch (error) {
+          console.warn('Formula parsing error:', error);
           cell.innerText = '#ERROR';
+          
+          // Show error tooltip briefly
+          const errorTooltip = iframeDoc.createElement('div');
+          errorTooltip.style.cssText = `
+            position: absolute;
+            background: #ff4444;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            z-index: 10002;
+            pointer-events: none;
+            white-space: nowrap;
+          `;
+          errorTooltip.textContent = 'Invalid formula syntax';
+          
+          const cellRect = cell.getBoundingClientRect();
+          const canvasRect = editor.Canvas.getFrameEl().getBoundingClientRect();
+          errorTooltip.style.left = (cellRect.left - canvasRect.left) + 'px';
+          errorTooltip.style.top = (cellRect.top - canvasRect.top - 25) + 'px';
+          
+          iframeDoc.body.appendChild(errorTooltip);
+          
+          setTimeout(() => {
+            if (errorTooltip.parentNode) {
+              errorTooltip.parentNode.removeChild(errorTooltip);
+            }
+          }, 2000);
         }
       } else {
         cell.removeAttribute('data-formula');
         cell.innerText = val;
       }
 
-      // 🔹 Update GrapesJS component WITHOUT replacing HTML
+      // Update GrapesJS component WITHOUT replacing HTML
       updateComponentContent(tableId);
     }
 
@@ -977,5 +1717,5 @@ function customTable(editor) {
     }
   });
 
-  console.log('Enhanced Custom Table function initialized with highlighting traits and page system integration');
+  console.log('Enhanced Custom Table function initialized with formula suggestions, highlighting traits and page system integration');
 }

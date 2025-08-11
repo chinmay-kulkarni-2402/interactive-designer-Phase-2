@@ -2423,7 +2423,7 @@ editor.on('component:selected', (component) => {
   }  
 
   // =============================
-  function customTable2(editor){
+function customTable2(editor){
     const props_test_table = (i) => i;  
     const id_Trait = {
       name: "id",
@@ -2440,6 +2440,8 @@ editor.on('component:selected', (component) => {
       jsonpath:"",  
       pageLength: 5, 
       FileDownload:`["copy", "csv", "excel", "pdf", "print","msword"]`,
+      filterColumn: "",
+      filterValue: "",
     };
   
     const name_Trait = {
@@ -2539,6 +2541,23 @@ editor.on('component:selected', (component) => {
       text: "Suggestion", 
       class:"json-suggestion-btn",  
     }));
+
+    // New traits for filtering
+    const filter_column_trait = {
+      changeProp: 1,
+      type: "select",
+      name: "filterColumn",
+      label: "Filter Column",
+      options: [{ value: "", label: "First enter JSON path" }],
+    };
+
+    const filter_value_trait = {
+      changeProp: 1,
+      type: "text",
+      name: "filterValue",
+      label: "Filter Value",
+      placeholder: "Enter filter value or '=' for all data",
+    };
     
     const all_Traits = [
       name_Trait, 
@@ -2550,7 +2569,9 @@ editor.on('component:selected', (component) => {
       ...Caption_Trait,
       ...CaptionAlign_Trait,
       ...json_path_Trait, 
-      ...json_button_sugesstionTrait
+      ...json_button_sugesstionTrait,
+      filter_column_trait,
+      filter_value_trait
     ];
      
     let jsonData = [];  
@@ -2560,226 +2581,6 @@ editor.on('component:selected', (component) => {
       jsonData.push(common_json); 
       jsonData = JSON.stringify(jsonData); 
     }
-
-
-  
-    // editor.Components.addType("custom_table", {
-    //   model: {
-    //     defaults: props_test_table({
-    //       ...test_chart_Props, 
-    //       tagName: "div",  
-    //       resizable: 1, 
-    //       droppable: 0,
-    //       attributes: { 'data-i_designer-type': 'custom_table' },
-    //       custom_line_chartsrc: "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
-    //       stylable: 1,
-    //       traits: [id_Trait, title_Trait, ...all_Traits],
-    //       style: {
-    //         padding: "10px 0px", 
-    //       },  
-    //       script: ` 
-
-    //       const init = () => { 
-    //       const ctx = this.id;      
-    //       let footer = "{[ Footer ]}"; 
-    //       let downloadFile =  {[ FileDownload ]} ;   
-    //       let pagination = "{[ Pagination ]}";  
-    //       let pagelengthF = "{[ pageLength ]}";    
-    //       let search = "{[ Search ]}";        
-    //       let caption = "{[ Caption ]}";    
-    //       let captionAlign = "{[ CaptionAlign ]}";
-    //       let JsonPath1 = "{[ jsonpath ]}";   
-    //       console.log(JsonPath1,'JsonPath1=========');
-    //       let custom_language =  localStorage.getItem('language');   
-    //       if(custom_language==null){
-    //         custom_language = 'english';
-    //       }      
-    //       let project_type = 'developmentJsonType';  
-    //       const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
-    //       const jsonDataa = [];
-    //       jsonDataa.push(jsonDataN); 
-    //       let str = jsonDataa[0][custom_language][JsonPath1];  
-    //       if(typeof project_type2 !== 'undefined' &&  project_type2 === 'downloadedJsonType'){
-    //         project_type = 'downloadedJsonType'; 
-    //       }
-    //       if(project_type === 'downloadedJsonType'){ 
-    //         str = jsonData1[0][custom_language][JsonPath1];
-    //       } 
-    //       let tableData = []; 
-    //       if(str !== undefined){  
-    //           tableData = eval(str);    
-    //         setTimeout(() => { 
-    //           const length = Object.keys(tableData.heading).length; 
-    //             if(length === 0){
-    //               alert("Table json formate not proper");
-    //               return false; 
-    //             } else{   
-    //             let uniqueID  =  ctx;     
-    //             const divElement = document.getElementById(ctx); 
-    //             let downloadBtn = downloadFile;   
-    //             for (var i = 0; i < downloadBtn.length; i++) {
-    //               if (downloadBtn[i] === "msword") { 
-    //                 downloadBtn.splice(i, 1);
-    //                 downloadBtn.push({
-    //                   text: 'MS Word',
-    //                   action: function () { 
-    //                     const table = document.getElementById('table'+uniqueID);  
-    //                     table.setAttribute('border', '1');  
-    //                     table.style.borderCollapse = 'collapse';
-    //                     table.style.width = '100%';
-    //                     table.style.fontFamily = 'Arial, sans-serif';
-    //                     const html = table.outerHTML; 
-    //                     const url = 'data:application/msword,' + encodeURIComponent(html);  
-    //                     const downloadLink = document.createElement("a");  
-    //                     downloadLink.href = url;
-    //                     downloadLink.download = 'data.doc';
-    //                     downloadLink.style.display = 'none';
-    //                     document.body.appendChild(downloadLink); 
-    //                     window.location.href = downloadLink.href; 
-    //                     document.body.removeChild(downloadLink);   
-    //                   }
-    //                 });
-    //                 break;
-    //               }
-    //             }  
-    //             const rows = Object.keys(tableData.heading).length;  
-    //             let table = document.createElement('table');    
-    //             table.setAttribute('width','100%'); 
-    //             table.setAttribute('class','table table-bordered'); 
-    //             table.setAttribute('id','table'+uniqueID);  
-    //             if(caption==="true"){ 
-    //               if(tableData.caption === undefined || tableData.caption === null){
-    //                 alert("Caption data not found in json file");
-    //                 return false;
-    //               } 
-    //               if(captionAlign === null || captionAlign === undefined || captionAlign ===''){
-    //                 captionAlign = 'left';
-    //               }
-    //               let caption1a = document.createElement('caption'); 
-    //               caption1a.textContent =  tableData.caption;  
-    //               caption1a.style.captionSide = 'top';   
-    //               caption1a.style.textAlign = captionAlign;  
-    //               table.appendChild(caption1a);   
-    //             } 
-    //             let thead = document.createElement('thead');  
-    //             let thtr = document.createElement('tr'); 
-    //             const objectName = Object.keys(tableData.heading);   
-    //               for (let j = 0; j < rows; j++) {
-    //                 let th = document.createElement('th'); 
-    //                 th.setAttribute("class",  "col"+uniqueID+j);
-    //                 let div1 = document.createElement('div'); 
-    //                 div1.textContent = eval('tableData.heading.'+objectName[j]);
-    //                 th.appendChild(div1);
-    //                 thtr.appendChild(th);
-    //             } 
-    //             thead.appendChild(thtr);  
-    //             table.appendChild(thead);
-    //             let tbody = document.createElement('tbody');
-    //               for (let i = 0; i < tableData.data.length ; i++) {
-    //               let tr = document.createElement('tr');
-    //               for (let j = 0; j < rows; j++) {
-    //                   let td = document.createElement('td');
-    //                   td.setAttribute("class",  "col"+uniqueID+j);
-    //                   let div = document.createElement('div');
-    //                   const textValue =  eval('tableData.data['+i+'].'+objectName[j]); 
-    //                   div.textContent = textValue;
-    //                   td.appendChild(div);
-    //                   tr.appendChild(td);
-    //               } 
-    //               tbody.appendChild(tr);  
-    //               }   
-        
-    //               table.appendChild(tbody);  
-    //               let tfoot = document.createElement('tfoot');  
-    //               let tfoottr = document.createElement('tr');  
-    //               if(footer==='true'){ 
-    //               if(tableData.footer === undefined || tableData.footer === null){
-    //                 alert("Footer data not found in json file");
-    //                 return false;
-    //               }
-    //               const objectName2 = Object.keys(tableData.footer); 
-    //                 for (let k = 0; k < rows; k++) {
-    //                   let th = document.createElement('th'); 
-    //                   th.setAttribute("class", "col"+uniqueID+k);
-    //                   let div1 = document.createElement('div');
-    //                   div1.textContent = eval('tableData.footer.'+objectName2[k]);
-    //                   th.appendChild(div1);
-    //                   tfoottr.appendChild(th);
-    //               } 
-    //               tfoot.appendChild(tfoottr);
-    //                 table.appendChild(tfoot);
-    //               }    
-    //               divElement.appendChild(table);  
-    //               if(search==='' || search===undefined || search === null ){
-    //                 search = false;
-    //               } 
-    //               if(pagination==='' || pagination === undefined || pagination === null ){
-    //                 pagination = false;
-    //               }     
-    //               var scrollXValue = false;  
-    //               const newValue = window.innerWidth <= 768;
-    //               if (newValue) {
-    //                 scrollXValue = true; 
-    //               } else {
-    //                 scrollXValue = false; 
-    //               } 
-    //               pagelengthF = pagelengthF*1;  
-    //               $(document).ready(function() {
-    //                 $('#table'+uniqueID).DataTable({
-    //                   dom: 'Bfrtip',   
-    //                   paging : pagination,
-    //                   "pageLength": pagelengthF,
-    //                   "info": pagination,
-    //                   "lengthChange": true,
-    //                   "scrollX": scrollXValue,  
-    //                   searching: search,  
-    //                   buttons: downloadBtn,  
-    //                 });
-    //               }); 
-    //         }  
-    //         }, 1000);  
-    //       }
-    //       if(str === undefined){ 
-    //         tableData = []; 
-    //         if(JsonPath1 !=='' && JsonPath1 !==null && JsonPath1 !==undefined && JsonPath1 !==' ' ){
-    //           alert("JSON path not found");
-    //           return false;
-    //         }  
-    //         const divElement = document.getElementById(ctx);
-    //         const pElement = document.createElement('p');
-    //         pElement.textContent =  'Table';
-    //         divElement.appendChild(pElement);
-    //       }   
-    //     };  
-    //     if (!window.Highcharts) {  
-    //       const scr = document.createElement("script");
-    //       scr.src = "{[ custom_line_chartsrc ]}";
-    //       scr.onload = init;
-    //       document.head.appendChild(scr);
-    //     } else {
-    //       init(); 
-    //     }`,
-    //     }),
-  
-    //     init() {     
-    //       const events = all_Traits
-    //       .filter((i) => ["strings"].indexOf(i.name) < 0)
-    //       .map((i) => `change:${i.name}`)
-    //       .join(" ");
-    //         this.on(events, () => {
-    //         const common_json2 = JSON.parse(localStorage.getItem("common_json"));  
-    //             if(common_json2 !==null){
-    //               jsonData.length= 0;  
-    //               jsonData = [];
-    //               jsonData.push(common_json2);  
-    //             } 
-    //           this.trigger("change:script")
-    //         });
-    //     }, 
-    //   },
-    // }); 
-
-
 
     editor.Components.addType("custom_table", {
         model: {
@@ -2794,364 +2595,479 @@ editor.on('component:selected', (component) => {
             traits: [id_Trait, title_Trait, ...all_Traits],
             style: {
               padding: "10px 0px",
+              minHeight: "50px",
             },
             script: function () {  
   if (this.tableInitialized) return;
   this.tableInitialized = true;
-  
-  // Store active filters for this table instance
-  const activeFilters = {};
   
   const init1 = () => {
     const ctx = this.id;
     let uniqueID = Math.floor(100 + Math.random() * 900);
     const divElement = document.getElementById(ctx);
     let JsonPath1 = "{[ jsonpath ]}";
-    let custom_language = localStorage.getItem('language') || 'english';
-    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
-    const str = jsonDataN[custom_language][JsonPath1];
-    const tableData = eval(str);
-    const objectKeys = Object.keys(tableData.heading);
-    const table = document.createElement('table');
-    table.setAttribute('width', '100%');
-    table.setAttribute('class', 'table table-bordered');
-    table.setAttribute('id', 'table' + ctx);
-
+    let filterColumn = "{[ filterColumn ]}";
+    let filterValue = "{[ filterValue ]}";
+    
     // Clear previous content
     divElement.innerHTML = "";
+    
+    // Check if json path is provided
+    if (!JsonPath1 || JsonPath1.trim() === "") {
+      return; // Show nothing
+    }
 
+    // Check if filter value is provided (only show table after filter value is entered)
+    if (!filterValue || filterValue.trim() === "") {
+      return; // Show nothing
+    }
+
+    let custom_language = localStorage.getItem('language') || 'english';
+    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+    
+    if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][JsonPath1]) {
+      divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid JSON path or data not found</div>`;
+      return;
+    }
+
+    const str = jsonDataN[custom_language][JsonPath1];
+    const tableData = eval(str);
+    
+    if (!tableData || !tableData.heading || !tableData.data) {
+      divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid table data structure</div>`;
+      return;
+    }
+
+    const objectKeys = Object.keys(tableData.heading);
+    
+    // Filter data based on filter column and value
+    let filteredData = tableData.data;
+    if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
+      if (filterValue === "=") {
+        // Show all data
+        filteredData = tableData.data;
+      } else {
+        // Filter data based on column and value
+        filteredData = tableData.data.filter(row => {
+          const cellValue = String(row[filterColumn] || "").toLowerCase();
+          const searchValue = String(filterValue).toLowerCase();
+          return cellValue.includes(searchValue);
+        });
+      }
+    }
+
+    const table = document.createElement('table');
+    table.setAttribute('width', '100%');
+    table.style.borderCollapse = "collapse";
+    table.style.border = "1px solid #000";
+    table.setAttribute('id', 'table' + ctx);
+
+    // Create header
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
 
     objectKeys.forEach((key, i) => {
         const th = document.createElement('th');
         th.setAttribute("class", "col" + ctx + i);
+        th.style.padding = "8px";
+        th.style.textAlign = "left";
+        th.style.border = "1px solid #000";
+        th.style.fontWeight = "bold";
 
         const labelDiv = document.createElement('div');
         labelDiv.textContent = tableData.heading[key];
-        labelDiv.style.display = "inline-block";
-        labelDiv.style.marginRight = "78%";
-
-        const searchIcon = document.createElement('span');
-        searchIcon.innerHTML = "🔍";
-        searchIcon.style.cursor = "pointer";
-        searchIcon.addEventListener("click", () => openSearchModal(key, tableData.heading[key]));
 
         th.appendChild(labelDiv);
-        th.appendChild(searchIcon);
         headerRow.appendChild(th);
     });
 
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Body (initially hidden)
+    // Create body with filtered data
     const tbody = document.createElement('tbody');
-    tbody.style.display = "none";
     tbody.setAttribute("id", "tbody" + ctx);
-    tableData.data.forEach((row, rowIndex) => {
-        const tr = document.createElement('tr');
-        objectKeys.forEach((key, j) => {
-       // const td = document.createElement('td');
-        // td.className = `col${uniqueID}`;
-        // td.setAttribute("class", "col" + ctx + j);
+    
+    if (filteredData.length === 0) {
+      const noDataRow = document.createElement('tr');
+      const noDataCell = document.createElement('td');
+      noDataCell.setAttribute('colspan', objectKeys.length);
+      noDataCell.textContent = 'No data found';
+      noDataCell.style.textAlign = 'center';
+      noDataCell.style.padding = '20px';
+      noDataCell.style.border = "1px solid #000";
+      noDataRow.appendChild(noDataCell);
+      tbody.appendChild(noDataRow);
+    } else {
+      filteredData.forEach((row, rowIndex) => {
+          const tr = document.createElement('tr');
+          
+          objectKeys.forEach((key, j) => {
+              const td = document.createElement('td');
+              td.className = `col${uniqueID}`;
+              td.setAttribute("class", "col" + ctx + j);
+              td.style.padding = "8px";
+              td.style.textAlign = "left";
+              td.style.border = "1px solid #000";
 
-        // td.innerText = row[key];
-        // tr.appendChild(td);
+              // Get raw value from JSON
+              const rawVal = row[key];
+              let displayVal = rawVal;
 
+              // A1, B1, etc.
+              const colLetter = String.fromCharCode(65 + j);
+              const cellRef = colLetter + (rowIndex + 1);
 
-        // Start Formula code and commented above five line code
-        const td = document.createElement('td');
-        td.className = `col${uniqueID}`;
-        td.setAttribute("class", "col" + ctx + j);
+              // Initialize parser if not exists
+              if (!window.globalFormulaParser) {
+                window.globalFormulaParser = new formulaParser.Parser();
+              }
+              const parser = window.globalFormulaParser;
 
-        // Add editable <div> inside td
-        const div = document.createElement('div');
-        div.setAttribute("contenteditable", "true");
-        div.style.outline = "none";
-        div.style.minWidth = "60px";
+              // Setup shared map of values
+              if (!window.globalCellMap) {
+                window.globalCellMap = {};
+              }
+              const cellMap = window.globalCellMap;
 
-        // A1, B1, etc.
-        const colLetter = String.fromCharCode(65 + j);
-        const cellRef = colLetter + (rowIndex + 1);
+              // Hook parser to use cellMap
+              parser.on('callCellValue', function (cellCoord, done) {
+                const label = cellCoord.label;
+                done(cellMap[label] || 0);
+              });
 
-        // Initialize parser if not exists
-        if (!window.globalFormulaParser) {
-        window.globalFormulaParser = new formulaParser.Parser();
-        }
-        const parser = window.globalFormulaParser;
+              // Evaluate if formula
+              if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
+                const res = parser.parse(rawVal.trim().substring(1));
+                displayVal = res.error ? '#ERR' : res.result;
+              }
+              cellMap[cellRef] = isNaN(displayVal) ? 0 : displayVal;
 
-        // Setup shared map of values
-        if (!window.globalCellMap) {
-        window.globalCellMap = {};
-        }
-        const cellMap = window.globalCellMap;
+              // Create both display span and hidden input for editing
+              const displaySpan = document.createElement('span');
+              displaySpan.className = 'cell-display';
+              displaySpan.textContent = displayVal || '';
+              displaySpan.style.display = 'block';
+              
+              const editInput = document.createElement('input');
+              editInput.type = 'text';
+              editInput.className = 'cell-input';
+              editInput.value = rawVal || '';
+              editInput.style.display = 'none';
+              editInput.style.width = '100%';
+              editInput.style.border = 'none';
+              editInput.style.outline = 'none';
+              editInput.style.background = 'transparent';
+              editInput.style.font = 'inherit';
 
-        // Hook parser to use cellMap
-        parser.on('callCellValue', function (cellCoord, done) {
-        const label = cellCoord.label;
-        done(cellMap[label] || 0);
-        });
+              td.appendChild(displaySpan);
+              td.appendChild(editInput);
+              
+              td.setAttribute("data-formula", rawVal);
+              td.setAttribute("data-cell-ref", cellRef);
+              td.setAttribute("data-display-value", displayVal || '');
 
-        // Get raw value from JSON
-        const rawVal = row[key];
-        let displayVal = rawVal;
+              // Make cell editable on click for formula support
+              td.addEventListener("click", function () {
+                if (td.isEditing) return;
+                
+                td.isEditing = true;
+                displaySpan.style.display = 'none';
+                editInput.style.display = 'block';
+                editInput.focus();
+                editInput.select();
 
-        // Evaluate if formula
-        if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
-        const res = parser.parse(rawVal.trim().substring(1));
-        displayVal = res.error ? '#ERR' : res.result;
-        }
-        cellMap[cellRef] = isNaN(displayVal) ? 0 : displayVal;
+                const finishEdit = () => {
+                  const userInput = editInput.value.trim();
+                  let newVal = userInput;
 
-        // Set display value
-        div.textContent = displayVal;
-        td.setAttribute("data-formula", rawVal);
+                  if (userInput.startsWith('=')) {
+                      const result = parser.parse(userInput.substring(1));
+                      newVal = result.error ? "#ERR" : result.result;
+                  }
 
-        // Add listener for manual edit
-        div.addEventListener("blur", function () {
-        const userInput = div.textContent.trim();
-        let newVal = userInput;
+                  cellMap[cellRef] = isNaN(newVal) ? 0 : newVal;
+                  td.setAttribute("data-formula", userInput);
+                  td.setAttribute("data-display-value", newVal || '');
+                  displaySpan.textContent = newVal || '';
+                  
+                  editInput.style.display = 'none';
+                  displaySpan.style.display = 'block';
+                  td.isEditing = false;
+                };
 
-        if (userInput.startsWith('=')) {
-            const result = parser.parse(userInput.substring(1));
-            newVal = result.error ? "#ERR" : result.result;
-        }
-
-        cellMap[cellRef] = isNaN(newVal) ? 0 : newVal;
-        td.setAttribute("data-formula", userInput);
-        div.textContent = newVal;
-        });
-
-        td.appendChild(div);
-        tr.appendChild(td);
-        // END Formula code
-
-
-
-
-        
-        });
-        tbody.appendChild(tr);
-    });
+                editInput.addEventListener("blur", finishEdit);
+                editInput.addEventListener("keypress", function(e) {
+                  if (e.key === 'Enter') {
+                    finishEdit();
+                  }
+                });
+              });
+              tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+      });
+    }
 
     table.appendChild(tbody);
     divElement.appendChild(table);
 
-    // Add popup modal
-    const modal = document.createElement('div');
-    modal.setAttribute("id", "modal" + ctx);
-    modal.style.display = "none";
-    modal.style.position = "fixed";
-    modal.style.top = "50%";
-    modal.style.left = "50%";
-    modal.style.transform = "translate(-50%, -50%)";
-    modal.style.background = "#fff";
-    modal.style.padding = "20px 30px";
-    modal.style.border = "1px solid #ccc";
-    modal.style.borderRadius = "10px";
-    modal.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
-    modal.style.zIndex = "9999";
-    modal.style.minWidth = "300px";
-    modal.style.fontFamily = "Arial, sans-serif";
-    modal.style.position = "fixed";
-
-    modal.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <h4 style="margin: 0;">Report Parameter</h4>
-        <span id="closeModalBtn" style="cursor: pointer; font-size: 18px; font-weight: bold;">&times;</span>
-    </div>
-    <div id="activeFiltersContainer" style="margin-bottom: 15px;"></div>
-    <label id="modalColLabel" style="font-weight: bold;"></label><br/>
-    <input type="text" id="modalInput" style="margin-top: 10px; width: 100%; padding: 6px; border-radius: 5px; border: 1px solid #ccc;"/><br/><br/>
-    <div style="text-align: right;">
-        <button id="applyBtn" style="padding: 6px 12px; margin-right: 28%; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Preview</button>
-        <button id="resetBtn" style="padding: 6px 12px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Show All</button>
-    </div>
+    // Enhanced print styles that ensure data visibility
+    const printStyles = document.createElement('style');
+    printStyles.textContent = `
+      @media print {
+        #${ctx} table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          page-break-inside: auto !important;
+          font-size: 11px !important;
+          margin: 0 !important;
+        }
+        
+        #${ctx} table th,
+        #${ctx} table td {
+          padding: 6px 8px !important;
+          border: 1px solid #000 !important;
+          word-wrap: break-word !important;
+          page-break-inside: avoid !important;
+          vertical-align: top !important;
+          position: relative !important;
+        }
+        
+        #${ctx} table th {
+          font-weight: bold !important;
+          background-color: #e0e0e0 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        #${ctx} table td {
+          background-color: #fff !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        /* Hide input elements completely in print */
+        #${ctx} .cell-input {
+          display: none !important;
+          visibility: hidden !important;
+        }
+        
+        /* Ensure display spans are visible and contain the actual data */
+        #${ctx} .cell-display {
+          display: block !important;
+          visibility: visible !important;
+          width: 100% !important;
+          color: #000 !important;
+        }
+        
+        /* Fallback: Use data attributes if spans fail */
+        #${ctx} td::after {
+          content: attr(data-display-value) !important;
+          display: block !important;
+          position: absolute !important;
+          top: 6px !important;
+          left: 8px !important;
+          right: 8px !important;
+          bottom: 6px !important;
+          background: white !important;
+          color: #000 !important;
+          z-index: 1000 !important;
+        }
+        
+        /* Override the pseudo-element if display span exists and has content */
+        #${ctx} td:has(.cell-display:not(:empty))::after {
+          display: none !important;
+        }
+        
+        @page {
+          margin: 0.5in;
+          size: landscape;
+        }
+        
+        /* Ensure no other styles interfere */
+        #${ctx} * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
     `;
-
-    document.body.appendChild(modal);
-
-    function updateActiveFiltersDisplay() {
-        const container = document.getElementById("activeFiltersContainer");
-        container.innerHTML = "";
-        
-        if (Object.keys(activeFilters).length > 0) {
-            const filtersDiv = document.createElement('div');
-            filtersDiv.style.border = "1px solid #ddd";
-            filtersDiv.style.borderRadius = "5px";
-            filtersDiv.style.padding = "10px";
-            filtersDiv.style.backgroundColor = "#f8f9fa";
-            filtersDiv.style.marginBottom = "10px";
-            
-            const title = document.createElement('div');
-            title.textContent = "Active Filters:";
-            title.style.fontWeight = "bold";
-            title.style.marginBottom = "8px";
-            filtersDiv.appendChild(title);
-            
-            Object.keys(activeFilters).forEach(colKey => {
-                const filterDiv = document.createElement('div');
-                filterDiv.style.display = "flex";
-                filterDiv.style.justifyContent = "space-between";
-                filterDiv.style.alignItems = "center";
-                filterDiv.style.marginBottom = "5px";
-                filterDiv.style.padding = "3px 8px";
-                filterDiv.style.backgroundColor = "#e9ecef";
-                filterDiv.style.borderRadius = "3px";
-                
-                const filterText = document.createElement('span');
-                filterText.textContent = `${tableData.heading[colKey]}: ${activeFilters[colKey]}`;
-                filterText.style.fontSize = "12px";
-                
-                const deleteBtn = document.createElement('span');
-                deleteBtn.innerHTML = "×";
-                deleteBtn.style.cursor = "pointer";
-                deleteBtn.style.color = "#dc3545";
-                deleteBtn.style.fontWeight = "bold";
-                deleteBtn.style.marginLeft = "10px";
-                deleteBtn.addEventListener("click", () => {
-                    delete activeFilters[colKey];
-                    applyAllFilters();
-                    updateActiveFiltersDisplay();
-                });
-                
-                filterDiv.appendChild(filterText);
-                filterDiv.appendChild(deleteBtn);
-                filtersDiv.appendChild(filterDiv);
-            });
-            
-            container.appendChild(filtersDiv);
-        }
-    }
-
-    function applyAllFilters() {
-        const tbody = document.getElementById("tbody" + ctx);
-        tbody.style.display = "";
-        
-        Array.from(tbody.rows).forEach(row => {
-            let shouldShow = true;
-            
-            // Check all active filters
-            Object.keys(activeFilters).forEach(colKey => {
-                const colIndex = objectKeys.indexOf(colKey);
-                const cellVal = row.cells[colIndex].textContent.toLowerCase();
-                const filterVal = activeFilters[colKey].toLowerCase();
-                
-                if (!cellVal.includes(filterVal)) {
-                    shouldShow = false;
-                }
-            });
-            
-            row.style.display = shouldShow ? "" : "none";
-        });
-    }
-
-    function openSearchModal(colKey, colLabel) {
-        modal.style.display = "block";
-        modal.setAttribute("data-colkey", colKey);
-        document.getElementById("modalColLabel").textContent = colLabel;
-        
-        // Pre-fill with existing filter value if any
-        const existingFilter = activeFilters[colKey] || "";
-        document.getElementById("modalInput").value = existingFilter;
-        
-        updateActiveFiltersDisplay();
-    }
     
-    document.getElementById("closeModalBtn").onclick = () => {
-        modal.style.display = "none";
-    };
+    if (!document.getElementById('table-print-styles-' + ctx)) {
+      printStyles.id = 'table-print-styles-' + ctx;
+      document.head.appendChild(printStyles);
+    }
 
-    document.getElementById("applyBtn").onclick = () => {
-        const colKey = modal.getAttribute("data-colkey");
-        const filterVal = document.getElementById("modalInput").value.trim();
-        
-        if (filterVal) {
-            activeFilters[colKey] = filterVal;
-        } else {
-            delete activeFilters[colKey];
+    // Add print event listeners to ensure data is properly displayed
+    const beforePrintHandler = () => {
+      // Ensure all display spans contain the correct data
+      const cells = divElement.querySelectorAll('td[data-display-value]');
+      cells.forEach(cell => {
+        const displaySpan = cell.querySelector('.cell-display');
+        const displayValue = cell.getAttribute('data-display-value');
+        if (displaySpan && displayValue !== null) {
+          displaySpan.textContent = displayValue;
+          displaySpan.style.display = 'block';
         }
-        
-        applyAllFilters();
-        modal.style.display = "none";
+        // Hide any visible inputs
+        const input = cell.querySelector('.cell-input');
+        if (input) {
+          input.style.display = 'none';
+        }
+      });
     };
 
-    document.getElementById("resetBtn").onclick = () => {
-        // Clear all filters
-        Object.keys(activeFilters).forEach(key => delete activeFilters[key]);
-        
-        const tbody = document.getElementById("tbody" + ctx);
-        tbody.style.display = "";
-        Array.from(tbody.rows).forEach(row => row.style.display = "");
-        modal.style.display = "none";
-    };
+    // Listen for print events
+    window.addEventListener('beforeprint', beforePrintHandler);
+    
+    // Store handler reference for cleanup
+    divElement._printHandler = beforePrintHandler;
   };
 
-//   if (!window.Highcharts) {
-//     const scr = document.createElement("script");
-//     scr.src = "{[ custom_line_chartsrc ]}";
-//     scr.onload = init1;
-//     document.head.appendChild(scr);
-//   } else {
-//     init1();
-//   }
-  
-// Start Formula code and commented above line code
-const loadScriptsAndInit = () => {
-  // Load jQuery if not present
-  if (!window.jQuery) {
-    const jqueryScript = document.createElement("script");
-    jqueryScript.src = "{[ custom_line_chartsrc ]}";
-    jqueryScript.onload = () => loadFormulaParser();
-    document.head.appendChild(jqueryScript);
-  } else {
-    loadFormulaParser();
-  }
-};
+  // Load scripts and init
+  const loadScriptsAndInit = () => {
+    // Load jQuery if not present
+    if (!window.jQuery) {
+      const jqueryScript = document.createElement("script");
+      jqueryScript.src = "{[ custom_line_chartsrc ]}";
+      jqueryScript.onload = () => loadFormulaParser();
+      document.head.appendChild(jqueryScript);
+    } else {
+      loadFormulaParser();
+    }
+  };
 
-const loadFormulaParser = () => {
-  if (!window.formulaParserLoaded) {
-    const fScript = document.createElement("script");
-    fScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
-    fScript.onload = () => {
-      window.formulaParserLoaded = true;
-      init1(); // only run table logic after parser is ready
-    };
-    document.head.appendChild(fScript);
-  } else {
-    init1(); // already loaded
-  }
-};
+  const loadFormulaParser = () => {
+    if (!window.formulaParserLoaded) {
+      const fScript = document.createElement("script");
+      fScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
+      fScript.onload = () => {
+        window.formulaParserLoaded = true;
+        init1();
+      };
+      document.head.appendChild(fScript);
+    } else {
+      init1();
+    }
+  };
 
-loadScriptsAndInit();
-
-
-// END Formula code
-
-
+  loadScriptsAndInit();
 
   this.on('removed', function () {
     this.tableInitialized = false;
+    // Clean up print styles
+    const printStyleEl = document.getElementById('table-print-styles-' + this.id);
+    if (printStyleEl) {
+      printStyleEl.remove();
+    }
+    // Clean up event listeners
+    const divElement = document.getElementById(this.id);
+    if (divElement && divElement._printHandler) {
+      window.removeEventListener('beforeprint', divElement._printHandler);
+    }
   });
 },
           }),
           init() {
-            const events = all_Traits
-              .filter((i) => ["strings"].indexOf(i.name) < 0)
-              .map((i) => `change:${i.name}`)
-              .join(" ");
-                this.on(events, () => {
+            // Update filter column options when jsonpath changes (silently)
+            this.on('change:jsonpath', () => {
+              this.updateFilterColumnOptions();
+              // Reset filter selections
+              this.set('filterColumn', '');
+              this.set('filterValue', '');
+              // Don't trigger table regeneration
+            });
+
+            // Only regenerate table when filter value changes
+            this.on('change:filterValue', () => {
+              this.tableInitialized = false;  
+              this.trigger("change:script");
+            });
+
+            // Also regenerate when filter column changes (but only if filter value exists)
+            this.on('change:filterColumn', () => {
+              if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
                 this.tableInitialized = false;  
                 this.trigger("change:script");
-                });
+              }
+            });
+
+            // Handle other trait changes
+            const otherTraits = all_Traits
+              .filter((i) => !["jsonpath", "filterColumn", "filterValue"].includes(i.name))
+              .map((i) => `change:${i.name}`)
+              .join(" ");
+            
+            if (otherTraits) {
+              this.on(otherTraits, () => {
+                // Only regenerate if table is already visible (i.e., filter value exists)
+                if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
+                  this.tableInitialized = false;  
+                  this.trigger("change:script");
+                }
+              });
+            }
           },
+
+          updateFilterColumnOptions() {
+            try {
+              const jsonPath = this.get('jsonpath');
+              if (!jsonPath || jsonPath.trim() === "") {
+                const filterColumnTrait = this.getTrait('filterColumn');
+                if (filterColumnTrait) {
+                  filterColumnTrait.set('options', [{ value: "", label: "First enter JSON path" }]);
+                }
+                return;
+              }
+
+              let custom_language = localStorage.getItem('language') || 'english';
+              const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+              
+              if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+                const filterColumnTrait = this.getTrait('filterColumn');
+                if (filterColumnTrait) {
+                  filterColumnTrait.set('options', [{ value: "", label: "Invalid JSON path" }]);
+                }
+                return;
+              }
+
+              const str = jsonDataN[custom_language][jsonPath];
+              const tableData = eval(str);
+              
+              if (!tableData || !tableData.heading) {
+                const filterColumnTrait = this.getTrait('filterColumn');
+                if (filterColumnTrait) {
+                  filterColumnTrait.set('options', [{ value: "", label: "Invalid data structure" }]);
+                }
+                return;
+              }
+
+              const objectKeys = Object.keys(tableData.heading);
+              const filterColumnTrait = this.getTrait('filterColumn');
+              
+              if (filterColumnTrait) {
+                // Update options
+                const options = [
+                  { value: "", label: "Select Column to Filter" },
+                  ...objectKeys.map(key => ({
+                    value: key,
+                    label: tableData.heading[key]
+                  }))
+                ];
+                
+                filterColumnTrait.set('options', options);
+              }
+            } catch (error) {
+              console.log('Error updating filter options:', error);
+              const filterColumnTrait = this.getTrait('filterColumn');
+              if (filterColumnTrait) {
+                filterColumnTrait.set('options', [{ value: "", label: "Error loading headers" }]);
+              }
+            }
+          }
         },
     });  
 
-
-    
-  
     editor.Blocks.add("custom_table", {
       label: "JSON Table",
       category: "Extra",
@@ -3162,9 +3078,9 @@ loadScriptsAndInit();
         type: "custom_table",
       },
     });  
-  } 
-  
-   customTable2(editor);
+} 
+
+customTable2(editor);
   // =================================
   setTimeout(() => {
       var language = document.getElementById("multiLanguage");

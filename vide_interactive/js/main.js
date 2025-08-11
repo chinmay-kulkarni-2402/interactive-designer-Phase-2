@@ -337,15 +337,31 @@ function generatePrintDialog() {
       // Get the current iframe document to access formula data
       const currentIframeDoc = editor.Canvas.getDocument();
       
-      // First, handle all DataTables and convert them to simple tables for print
-      const dataTables = tempDiv.querySelectorAll('table.dataTable, table[id*="table"]');
-      dataTables.forEach(table => {
+      // First, handle all custom tables and DataTables
+      const allTables = tempDiv.querySelectorAll('table, [id*="table"], [data-i_designer-type="custom_table"] table');
+      allTables.forEach(table => {
         const tableId = table.id;
+        let parentContainer = table.closest('[data-i_designer-type="custom_table"]');
         
-        // Find corresponding table in current iframe to get formula values
+        // If it's inside a custom table container, get the container ID
+        let containerId = null;
+        if (parentContainer) {
+          containerId = parentContainer.id;
+        }
+        
+        // Find corresponding table in current iframe to get current data
         let sourceTable = null;
-        if (tableId && currentIframeDoc) {
-          sourceTable = currentIframeDoc.getElementById(tableId);
+        let sourceContainer = null;
+        
+        if (currentIframeDoc) {
+          if (containerId) {
+            sourceContainer = currentIframeDoc.getElementById(containerId);
+            if (sourceContainer) {
+              sourceTable = sourceContainer.querySelector('table');
+            }
+          } else if (tableId) {
+            sourceTable = currentIframeDoc.getElementById(tableId);
+          }
         }
         
         // Remove DataTables wrapper and controls
@@ -374,36 +390,45 @@ function generatePrintDialog() {
           header.style.textAlign = 'left';
           header.style.verticalAlign = 'middle';
           
-          // Handle header content divs and get calculated values if available
+          // Handle header content - check for divs, spans, or direct text
           const headerDiv = header.querySelector('div');
-          if (headerDiv) {
-            let content = headerDiv.textContent || headerDiv.innerHTML;
-            
-            // Check if source table exists and get calculated value
-            if (sourceTable) {
-              const sourceHeaderRow = sourceTable.querySelector('thead tr');
-              if (sourceHeaderRow) {
-                const sourceHeader = sourceHeaderRow.cells[headerIndex];
-                if (sourceHeader) {
-                  // Check for formula data
-                  const calculatedValue = sourceHeader.getAttribute('data-calculated-value');
-                  const formulaValue = sourceHeader.getAttribute('data-formula');
-                  
-                  if (calculatedValue) {
-                    content = calculatedValue;
-                  } else if (formulaValue && formulaValue.startsWith('=')) {
-                    // Try to get the displayed content (calculated result)
-                    content = sourceHeader.textContent || sourceHeader.innerText || content;
-                  }
-                }
+          const headerSpan = header.querySelector('.cell-display, span');
+          
+          let content = '';
+          
+          if (sourceTable) {
+            const sourceHeaderRow = sourceTable.querySelector('thead tr');
+            if (sourceHeaderRow && sourceHeaderRow.cells[headerIndex]) {
+              const sourceHeader = sourceHeaderRow.cells[headerIndex];
+              // Get the display value from the source
+              const displaySpan = sourceHeader.querySelector('.cell-display');
+              const displayValue = sourceHeader.getAttribute('data-display-value');
+              
+              if (displaySpan && displaySpan.textContent) {
+                content = displaySpan.textContent;
+              } else if (displayValue) {
+                content = displayValue;
+              } else {
+                content = sourceHeader.textContent || sourceHeader.innerText || '';
               }
             }
-            
-            header.innerHTML = content;
           }
+          
+          // Fallback to current content if no source found
+          if (!content) {
+            if (headerDiv) {
+              content = headerDiv.textContent || headerDiv.innerHTML;
+            } else if (headerSpan) {
+              content = headerSpan.textContent || headerSpan.innerHTML;
+            } else {
+              content = header.textContent || header.innerHTML;
+            }
+          }
+          
+          header.innerHTML = content.trim();
         });
         
-        // Process table body cells with formula support
+        // Process table body cells with enhanced data extraction
         const rows = table.querySelectorAll('tbody tr');
         rows.forEach((row, rowIndex) => {
           row.style.pageBreakInside = 'avoid';
@@ -417,46 +442,77 @@ function generatePrintDialog() {
             cell.style.verticalAlign = 'middle';
             cell.style.wordBreak = 'break-word';
             
-            // Handle cell content divs and preserve formula results
-            const cellDiv = cell.querySelector('div');
-            if (cellDiv) {
-              let content = cellDiv.textContent || cellDiv.innerHTML;
-              
-              // Check if source table exists and get calculated value
-              if (sourceTable) {
-                const sourceBodyRows = sourceTable.querySelectorAll('tbody tr');
-                if (sourceBodyRows[rowIndex]) {
-                  const sourceCell = sourceBodyRows[rowIndex].cells[cellIndex];
-                  if (sourceCell) {
-                    // Check for formula data
-                    const calculatedValue = sourceCell.getAttribute('data-calculated-value');
-                    const formulaValue = sourceCell.getAttribute('data-formula');
-                    
-                    if (calculatedValue) {
-                      // Use the calculated value
-                      content = calculatedValue;
-                    } else if (formulaValue && formulaValue.startsWith('=')) {
-                      // Try to get the displayed content (calculated result)
-                      const displayedContent = sourceCell.textContent || sourceCell.innerText;
-                      if (displayedContent && displayedContent !== formulaValue) {
-                        content = displayedContent;
-                      }
-                    } else {
-                      // Use the current displayed content
-                      const displayedContent = sourceCell.textContent || sourceCell.innerText;
-                      if (displayedContent) {
-                        content = displayedContent;
-                      }
+            let content = '';
+            
+            // Try to get data from source table first
+            if (sourceTable) {
+              const sourceBodyRows = sourceTable.querySelectorAll('tbody tr');
+              if (sourceBodyRows[rowIndex] && sourceBodyRows[rowIndex].cells[cellIndex]) {
+                const sourceCell = sourceBodyRows[rowIndex].cells[cellIndex];
+                
+                // Priority order: display span > data attribute > text content
+                const displaySpan = sourceCell.querySelector('.cell-display');
+                const displayValue = sourceCell.getAttribute('data-display-value');
+                const formulaValue = sourceCell.getAttribute('data-formula');
+                
+                if (displaySpan && displaySpan.textContent.trim()) {
+                  content = displaySpan.textContent.trim();
+                } else if (displayValue && displayValue.trim()) {
+                  content = displayValue.trim();
+                } else {
+                  // Get text content but exclude input values
+                  const inputs = sourceCell.querySelectorAll('input');
+                  let cellText = sourceCell.textContent || sourceCell.innerText || '';
+                  
+                  // Remove input values from text content
+                  inputs.forEach(input => {
+                    if (input.value && cellText.includes(input.value)) {
+                      cellText = cellText.replace(input.value, '').trim();
                     }
+                  });
+                  
+                  content = cellText;
+                }
+                
+                // If we have a formula but no display value, try to get calculated result
+                if (!content && formulaValue && formulaValue.startsWith('=')) {
+                  // Look for any text that's not the formula itself
+                  const allText = sourceCell.textContent || sourceCell.innerText || '';
+                  if (allText && allText !== formulaValue) {
+                    content = allText;
                   }
                 }
               }
-              
-              cell.innerHTML = content;
-              
-              // Remove formula indicators for print
-              cell.style.position = 'relative';
             }
+            
+            // Fallback to current cell content if no source data found
+            if (!content) {
+              const cellDiv = cell.querySelector('div');
+              const cellSpan = cell.querySelector('.cell-display, span');
+              
+              if (cellDiv) {
+                content = cellDiv.textContent || cellDiv.innerHTML;
+              } else if (cellSpan) {
+                content = cellSpan.textContent || cellSpan.innerHTML;
+              } else {
+                content = cell.textContent || cell.innerHTML;
+              }
+            }
+            
+            // Clean up content and set it
+            content = content.replace(/^\s+|\s+$/g, ''); // Trim whitespace
+            content = content.replace(/\n\s*\n/g, '\n'); // Remove multiple newlines
+            
+            cell.innerHTML = content || '';
+            
+            // Remove any remaining input elements for print
+            const inputs = cell.querySelectorAll('input');
+            inputs.forEach(input => input.remove());
+            
+            // Remove formula indicators for print
+            cell.style.position = 'relative';
+            cell.removeAttribute('data-formula');
+            cell.removeAttribute('data-display-value');
           });
         });
         
@@ -603,7 +659,8 @@ function generatePrintDialog() {
             table.print-table,
             table.table,
             table.dataTable,
-            table[id*="table"] {
+            table[id*="table"],
+            [data-i_designer-type="custom_table"] table {
               width: 100% !important;
               border-collapse: collapse !important;
               border: 1px solid #333 !important;
@@ -611,12 +668,15 @@ function generatePrintDialog() {
               margin: 10px 0 !important;
               font-size: 12px !important;
               display: table !important;
+              visibility: visible !important;
+              opacity: 1 !important;
             }
             
             table.print-table thead,
             table.table thead,
             table.dataTable thead,
-            table[id*="table"] thead {
+            table[id*="table"] thead,
+            [data-i_designer-type="custom_table"] table thead {
               display: table-header-group !important;
               page-break-after: avoid !important;
               page-break-inside: avoid !important;
@@ -627,14 +687,16 @@ function generatePrintDialog() {
             table.print-table tbody,
             table.table tbody,
             table.dataTable tbody,
-            table[id*="table"] tbody {
+            table[id*="table"] tbody,
+            [data-i_designer-type="custom_table"] table tbody {
               display: table-row-group !important;
             }
             
             table.print-table tr,
             table.table tr,
             table.dataTable tr,
-            table[id*="table"] tr {
+            table[id*="table"] tr,
+            [data-i_designer-type="custom_table"] table tr {
               display: table-row !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
@@ -647,7 +709,9 @@ function generatePrintDialog() {
             table.dataTable th,
             table.dataTable td,
             table[id*="table"] th,
-            table[id*="table"] td {
+            table[id*="table"] td,
+            [data-i_designer-type="custom_table"] table th,
+            [data-i_designer-type="custom_table"] table td {
               display: table-cell !important;
               border: 1px solid #333 !important;
               padding: 6px 8px !important;
@@ -656,17 +720,44 @@ function generatePrintDialog() {
               word-break: break-word !important;
               font-size: 11px !important;
               line-height: 1.3 !important;
+              position: relative !important;
             }
             
             table.print-table th,
             table.table th,
             table.dataTable th,
-            table[id*="table"] th {
+            table[id*="table"] th,
+            [data-i_designer-type="custom_table"] table th {
               background-color: #f2f2f2 !important;
               font-weight: bold !important;
               -webkit-print-color-adjust: exact !important;
               color-adjust: exact !important;
               print-color-adjust: exact !important;
+            }
+            
+            /* Hide all input elements in tables */
+            table input,
+            table .cell-input,
+            [data-i_designer-type="custom_table"] input,
+            [data-i_designer-type="custom_table"] .cell-input {
+              display: none !important;
+              visibility: hidden !important;
+              opacity: 0 !important;
+              position: absolute !important;
+              left: -9999px !important;
+              width: 0 !important;
+              height: 0 !important;
+            }
+            
+            /* Ensure display spans are visible */
+            table .cell-display,
+            [data-i_designer-type="custom_table"] .cell-display {
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              position: static !important;
+              width: 100% !important;
+              height: auto !important;
             }
             
             /* Hide DataTables controls */
@@ -697,31 +788,15 @@ function generatePrintDialog() {
               position: static !important;
             }
             
-            /* Hide formula expressions - show calculated values only */
-            [data-formula] {
-              position: relative !important;
-            }
-            
-            [data-formula]:before {
-              content: attr(data-calculated-value) !important;
-              position: absolute !important;
-              top: 0 !important;
-              left: 0 !important;
-              right: 0 !important;
-              bottom: 0 !important;
-              background: white !important;
-              padding: inherit !important;
-              border: inherit !important;
-              font-size: inherit !important;
-              font-weight: inherit !important;
-              color: inherit !important;
-              text-align: inherit !important;
-              vertical-align: inherit !important;
-              display: table-cell !important;
-            }
-            
-            [data-formula] * {
-              visibility: hidden !important;
+            /* Custom table containers */
+            [data-i_designer-type="custom_table"] {
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
+              position: static !important;
             }
             
             /* Preserve all background colors and images */
@@ -974,7 +1049,8 @@ function generatePrintDialog() {
             
             /* Ensure tables appear on all pages */
             .page-container table,
-            .main-content-area table {
+            .main-content-area table,
+            [data-i_designer-type="custom_table"] table {
               display: table !important;
               visibility: visible !important;
               opacity: 1 !important;
