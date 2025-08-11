@@ -7217,6 +7217,7 @@
                         exportedJsonData.push(common_json);
                         exportedJsonData = JSON.stringify(exportedJsonData); 
                       }    
+                      
                       let googleTranslater =  '';  
                       var result = confirm("Do you want to add the google translater?");  
                         if (result) { 
@@ -7224,8 +7225,7 @@
                         } else { 
                             googleTranslater = 'No'; 
                         }
-
-
+                        
                          //START API CODE
                         editor.Modal.setTitle('Export Template');
                         editor.Modal.setContent(`<div class="new-table-form">
@@ -7239,22 +7239,7 @@
                         </div>
                         </div>
                         `); 
-                        editor.Modal.open();  
-                        // const googleTranslaterFn = document.getElementById("googleTranslaterField");
-                        // googleTranslaterFn.addEventListener("change", function() {
-                        //   const checkbox = this.checked;
-                        //   googleTranslaterFn.value = checkbox.toString(); 
-                        // }); 
-                         
-
-                        // googleTranslater = document.getElementById("googleTranslaterField").value; 
-                        // console.log(googleTranslater,'googleTranslater');
-                        // if (googleTranslater === 'false') {   
-                        //   googleTranslater = 'No'; 
-                        // }   
-                        // if (googleTranslater === 'true') {   
-                        //   googleTranslater = 'Yes'; 
-                        // }  
+                        editor.Modal.open();   
                         console.log(googleTranslater,'googleTranslater');
 
                         var downTemp = document.getElementById("download-template-file");
@@ -7262,454 +7247,152 @@
 
                         //END API CODE
 
-// Updated paste.txt template - Add these scripts in the <head> section after the existing scripts
-
-var data = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <!-- Styles -->
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css">
-
-  <!-- Scripts -->
-  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script>
-  <script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js"></script>
-  <script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"></script>
-  <script src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script>
-  
-  <!-- ADD THESE HIGHCHARTS SCRIPTS -->
-  <script src="https://code.highcharts.com/stock/highstock.js"></script>
-  <script src="https://code.highcharts.com/modules/drilldown.js"></script>
-  <script src="https://code.highcharts.com/modules/exporting.js"></script>
-  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
-  <!-- END HIGHCHARTS SCRIPTS -->
-  
-
-  <script src="https://code.highcharts.com/highcharts-3d.js"></script>
-  <script src="https://code.highcharts.com/highcharts-more.js"></script>
-  <script src="https://code.highcharts.com/modules/data.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  
-  <style>${e.getCss()} .highlight_text{background-color: yellow} .i_designer-selected{outline: none !important;} 
-    #main-nav-div .hamburger-menu {
-    display: none !important; text-align: right; font-size: 30px;  padding: 10px;  color: #472e90; cursor: pointer; } 
-   @media (max-width: 991px) { 
-    #main-nav-div .hamburger-menu {
-       display: block !important;
-    }  
-    #main-nav-div .tab-container, #main-nav-div .tab{
-      width:99%;
-      text-align:center;
-   } 
-  } 
-  @media (max-width: 767px){#main-nav-div .hamburger-menu {display: block !important;} #main-nav-div .tab-container, #main-nav-div .tab{width:98%;}} 
- #google_translate_element{padding:5px !important;}
- .VIpgJd-ZVi9od-ORHb-OEVmcd ,.goog-te-gadget-simple img{display:none !important;}
- .goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed span{padding-right:5px}
- .VIpgJd-yAWNEb-L7lbkb{display:none!important}
- body{ top:0px !important;}  .dataTables_scrollHeadInner{ width: 100% !important;} 
- </style>
-</head>
-<body> 
- <div id="AllBodyData"> 
- <div id="defaultPDF" style="display:none"></div> 
- <div id="google_translate_element"></div> 
- <script>  
- const googleTranslaterF = '${googleTranslater}'; 
- if (googleTranslaterF !== 'Yes') { 
-     let googleTranslateDiv = document.getElementById('google_translate_element');
-     if(googleTranslateDiv !== null && googleTranslateDiv !== undefined){
-      googleTranslateDiv.parentNode.removeChild(googleTranslateDiv); 
-     }
- } 
-  var project_type2 = 'downloadedJsonType';
-  var jsonData1 = ${exportedJsonData};  
-  var custom_language =  localStorage.getItem('language'); 
-  if(custom_language == null){
-    custom_language = 'english';
-  }      
-  function updateDivContent() {  
-          var styleTags = document.getElementsByTagName('style');
-          var jsonData = {};
-          for (var i = 0; i < styleTags.length; i++) {
-              var styleContent = styleTags[i].textContent;  
-              var regex = /#(\\w+)\\s*{\\s*[^{}]*my-input-json:\\s*([^;]+)\\s*;[^{}]*}/g;
-              var matches; 
-              while ((matches = regex.exec(styleContent)) !== null) { 
-                  var divId = matches[1];
-                  var jsonKey = matches[2];
-                  var lang = jsonKey; 
-                  jsonData[divId] = lang;
-              } 
-          }   
-          for (var divId in jsonData) { 
-              var jsonKey2 = jsonData[divId]; 
-                const str = 'jsonData1[0].' + custom_language + '.' + jsonKey2; 
-                var value = eval(str);  
-                var div = document.getElementById(divId); 
-                if (div && value) {  
-                    div.textContent = value;
-                }  
-          }
-      } 
-      document.addEventListener("DOMContentLoaded", function () { 
-          updateDivContent();
-          // ADD THIS: Initialize charts after DOM is loaded
-          initializeAllCharts();
-      });
-
-      // ADD THIS FUNCTION: Initialize all charts in the exported HTML
-      function initializeAllCharts() {
-          // Find all chart elements
-          const chartElements = document.querySelectorAll('[data-i_designer-type="custom_line_chart"]');
-          
-          chartElements.forEach(element => {
-              const elementId = element.id;
-              
-              // Extract chart configuration from the element's script or attributes
-              // You'll need to modify this based on how you store chart config
-              const chartConfig = getChartConfigFromElement(element);
-              
-              if (chartConfig && window.Highcharts) {
-                  try {
-                      Highcharts.chart(elementId, chartConfig);
-                  } catch (error) {
-                      console.error('Error creating chart:', error);
-                  }
-              }
-          });
-      }
-
-      // ADD THIS FUNCTION: Extract chart configuration
-      function getChartConfigFromElement(element) {
-          // This function needs to extract the chart configuration
-          // You can store the config in data attributes or parse from existing content
-          
-          // Example implementation - you'll need to adapt this based on your needs
-          const chartType = element.getAttribute('data-chart-type') || 'pie';
-          const jsonPath = element.getAttribute('data-json-path') || '';
-          const chartTitle = element.getAttribute('data-chart-title') || 'Chart';
-          const titleAlign = element.getAttribute('data-title-align') || 'left';
-          
-          // Default chart data if no JSON path
-          let seriesData = getDefaultChartData(chartType);
-          
-          // Try to get data from JSON if path exists
-          if (jsonPath && jsonData1 && jsonData1[0] && jsonData1[0][custom_language]) {
-              try {
-                  const jsonStr = 'jsonData1[0].' + custom_language + '.' + jsonPath;
-                  const customData = eval(jsonStr);
-                  if (customData && customData.series) {
-                      seriesData = customData;
-                  }
-              } catch (e) {
-                  console.warn('Could not load custom chart data, using defaults');
-              }
-          }
-          
-          return buildChartConfig(chartType, seriesData, chartTitle, titleAlign);
-      }
-
-      // ADD THIS FUNCTION: Get default chart data
-      function getDefaultChartData(chartType) {
-          const defaultData = {
-              pie: {
-                  series: [{
-                      data: [
-                          { name: "Chrome", y: 70.67 },
-                          { name: "Edge", y: 14.77 },
-                          { name: "Firefox", y: 4.86 }
-                      ]
-                  }]
-              },
-              line: {
-                  series: [
-                      {
-                          name: "Installation & Developers",
-                          data: [43934, 48656, 65165, 81827, 112143, 142383, 171533, 165174, 155157, 161454, 154610]
-                      },
-                      {
-                          name: "Manufacturing", 
-                          data: [24916, 37941, 29742, 29851, 32490, 30282, 38121, 36885, 33726, 34243, 31050]
-                      }
-                  ]
-              },
-              bar: {
-                  xAxis: {
-                      categories: ["Africa", "America", "Asia", "Europe", "Oceania"]
-                  },
-                  series: [
-                      { name: "Year 1990", data: [631, 727, 3202, 721, 26] },
-                      { name: "Year 2000", data: [814, 841, 3714, 726, 31] },
-                      { name: "Year 2010", data: [1044, 944, 4170, 735, 40] },
-                      { name: "Year 2018", data: [1276, 1007, 4561, 746, 42] }
-                  ]
-              },
-              column: {
-                  xAxis: {
-                      categories: ["Africa", "America", "Asia"]
-                  },
-                  series: [
-                      { name: "Year 1990", data: [631, 727, 3202] },
-                      { name: "Year 2000", data: [814, 841, 3714] },
-                      { name: "Year 2010", data: [1044, 944, 4170] }
-                  ]
-              }
-          };
-          
-          return defaultData[chartType] || defaultData.pie;
-      }
-
-      // ADD THIS FUNCTION: Build chart configuration
-      function buildChartConfig(chartType, seriesData, chartTitle, titleAlign) {
-          const baseConfig = {
-              chart: {
-                  plotBackgroundColor: null,
-                  plotBorderWidth: null,
-                  plotShadow: false,
-                  type: chartType
-              },
-              title: {
-                  text: chartTitle,
-                  align: titleAlign
-              },
-              credits: {
-                  enabled: false
-              }
-          };
-
-          // Add specific configurations based on chart type
-          switch (chartType) {
-              case 'pie':
-                  return {
-                      ...baseConfig,
-                      series: seriesData.series,
-                      tooltip: {
-                          pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>"
-                      },
-                      accessibility: {
-                          point: {
-                              valueSuffix: "%"
-                          }
-                      },
-                      plotOptions: {
-                          pie: {
-                              allowPointSelect: true,
-                              cursor: "pointer",
-                              dataLabels: {
-                                  enabled: false
-                              },
-                              showInLegend: true
-                          }
-                      }
-                  };
-
-              case 'line':
-                  return {
-                      ...baseConfig,
-                      series: seriesData.series,
-                      yAxis: {
-                          title: {
-                              text: "Values"
-                          }
-                      },
-                      xAxis: {
-                          accessibility: {
-                              rangeDescription: ""
-                          }
-                      },
-                      legend: {
-                          layout: "horizontal",
-                          align: "right",
-                          verticalAlign: "middle"
-                      },
-                      plotOptions: {
-                          series: {
-                              label: {
-                                  connectorAllowed: false
-                              },
-                              pointStart: 2010
-                          }
-                      }
-                  };
-
-              case 'bar':
-                  return {
-                      ...baseConfig,
-                      chart: { ...baseConfig.chart, type: 'bar' },
-                      xAxis: {
-                          categories: seriesData.xAxis.categories,
-                          title: {
-                              text: null
-                          }
-                      },
-                      yAxis: {
-                          min: 0,
-                          title: {
-                              text: "Values"
-                          },
-                          labels: {
-                              overflow: "justify"
-                          }
-                      },
-                      tooltip: {
-                          valueSuffix: " millions"
-                      },
-                      plotOptions: {
-                          bar: {
-                              dataLabels: {
-                                  enabled: true
+                      var data =`<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css"><link rel="stylesheet" href="https://cdn.datatables.net/v/bs4/dt-1.13.2/datatables.min.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> <link rel="stylesheet" href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css"><link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"><script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script> <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script><script src="https://code.jquery.com/jquery-2.1.1.min.js"></script><script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script><script src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script><script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js"></script><script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"></script><script src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"></script><script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script><script src="https://code.highcharts.com/highcharts.js"></script><script src="https://code.highcharts.com/modules/drilldown.js"></script>
+                      <style>${e.getCss()} .highlight_text{background-color: yellow} .i_designer-selected{outline: none !important;} 
+                        #main-nav-div .hamburger-menu {
+                        display: none !important; text-align: right; font-size: 30px;  padding: 10px;  color: #472e90; cursor: pointer; } 
+                       @media (max-width: 991px) { 
+                        #main-nav-div .hamburger-menu {
+                           display: block !important;
+                        }  
+                        #main-nav-div .tab-container, #main-nav-div .tab{
+                          width:99%;
+                          text-align:center;
+                       } 
+                      } 
+                      @media (max-width: 767px){#main-nav-div .hamburger-menu {display: block !important;} #main-nav-div .tab-container, #main-nav-div .tab{width:98%;}} 
+                     #google_translate_element{padding:5px !important;}
+                     .VIpgJd-ZVi9od-ORHb-OEVmcd ,.goog-te-gadget-simple img{display:none !important;}
+                     .goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed span{padding-right:5px}
+                     .VIpgJd-yAWNEb-L7lbkb{display:none!important}
+                     body{ top:0px !important;}  .dataTables_scrollHeadInner{ width: 100% !important;} 
+                     </style></head><body> 
+                     <div id="AllBodyData" style="display: none;"> 
+                     <div id="defaultPDF" style="display:none"></div> 
+                     <div id="google_translate_element"></div> 
+                     <script>  
+                     const googleTranslaterF = '${googleTranslater}'; 
+                     if (googleTranslaterF !== 'Yes') { 
+                         let googleTranslateDiv = document.getElementById('google_translate_element');
+                         if(googleTranslateDiv !== null && googleTranslateDiv !== undefined){
+                          googleTranslateDiv.parentNode.removeChild(googleTranslateDiv); 
+                         }
+                     } 
+                      var project_type2 = 'downloadedJsonType';
+                      var jsonData1 = ${exportedJsonData};  
+                      var custom_language =  localStorage.getItem('language'); 
+                      if(custom_language == null){
+                        custom_language = 'english';
+                      }      
+                      function updateDivContent() {  
+                              var styleTags = document.getElementsByTagName('style');
+                              var jsonData = {};
+                              for (var i = 0; i < styleTags.length; i++) {
+                                  var styleContent = styleTags[i].textContent;  
+                                  var regex = /#(\\w+)\\s*{\\s*[^{}]*my-input-json:\\s*([^;]+)\\s*;[^{}]*}/g;
+                                  var matches; 
+                                  while ((matches = regex.exec(styleContent)) !== null) { 
+                                      var divId = matches[1];
+                                      var jsonKey = matches[2];
+                                      var lang = jsonKey; 
+                                      jsonData[divId] = lang;
+                                  } 
+                              }   
+                              for (var divId in jsonData) { 
+                                  var jsonKey2 = jsonData[divId]; 
+                                    const str = 'jsonData1[0].' + custom_language + '.' + jsonKey2; 
+                                    var value = eval(str);  
+                                    var div = document.getElementById(divId); 
+                                    if (div && value) {  
+                                        div.textContent = value;
+                                    }  
                               }
-                          }
-                      },
-                      series: seriesData.series
-                  };
+                          } 
+                          document.addEventListener("DOMContentLoaded", function () { 
+                              updateDivContent();
+                          });
+         
+                     </script>
+                     ${e.getHtml()} </div> 
+                     <script>  
+                     var hamburgerMenu = document.getElementById("hamburgerMenu");   
+                     if(hamburgerMenu !== null){   
+                     var tabContainer = document.querySelectorAll('#main-nav-div .tab-container'); 
+                     hamburgerMenu.addEventListener("click", function() {
+                      if (tabContainer[0].style.display === "block") {
+                        tabContainer[0].style.display = "none"; 
+                      } else {
+                        tabContainer[0].style.display = "block";  
+                      } 
+                     }); 
+                    function updateView(){   
+                        const viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0); 
+                        const tabContainer = document.querySelectorAll('#main-nav-div .tab-container');  
+                        if (viewportWidth >= 991) {  
+                          tabContainer[0].style.display = "block";
+                        } else{
+                          tabContainer[0].style.display = "none";
+                        }  
+                    }   
+                      window.addEventListener('resize', updateView);  
+                    }
+                     function googleTranslateElementInit() {
+                      new google.translate.TranslateElement({
+                        defaultLanguage:'hindi',
+                        pageLanguage: 'en',
+                        includedLanguages: 'en,hi,mr,ta',  
+                        layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                        autoDisplay: false,
+                        multilanguagePage:true}, 'google_translate_element'); 
+                    } 
+                     </script> 
+                     <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+                     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> 
+                    <script>
+                    function generatePDF() {
+                        var head = document.querySelector('head'); 
+                        var iframe = document.querySelector('#AllBodyData');
+                        var tabs = iframe.querySelectorAll('.tab-content'); 
+                        var tabContents = [];
+                        tabs.forEach((tab) => {
+                          tabContents.push(tab.innerHTML);
+                          tab.style.display = 'block';
+                        }); 
+                        tabContents.forEach((tabContent, index) => { 
+                          const tempContainer = document.createElement('div');
+                          tempContainer.innerHTML = tabContent; 
+                          const tabContentsDiv = tempContainer.querySelector('.tab-contents');
+                          if (tabContentsDiv) { 
+                          tabContentsDiv.parentNode.removeChild(tabContentsDiv);
+                          } 
+                          tabContents[index] = tempContainer.innerHTML;
+                      }); 
 
-              case 'column':
-                  return {
-                      ...baseConfig,
-                      chart: { ...baseConfig.chart, type: 'column' },
-                      xAxis: {
-                          categories: seriesData.xAxis.categories,
-                          title: {
-                              text: null
-                          }
-                      },
-                      yAxis: {
-                          min: 0,
-                          title: {
-                              text: "Values"
-                          },
-                          labels: {
-                              overflow: "justify"
-                          }
-                      },
-                      tooltip: {
-                          valueSuffix: " millions"
-                      },
-                      plotOptions: {
-                          bar: {
-                              dataLabels: {
-                                  enabled: true
-                              }
-                          }
-                      },
-                      series: seriesData.series
-                  };
-
-              default:
-                  return baseConfig;
-          }
-      }
- 
- </script>
- ${e.getHtml()} </div> 
- <!-- Rest of your existing scripts -->
- <script>  
- var hamburgerMenu = document.getElementById("hamburgerMenu");   
- if(hamburgerMenu !== null){   
- var tabContainer = document.querySelectorAll('#main-nav-div .tab-container'); 
- hamburgerMenu.addEventListener("click", function() {
-  if (tabContainer[0].style.display === "block") {
-    tabContainer[0].style.display = "none"; 
-  } else {
-    tabContainer[0].style.display = "block";  
-  } 
- }); 
-function updateView(){   
-    const viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0); 
-    const tabContainer = document.querySelectorAll('#main-nav-div .tab-container');  
-    if (viewportWidth >= 991) {  
-      tabContainer[0].style.display = "block";
-    } else{
-      tabContainer[0].style.display = "none";
-    }  
-}   
-  window.addEventListener('resize', updateView);  
-}
- function googleTranslateElementInit() {
-  new google.translate.TranslateElement({
-    defaultLanguage:'hindi',
-    pageLanguage: 'en',
-    includedLanguages: 'en,hi,mr,ta',  
-    layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-    autoDisplay: false,
-    multilanguagePage:true}, 'google_translate_element'); 
-} 
- </script> 
- <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
- <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> 
-<script>
-function generatePDF() {
-    var head = document.querySelector('head'); 
-    var iframe = document.querySelector('#AllBodyData');
-    var tabs = iframe.querySelectorAll('.tab-content'); 
-    var tabContents = [];
-    tabs.forEach((tab) => {
-      tabContents.push(tab.innerHTML);
-      tab.style.display = 'block';
-    }); 
-    tabContents.forEach((tabContent, index) => { 
-      const tempContainer = document.createElement('div');
-      tempContainer.innerHTML = tabContent; 
-      const tabContentsDiv = tempContainer.querySelector('.tab-contents');
-      if (tabContentsDiv) { 
-      tabContentsDiv.parentNode.removeChild(tabContentsDiv);
-      } 
-      tabContents[index] = tempContainer.innerHTML;
-  }); 
-
-  const container = document.createElement('div');
-  tabContents.forEach((content,index) => {
-      container.innerHTML = content; 
-      const tabContainers = container.querySelectorAll('.tab-container');
-      tabContainers.forEach((tabContainer) => { 
-          tabContainer.style.display = 'none';
-      }); 
-      tabContents[index] = container.innerHTML; 
-  });  
-  var opt = {
-      filename: "interactive-designer.pdf",
-      margin: 5,
-      html2canvas: {scale: 1},
-      jsPDF: {format: 'A2'}
-  };  
-  var contentData = '<html><body>' + tabContents.join('') + '</body></html>'; 
-  html2pdf().set(opt).from(contentData).save();
-}
-const button = document.getElementById('exportPDFBtn');
-if(button !==null){
-  button.addEventListener('click', generatePDF);   
-}   
-</script>
- </body>
-</html>`; 
+                      const container = document.createElement('div');
+                      tabContents.forEach((content,index) => {
+                          container.innerHTML = content; 
+                          const tabContainers = container.querySelectorAll('.tab-container');
+                          tabContainers.forEach((tabContainer) => { 
+                              tabContainer.style.display = 'none';
+                          }); 
+                          tabContents[index] = container.innerHTML; 
+                      });  
+                      var opt = {
+                          filename: "interactive-designer.pdf",
+                          margin: 5,
+                          html2canvas: {scale: 1},
+                          jsPDF: {format: 'A2'}
+                      };  
+                      var contentData = '<html><body>' + tabContents.join('') + '</body></html>'; 
+                      html2pdf().set(opt).from(contentData).save();
+                    }
+                    const button = document.getElementById('exportPDFBtn');
+                    if(button !==null){
+                      button.addEventListener('click', generatePDF);   
+                    }   
+                    setTimeout(() => {document.getElementById('AllBodyData').style.display = "block";}, 1000); 
+                </script>
+                     </body>\n</html>`;   
                       data = data.replace(/\n/g, '');
                       data = data.replace(/\t/g, ' ');
                       data = data.replace(/\s+/g, " ");

@@ -26,7 +26,7 @@ const editor = InteractiveDesigner.init({
     addFormattedRichTextComponent,
     marqueTag,
     addQRBarcodeComponent,
-    jsonTableComponent,
+   // jsonTableComponent,
     registerCustomShapes,
    // customJsonTable,
     customTableOfContents,
@@ -329,14 +329,25 @@ function generatePrintDialog() {
     // Process HTML to handle page breaks properly
     const processedHTML = processPageBreaks(editorHTML);
 
-    // Enhanced function to convert Bootstrap classes and preserve table structure
+    // Enhanced function to convert Bootstrap classes and preserve table structure with formula support
     function convertBootstrapToInlineStyles(html) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
       
+      // Get the current iframe document to access formula data
+      const currentIframeDoc = editor.Canvas.getDocument();
+      
       // First, handle all DataTables and convert them to simple tables for print
       const dataTables = tempDiv.querySelectorAll('table.dataTable, table[id*="table"]');
       dataTables.forEach(table => {
+        const tableId = table.id;
+        
+        // Find corresponding table in current iframe to get formula values
+        let sourceTable = null;
+        if (tableId && currentIframeDoc) {
+          sourceTable = currentIframeDoc.getElementById(tableId);
+        }
+        
         // Remove DataTables wrapper and controls
         const wrapper = table.closest('.dataTables_wrapper');
         if (wrapper) {
@@ -355,7 +366,7 @@ function generatePrintDialog() {
         
         // Process table headers
         const headers = table.querySelectorAll('thead th, thead td');
-        headers.forEach(header => {
+        headers.forEach((header, headerIndex) => {
           header.style.border = '1px solid #333';
           header.style.padding = '8px';
           header.style.backgroundColor = '#f2f2f2';
@@ -363,39 +374,90 @@ function generatePrintDialog() {
           header.style.textAlign = 'left';
           header.style.verticalAlign = 'middle';
           
-          // Handle header content divs
+          // Handle header content divs and get calculated values if available
           const headerDiv = header.querySelector('div');
           if (headerDiv) {
-            header.innerHTML = headerDiv.textContent || headerDiv.innerHTML;
-          }
-        });
-        
-        // Process table body cells
-        const cells = table.querySelectorAll('tbody td, tbody th');
-        cells.forEach(cell => {
-          cell.style.border = '1px solid #333';
-          cell.style.padding = '8px';
-          cell.style.textAlign = 'left';
-          cell.style.verticalAlign = 'middle';
-          cell.style.wordBreak = 'break-word';
-          
-          // Handle cell content divs and preserve formula results
-          const cellDiv = cell.querySelector('div.formula-cell, div');
-          if (cellDiv) {
-            // For formula cells, use the displayed result, not the formula
-            const displayText = cellDiv.textContent || cellDiv.innerHTML;
-            cell.innerHTML = displayText;
+            let content = headerDiv.textContent || headerDiv.innerHTML;
             
-            // Remove formula indicators for print
-            cell.style.position = 'relative';
+            // Check if source table exists and get calculated value
+            if (sourceTable) {
+              const sourceHeaderRow = sourceTable.querySelector('thead tr');
+              if (sourceHeaderRow) {
+                const sourceHeader = sourceHeaderRow.cells[headerIndex];
+                if (sourceHeader) {
+                  // Check for formula data
+                  const calculatedValue = sourceHeader.getAttribute('data-calculated-value');
+                  const formulaValue = sourceHeader.getAttribute('data-formula');
+                  
+                  if (calculatedValue) {
+                    content = calculatedValue;
+                  } else if (formulaValue && formulaValue.startsWith('=')) {
+                    // Try to get the displayed content (calculated result)
+                    content = sourceHeader.textContent || sourceHeader.innerText || content;
+                  }
+                }
+              }
+            }
+            
+            header.innerHTML = content;
           }
         });
         
-        // Process table rows for better print handling
+        // Process table body cells with formula support
         const rows = table.querySelectorAll('tbody tr');
-        rows.forEach(row => {
+        rows.forEach((row, rowIndex) => {
           row.style.pageBreakInside = 'avoid';
           row.style.breakInside = 'avoid';
+          
+          const cells = row.querySelectorAll('td, th');
+          cells.forEach((cell, cellIndex) => {
+            cell.style.border = '1px solid #333';
+            cell.style.padding = '8px';
+            cell.style.textAlign = 'left';
+            cell.style.verticalAlign = 'middle';
+            cell.style.wordBreak = 'break-word';
+            
+            // Handle cell content divs and preserve formula results
+            const cellDiv = cell.querySelector('div');
+            if (cellDiv) {
+              let content = cellDiv.textContent || cellDiv.innerHTML;
+              
+              // Check if source table exists and get calculated value
+              if (sourceTable) {
+                const sourceBodyRows = sourceTable.querySelectorAll('tbody tr');
+                if (sourceBodyRows[rowIndex]) {
+                  const sourceCell = sourceBodyRows[rowIndex].cells[cellIndex];
+                  if (sourceCell) {
+                    // Check for formula data
+                    const calculatedValue = sourceCell.getAttribute('data-calculated-value');
+                    const formulaValue = sourceCell.getAttribute('data-formula');
+                    
+                    if (calculatedValue) {
+                      // Use the calculated value
+                      content = calculatedValue;
+                    } else if (formulaValue && formulaValue.startsWith('=')) {
+                      // Try to get the displayed content (calculated result)
+                      const displayedContent = sourceCell.textContent || sourceCell.innerText;
+                      if (displayedContent && displayedContent !== formulaValue) {
+                        content = displayedContent;
+                      }
+                    } else {
+                      // Use the current displayed content
+                      const displayedContent = sourceCell.textContent || sourceCell.innerText;
+                      if (displayedContent) {
+                        content = displayedContent;
+                      }
+                    }
+                  }
+                }
+              }
+              
+              cell.innerHTML = content;
+              
+              // Remove formula indicators for print
+              cell.style.position = 'relative';
+            }
+          });
         });
         
         // Ensure thead is properly displayed
@@ -633,6 +695,33 @@ function generatePrintDialog() {
               height: auto !important;
               overflow: visible !important;
               position: static !important;
+            }
+            
+            /* Hide formula expressions - show calculated values only */
+            [data-formula] {
+              position: relative !important;
+            }
+            
+            [data-formula]:before {
+              content: attr(data-calculated-value) !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              background: white !important;
+              padding: inherit !important;
+              border: inherit !important;
+              font-size: inherit !important;
+              font-weight: inherit !important;
+              color: inherit !important;
+              text-align: inherit !important;
+              vertical-align: inherit !important;
+              display: table-cell !important;
+            }
+            
+            [data-formula] * {
+              visibility: hidden !important;
             }
             
             /* Preserve all background colors and images */
@@ -938,7 +1027,6 @@ function generatePrintDialog() {
     alert("Error opening print dialog. Please try again.");
   }
 }
-
 
 function processPageBreaks(html) {
   const tempDiv = document.createElement("div");

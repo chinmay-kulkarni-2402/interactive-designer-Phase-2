@@ -1,4 +1,5 @@
 function customTable(editor) { 
+
   // Add Table block in the Block Manager
   editor.Blocks.add('table', {
     label: 'Table',
@@ -8,33 +9,6 @@ function customTable(editor) {
       class: 'fa fa-table',
     },    
   }); 
-
-  // Global variable to track if formula parser is loaded
-  let formulaParserLoaded = false;
-
-  // Function to load HyperFormula library
-  function loadFormulaParser() {
-    if (formulaParserLoaded) return Promise.resolve();
-
-    return new Promise((resolve, reject) => {
-      const iframe = editor.Canvas.getFrameEl();
-      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-
-      const script = iframeDoc.createElement('script');
-      script.src = "https://cdn.jsdelivr.net/npm/hyperformula@2.7.1/dist/hyperformula.min.js";
-      script.onload = () => {
-        formulaParserLoaded = true;
-        console.log('HyperFormula loaded successfully');
-        resolve();
-      };
-      script.onerror = () => {
-        console.error('Failed to load HyperFormula');
-        reject(new Error('Failed to load HyperFormula'));
-      };
-
-      iframeDoc.head.appendChild(script);
-    });
-  }
 
   // Function to show toast/warning
   function showToast(message, type = 'warning') {
@@ -124,62 +98,62 @@ function customTable(editor) {
   }
 
   // Function to apply highlighting to table cells
-function applyHighlighting(tableId, condition, highlightColor) {
-  try {
-    const canvasBody = editor.Canvas.getBody();
-    const table = canvasBody.querySelector(`#${tableId}`);
-    if (!table) return;
+  function applyHighlighting(tableId, condition, highlightColor) {
+    try {
+      const canvasBody = editor.Canvas.getBody();
+      const table = canvasBody.querySelector(`#${tableId}`);
+      if (!table) return;
 
-    const wrapper = editor.DomComponents.getWrapper();
+      const wrapper = editor.DomComponents.getWrapper();
 
-    // === Always: Clear previous highlights
-    const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
-    prev.forEach(td => {
-      td.style.backgroundColor = '';
-      td.removeAttribute('data-highlighted');
+      // === Always: Clear previous highlights
+      const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
+      prev.forEach(td => {
+        td.style.backgroundColor = '';
+        td.removeAttribute('data-highlighted');
 
-      const id = td.id;
-      if (id) {
-        const comp = wrapper.find(`#${id}`)[0];
-        if (comp) {
-          comp.removeStyle('background-color');
-          comp.removeStyle('background');
-        }
-      }
-    });
-
-    // === Only apply new highlights if condition exists
-    if (condition && condition.trim()) {
-      const bodyCells = table.querySelectorAll('tbody td');
-      bodyCells.forEach(td => {
-        const div = td.querySelector('div');
-        const val = div ? div.textContent.trim() : td.textContent.trim();
-
-        if (evaluateCondition(val, condition)) {
-          const bg = highlightColor || '#ffff99';
-          td.style.backgroundColor = bg;
-          td.setAttribute('data-highlighted', 'true');
-
-          const id = td.id;
-          if (id) {
-            const comp = wrapper.find(`#${id}`)[0];
-            if (comp) {
-              comp.addStyle({
-                'background-color': bg,
-                '-webkit-print-color-adjust': 'exact',
-                'color-adjust': 'exact',
-                'print-color-adjust': 'exact'
-              });
-            }
+        const id = td.id;
+        if (id) {
+          const comp = wrapper.find(`#${id}`)[0];
+          if (comp) {
+            comp.removeStyle('background-color');
+            comp.removeStyle('background');
           }
         }
       });
-    }
 
-  } catch (err) {
-    console.warn('Error applying highlighting:', err);
+      // === Only apply new highlights if condition exists
+      if (condition && condition.trim()) {
+        const bodyCells = table.querySelectorAll('tbody td');
+        bodyCells.forEach(td => {
+          const div = td.querySelector('div');
+          const val = div ? div.textContent.trim() : td.textContent.trim();
+
+          if (evaluateCondition(val, condition)) {
+            const bg = highlightColor || '#ffff99';
+            td.style.backgroundColor = bg;
+            td.setAttribute('data-highlighted', 'true');
+
+            const id = td.id;
+            if (id) {
+              const comp = wrapper.find(`#${id}`)[0];
+              if (comp) {
+                comp.addStyle({
+                  'background-color': bg,
+                  '-webkit-print-color-adjust': 'exact',
+                  'color-adjust': 'exact',
+                  'print-color-adjust': 'exact'
+                });
+              }
+            }
+          }
+        });
+      }
+
+    } catch (err) {
+      console.warn('Error applying highlighting:', err);
+    }
   }
-}
 
   // Enhanced function to get target container that works with page system
   function getTargetContainer() {
@@ -250,265 +224,224 @@ function applyHighlighting(tableId, condition, highlightColor) {
     return wrapper;
   }
 
-  // Define a function to add table using popup model
+  // Detect table block drag stop
   editor.on('block:drag:stop', (block) => {  
-    if (block.get('tagName') === 'table') { 
+    if (block.get('tagName') === 'table') {
+      // Remove the default empty table that was created
+      block.remove();
+      // Open the configuration modal
       addTable();
     } 
   });
 
-  editor.on('load', (block) => {
-  const iframe = editor.getContainer().querySelector('iframe'); 
-  const contentWindow = iframe.contentWindow; 
-  const iframeDocument = contentWindow.document; 
-  const head = iframeDocument.head;  
-  
-  // Add DataTables CSS if not already present
-  if (!head.querySelector('link[href*="datatables"]')) {
-    const datatablesCss = document.createElement('link');
-    datatablesCss.rel = 'stylesheet';
-    datatablesCss.href = 'https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css';
-    head.appendChild(datatablesCss);
-    
-    const buttonsCSS = document.createElement('link');
-    buttonsCSS.rel = 'stylesheet';
-    buttonsCSS.href = 'https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap4.min.css';
-    head.appendChild(buttonsCSS);
-  }
-  
-  const style = document.createElement('style');
-  style.type = 'text/css'; 
-  style.innerHTML = `
-    a.dt-button{
-      border: 1px solid #ccc !important;
-    } 
-    .dataTables_wrapper .dataTables_filter input{
-      border: 1px solid #ccc !important;
-    }
-    .dataTables_wrapper .dataTables_filter input:focus-visible{
-      outline: 0px!important;
-    }
-    
-    .i_designer-dashed *[data-i_designer-highlightable]{
-      border: 1px solid #ccc !important;
-    }
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current{
-      border: 1px solid #ccc !important;
-    }
-    .dataTables_wrapper .dataTables_paginate .paginate_button:hover{
-      border: 1px solid #ccc !important;
-      background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
-    }
-    table.dataTable{
-      border: 1px solid #ccc !important;
-    }
-    table.dataTable thead th{
-      border-bottom: 1px solid #ccc !important;
-    }
-    
-    /* Formula cell styles */
-    .formula-cell {
-      position: relative;
-      min-height: 20px;
-    }
-    .formula-cell.editing {
-      background-color: #f0f8ff !important;
-      border: 2px solid #007bff !important;
-    }
-    .formula-cell[data-formula]::before {
-      content: "fx";
-      position: absolute;
-      top: -8px;
-      left: 2px;
-      font-size: 10px;
-      color: #007bff;
-      font-weight: bold;
-      background: white;
-      padding: 0 2px;
-      border-radius: 2px;
-      z-index: 10;
-    }
-    .formula-cell.error {
-      background-color: #ffe6e6 !important;
-      color: #d32f2f !important;
-    }
+  // Load CSS inside GrapesJS iframe
+  editor.on('load', () => {
+    const iframe = editor.getContainer().querySelector('iframe'); 
+    const head = iframe.contentDocument.head;  
+    const style = document.createElement('style');
+    style.type = 'text/css'; 
+    style.innerHTML = `
+      a.dt-button { border: 1px solid #ccc !important; }
+      .dataTables_wrapper .dataTables_filter input {
+        border: 1px solid #ccc !important;
+      }
+      .dataTables_wrapper .dataTables_filter input:focus-visible { outline: 0px!important; }
+      .i_designer-dashed *[data-i_designer-highlightable] {
+        border: 1px solid #ccc !important;
+      }
+      .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        border: 1px solid #ccc !important;
+      }
+      .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        border: 1px solid #ccc !important;
+        background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
+      }
+      table.dataTable { border: 1px solid #ccc !important; }
+      table.dataTable thead th { border-bottom: 1px solid #ccc !important; }
 
-    /* Updated highlighted cell styles - applied to td/th instead of div */
-    td[data-highlighted="true"], th[data-highlighted="true"] {
-      position: relative;
-    }
-    td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-      content: "★";
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      font-size: 10px;
-      color: #ff6b35;
-      font-weight: bold;
-      z-index: 1;
-    }
-
-    /* Page-aware table styles */
-    .page-container .dataTables_wrapper {
-      max-width: 100%;
-      overflow: hidden;
-    }
-    
-    .main-content-area .dataTables_wrapper {
-      width: 100% !important;
-      box-sizing: border-box;
-    }
-    
-    /* Enhanced print styles for tables in pages with cell highlighting preservation */
-    @media print {
-      .page-container table.dataTable {
-        border-collapse: collapse !important;
-        width: 100% !important;
-        font-size: 10px !important;
-        page-break-inside: avoid !important;
-      }
-      
-      .page-container .dataTables_wrapper .dataTables_length,
-      .page-container .dataTables_wrapper .dataTables_filter,
-      .page-container .dataTables_wrapper .dataTables_info,
-      .page-container .dataTables_wrapper .dataTables_paginate,
-      .page-container .dataTables_wrapper .dt-buttons {
-        display: none !important;
-      }
-      
-      .page-container table.dataTable thead th,
-      .page-container table.dataTable tbody td {
-        border: 1px solid #000 !important;
-        padding: 4px !important;
-        text-align: left !important;
-      }
-      
-      .page-container table.dataTable thead th {
-        background-color: #f5f5f5 !important;
-        font-weight: bold !important;
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      /* Preserve cell highlighting in print - critical for PDF generation */
+      /* Enhanced highlighted cell styles - applied to td/th instead of div */
       td[data-highlighted="true"], th[data-highlighted="true"] {
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        position: relative;
       }
-      
-      /* Ensure background colors are preserved in print/PDF */
-      * {
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
+      td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+        content: "★";
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        font-size: 10px;
+        color: #ff6b35;
+        font-weight: bold;
+        z-index: 1;
       }
-      
-      /* Hide the indicators in print to avoid clutter */
-      td[data-highlighted="true"]::after, th[data-highlighted="true"]::after,
-      .formula-cell[data-formula]::before {
-        display: none !important;
-      }
-    }
-  `; 
-  head.appendChild(style);  
-});
 
-  // Add custom table component type with traits
-editor.DomComponents.addType('enhanced-table', {
-  isComponent: el => el.tagName === 'TABLE' && el.id && el.id.startsWith('table'),
-  model: {
-    defaults: {
-      tagName: 'table',
-      selectable: true,
-      hoverable: true,
-      editable: true,
-      droppable: false,
-      draggable: true,
-      removable: true,
-      copyable: true,
-      resizable: false,
-      traits: [
-        {
-          type: 'text',
-          name: 'highlight-condition',
-          label: 'Highlight Condition',
-          placeholder: 'e.g., >50, <=100, =text, contains:word',
-          changeProp: 1,
-        },
-        {
-          type: 'color',
-          name: 'highlight-color',
-          label: 'Highlight Color',
-          placeholder: '#ffff99',
-          changeProp: 1,
+      /* Page-aware table styles */
+      .page-container .dataTables_wrapper {
+        max-width: 100%;
+        overflow: hidden;
+      }
+      
+      .main-content-area .dataTables_wrapper {
+        width: 100% !important;
+        box-sizing: border-box;
+      }
+      
+      /* Enhanced print styles for tables in pages with cell highlighting preservation */
+      @media print {
+        .page-container table.dataTable {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          font-size: 10px !important;
+          page-break-inside: avoid !important;
         }
-      ],
-      'custom-name': 'Enhanced Table'
-    },
-    
-    init() {
-      this.on('change:highlight-condition change:highlight-color', this.handleHighlightChange);
-    },
+        
+        .page-container .dataTables_wrapper .dataTables_length,
+        .page-container .dataTables_wrapper .dataTables_filter,
+        .page-container .dataTables_wrapper .dataTables_info,
+        .page-container .dataTables_wrapper .dataTables_paginate,
+        .page-container .dataTables_wrapper .dt-buttons {
+          display: none !important;
+        }
+        
+        .page-container table.dataTable thead th,
+        .page-container table.dataTable tbody td {
+          border: 1px solid #000 !important;
+          padding: 4px !important;
+          text-align: left !important;
+        }
+        
+        .page-container table.dataTable thead th {
+          background-color: #f5f5f5 !important;
+          font-weight: bold !important;
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
 
-    handleHighlightChange() {
-      const tableId = this.getId();
-      const condition = this.get('highlight-condition');
-      const color = this.get('highlight-color');
+        /* Preserve cell highlighting in print - critical for PDF generation */
+        td[data-highlighted="true"], th[data-highlighted="true"] {
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        /* Ensure background colors are preserved in print/PDF */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        /* Hide the star indicator in print to avoid clutter */
+        td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+          display: none !important;
+        }
+      }
+    `;
+    head.appendChild(style);
+
+    // Inject formula parser library into iframe
+    const script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+    head.appendChild(script);
+  });
+
+  // Add custom table component type with highlighting traits
+  editor.DomComponents.addType('enhanced-table', {
+    isComponent: el => el.tagName === 'TABLE' && el.id && el.id.startsWith('table'),
+    model: {
+      defaults: {
+        tagName: 'table',
+        selectable: true,
+        hoverable: true,
+        editable: true,
+        droppable: false,
+        draggable: true,
+        removable: true,
+        copyable: true,
+        resizable: false,
+        traits: [
+          {
+            type: 'text',
+            name: 'highlight-condition',
+            label: 'Highlight Condition',
+            placeholder: 'e.g., >50, <=100, =text, contains:word',
+            changeProp: 1,
+          },
+          {
+            type: 'color',
+            name: 'highlight-color',
+            label: 'Highlight Color',
+            placeholder: '#ffff99',
+            changeProp: 1,
+          }
+        ],
+        'custom-name': 'Enhanced Table'
+      },
       
-      if (condition) {
-        applyHighlighting(tableId, condition, color);
-        editor.trigger('component:update', this);
+      init() {
+        this.on('change:highlight-condition change:highlight-color', this.handleHighlightChange);
+      },
+
+      handleHighlightChange() {
+        const tableId = this.getId();
+        const condition = this.get('highlight-condition');
+        const color = this.get('highlight-color');
+        
+        if (condition) {
+          applyHighlighting(tableId, condition, color);
+          // Trigger update to ensure GrapesJS recognizes changes
+          editor.trigger('component:update', this);
+        }
       }
     }
-  }
-});
+  });
 
   // Add commands for highlighting
-editor.Commands.add('apply-table-highlighting', {
-  run(editor) {
-    const selected = editor.getSelected();
-    if (selected && selected.get('tagName') === 'table') {
-      const tableId = selected.getId();
-      const condition = selected.get('highlight-condition');
-      const color = selected.get('highlight-color');
-      
-      if (!condition) {
-        showToast('Please enter a highlight condition first', 'warning');
-        return;
+  editor.Commands.add('apply-table-highlighting', {
+    run(editor) {
+      const selected = editor.getSelected();
+      if (selected && selected.get('tagName') === 'table') {
+        const tableId = selected.getId();
+        const condition = selected.get('highlight-condition');
+        const color = selected.get('highlight-color');
+        
+        if (!condition) {
+          showToast('Please enter a highlight condition first', 'warning');
+          return;
+        }
+        
+        applyHighlighting(tableId, condition, color);
+        showToast('Cell highlighting applied successfully!', 'success');
+        
+        // Trigger editor update to ensure GrapesJS recognizes the changes
+        editor.trigger('component:update', selected);
       }
-      
-      applyHighlighting(tableId, condition, color);
-      showToast('Cell highlighting applied successfully!', 'success');
-      
-      editor.trigger('component:update', selected);
     }
-  }
-});
+  });
 
-// Enhanced command for clearing highlighting with GrapesJS sync
-editor.Commands.add('clear-table-highlighting', {
-  run(editor) {
-    const selected = editor.getSelected();
-    if (selected && selected.get('tagName') === 'table') {
-      const tableId = selected.getId();
-      
-      // Clear highlighting by applying empty condition
-      applyHighlighting(tableId, '', '');
-      
-      // Clear the traits
-      selected.set('highlight-condition', '');
-      selected.set('highlight-color', '');
-      
-      showToast('Highlighting cleared successfully!', 'success');
-      
-      editor.trigger('component:update', selected);
+  // Enhanced command for clearing highlighting with GrapesJS sync
+  editor.Commands.add('clear-table-highlighting', {
+    run(editor) {
+      const selected = editor.getSelected();
+      if (selected && selected.get('tagName') === 'table') {
+        const tableId = selected.getId();
+        
+        // Clear highlighting by applying empty condition
+        applyHighlighting(tableId, '', '');
+        
+        // Clear the traits
+        selected.set('highlight-condition', '');
+        selected.set('highlight-color', '');
+        
+        showToast('Highlighting cleared successfully!', 'success');
+        
+        // Trigger editor update
+        editor.trigger('component:update', selected);
+      }
     }
-  }
-});
- 
-  // Define a function to add table using popup model
+  });
+
+  // Function to open table creation modal
   function addTable() {
     const targetContainer = getTargetContainer();
     
@@ -536,136 +469,62 @@ editor.Commands.add('clear-table-highlighting', {
     }
 
     editor.Modal.setTitle('Create New Table');
-    editor.Modal.setContent(`<div class="new-table-form">
-     
-      <div>
-        <label for="nColumns">Number of columns</label>
-        <input type="number" class="form-control" value="3" name="nColumns" id="nColumns" min="1">
-      </div>  
-      <div>
-        <label for="nRows">Number of rows</label>
-        <input type="number" class="form-control" value="4" name="nRows" id="nRows" min="1">
-      </div>  
-      <div>
-        <label for="nColumnsScroll">Scroll Columns length</label>
-        <input type="number" class="form-control" value="5" name="nColumnsScroll" id="nColumnsScroll" min="5">
-      </div> 
-      <div>
-        <label for="tbl_file_download">Add File Download</label>
-        <input type="checkbox" class="form-control" value='false' name="tbl_file_download" id="tbl_file_download">
+    editor.Modal.setContent(`
+      <div class="new-table-form">
+        <div>
+          <label>Number of columns</label>
+          <input type="number" value="3" id="nColumns" min="1">
+        </div>  
+        <div>
+          <label>Number of rows</label>
+          <input type="number" value="4" id="nRows" min="1">
+        </div>  
+        <div>
+          <label>Scroll Columns length</label>
+          <input type="number" value="5" id="nColumnsScroll" min="5">
+        </div> 
+        <div><label>Add File Download</label><input type="checkbox" id="tbl_file_download"></div>
+        <div><label>Add Pagination</label><input type="checkbox" id="tbl_pagination"></div>
+        <div><label>Add Search</label><input type="checkbox" id="tbl_Search"></div>
+        <div><label>Add Footer</label><input type="checkbox" id="tbl_footer"></div>
+        <div><label>Add Caption</label><input type="checkbox" id="tbl_caption"></div>
+        <div><input id="table-button-create-new" type="button" value="Create Table"></div>
       </div>
-      <div>
-        <label for="tbl_pagination">Add Pagination</label>
-        <input type="checkbox" class="form-control" value='false' name="tbl_pagination" id="tbl_pagination">
-      </div>
-      <div> 
-        <label for="tbl_Search">Add Search</label>
-        <input type="checkbox" class="form-control" value='false' name="tbl_Search" id="tbl_Search">
-      </div>
-      <div>
-        <label for="tbl_footer">Add Footer</label>
-        <input type="checkbox" class="form-control" value='false' name="tbl_footer" id="tbl_footer">
-      </div>
-      <div>
-        <label for="tbl_caption">Add Caption</label>
-        <input type="checkbox" class="form-control" value='false' name="tbl_caption" id="tbl_caption">
-      </div>
-      <div>
-        <label for="tbl_formula">Enable Formula Support (Excel-like)</label>
-        <input type="checkbox" class="form-control" value='false' name="tbl_formula" id="tbl_formula">
-      </div>
-      <div> 
-        <input id="table-button-create-new" type="button" value="Create Table" data-component-id="c1006">
-      </div>
-    </div>`);
-    
+    `);
     editor.Modal.open(); 
     
-    var el = document.getElementById("table-button-create-new");
-    el.addEventListener("click", () => createTable(targetContainer), true); 
-    
-    const fileDownloadCheckbox = document.getElementById("tbl_file_download");
-    const paginationCheckbox = document.getElementById("tbl_pagination");
-    const searchCheckbox = document.getElementById("tbl_Search");
-    const footerCheckbox = document.getElementById("tbl_footer");
-    const captionCheckbox = document.getElementById("tbl_caption");
-    const formulaCheckbox = document.getElementById("tbl_formula");
-    
-    fileDownloadCheckbox.addEventListener("change", function() {
-      fileDownloadCheckbox.value = this.checked.toString(); 
-    });
-    paginationCheckbox.addEventListener("change", function() {
-      paginationCheckbox.value = this.checked.toString(); 
-    });
-    searchCheckbox.addEventListener("change", function() {
-      searchCheckbox.value = this.checked.toString();
-    });
-    footerCheckbox.addEventListener("change", function() {
-      footerCheckbox.value = this.checked.toString();
-    }); 
-    captionCheckbox.addEventListener("change", function() {
-      captionCheckbox.value = this.checked.toString();
-    });
-    formulaCheckbox.addEventListener("change", function() {
-      formulaCheckbox.value = this.checked.toString();
-    });
-     
-    // Clear any existing empty table components
-    editor.DomComponents.getComponents().forEach(component => {
-      if (component.get('tagName') === 'table') { 
-        component.remove('content', '');
-      }
-    });
-    
-    async function createTable(container) {   
-      let uniqueID = Math.floor(100 + Math.random() * 900);  
-      let tblFileDownload = document.getElementById("tbl_file_download").value;
-      let tblPagination = document.getElementById("tbl_pagination").value;
-      let tblSearch = document.getElementById("tbl_Search").value;  
-      let tblFooter = document.getElementById("tbl_footer").value;  
-      let tblCaption = document.getElementById("tbl_caption").value;
-      let tblFormula = document.getElementById("tbl_formula").value;
-      let tblHeader = 'true';
-      let downloadBtn = '[]';
-      
-      // Load formula parser if needed
-      if (tblFormula === 'true') {
-        try {
-          await loadFormulaParser();
-          showToast('Formula parser loaded successfully!', 'success');
-        } catch (error) {
-          showToast('Failed to load formula parser. Formula functionality may not work.', 'error');
-        }
-      }
-      
-      if (tblFileDownload === 'true') {
-        downloadBtn = `["copy", "csv", "excel", "pdf", "print",{
-          text: "MS Word",
-          action: function() {   
-            const table = document.getElementById("table${uniqueID}");  
-            table.setAttribute("border", "1");  
-            table.style.borderCollapse = "collapse";
-            table.style.width = "100%";
-            table.style.fontFamily = "Arial, sans-serif";
-            const html = table.outerHTML; 
-            const url = "data:application/msword," + encodeURIComponent(html);  
-            const downloadLink = document.createElement("a");  
-            downloadLink.href = url;
-            downloadLink.download = "data.doc";
-            downloadLink.style.display = "none";
-            document.body.appendChild(downloadLink); 
-            window.location.href = downloadLink.href; 
-            document.body.removeChild(downloadLink);   
-          }
-        }]`; 
-      }  
-      
-      const rows = parseInt(document.getElementById('nRows').value); 
-      const cols = parseInt(document.getElementById('nColumns').value);  
-      const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
+    // Remove any existing event listeners and add a new one
+    const createBtn = document.getElementById("table-button-create-new");
+    createBtn.removeEventListener("click", () => createTable(targetContainer), true);
+    createBtn.addEventListener("click", () => createTable(targetContainer), true);
+  }
 
-      // Create a wrapper div for better page integration
-      let tableWrapper = document.createElement('div');  
+  function createTable(container) {
+    let uniqueID = Math.floor(100 + Math.random() * 900);
+    let tblFileDownload = document.getElementById("tbl_file_download").checked;
+    let tblPagination = document.getElementById("tbl_pagination").checked;
+    let tblSearch = document.getElementById("tbl_Search").checked;
+    let tblFooter = document.getElementById("tbl_footer").checked;
+    let tblCaption = document.getElementById("tbl_caption").checked;
+    let tblHeader = true;
+    let downloadBtn = '[]';
+
+    if (tblFileDownload) {
+      downloadBtn = '["copy", "csv", "excel", "pdf", "print"]';
+    }
+
+    const rows = parseInt(document.getElementById('nRows').value);
+    const cols = parseInt(document.getElementById('nColumns').value);
+    const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
+
+    // Check if target is within a page system
+    const isInPageSystem = container.closest('.page-container') || 
+                          container.find('.page-container').length > 0 ||
+                          container.getEl()?.closest('.page-container');
+
+    // Create a wrapper div for better page integration
+    let tableWrapper = document.createElement('div');
+    if (isInPageSystem) {
       tableWrapper.style.cssText = `
         padding: 10px 0px;
         position: relative;
@@ -674,831 +533,320 @@ editor.Commands.add('clear-table-highlighting', {
         overflow: hidden;
         box-sizing: border-box;
       `;
-      tableWrapper.className = 'table-wrapper-' + uniqueID;
+    }
+    tableWrapper.className = 'table-wrapper-' + uniqueID;
 
-      let table = document.createElement('table');  
-      table.setAttribute('width','100%'); 
-      table.setAttribute('class','table table-striped table-bordered'); 
-      table.setAttribute('id','table'+uniqueID);
-      
-      if (tblFormula === 'true') {
-        table.setAttribute('data-formula-enabled', 'true');
-      }
-      
-      if (tblCaption === 'true') { 
-        let caption1a = document.createElement('caption'); 
-        caption1a.textContent = 'Caption Text';  
-        caption1a.style.captionSide = 'top';  
-        table.appendChild(caption1a);  
-      }
+    // Build table
+    let table = document.createElement('table');
+    table.setAttribute('width', '100%');
+    table.setAttribute('class', 'table table-striped table-bordered');
+    table.setAttribute('id', 'table' + uniqueID);
 
-      let thead = document.createElement('thead');
+    if (tblCaption) {
+      let caption = document.createElement('caption');
+      caption.textContent = 'Caption Text';
+      caption.style.captionSide = 'top';
+      table.appendChild(caption);
+    }
+
+    let thead = document.createElement('thead');
+    for (let j = 0; j < cols; j++) {
+      let th = document.createElement('th');
+      th.innerHTML = `<div>Text</div>`;
+      thead.appendChild(th);
+    }
+    if (tblHeader) table.appendChild(thead);
+
+    let tbody = document.createElement('tbody');
+    for (let i = 0; i < rows; i++) {
+      let tr = document.createElement('tr');
       for (let j = 0; j < cols; j++) {
-        let th = document.createElement('th'); 
-        th.setAttribute("class", "col"+uniqueID+j);
-        let div1 = document.createElement('div');
-        div1.textContent = 'Header ' + (j + 1);
-        if (tblFormula === 'true') {
-          div1.setAttribute('contenteditable', 'true');
-          div1.className = 'formula-cell';
-        }
-        th.appendChild(div1);
-        thead.appendChild(th);
-      } 
+        let td = document.createElement('td');
+        td.innerHTML = `<div>Text</div>`;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
 
-      if (tblHeader === 'true') { 
-        table.appendChild(thead);
-      }   
-    
-      let tbody = document.createElement('tbody');
-      for (let i = 0; i < rows; i++) {
-        let tr = document.createElement('tr');
-        for (let j = 0; j < cols; j++) {
-          let td = document.createElement('td');
-          td.setAttribute("class", "col"+uniqueID+j);
-          let div = document.createElement('div');
-          div.textContent = 'Cell ' + (i + 1) + '-' + (j + 1);
-          if (tblFormula === 'true') {
-            div.setAttribute('contenteditable', 'true');
-            div.className = 'formula-cell';
-            div.setAttribute('data-row', i);
-            div.setAttribute('data-col', j);
-            console.log('Formula cell created at row:', i, 'col:', j);
-          }
-          td.appendChild(div);
-          tr.appendChild(td);
-        }  
-        tbody.appendChild(tr);
-      }    
-      
-      if (tblFooter === 'true') {  
-        let tr = document.createElement('tr');
-        for (let k = 0; k < cols; k++) {
-          let th = document.createElement('th'); 
-          th.style.fontWeight = '800'; 
-          th.setAttribute("class", "col"+uniqueID+k);
-          let div1 = document.createElement('div');
-          div1.textContent = 'Footer ' + (k + 1);
-          if (tblFormula === 'true') {
-            div1.setAttribute('contenteditable', 'true');
-            div1.className = 'formula-cell';
-          }
-          th.appendChild(div1);
-          tr.appendChild(th);
-        }  
-        tbody.appendChild(tr);
-      }   
-      
-      var scrollXCol = colsScroll < cols;
-      table.appendChild(tbody); 
-      tableWrapper.appendChild(table);   
-      
-      // Generate the DataTable script with enhanced formula functionality
-      let tableScript = `
-        <script class="table-script-${uniqueID}"> 
-          (function() {
-            let hyperformulaInstance = null;
-            let tableData = [];
-            
-            // Wait for jQuery and DataTables to be available
-            function initTable() {
-              if (typeof jQuery === 'undefined' || typeof jQuery.fn.DataTable === 'undefined') {
-                setTimeout(initTable, 100);
-                return;
-              }
-              
-              // Check if we're in a page system
-              const tableElement = document.getElementById('table${uniqueID}');
-              const isInPageSystem = tableElement && tableElement.closest('.page-container');
-              
-              // Initialize HyperFormula if formulas are enabled
-if (tableElement && tableElement.hasAttribute('data-formula-enabled')) {
-  initializeHyperFormula().then(() => {
-    console.log('HyperFormula initialization completed');
-    setupFormulaHandlers('${uniqueID}');
-  }).catch(error => {
-    console.warn('HyperFormula initialization failed, formulas will use fallback evaluator:', error);
-    setupFormulaHandlers('${uniqueID}');
-  });
-} else {
-  setupFormulaHandlers('${uniqueID}');
-}
-              
-              // Configure DataTable options based on context
-              const dtOptions = {
-                dom: 'Bfrtip',
-                paging: ${tblPagination},
-                "info": ${tblPagination}, 
-                "lengthChange": true,
-                fixedHeader: false,
-                "scrollX": ${scrollXCol}, 
-                fixedColumns: ${scrollXCol}, 
-                searching: ${tblSearch},  
-                buttons: ${downloadBtn},
-                drawCallback: function() {
-                  setupFormulaHandlers('${uniqueID}');
-                  
-                  // Ensure table fits within page boundaries
-                  if (isInPageSystem) {
-                    const wrapper = this.closest('.dataTables_wrapper');
-                    if (wrapper) {
-                      wrapper.style.maxWidth = '100%';
-                      wrapper.style.overflow = 'hidden';
-                    }
-                  }
-                },
-                responsive: isInPageSystem ? {
-                  details: {
-                    display: jQuery.fn.dataTable.Responsive.display.childRowImmediate,
-                    type: 'none',
-                    target: ''
-                  }
-                } : false
-              };
-              
-              // Initialize DataTable
-              const dataTable = jQuery('#table${uniqueID}').DataTable(dtOptions);
-              
-              // Store reference for cleanup
-              if (window.pageTableInstances) {
-                window.pageTableInstances = window.pageTableInstances || {};
-                window.pageTableInstances['table${uniqueID}'] = dataTable;
-              }
-              
-              // Initial setup of formula handlers
-              setupFormulaHandlers('${uniqueID}');
+    if (tblFooter) {
+      let tr = document.createElement('tr');
+      for (let j = 0; j < cols; j++) {
+        let th = document.createElement('th');
+        th.style.fontWeight = '800';
+        th.innerHTML = `<div>Text</div>`;
+        tr.appendChild(th);
+      }
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+
+    // Append table to wrapper if in page system
+    if (isInPageSystem) {
+      tableWrapper.appendChild(table);
+    }
+
+    // DataTables script with page system awareness
+    let tableScript = `
+      <script>
+        (function() {
+          // Wait for jQuery and DataTables to be available
+          function initTable() {
+            if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+              setTimeout(initTable, 100);
+              return;
             }
             
-            // Initialize HyperFormula engine
-function initializeHyperFormula() {
-  return new Promise((resolve, reject) => {
-    try {
-      // Get the iframe's window object where HyperFormula was loaded
-      const iframe = document.querySelector('iframe');
-      const iframeWindow = iframe ? iframe.contentWindow : window;
-      
-      // Check if HyperFormula is available in the iframe context
-      const HF = iframeWindow.HyperFormula || window.HyperFormula;
-      
-      if (!HF) {
-        console.error('HyperFormula not found in iframe or main window');
-        reject(new Error('HyperFormula not available'));
-        return;
-      }
-      
-      console.log('HyperFormula found:', HF);
-      
-      const options = {
-        licenseKey: 'gpl-v3',
-        useColumnIndex: true,
-        useArrayArithmetic: true,
-      };
-      
-      hyperformulaInstance = HF.buildEmpty(options);
-      console.log('HyperFormula instance created successfully:', hyperformulaInstance);
-      
-      // Initialize table data structure
-      initializeTableData();
-      resolve(hyperformulaInstance);
-      
-    } catch (error) {
-      console.error('Failed to initialize HyperFormula:', error);
-      hyperformulaInstance = null;
-      reject(error);
-    }
-  });
-}
-
-// ADD this new function
-function simpleFormulaEvaluator(formula, tableData, currentRow, currentCol) {
-  try {
-    let cleanFormula = formula.trim();
-    if (cleanFormula.startsWith('=')) {
-      cleanFormula = cleanFormula.substring(1);
-    }
-    
-    // Replace cell references (A1, B2, etc.) with actual values
-    cleanFormula = cleanFormula.replace(/([A-Z]+)(\d+)/g, (match, colStr, rowStr) => {
-      const row = parseInt(rowStr) - 1;
-      let col = 0;
-      for (let i = 0; i < colStr.length; i++) {
-        col = col * 26 + (colStr.charCodeAt(i) - 64);
-      }
-      col -= 1;
-      
-      if (tableData[row] && tableData[row][col] !== undefined) {
-        const value = tableData[row][col];
-        return typeof value === 'number' ? value : (parseFloat(value) || 0);
-      }
-      return 0;
-    });
-    
-    // Handle basic functions like SUM
-    cleanFormula = cleanFormula.replace(/SUM\(([^)]+)\)/gi, (match, range) => {
-      const rangeMatch = range.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
-      if (rangeMatch) {
-        const startRow = parseInt(rangeMatch[2]) - 1;
-        const endRow = parseInt(rangeMatch[4]) - 1;
-        let startCol = 0, endCol = 0;
-        
-        for (let i = 0; i < rangeMatch[1].length; i++) {
-          startCol = startCol * 26 + (rangeMatch[1].charCodeAt(i) - 64);
-        }
-        startCol -= 1;
-        
-        for (let i = 0; i < rangeMatch[3].length; i++) {
-          endCol = endCol * 26 + (rangeMatch[3].charCodeAt(i) - 64);
-        }
-        endCol -= 1;
-        
-        let sum = 0;
-        for (let r = startRow; r <= endRow; r++) {
-          for (let c = startCol; c <= endCol; c++) {
-            if (tableData[r] && tableData[r][c] !== undefined) {
-              const val = typeof tableData[r][c] === 'number' ? tableData[r][c] : parseFloat(tableData[r][c]);
-              if (!isNaN(val)) sum += val;
-            }
-          }
-        }
-        return sum;
-      }
-      return 0;
-    });
-    
-    // Evaluate the mathematical expression safely
-    const result = Function('"use strict"; return (' + cleanFormula + ')')();
-    return { error: false, result: result };
-    
-  } catch (error) {
-    console.warn('Simple formula evaluation error:', error);
-    return { error: true, result: '#ERROR' };
-  }
-}
-
-// ADD this new function
-function getCurrentTableData() {
-  const table = document.getElementById('table${uniqueID}');
-  if (!table) return [];
-  
-  const rows = table.querySelectorAll('tbody tr');
-  const tableData = [];
-  
-  rows.forEach((row, rowIndex) => {
-    const cells = row.querySelectorAll('td');
-    const rowData = [];
-    
-    cells.forEach((cell, colIndex) => {
-      const div = cell.querySelector('div');
-      let value = div ? div.textContent.trim() : '';
-      
-      const numValue = parseFloat(value);
-      rowData.push(isNaN(numValue) ? value : numValue);
-    });
-    
-    tableData.push(rowData);
-  });
-  
-  return tableData;
-}
-            console.log('HyperFormula instance created:', hyperformulaInstance);
-            // Initialize table data structure for formulas
-            function initializeTableData() {
-              const table = document.getElementById('table${uniqueID}');
-              if (!table) return;
-              
-              const rows = table.querySelectorAll('tbody tr');
-              tableData = [];
-              
-              rows.forEach((row, rowIndex) => {
-                const cells = row.querySelectorAll('td');
-                const rowData = [];
+            const tableElement = document.getElementById('table${uniqueID}');
+            const isInPageSystem = tableElement && tableElement.closest('.page-container');
+            
+            // Configure DataTable options based on context
+            const dtOptions = {
+              dom: 'Bfrtip',
+              paging: ${tblPagination},
+              info: ${tblPagination},
+              lengthChange: true,
+              fixedHeader: ${!isInPageSystem}, // Disable for page system compatibility
+              scrollX: ${colsScroll < cols},
+              fixedColumns: ${colsScroll < cols},
+              searching: ${tblSearch},
+              buttons: ${downloadBtn},
+              drawCallback: function() {
+                // Re-enable formula editing after DataTable draw
+                setTimeout(() => enableFormulaEditing('table${uniqueID}'), 100);
                 
-                cells.forEach((cell, colIndex) => {
-                  const div = cell.querySelector('div');
-                  const value = div ? div.textContent.trim() : '';
-                  
-                  // Convert to number if possible, otherwise keep as string
-                  const numValue = parseFloat(value);
-                  rowData.push(isNaN(numValue) ? value : numValue);
-                });
-                
-                tableData.push(rowData);
-              });
-              
-              // Add data to HyperFormula
-              if (hyperformulaInstance && tableData.length > 0) {
-                const sheetName = 'Table${uniqueID}';
-                try {
-                  hyperformulaInstance.addSheet(sheetName);
-                  hyperformulaInstance.setSheetContent(0, tableData);
-                } catch (error) {
-                  console.warn('Error setting up HyperFormula sheet:', error);
+                // Ensure table fits within page boundaries
+                if (isInPageSystem) {
+                  const wrapper = this.closest('.dataTables_wrapper');
+                  if (wrapper) {
+                    wrapper.style.maxWidth = '100%';
+                    wrapper.style.overflow = 'hidden';
+                  }
                 }
-              }
-            }
+              },
+              responsive: isInPageSystem ? {
+                details: {
+                  display: $.fn.dataTable.Responsive.display.childRowImmediate,
+                  type: 'none',
+                  target: ''
+                }
+              } : false
+            };
             
-            // Convert cell reference (A1, B2, etc.) to row/col indices
-            function cellRefToIndices(cellRef) {
-              if (!cellRef || typeof cellRef !== 'string') return null;
-              
-              const match = cellRef.match(/^([A-Z]+)(\\d+)$/);
-              if (!match) return null;
-              
-              const colStr = match[1];
-              const rowNum = parseInt(match[2]);
-              
-              let col = 0;
-              for (let i = 0; i < colStr.length; i++) {
-                col = col * 26 + (colStr.charCodeAt(i) - 64);
-              }
-              col -= 1; // Convert to 0-based
-              const row = rowNum - 1; // Convert to 0-based
-              
-              return { row, col };
-            }
-            
-            // Convert row/col indices to cell reference (A1, B2, etc.)
-            function indicesToCellRef(row, col) {
-              let colStr = '';
-              let colNum = col + 1;
-              
-              while (colNum > 0) {
-                colNum--;
-                colStr = String.fromCharCode(65 + (colNum % 26)) + colStr;
-                colNum = Math.floor(colNum / 26);
-              }
-              
-              return colStr + (row + 1);
-            }
-            
-            // Evaluate formula using HyperFormula
-// REPLACE the existing evaluateFormula function
-function evaluateFormula(formula, currentRow, currentCol) {
-  console.log('Evaluating formula:', formula, 'at position:', currentRow, currentCol);
-  
-  const tableData = getCurrentTableData();
-  console.log('Current table data:', tableData);
-  
-  // Try HyperFormula first
-  if (hyperformulaInstance) {
+            $('#table${uniqueID}').DataTable(dtOptions);
+          }
+          
+          initTable();
+        })();
+      </script>
+    `;
+
     try {
-      let cleanFormula = formula.trim();
-      if (cleanFormula.startsWith('=')) {
-        cleanFormula = cleanFormula.substring(1);
-      }
-      
-      updateHyperFormulaData();
-      
-      const tempAddress = { sheet: 0, row: currentRow, col: currentCol };
-      hyperformulaInstance.setCellContents(tempAddress, '=' + cleanFormula);
-      const result = hyperformulaInstance.getCellValue(tempAddress);
-      
-      if (result && typeof result === 'object' && result.type === 'ERROR') {
-        console.log('HyperFormula error, falling back to simple evaluator');
-        return simpleFormulaEvaluator(formula, tableData, currentRow, currentCol);
-      }
-      
-      console.log('HyperFormula result:', result);
-      return { error: false, result: result };
-      
-    } catch (error) {
-      console.warn('HyperFormula evaluation failed, using fallback:', error);
-      return simpleFormulaEvaluator(formula, tableData, currentRow, currentCol);
-    }
-  } else {
-    console.log('HyperFormula not available, using simple evaluator');
-    return simpleFormulaEvaluator(formula, tableData, currentRow, currentCol);
-  }
-}
-            
-            // Update HyperFormula with current table data
-function updateHyperFormulaData() {
-  const table = document.getElementById('table${uniqueID}');
-  if (!table || !hyperformulaInstance) return;
-  
-  const rows = table.querySelectorAll('tbody tr');
-  const newTableData = [];
-  
-  rows.forEach((row, rowIndex) => {
-    const cells = row.querySelectorAll('td');
-    const rowData = [];
-    
-    cells.forEach((cell, colIndex) => {
-      const div = cell.querySelector('div');
-      let value = div ? div.textContent.trim() : '';
-      
-      // For non-formula cells, convert to number if possible
-      if (!div || !div.hasAttribute('data-formula')) {
-        const numValue = parseFloat(value);
-        rowData.push(isNaN(numValue) ? value : numValue);
+      // Add the table to the selected container
+      let tableComponent;
+      if (isInPageSystem) {
+        tableComponent = container.append(tableWrapper.outerHTML)[0];
       } else {
-        // For formula cells, we need to get their actual computed value
-        // But don't include the formula itself in the data
-        const numValue = parseFloat(value);
-        rowData.push(isNaN(numValue) ? value : numValue);
+        tableComponent = container.append(`<div>${table.outerHTML}</div>${tableScript}`)[0];
+      }
+
+      // Set table wrapper properties for better integration
+      if (tableComponent && isInPageSystem) {
+        tableComponent.set({
+          draggable: false,
+          droppable: false,
+          editable: false,
+          selectable: false,
+          removable: false,
+          copyable: false,
+          'custom-name': `Table Wrapper ${uniqueID}`,
+          tagName: 'div'
+        });
+      }
+
+      // Add the script component for page system
+      if (isInPageSystem) {
+        const scriptComponent = container.append(tableScript)[0];
+      }
+
+      // Add the actual table component with enhanced-table type for traits
+      const actualTable = tableComponent.find('table')[0];
+      if (actualTable) {
+        actualTable.set({
+          type: 'enhanced-table',
+          'custom-name': `Enhanced Table ${uniqueID}`,
+          tagName: 'table',
+          selectable: true,
+          hoverable: true,
+          editable: true,
+          removable: true,
+          draggable: true,
+          attributes: {
+            id: `table${uniqueID}`,
+            class: 'table table-striped table-bordered',
+            width: '100%'
+          }
+        });
+      }
+
+      editor.Modal.close();
+
+      // Enable formulas in cells
+      setTimeout(() => enableFormulaEditing(`table${uniqueID}`), 500);
+
+      // Determine container type for success message
+      let containerType = 'container';
+      const pageContainer = container.closest('.page-container');
+      if (pageContainer) {
+        const pageIndex = pageContainer.getAttributes()['data-page-index'];
+        containerType = `Page ${parseInt(pageIndex) + 1}`;
+      } else if (container.getEl()?.classList.contains('main-content-area')) {
+        containerType = 'content area';
+      } else if (container.get('tagName')) {
+        containerType = container.get('tagName');
+      }
+
+      showToast(`Enhanced table with highlighting created successfully in ${containerType}!`, 'success');
+
+    } catch (error) {
+      console.error('Error creating table:', error);
+      showToast('Error creating table. Please try again.', 'error');
+    }
+  }
+
+  // Formula editing handler - EXACT COPY FROM ORIGINAL
+  function enableFormulaEditing(tableId) {
+    const iframeDoc = editor.Canvas.getDocument();
+    const parser = new iframeDoc.defaultView.formulaParser.Parser();
+
+    parser.on('callCellValue', function(cellCoord, done) {
+      let col = cellCoord.column.index;
+      let row = cellCoord.row.index;
+      let tableElem = iframeDoc.getElementById(tableId);
+      let cell = tableElem.rows[row]?.cells[col];
+      if (cell) {
+        let val = cell.getAttribute('data-formula') || cell.innerText;
+        if (val.startsWith('=')) {
+          try {
+            let res = parser.parse(val.substring(1));
+            done(res.result);
+          } catch {
+            done('#ERROR');
+          }
+        } else {
+          done(parseFloat(val) || val);
+        }
+      } else {
+        done(null);
       }
     });
-    
-    newTableData.push(rowData);
-  });
-  
-  try {
-    // Clear and reset the sheet with new data
-    if (hyperformulaInstance.getSheetNames().length > 0) {
-      hyperformulaInstance.removeSheet(0);
+
+    // Function to attach event listeners to cells
+    function attachCellListeners() {
+      const tableElem = iframeDoc.getElementById(tableId);
+      if (!tableElem) return;
+
+      tableElem.querySelectorAll('td, th').forEach(cell => {
+        // Skip if already has listeners (check for a custom attribute)
+        if (cell.hasAttribute('data-formula-enabled')) return;
+        
+        cell.contentEditable = "true";
+        cell.setAttribute('data-formula-enabled', 'true');
+
+        cell.addEventListener('focus', handleCellFocus);
+        cell.addEventListener('blur', handleCellBlur);
+      });
     }
-    hyperformulaInstance.addSheet('Table${uniqueID}');
-    hyperformulaInstance.setSheetContent(0, newTableData);
-    
-    console.log('Updated HyperFormula data:', newTableData); // Debug log
-  } catch (error) {
-    console.warn('Error updating HyperFormula data:', error);
-  }
-}
-            
-function setupFormulaHandlers(tableId) {
-  const table = document.getElementById('table' + tableId);
-  if (!table || !table.hasAttribute('data-formula-enabled')) return;
-  
-  const cells = table.querySelectorAll('.formula-cell');
-  
-  console.log('Setting up formula handlers for', cells.length, 'cells'); // Debug log
-  
-  cells.forEach((cell, index) => {
-    // Remove existing listeners to prevent duplicates
-    cell.removeEventListener('focus', handleCellFocus);
-    cell.removeEventListener('blur', handleCellBlur);
-    cell.removeEventListener('keydown', handleCellKeydown);
-    
-    // Add new listeners
-    cell.addEventListener('focus', handleCellFocus);
-    cell.addEventListener('blur', handleCellBlur);
-    cell.addEventListener('keydown', handleCellKeydown);
-    
-    // Ensure proper data attributes are set
-    if (!cell.hasAttribute('data-row') || !cell.hasAttribute('data-col')) {
-      const td = cell.closest('td');
-      const tr = td ? td.closest('tr') : null;
-      if (tr && td) {
-        const rowIndex = Array.from(tr.parentNode.children).indexOf(tr);
-        const colIndex = Array.from(tr.children).indexOf(td);
-        cell.setAttribute('data-row', rowIndex);
-        cell.setAttribute('data-col', colIndex);
-      }
+
+    function handleCellFocus() {
+      let formula = this.getAttribute('data-formula');
+      if (formula) this.innerText = formula;
     }
-  });
-}
-            
-function handleCellFocus(event) {
-  const cell = event.target;
-  cell.classList.add('editing');
-  
-  console.log('Cell focused:', cell); // Debug log
-  
-  // If cell has a formula, show the formula instead of the result
-  if (cell.hasAttribute('data-formula')) {
-    const formula = cell.getAttribute('data-formula');
-    cell.textContent = formula;
-    console.log('Showing formula:', formula); // Debug log
-  }
-  
-  // Clear any error styling
-  cell.classList.remove('error');
-  
-  // Select all text for easy editing
-  setTimeout(() => {
-    if (document.activeElement === cell) {
-      const range = document.createRange();
-      range.selectNodeContents(cell);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  }, 10);
-}
-            
-function handleCellKeydown(event) {
-  // Allow Enter to confirm formula entry and prevent default behavior
-  if (event.key === 'Enter') {
-    event.preventDefault(); // Prevent default Enter behavior
-    event.target.blur(); // This will trigger handleCellBlur
-  }
-  // Allow Escape to cancel editing
-  if (event.key === 'Escape') {
-    event.preventDefault();
-    const cell = event.target;
-    // Restore original content if it was a formula
-    if (cell.hasAttribute('data-formula')) {
-      const result = evaluateFormula(cell.getAttribute('data-formula'), 
-        parseInt(cell.getAttribute('data-row')) || 0,
-        parseInt(cell.getAttribute('data-col')) || 0
-      );
-      cell.textContent = result.error ? result.result : result.result;
-    }
-    cell.blur();
-  }
-}
-            
-function handleCellBlur(event) {
-  const cell = event.target;
-  cell.classList.remove('editing');
-  
-  const content = cell.textContent.trim();
-  const row = parseInt(cell.getAttribute('data-row')) || 0;
-  const col = parseInt(cell.getAttribute('data-col')) || 0;
-  
-  console.log('Cell blur - Content:', content, 'Row:', row, 'Col:', col); // Debug log
-  
-  if (content.startsWith('=')) {
-    // This is a formula
-    try {
-      cell.setAttribute('data-formula', content);
+
+    function handleCellBlur() {
+      const cell = this;
+      let val = cell.innerText.trim();
       
-      // Update table data first
-      updateHyperFormulaData();
-      
-      // Then evaluate the formula
-      const result = evaluateFormula(content, row, col);
-      
-      console.log('Formula result:', result); // Debug log
-      
-      if (result.error) {
-        cell.textContent = result.result;
-        cell.classList.add('error');
+      if (val.startsWith('=')) {
+        cell.setAttribute('data-formula', val);
+        try {
+          let res = parser.parse(val.substring(1));
+          cell.innerText = res.result !== undefined ? res.result : '#ERROR';
+        } catch {
+          cell.innerText = '#ERROR';
+        }
       } else {
-        // Format the result appropriately
-        let displayValue = result.result;
-        if (typeof displayValue === 'number') {
-          // Round to reasonable decimal places
-          displayValue = Math.round(displayValue * 100000) / 100000;
-        }
-        cell.textContent = displayValue;
-        cell.classList.remove('error');
+        cell.removeAttribute('data-formula');
+        cell.innerText = val;
       }
-      
-      // Update other formula cells that might depend on this one
-      setTimeout(() => updateDependentFormulas(), 100);
-      
-    } catch (error) {
-      console.warn('Formula error:', error);
-      cell.textContent = '#ERROR';
-      cell.classList.add('error');
-    }
-  } else {
-    // Regular text/number, remove formula data
-    cell.removeAttribute('data-formula');
-    cell.classList.remove('error');
-    
-    // Update HyperFormula data and recalculate dependent formulas
-    updateHyperFormulaData();
-    setTimeout(() => updateDependentFormulas(), 100);
-  }
-}
-            
-            // Update all formula cells when data changes
-function updateDependentFormulas() {
-  const table = document.getElementById('table${uniqueID}');
-  if (!table) return;
-  
-  const formulaCells = table.querySelectorAll('.formula-cell[data-formula]');
-  
-  console.log('Updating', formulaCells.length, 'dependent formulas'); // Debug log
-  
-  formulaCells.forEach(cell => {
-    if (cell.classList.contains('editing')) return; // Skip currently editing cell
-    
-    const formula = cell.getAttribute('data-formula');
-    const row = parseInt(cell.getAttribute('data-row')) || 0;
-    const col = parseInt(cell.getAttribute('data-col')) || 0;
-    
-    if (formula && formula.startsWith('=')) {
-      try {
-        const result = evaluateFormula(formula, row, col);
-        
-        if (result.error) {
-          cell.textContent = result.result;
-          cell.classList.add('error');
-        } else {
-          // Format the result appropriately
-          let displayValue = result.result;
-          if (typeof displayValue === 'number') {
-            displayValue = Math.round(displayValue * 100000) / 100000;
-          }
-          cell.textContent = displayValue;
-          cell.classList.remove('error');
-        }
-      } catch (error) {
-        cell.textContent = '#ERROR';
-        cell.classList.add('error');
-      }
-    }
-  });
-}
 
-            
-            // Expose functions globally for access
-            window.setupFormulaHandlers = setupFormulaHandlers;
-            window.handleCellFocus = handleCellFocus;
-            window.handleCellBlur = handleCellBlur;
-            window.handleCellKeydown = handleCellKeydown;
-            window.evaluateFormula = evaluateFormula;
-            window.updateDependentFormulas = updateDependentFormulas;
-            
-            initTable();
-          })();
-        </script>`;
-      
-      try {
-        // Add the table to the selected container
-        const tableComponent = container.append(tableWrapper.outerHTML)[0];
-        
-        // Set table wrapper properties for better integration
-        if (tableComponent) {
-          tableComponent.set({
-            draggable: false,
-            droppable: false,
-            editable: false,
-            selectable: false,
-            removable: false,
-            copyable: false,
-            'custom-name': `Table Wrapper ${uniqueID}`,
-            tagName: 'div'
-          });
-        }
-        
-        // Add the script component
-        const scriptComponent = container.append(tableScript)[0];
-        
-        // Add the actual table component with enhanced-table type for traits
-        const actualTable = tableComponent.find('table')[0];
-        if (actualTable) {
-          actualTable.set({
-            type: 'enhanced-table',
-            'custom-name': `Enhanced Table ${uniqueID}`,
-            tagName: 'table',
-            selectable: true,
-            hoverable: true,
-            editable: true,
-            removable: true,
-            draggable: true,
-            attributes: {
-              id: `table${uniqueID}`,
-              class: 'table table-striped table-bordered',
-              width: '100%'
-            }
-          });
-          
-          actualTable.addStyle({
-            'cursor': 'pointer',
-            'user-select': 'none'
-          });
-        }
-        
-        editor.Modal.close();
-        
-        // Clean up temporary elements
-        if (tableWrapper.parentNode) {
-          tableWrapper.parentNode.removeChild(tableWrapper);
-        }
-        
-        // Determine container type for success message
-        let containerType = 'container';
-        const pageContainer = container.closest('.page-container');
-        if (pageContainer) {
-          const pageIndex = pageContainer.getAttributes()['data-page-index'];
-          containerType = `Page ${parseInt(pageIndex) + 1}`;
-        } else if (container.getEl()?.classList.contains('main-content-area')) {
-          containerType = 'content area';
-        } else if (container.get('tagName')) {
-          containerType = container.get('tagName');
-        }
-        
-        const formulaMessage = tblFormula === 'true' ? ' with Excel-like formula support' : '';
-        showToast(`Enhanced table${formulaMessage} created successfully in ${containerType}!`, 'success');
-        
-        // If in page system, trigger any overflow checking
-        if (pageContainer && window.pageSetupManager) {
-          setTimeout(() => {
-            if (window.pageSetupManager.checkContentOverflow) {
-              window.pageSetupManager.checkContentOverflow();
-            }
-          }, 1000);
-        }
-        
-      } catch (error) {
-        console.error('Error creating table:', error);
-        showToast('Error creating table. Please try again.', 'error');
-      }
-    };
-  }  
-   
-  // Event listener when a component drag ends - enhanced for page system
-  editor.on('component:drag:end', function (event) { 
-    var selectedComponent = editor.getSelected();
-    if (selectedComponent) {
-      var childComponents = selectedComponent.components();
-      if (childComponents.length > 0) {
-        var firstChild = childComponents.models[0]; 
-        var childTagName = firstChild.get('tagName');  
-        if (childTagName === 'table') {  
-          // Handle table in page system
-          const pageContainer = selectedComponent.closest('.page-container');
-          if (pageContainer) {
-            console.log('Table moved within page system, updating layout...');
-            // Give time for the table to settle before updating
-            setTimeout(() => {
-              var htmlContent = editor.getHtml();  
-              var css = editor.getCss();    
-              updateComponents(editor.getHtml()); 
-              var modifiedHtml = addInlineCssToCaptions(htmlContent); 
-              setTimeout(() => {  
-                editor.setComponents(modifiedHtml);  
-                editor.setStyle(css);  
-              }, 500); 
-            }, 200);
-          } else {
-            // Original behavior for non-page system
-            var htmlContent = editor.getHtml();  
-            var css = editor.getCss();    
-            updateComponents(editor.getHtml()); 
-            var modifiedHtml = addInlineCssToCaptions(htmlContent); 
-            setTimeout(() => {  
-              editor.setComponents(modifiedHtml);  
-              editor.setStyle(css);  
-            }, 1000); 
-          }
-        } 
-      }  
-    } 
-  });  
+      // 🔹 Update GrapesJS component WITHOUT replacing HTML
+      updateComponentContent(tableId);
+    }
 
-  // Function to update the components without duplication
-  function updateComponents(htmlContent) {
-    editor.DomComponents.clear();  
-    editor.setComponents(htmlContent); 
-    editor.UndoManager.add(editor.getComponents());
+    // Function to update component content without destroying DOM structure
+    function updateComponentContent(tableId) {
+      // We don't need to sync back to GrapesJS component for formula calculations
+      // The visual updates in the iframe are sufficient for user interaction
+      // GrapesJS will capture the final state when the user saves or exports
+      return;
+    }
+
+    // Initial attachment of listeners
+    attachCellListeners();
+
+    // Re-attach listeners when component is updated/re-rendered
+    editor.on('component:update', (component) => {
+      if (component.getId() === tableId || component.find(`#${tableId}`).length > 0) {
+        // Small delay to ensure DOM is updated
+        setTimeout(() => {
+          attachCellListeners();
+        }, 100);
+      }
+    });
+
+    // Also listen for canvas updates
+    editor.on('canvas:frame:load', () => {
+      setTimeout(() => {
+        attachCellListeners();
+      }, 100);
+    });
   }
 
-  // Event listener for undo and redo actions
-  editor.on('undo redo', function(eventType) {
-    if (eventType === 'undo') {
-      editor.UndoManager.undo();
-      updateComponents(editor.getHtml());
-    } else if (eventType === 'redo') {
-      editor.UndoManager.redo();
-      updateComponents(editor.getHtml());
-    }  
-  }); 
-
-  // Add captionSide Top css in Caption Tag
-  function addInlineCssToCaptions(html) {
-    var doc = new DOMParser().parseFromString(html, 'text/html');
-    var captionTags = doc.querySelectorAll('caption');
-    captionTags.forEach(function(captionTag) { 
-      captionTag.style.captionSide = 'top'; 
-    }); 
-    return doc.documentElement.outerHTML;
-  }
-
-  // Custom command to add table to selected component
-  editor.Commands.add('add-table-to-selected', {
-    run(editor) {
-      addTable();
-    }
-  });
-
-  // Add a toolbar button or context menu option (optional)
+  // Enhanced event listener for table selection to apply highlighting traits
   editor.on('component:selected', function(component) {
-    if (component && component.get('droppable') !== false) {
-      // Could add custom toolbar buttons here for quick table insertion
+    if (component && component.get('tagName') === 'table' && component.getId() && component.getId().startsWith('table')) {
+      // Ensure this is recognized as an enhanced table
+      if (component.get('type') !== 'enhanced-table') {
+        component.set('type', 'enhanced-table');
+      }
+      
+      // Apply any existing highlighting conditions
+      const condition = component.get('highlight-condition');
+      const color = component.get('highlight-color');
+      
+      if (condition) {
+        setTimeout(() => {
+          applyHighlighting(component.getId(), condition, color);
+        }, 100);
+      }
     }
   });
 
-  // Cleanup function for page system integration
-  editor.on('component:remove', function(component) {
-    // Clean up any DataTable instances when components are removed
-    try {
-      if (component && typeof component.getEl === 'function') {
-        const element = component.getEl();
-        if (element && typeof element.querySelectorAll === 'function') {
-          const tables = element.querySelectorAll('table[id^="table"]');
-          tables.forEach(table => {
-            const tableId = table.id;
-            if (window.pageTableInstances && window.pageTableInstances[tableId]) {
-              try {
-                window.pageTableInstances[tableId].destroy();
-                delete window.pageTableInstances[tableId];
-              } catch (error) {
-                console.warn('Error destroying DataTable:', error);
-              }
-            }
-          });
-        }
+  // Global function to update highlighting for external access
+  window.updateTableHighlighting = function(tableId, condition, color) {
+    applyHighlighting(tableId, condition, color);
+    
+    // Find the table component and trigger update
+    const canvasBody = editor.Canvas.getBody();
+    const tableEl = canvasBody.querySelector(`#${tableId}`);
+    if (tableEl) {
+      const tableComponent = editor.DomComponents.getComponentFromElement(tableEl);
+      if (tableComponent) {
+        editor.trigger('component:update', tableComponent);
       }
-    } catch (error) {
-      console.warn('Error in table cleanup:', error);
     }
-  });
+  };
 
   // Page system integration - ensure tables work properly when pages are created/modified
   editor.on('component:add component:update', function(component) {
@@ -1538,23 +886,29 @@ function updateDependentFormulas() {
     }
   });
 
-  // Enhanced event listener for table selection to apply highlighting traits
-  editor.on('component:selected', function(component) {
-    if (component && component.get('tagName') === 'table' && component.getId() && component.getId().startsWith('table')) {
-      // Ensure this is recognized as an enhanced table
-      if (component.get('type') !== 'enhanced-table') {
-        component.set('type', 'enhanced-table');
+  // Cleanup function for page system integration
+  editor.on('component:remove', function(component) {
+    // Clean up any DataTable instances when components are removed
+    try {
+      if (component && typeof component.getEl === 'function') {
+        const element = component.getEl();
+        if (element && typeof element.querySelectorAll === 'function') {
+          const tables = element.querySelectorAll('table[id^="table"]');
+          tables.forEach(table => {
+            const tableId = table.id;
+            if (window.pageTableInstances && window.pageTableInstances[tableId]) {
+              try {
+                window.pageTableInstances[tableId].destroy();
+                delete window.pageTableInstances[tableId];
+              } catch (error) {
+                console.warn('Error destroying DataTable:', error);
+              }
+            }
+          });
+        }
       }
-      
-      // Apply any existing highlighting conditions
-      const condition = component.get('highlight-condition');
-      const color = component.get('highlight-color');
-      
-      if (condition) {
-        setTimeout(() => {
-          applyHighlighting(component.getId(), condition, color);
-        }, 100);
-      }
+    } catch (error) {
+      console.warn('Error in table cleanup:', error);
     }
   });
 
@@ -1616,20 +970,12 @@ function updateDependentFormulas() {
     window.pageTableInstances = {};
   }
 
-  // Global function to update highlighting for external access
-  window.updateTableHighlighting = function(tableId, condition, color) {
-    applyHighlighting(tableId, condition, color);
-    
-    // Find the table component and trigger update
-    const canvasBody = editor.Canvas.getBody();
-    const tableEl = canvasBody.querySelector(`#${tableId}`);
-    if (tableEl) {
-      const tableComponent = editor.DomComponents.getComponentFromElement(tableEl);
-      if (tableComponent) {
-        editor.trigger('component:update', tableComponent);
-      }
+  // Custom command to add table to selected component
+  editor.Commands.add('add-table-to-selected', {
+    run(editor) {
+      addTable();
     }
-  };
+  });
 
-  console.log('Enhanced Custom Table function initialized with Excel-like formula support, highlighting traits and page system integration');
+  console.log('Enhanced Custom Table function initialized with highlighting traits and page system integration');
 }
