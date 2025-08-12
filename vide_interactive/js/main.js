@@ -115,6 +115,243 @@ const editor = InteractiveDesigner.init({
   },
 });
 
+// // Add CSS for fixed A4 page size with visible boundary in editor too
+// const styleEl = document.createElement("style");
+// styleEl.innerHTML = `
+//   .gjs-page {
+//     width: 210mm;
+//     height: 297mm;
+//     border: 1px solid #ccc;
+//     margin: auto;
+//     padding: 10mm;
+//     box-sizing: border-box;
+//     background: white;
+//     page-break-after: always;
+//   }
+
+//   @media print {
+//     body * { visibility: hidden; }
+//     .print-container, .print-container * { visibility: visible; }
+//     .print-container { position: absolute; top: 0; left: 0; }
+//   }
+// `;
+// document.head.appendChild(styleEl);
+
+// // Ensure all pages get the gjs-page class and show A4 in editor
+// editor.Pages.getAll().forEach(page => {
+//   page.getMainComponent().addClass('gjs-page');
+// });
+// editor.on('page:add', page => {
+//   page.getMainComponent().addClass('gjs-page');
+// });
+
+// // Max A4 height in pixels (approx.)
+// const MAX_PAGE_HEIGHT_PX = 297 * 3.78 - (20 * 3.78); // height - padding
+
+// // Function to check and split overflowing content into a new page
+// function splitIfOverflow(page) {
+//   const iframe = editor.Canvas.getFrameEl();
+//   const doc = iframe.contentDocument;
+//   const el = doc.querySelector('.gjs-page');
+//   const mainComp = page.getMainComponent();
+
+//   if (el && el.scrollHeight > MAX_PAGE_HEIGHT_PX) {
+//     const newPage = editor.Pages.add({ name: `Page ${editor.Pages.getAll().length + 1}` });
+//     const newMain = newPage.getMainComponent();
+//     newMain.addClass('gjs-page');
+
+//     // Move overflowing components
+//     while (el.scrollHeight > MAX_PAGE_HEIGHT_PX && mainComp.components().length > 1) {
+//       const lastChild = mainComp.components().pop();
+//       newMain.components().add(lastChild);
+//     }
+
+//     // Automatically switch to the new page so user continues there
+//     editor.Pages.select(newPage);
+//     return newPage;
+//   }
+//   return page;
+// }
+
+// // Live split while editing
+// editor.on('component:update', () => {
+//   const currentPage = editor.Pages.getSelected();
+//   const nextPage = splitIfOverflow(currentPage);
+//   if (nextPage !== currentPage) {
+//     // Focus remains on new page for smooth continuation
+//     editor.Pages.select(nextPage);
+//   }
+// });
+
+// // Add Pages Manager button
+// editor.Panels.addButton('options', {
+//   id: 'open-pages-manager',
+//   className: 'fa fa-copy',
+//   attributes: { title: 'Pages Manager' },
+//   command: 'open-pages-manager'
+// });
+
+// // Add Print All Pages button
+// editor.Panels.addButton('options', {
+//   id: 'print-all-pages',
+//   className: 'fa fa-print',
+//   attributes: { title: 'Print All Pages' },
+//   command: 'print-all-pages'
+// });
+
+// // Command to open Pages Manager
+// editor.Commands.add('open-pages-manager', {
+//   run(ed) {
+//     const pages = ed.Pages.getAll();
+//     let html = `<div style="font-family: sans-serif;">`;
+
+//     pages.forEach((page, idx) => {
+//       const name = page.get('name') || `Page ${idx + 1}`;
+//       const selected = page === ed.Pages.getSelected() ? ' (current)' : '';
+//       html += `
+//         <div style="margin-bottom: 8px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+//           <strong>${name}${selected}</strong><br>
+//           <button data-action="select" data-id="${page.getId()}">Select</button>
+//           <button data-action="rename" data-id="${page.getId()}">Rename</button>
+//           <button data-action="delete" data-id="${page.getId()}">Delete</button>
+//         </div>
+//       `;
+//     });
+
+//     html += `
+//       <hr>
+//       <button id="add-page-btn">+ Add New Page</button>
+//     </div>`;
+
+//     ed.Modal.open({
+//       title: 'Pages Manager',
+//       content: html
+//     });
+
+//     const modalEl = ed.Modal.getContentEl();
+
+//     modalEl.querySelectorAll('button[data-action]').forEach(btn => {
+//       btn.addEventListener('click', () => {
+//         const action = btn.dataset.action;
+//         const pageId = btn.dataset.id;
+//         const page = ed.Pages.get(pageId);
+
+//         if (action === 'select') {
+//           ed.Pages.select(page);
+//         }
+//         else if (action === 'rename') {
+//           const newName = prompt('Enter new page name:', page.get('name'));
+//           if (newName) page.set('name', newName);
+//         }
+//         else if (action === 'delete') {
+//           if (confirm('Delete this page?')) ed.Pages.remove(page);
+//         }
+
+//         ed.Commands.run('open-pages-manager');
+//       });
+//     });
+
+//     modalEl.querySelector('#add-page-btn').addEventListener('click', () => {
+//       const name = prompt('Enter page name:', `Page ${pages.length + 1}`);
+//       ed.Pages.add({ name: name || `Page ${pages.length + 1}` });
+//       ed.Commands.run('open-pages-manager');
+//     });
+//   }
+// });
+
+// // Print all pages command
+// editor.Commands.add('print-all-pages', {
+//   run(ed) {
+//     const pages = ed.Pages.getAll();
+//     const printContainer = document.createElement('div');
+//     printContainer.classList.add('print-container');
+
+//     pages.forEach(page => {
+//       const html = page.getMainComponent().toHTML();
+//       const pageDiv = document.createElement('div');
+//       pageDiv.classList.add('gjs-page');
+//       pageDiv.innerHTML = html;
+//       printContainer.appendChild(pageDiv);
+//     });
+
+//     document.body.appendChild(printContainer);
+//     window.print();
+//     document.body.removeChild(printContainer);
+//   }
+// });
+
+// // Function to insert JSON data and auto-split into pages
+// function insertJsonData(data) {
+//   let currentPage = editor.Pages.getSelected();
+//   let currentContainer = currentPage.getMainComponent();
+
+//   data.forEach(item => {
+//     currentContainer.append(`<p>${item.text}</p>`);
+//     const nextPage = splitIfOverflow(currentPage);
+//     currentPage = nextPage; // always continue on new page if split
+//     currentContainer = currentPage.getMainComponent();
+//   });
+
+//   // Make sure editor shows the last page after insertion
+//   editor.Pages.select(currentPage);
+// }
+// // Export all pages into one HTML looking exactly like print
+// editor.on('run:export-template', () => {
+//   const pages = editor.Pages.getAll();
+
+//   // Your A4 CSS styling for HTML + print
+//   const pageCSS = `
+//     body {
+//       background: #e5e5e5;
+//       padding: 20px 0;
+//     }
+//     .gjs-page {
+//       width: 210mm;
+//       height: 297mm;
+//       border: 1px solid #ccc;
+//       margin: auto;
+//       padding: 10mm;
+//       box-sizing: border-box;
+//       background: white;
+//       page-break-after: always;
+//     }
+//     @media print {
+//       body {
+//         background: white;
+//         padding: 0;
+//       }
+//       .gjs-page {
+//         border: none;
+//         margin: 0;
+//         box-shadow: none;
+//         page-break-after: always;
+//       }
+//     }
+//   `;
+
+//   let allPagesHtml = '';
+//   pages.forEach(page => {
+//     allPagesHtml += `<div class="gjs-page">${page.getMainComponent().toHTML()}</div>`;
+//   });
+
+//   const fullHtml = `
+//     <!DOCTYPE html>
+//     <html>
+//     <head>
+//       <meta charset="utf-8">
+//       <style>${pageCSS}</style>
+//     </head>
+//     <body>
+//       ${allPagesHtml}
+//     </body>
+//     </html>
+//   `;
+
+//   // Create and download HTML file
+//   const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+//   saveAs(blob, 'all-pages.html');
+// });
+
 // // Initialize the page manager after editor is loaded
 let pageManager = null;
 let pageSetupManager = null;
@@ -329,13 +566,99 @@ function generatePrintDialog() {
     // Process HTML to handle page breaks properly
     const processedHTML = processPageBreaks(editorHTML);
 
-    // Enhanced function to convert Bootstrap classes and preserve table structure with formula support
+    // Enhanced function to convert Bootstrap classes and preserve ALL table styling
     function convertBootstrapToInlineStyles(html) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
       
-      // Get the current iframe document to access formula data
+      // Get the current iframe document to access formula data and styling
       const currentIframeDoc = editor.Canvas.getDocument();
+      
+      // Helper function to extract all computed styles from an element
+      function extractAllStyles(sourceElement, targetElement) {
+        if (!sourceElement || !targetElement) return;
+        
+        // Get computed styles from the source element
+        const computedStyle = window.getComputedStyle(sourceElement);
+        const inlineStyle = sourceElement.style;
+        
+        // Preserve all visual styles
+        const stylesToPreserve = [
+          'background-color', 'background', 'background-image', 'background-repeat', 'background-position', 'background-size',
+          'border', 'border-top', 'border-right', 'border-bottom', 'border-left',
+          'border-color', 'border-style', 'border-width',
+          'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+          'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
+          'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+          'border-radius', 'border-top-left-radius', 'border-top-right-radius', 'border-bottom-left-radius', 'border-bottom-right-radius',
+          'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+          'text-align', 'vertical-align', 'text-decoration', 'text-transform',
+          'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+          'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+          'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+          'opacity', 'box-shadow', 'text-shadow', 'border-collapse'
+        ];
+        
+        // First, copy inline styles (highest priority)
+        for (let i = 0; i < inlineStyle.length; i++) {
+          const property = inlineStyle[i];
+          const value = inlineStyle.getPropertyValue(property);
+          const priority = inlineStyle.getPropertyPriority(property);
+          if (value) {
+            targetElement.style.setProperty(property, value, priority || 'important');
+          }
+        }
+        
+        // Then, copy computed styles for important visual properties
+        stylesToPreserve.forEach(property => {
+          const value = computedStyle.getPropertyValue(property);
+          if (value && value !== 'initial' && value !== 'inherit' && value !== 'auto' && value !== 'none') {
+            // Only set if not already set by inline styles
+            if (!inlineStyle.getPropertyValue(property)) {
+              targetElement.style.setProperty(property, value, 'important');
+            }
+          }
+        });
+
+        // Special handling for JSON tables with default black borders
+        if (sourceElement.tagName === 'TABLE' || sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
+          // Check if this is a JSON table (has data attributes or is within custom_table)
+          const isJsonTable = sourceElement.hasAttribute('data-display-value') || 
+                             sourceElement.hasAttribute('data-formula') ||
+                             sourceElement.closest('[data-i_designer-type="custom_table"]');
+          
+          if (isJsonTable) {
+            // Preserve the default JSON table styling
+            if (sourceElement.tagName === 'TABLE') {
+              targetElement.style.setProperty('border-collapse', 'collapse', 'important');
+              if (!targetElement.style.border) {
+                targetElement.style.setProperty('border', '1px solid #000', 'important');
+              }
+            }
+            
+            if (sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
+              if (!targetElement.style.border) {
+                targetElement.style.setProperty('border', '1px solid #000', 'important');
+              }
+              if (!targetElement.style.padding) {
+                targetElement.style.setProperty('padding', '8px', 'important');
+              }
+              if (!targetElement.style.textAlign) {
+                targetElement.style.setProperty('text-align', 'left', 'important');
+              }
+            }
+            
+            if (sourceElement.tagName === 'TH') {
+              if (!targetElement.style.fontWeight) {
+                targetElement.style.setProperty('font-weight', 'bold', 'important');
+              }
+              if (!targetElement.style.backgroundColor) {
+                targetElement.style.setProperty('background-color', '#e0e0e0', 'important');
+              }
+            }
+          }
+        }
+      }
       
       // First, handle all custom tables and DataTables
       const allTables = tempDiv.querySelectorAll('table, [id*="table"], [data-i_designer-type="custom_table"] table');
@@ -349,7 +672,7 @@ function generatePrintDialog() {
           containerId = parentContainer.id;
         }
         
-        // Find corresponding table in current iframe to get current data
+        // Find corresponding table in current iframe to get current data AND styling
         let sourceTable = null;
         let sourceContainer = null;
         
@@ -362,6 +685,18 @@ function generatePrintDialog() {
           } else if (tableId) {
             sourceTable = currentIframeDoc.getElementById(tableId);
           }
+          
+          // For JSON tables, also try to find by table ID within custom containers
+          if (!sourceTable && tableId) {
+            const allCustomContainers = currentIframeDoc.querySelectorAll('[data-i_designer-type="custom_table"]');
+            allCustomContainers.forEach(container => {
+              const innerTable = container.querySelector(`#${tableId}`);
+              if (innerTable) {
+                sourceTable = innerTable;
+                sourceContainer = container;
+              }
+            });
+          }
         }
         
         // Remove DataTables wrapper and controls
@@ -373,22 +708,41 @@ function generatePrintDialog() {
           parent.removeChild(wrapper);
         }
         
-        // Clean up table classes and add print-friendly classes
-        table.className = 'table table-bordered print-table';
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.pageBreakInside = 'auto';
-        table.style.border = '1px solid #333';
+        // Preserve table-level styling from source
+        if (sourceTable) {
+          extractAllStyles(sourceTable, table);
+        }
         
-        // Process table headers
+        // Ensure basic table structure for print
+        table.className = (table.className || '') + ' table table-bordered print-table';
+        table.style.setProperty('width', '100%', 'important');
+        table.style.setProperty('border-collapse', 'collapse', 'important');
+        table.style.setProperty('page-break-inside', 'auto', 'important');
+        
+        // Process table headers with style preservation
         const headers = table.querySelectorAll('thead th, thead td');
         headers.forEach((header, headerIndex) => {
-          header.style.border = '1px solid #333';
-          header.style.padding = '8px';
-          header.style.backgroundColor = '#f2f2f2';
-          header.style.fontWeight = 'bold';
-          header.style.textAlign = 'left';
-          header.style.verticalAlign = 'middle';
+          // Find corresponding source header
+          let sourceHeader = null;
+          if (sourceTable) {
+            const sourceHeaderRow = sourceTable.querySelector('thead tr');
+            if (sourceHeaderRow && sourceHeaderRow.cells[headerIndex]) {
+              sourceHeader = sourceHeaderRow.cells[headerIndex];
+            }
+          }
+          
+          // Preserve header styling
+          if (sourceHeader) {
+            extractAllStyles(sourceHeader, header);
+          } else {
+            // Apply default JSON table header styling if no source found
+            header.style.setProperty('border', '1px solid #000', 'important');
+            header.style.setProperty('padding', '8px', 'important');
+            header.style.setProperty('text-align', 'left', 'important');
+            header.style.setProperty('vertical-align', 'middle', 'important');
+            header.style.setProperty('font-weight', 'bold', 'important');
+            header.style.setProperty('background-color', '#e0e0e0', 'important');
+          }
           
           // Handle header content - check for divs, spans, or direct text
           const headerDiv = header.querySelector('div');
@@ -396,18 +750,20 @@ function generatePrintDialog() {
           
           let content = '';
           
-          if (sourceTable) {
-            const sourceHeaderRow = sourceTable.querySelector('thead tr');
-            if (sourceHeaderRow && sourceHeaderRow.cells[headerIndex]) {
-              const sourceHeader = sourceHeaderRow.cells[headerIndex];
-              // Get the display value from the source
-              const displaySpan = sourceHeader.querySelector('.cell-display');
-              const displayValue = sourceHeader.getAttribute('data-display-value');
-              
-              if (displaySpan && displaySpan.textContent) {
-                content = displaySpan.textContent;
-              } else if (displayValue) {
-                content = displayValue;
+          if (sourceHeader) {
+            // Get the display value from the source
+            const displaySpan = sourceHeader.querySelector('.cell-display');
+            const displayValue = sourceHeader.getAttribute('data-display-value');
+            
+            if (displaySpan && displaySpan.textContent) {
+              content = displaySpan.textContent;
+            } else if (displayValue) {
+              content = displayValue;
+            } else {
+              // For JSON tables, extract from div content
+              const sourceDiv = sourceHeader.querySelector('div');
+              if (sourceDiv) {
+                content = sourceDiv.textContent || sourceDiv.innerText || '';
               } else {
                 content = sourceHeader.textContent || sourceHeader.innerText || '';
               }
@@ -428,74 +784,109 @@ function generatePrintDialog() {
           header.innerHTML = content.trim();
         });
         
-        // Process table body cells with enhanced data extraction
+        // Process table body cells with enhanced data extraction AND style preservation
         const rows = table.querySelectorAll('tbody tr');
         rows.forEach((row, rowIndex) => {
-          row.style.pageBreakInside = 'avoid';
-          row.style.breakInside = 'avoid';
+          // Preserve row styling
+          let sourceRow = null;
+          if (sourceTable) {
+            const sourceBodyRows = sourceTable.querySelectorAll('tbody tr');
+            if (sourceBodyRows[rowIndex]) {
+              sourceRow = sourceBodyRows[rowIndex];
+              extractAllStyles(sourceRow, row);
+            }
+          }
+          
+          row.style.setProperty('page-break-inside', 'avoid', 'important');
+          row.style.setProperty('break-inside', 'avoid', 'important');
           
           const cells = row.querySelectorAll('td, th');
           cells.forEach((cell, cellIndex) => {
-            cell.style.border = '1px solid #333';
-            cell.style.padding = '8px';
-            cell.style.textAlign = 'left';
-            cell.style.verticalAlign = 'middle';
-            cell.style.wordBreak = 'break-word';
+            let sourceCell = null;
+            if (sourceRow && sourceRow.cells[cellIndex]) {
+              sourceCell = sourceRow.cells[cellIndex];
+              // Preserve all cell styling
+              extractAllStyles(sourceCell, cell);
+            } else {
+              // Apply default JSON table cell styling if no source found
+              cell.style.setProperty('border', '1px solid #000', 'important');
+              cell.style.setProperty('padding', '8px', 'important');
+              cell.style.setProperty('text-align', 'left', 'important');
+              cell.style.setProperty('vertical-align', 'middle', 'important');
+            }
+            
+            // Ensure basic print cell styling (only if not already styled)
+            if (!cell.style.border) {
+              cell.style.setProperty('border', '1px solid #333', 'important');
+            }
+            if (!cell.style.padding) {
+              cell.style.setProperty('padding', '8px', 'important');
+            }
+            if (!cell.style.textAlign) {
+              cell.style.setProperty('text-align', 'left', 'important');
+            }
+            if (!cell.style.verticalAlign) {
+              cell.style.setProperty('vertical-align', 'middle', 'important');
+            }
+            cell.style.setProperty('word-break', 'break-word', 'important');
             
             let content = '';
             
             // Try to get data from source table first
-            if (sourceTable) {
-              const sourceBodyRows = sourceTable.querySelectorAll('tbody tr');
-              if (sourceBodyRows[rowIndex] && sourceBodyRows[rowIndex].cells[cellIndex]) {
-                const sourceCell = sourceBodyRows[rowIndex].cells[cellIndex];
+            if (sourceCell) {
+              // For JSON tables, prioritize data-display-value attribute
+              const displayValue = sourceCell.getAttribute('data-display-value');
+              const formulaValue = sourceCell.getAttribute('data-formula');
+              const displaySpan = sourceCell.querySelector('.cell-display');
+              
+              if (displayValue !== null && displayValue !== '') {
+                content = displayValue;
+              } else if (displaySpan && displaySpan.textContent.trim()) {
+                content = displaySpan.textContent.trim();
+              } else if (formulaValue && !formulaValue.startsWith('=')) {
+                content = formulaValue;
+              } else {
+                // Get text content but exclude input values
+                const inputs = sourceCell.querySelectorAll('input');
+                let cellText = sourceCell.textContent || sourceCell.innerText || '';
                 
-                // Priority order: display span > data attribute > text content
-                const displaySpan = sourceCell.querySelector('.cell-display');
-                const displayValue = sourceCell.getAttribute('data-display-value');
-                const formulaValue = sourceCell.getAttribute('data-formula');
-                
-                if (displaySpan && displaySpan.textContent.trim()) {
-                  content = displaySpan.textContent.trim();
-                } else if (displayValue && displayValue.trim()) {
-                  content = displayValue.trim();
-                } else {
-                  // Get text content but exclude input values
-                  const inputs = sourceCell.querySelectorAll('input');
-                  let cellText = sourceCell.textContent || sourceCell.innerText || '';
-                  
-                  // Remove input values from text content
-                  inputs.forEach(input => {
-                    if (input.value && cellText.includes(input.value)) {
-                      cellText = cellText.replace(input.value, '').trim();
-                    }
-                  });
-                  
-                  content = cellText;
-                }
-                
-                // If we have a formula but no display value, try to get calculated result
-                if (!content && formulaValue && formulaValue.startsWith('=')) {
-                  // Look for any text that's not the formula itself
-                  const allText = sourceCell.textContent || sourceCell.innerText || '';
-                  if (allText && allText !== formulaValue) {
-                    content = allText;
+                // Remove input values from text content
+                inputs.forEach(input => {
+                  if (input.value && cellText.includes(input.value)) {
+                    cellText = cellText.replace(input.value, '').trim();
                   }
+                });
+                
+                content = cellText;
+              }
+              
+              // If we have a formula, try to get calculated result
+              if (!content && formulaValue && formulaValue.startsWith('=')) {
+                // Look for any text that's not the formula itself
+                const allText = sourceCell.textContent || sourceCell.innerText || '';
+                if (allText && allText !== formulaValue) {
+                  content = allText;
                 }
               }
             }
             
             // Fallback to current cell content if no source data found
             if (!content) {
-              const cellDiv = cell.querySelector('div');
-              const cellSpan = cell.querySelector('.cell-display, span');
-              
-              if (cellDiv) {
-                content = cellDiv.textContent || cellDiv.innerHTML;
-              } else if (cellSpan) {
-                content = cellSpan.textContent || cellSpan.innerHTML;
+              // Check for data attributes first (common in JSON tables)
+              const displayValue = cell.getAttribute('data-display-value');
+              if (displayValue !== null && displayValue !== '') {
+                content = displayValue;
               } else {
-                content = cell.textContent || cell.innerHTML;
+                const cellDiv = cell.querySelector('div');
+                const cellSpan = cell.querySelector('.cell-display, span');
+                
+                if (cellDiv) {
+                  content = cellDiv.textContent || cellDiv.innerHTML;
+                } else if (cellSpan) {
+                  content = cellSpan.textContent || cellSpan.innerHTML;
+                } else {
+                  content = cell.textContent || cell.innerHTML;
+                }
               }
             }
             
@@ -510,27 +901,40 @@ function generatePrintDialog() {
             inputs.forEach(input => input.remove());
             
             // Remove formula indicators for print
-            cell.style.position = 'relative';
+            cell.style.setProperty('position', 'relative', 'important');
             cell.removeAttribute('data-formula');
             cell.removeAttribute('data-display-value');
+            cell.removeAttribute('data-cell-ref');
           });
         });
         
         // Ensure thead is properly displayed
         const thead = table.querySelector('thead');
         if (thead) {
-          thead.style.display = 'table-header-group';
-          thead.style.pageBreakAfter = 'avoid';
+          if (sourceTable) {
+            const sourceThead = sourceTable.querySelector('thead');
+            if (sourceThead) {
+              extractAllStyles(sourceThead, thead);
+            }
+          }
+          thead.style.setProperty('display', 'table-header-group', 'important');
+          thead.style.setProperty('page-break-after', 'avoid', 'important');
         }
         
         // Ensure tbody is properly displayed
         const tbody = table.querySelector('tbody');
         if (tbody) {
-          tbody.style.display = 'table-row-group';
+          if (sourceTable) {
+            const sourceTbody = sourceTable.querySelector('tbody');
+            if (sourceTbody) {
+              extractAllStyles(sourceTbody, tbody);
+            }
+          }
+          tbody.style.setProperty('display', 'table-row-group', 'important');
         }
       });
       
-      // Process all elements with Bootstrap classes
+      // Process all elements with Bootstrap classes (keep existing Bootstrap logic)
       const allElements = tempDiv.querySelectorAll('*');
       
       allElements.forEach(element => {
@@ -600,17 +1004,20 @@ function generatePrintDialog() {
           computedStyles.display = 'block';
         }
         
-        // Apply computed styles as inline styles
+        // Apply computed styles as inline styles (only if not conflicting with preserved styles)
         Object.keys(computedStyles).forEach(property => {
           const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
-          element.style.setProperty(cssProperty, computedStyles[property], 'important');
+          // Only apply if the element doesn't already have this style set
+          if (!element.style.getPropertyValue(cssProperty)) {
+            element.style.setProperty(cssProperty, computedStyles[property], 'important');
+          }
         });
       });
       
       return tempDiv.innerHTML;
     }
 
-    // Convert Bootstrap classes to inline styles
+    // Convert Bootstrap classes to inline styles with enhanced table preservation
     const processedHTMLWithInlineStyles = convertBootstrapToInlineStyles(processedHTML);
 
     // Prepare the print content with comprehensive print support
@@ -646,7 +1053,7 @@ function generatePrintDialog() {
             size: auto !important;
           }
           
-          /* Enhanced table print styles */
+          /* Enhanced table print styles with FULL style preservation */
           @media print {
             * {
               -webkit-print-color-adjust: exact !important;
@@ -655,7 +1062,7 @@ function generatePrintDialog() {
               box-sizing: border-box !important;
             }
             
-            /* Table-specific print styles */
+            /* Table-specific print styles - preserve ALL styling */
             table.print-table,
             table.table,
             table.dataTable,
@@ -663,13 +1070,12 @@ function generatePrintDialog() {
             [data-i_designer-type="custom_table"] table {
               width: 100% !important;
               border-collapse: collapse !important;
-              border: 1px solid #333 !important;
               page-break-inside: auto !important;
               margin: 10px 0 !important;
-              font-size: 12px !important;
               display: table !important;
               visibility: visible !important;
               opacity: 1 !important;
+              /* Preserve custom styling - DO NOT override border, background, colors if already set */
             }
             
             table.print-table thead,
@@ -713,26 +1119,38 @@ function generatePrintDialog() {
             [data-i_designer-type="custom_table"] table th,
             [data-i_designer-type="custom_table"] table td {
               display: table-cell !important;
-              border: 1px solid #333 !important;
-              padding: 6px 8px !important;
-              text-align: left !important;
-              vertical-align: middle !important;
               word-break: break-word !important;
-              font-size: 11px !important;
-              line-height: 1.3 !important;
               position: relative !important;
+              /* DO NOT override styling that was already preserved inline */
             }
             
-            table.print-table th,
-            table.table th,
-            table.dataTable th,
-            table[id*="table"] th,
-            [data-i_designer-type="custom_table"] table th {
+            /* Only apply fallback styling if no inline styles exist */
+            table th:not([style*="border"]),
+            table td:not([style*="border"]) {
+              border: 1px solid #333 !important;
+            }
+            
+            table th:not([style*="padding"]),
+            table td:not([style*="padding"]) {
+              padding: 6px 8px !important;
+            }
+            
+            table th:not([style*="text-align"]),
+            table td:not([style*="text-align"]) {
+              text-align: left !important;
+            }
+            
+            table th:not([style*="vertical-align"]),
+            table td:not([style*="vertical-align"]) {
+              vertical-align: middle !important;
+            }
+            
+            table th:not([style*="background"]) {
               background-color: #f2f2f2 !important;
+            }
+            
+            table th:not([style*="font-weight"]) {
               font-weight: bold !important;
-              -webkit-print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              print-color-adjust: exact !important;
             }
             
             /* Hide all input elements in tables */
@@ -788,7 +1206,7 @@ function generatePrintDialog() {
               position: static !important;
             }
             
-            /* Custom table containers */
+            /* Custom table containers - Enhanced for JSON tables */
             [data-i_designer-type="custom_table"] {
               display: block !important;
               visibility: visible !important;
@@ -797,6 +1215,73 @@ function generatePrintDialog() {
               height: auto !important;
               overflow: visible !important;
               position: static !important;
+            }
+            
+            /* Enhanced JSON table styling with stronger specificity */
+            [data-i_designer-type="custom_table"] table {
+              width: 100% !important;
+              border-collapse: collapse !important;
+              border: 1px solid #000 !important;
+              page-break-inside: auto !important;
+              margin: 10px 0 !important;
+              display: table !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+            }
+            
+            [data-i_designer-type="custom_table"] table th,
+            [data-i_designer-type="custom_table"] table td {
+              display: table-cell !important;
+              border: 1px solid #000 !important;
+              padding: 8px !important;
+              text-align: left !important;
+              vertical-align: middle !important;
+              position: relative !important;
+              word-break: break-word !important;
+            }
+            
+            [data-i_designer-type="custom_table"] table th {
+              font-weight: bold !important;
+              background-color: #e0e0e0 !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            [data-i_designer-type="custom_table"] table td {
+              background-color: #fff !important;
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            
+            /* Override any conflicting styles for JSON tables */
+            [data-i_designer-type="custom_table"] table[style*="border-collapse"] {
+              border-collapse: collapse !important;
+            }
+            
+            [data-i_designer-type="custom_table"] table th[style*="border"],
+            [data-i_designer-type="custom_table"] table td[style*="border"] {
+              /* Keep existing border styles if they exist */
+            }
+            
+            /* Fallback styling for JSON tables if no inline styles */
+            [data-i_designer-type="custom_table"] table th:not([style*="border"]),
+            [data-i_designer-type="custom_table"] table td:not([style*="border"]) {
+              border: 1px solid #000 !important;
+            }
+            
+            [data-i_designer-type="custom_table"] table th:not([style*="padding"]),
+            [data-i_designer-type="custom_table"] table td:not([style*="padding"]) {
+              padding: 8px !important;
+            }
+            
+            [data-i_designer-type="custom_table"] table th:not([style*="background"]) {
+              background-color: #e0e0e0 !important;
+            }
+            
+            [data-i_designer-type="custom_table"] table td:not([style*="background"]) {
+              background-color: #fff !important;
             }
             
             /* Preserve all background colors and images */

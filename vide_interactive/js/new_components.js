@@ -241,12 +241,12 @@ function newComponents(editor) {
     content:
       '<button type="button" id="exportPDFBtn22" class="btn btn-primary">Download PDF</button>',
   }); 
-editor.BlockManager.add("page-break", {
-  category: "Extra",
-  label: '<h1><i class="fa fa-file-pdf-o fa-lg"></i></h1>Page Break',
-  content: 
-            {type : "page-break"},
-});
+// editor.BlockManager.add("page-break", {
+//   category: "Extra",
+//   label: '<h1><i class="fa fa-file-pdf-o fa-lg"></i></h1>Page Break',
+//   content: 
+//             {type : "page-break"},
+// });
 
 
   editor.on('load', function() {  
