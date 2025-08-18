@@ -620,6 +620,26 @@ function generatePrintDialog() {
           }
         });
 
+        if (sourceElement.hasAttribute('data-running-total-cell') || 
+    sourceElement.hasAttribute('data-running-total-for') ||
+    sourceElement.hasAttribute('data-running-total-value')) {
+  
+  // Copy all running total attributes
+  ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
+    if (sourceElement.hasAttribute(attr)) {
+      targetElement.setAttribute(attr, sourceElement.getAttribute(attr));
+    }
+  });
+  
+  // Ensure running total cell content is preserved
+  if (sourceElement.hasAttribute('data-running-total-value')) {
+    const runningValue = sourceElement.getAttribute('data-running-total-value');
+    const displayValue = parseFloat(runningValue);
+    if (!isNaN(displayValue)) {
+      targetElement.textContent = displayValue.toFixed(2);
+    }
+  }
+}
         // Special handling for JSON tables with default black borders
         if (sourceElement.tagName === 'TABLE' || sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
           // Check if this is a JSON table (has data attributes or is within custom_table)
@@ -800,112 +820,139 @@ function generatePrintDialog() {
           row.style.setProperty('page-break-inside', 'avoid', 'important');
           row.style.setProperty('break-inside', 'avoid', 'important');
           
-          const cells = row.querySelectorAll('td, th');
-          cells.forEach((cell, cellIndex) => {
-            let sourceCell = null;
-            if (sourceRow && sourceRow.cells[cellIndex]) {
-              sourceCell = sourceRow.cells[cellIndex];
-              // Preserve all cell styling
-              extractAllStyles(sourceCell, cell);
-            } else {
-              // Apply default JSON table cell styling if no source found
-              cell.style.setProperty('border', '1px solid #000', 'important');
-              cell.style.setProperty('padding', '8px', 'important');
-              cell.style.setProperty('text-align', 'left', 'important');
-              cell.style.setProperty('vertical-align', 'middle', 'important');
-            }
-            
-            // Ensure basic print cell styling (only if not already styled)
-            if (!cell.style.border) {
-              cell.style.setProperty('border', '1px solid #333', 'important');
-            }
-            if (!cell.style.padding) {
-              cell.style.setProperty('padding', '8px', 'important');
-            }
-            if (!cell.style.textAlign) {
-              cell.style.setProperty('text-align', 'left', 'important');
-            }
-            if (!cell.style.verticalAlign) {
-              cell.style.setProperty('vertical-align', 'middle', 'important');
-            }
-            cell.style.setProperty('word-break', 'break-word', 'important');
-            
-            let content = '';
-            
-            // Try to get data from source table first
-            if (sourceCell) {
-              // For JSON tables, prioritize data-display-value attribute
-              const displayValue = sourceCell.getAttribute('data-display-value');
-              const formulaValue = sourceCell.getAttribute('data-formula');
-              const displaySpan = sourceCell.querySelector('.cell-display');
-              
-              if (displayValue !== null && displayValue !== '') {
-                content = displayValue;
-              } else if (displaySpan && displaySpan.textContent.trim()) {
-                content = displaySpan.textContent.trim();
-              } else if (formulaValue && !formulaValue.startsWith('=')) {
-                content = formulaValue;
-              } else {
-                // Get text content but exclude input values
-                const inputs = sourceCell.querySelectorAll('input');
-                let cellText = sourceCell.textContent || sourceCell.innerText || '';
-                
-                // Remove input values from text content
-                inputs.forEach(input => {
-                  if (input.value && cellText.includes(input.value)) {
-                    cellText = cellText.replace(input.value, '').trim();
-                  }
-                });
-                
-                content = cellText;
-              }
-              
-              // If we have a formula, try to get calculated result
-              if (!content && formulaValue && formulaValue.startsWith('=')) {
-                // Look for any text that's not the formula itself
-                const allText = sourceCell.textContent || sourceCell.innerText || '';
-                if (allText && allText !== formulaValue) {
-                  content = allText;
-                }
-              }
-            }
-            
-            // Fallback to current cell content if no source data found
-            if (!content) {
-              // Check for data attributes first (common in JSON tables)
-              const displayValue = cell.getAttribute('data-display-value');
-              if (displayValue !== null && displayValue !== '') {
-                content = displayValue;
-              } else {
-                const cellDiv = cell.querySelector('div');
-                const cellSpan = cell.querySelector('.cell-display, span');
-                
-                if (cellDiv) {
-                  content = cellDiv.textContent || cellDiv.innerHTML;
-                } else if (cellSpan) {
-                  content = cellSpan.textContent || cellSpan.innerHTML;
-                } else {
-                  content = cell.textContent || cell.innerHTML;
-                }
-              }
-            }
-            
-            // Clean up content and set it
-            content = content.replace(/^\s+|\s+$/g, ''); // Trim whitespace
-            content = content.replace(/\n\s*\n/g, '\n'); // Remove multiple newlines
-            
-            cell.innerHTML = content || '';
-            
-            // Remove any remaining input elements for print
-            const inputs = cell.querySelectorAll('input');
-            inputs.forEach(input => input.remove());
-            
-            // Remove formula indicators for print
-            cell.style.setProperty('position', 'relative', 'important');
-            cell.removeAttribute('data-formula');
-            cell.removeAttribute('data-display-value');
-            cell.removeAttribute('data-cell-ref');
-          });
+         const cells = row.querySelectorAll('td, th');
+cells.forEach((cell, cellIndex) => {
+  let sourceCell = null;
+  if (sourceRow && sourceRow.cells[cellIndex]) {
+    sourceCell = sourceRow.cells[cellIndex];
+    // Preserve all cell styling
+    extractAllStyles(sourceCell, cell);
+  } else {
+    // Apply default JSON table cell styling if no source found
+    cell.style.setProperty('border', '1px solid #000', 'important');
+    cell.style.setProperty('padding', '8px', 'important');
+    cell.style.setProperty('text-align', 'left', 'important');
+    cell.style.setProperty('vertical-align', 'middle', 'important');
+  }
+  
+  // Ensure basic print cell styling (only if not already styled)
+  if (!cell.style.border) {
+    cell.style.setProperty('border', '1px solid #333', 'important');
+  }
+  if (!cell.style.padding) {
+    cell.style.setProperty('padding', '8px', 'important');
+  }
+  if (!cell.style.textAlign) {
+    cell.style.setProperty('text-align', 'left', 'important');
+  }
+  if (!cell.style.verticalAlign) {
+    cell.style.setProperty('vertical-align', 'middle', 'important');
+  }
+  cell.style.setProperty('word-break', 'break-word', 'important');
+  
+  let content = '';
+  
+  // PRIORITY: Check for running total cells first
+  if (sourceCell && (sourceCell.hasAttribute('data-running-total-cell') || sourceCell.hasAttribute('data-running-total-header'))) {
+    // Copy running total attributes
+    ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
+      if (sourceCell.hasAttribute(attr)) {
+        cell.setAttribute(attr, sourceCell.getAttribute(attr));
+      }
+    });
+    
+    if (sourceCell.hasAttribute('data-running-total-value')) {
+      // This is a running total data cell
+      const runningValue = sourceCell.getAttribute('data-running-total-value');
+      const displayValue = parseFloat(runningValue);
+      content = !isNaN(displayValue) ? displayValue.toFixed(2) : runningValue;
+    } else if (sourceCell.hasAttribute('data-running-total-header')) {
+      // This is a running total header cell
+      content = sourceCell.textContent || sourceCell.innerText || 'Running Total';
+    } else {
+      // Fallback to regular cell content extraction
+      content = sourceCell.textContent || sourceCell.innerText || '';
+    }
+  } else {
+    // Regular cell processing (existing logic)
+    
+    // Try to get data from source table first
+    if (sourceCell) {
+      // For JSON tables, prioritize data-display-value attribute
+      const displayValue = sourceCell.getAttribute('data-display-value');
+      const formulaValue = sourceCell.getAttribute('data-formula');
+      const displaySpan = sourceCell.querySelector('.cell-display');
+      
+      if (displayValue !== null && displayValue !== '') {
+        content = displayValue;
+      } else if (displaySpan && displaySpan.textContent.trim()) {
+        content = displaySpan.textContent.trim();
+      } else if (formulaValue && !formulaValue.startsWith('=')) {
+        content = formulaValue;
+      } else {
+        // Get text content but exclude input values
+        const inputs = sourceCell.querySelectorAll('input');
+        let cellText = sourceCell.textContent || sourceCell.innerText || '';
+        
+        // Remove input values from text content
+        inputs.forEach(input => {
+          if (input.value && cellText.includes(input.value)) {
+            cellText = cellText.replace(input.value, '').trim();
+          }
+        });
+        
+        content = cellText;
+      }
+      
+      // If we have a formula, try to get calculated result
+      if (!content && formulaValue && formulaValue.startsWith('=')) {
+        // Look for any text that's not the formula itself
+        const allText = sourceCell.textContent || sourceCell.innerText || '';
+        if (allText && allText !== formulaValue) {
+          content = allText;
+        }
+      }
+    }
+    
+    // Fallback to current cell content if no source data found
+    if (!content) {
+      // Check for data attributes first (common in JSON tables)
+      const displayValue = cell.getAttribute('data-display-value');
+      if (displayValue !== null && displayValue !== '') {
+        content = displayValue;
+      } else {
+        const cellDiv = cell.querySelector('div');
+        const cellSpan = cell.querySelector('.cell-display, span');
+        
+        if (cellDiv) {
+          content = cellDiv.textContent || cellDiv.innerHTML;
+        } else if (cellSpan) {
+          content = cellSpan.textContent || cellSpan.innerHTML;
+        } else {
+          content = cell.textContent || cell.innerHTML;
+        }
+      }
+    }
+  }
+  
+  // Clean up content and set it
+  content = content.replace(/^\s+|\s+$/g, ''); // Trim whitespace
+  content = content.replace(/\n\s*\n/g, '\n'); // Remove multiple newlines
+  
+  cell.innerHTML = content || '';
+  
+  // Remove any remaining input elements for print
+  const inputs = cell.querySelectorAll('input');
+  inputs.forEach(input => input.remove());
+  
+  // Remove formula indicators for print (but keep running total attributes)
+  cell.style.setProperty('position', 'relative', 'important');
+  if (!cell.hasAttribute('data-running-total-cell') && !cell.hasAttribute('data-running-total-header')) {
+    cell.removeAttribute('data-formula');
+    cell.removeAttribute('data-display-value');
+    cell.removeAttribute('data-cell-ref');
+  }
+});
         });
         
         // Ensure thead is properly displayed

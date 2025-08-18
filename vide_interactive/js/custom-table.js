@@ -860,6 +860,48 @@ function customTable(editor) {
         box-sizing: border-box;
       }
       
+      /* Running Total Cell Styling - Preserved in Export and Print */
+      td[data-running-total-cell], th[data-running-total-header] {
+        background-color: #f8f9fa !important;
+        font-weight: 600 !important;
+        border: 1px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      th[data-running-total-header] {
+        background-color: #e9ecef !important;
+        font-weight: bold !important;
+      }
+
+      /* Ensure running total cells are visible in all contexts */
+      @media print {
+        td[data-running-total-cell], th[data-running-total-header] {
+          display: table-cell !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          background-color: #f8f9fa !important;
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        th[data-running-total-header] {
+          background-color: #e9ecef !important;
+          font-weight: bold !important;
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        /* Force running total content to be visible */
+        td[data-running-total-cell] div, th[data-running-total-header] div {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+      }
       /* Enhanced print styles for tables in pages with cell highlighting preservation */
       @media print {
         .page-container table.dataTable {
@@ -910,6 +952,40 @@ function customTable(editor) {
         td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
           display: none !important;
         }
+          td[data-running-total-cell], th[data-running-total-header] {
+  background-color: #f8f9fa !important;
+  font-weight: 600 !important;
+  border: 1px solid #000 !important;
+  -webkit-print-color-adjust: exact !important;
+  color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+th[data-running-total-header] {
+  background-color: #e9ecef !important;
+  font-weight: bold !important;
+}
+
+/* Ensure running total cells are visible in all contexts */
+@media print {
+  td[data-running-total-cell], th[data-running-total-header] {
+    display: table-cell !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: #f8f9fa !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  th[data-running-total-header] {
+    background-color: #e9ecef !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
       }
     `;
     head.appendChild(style);
@@ -947,56 +1023,177 @@ function customTable(editor) {
     });
   });
 
-  // Add custom table component type with highlighting traits
-  editor.DomComponents.addType('enhanced-table', {
-    isComponent: el => el.tagName === 'TABLE' && el.id && el.id.startsWith('table'),
-    model: {
-      defaults: {
-        tagName: 'table',
-        selectable: true,
-        hoverable: true,
-        editable: true,
-        droppable: false,
-        draggable: true,
-        removable: true,
-        copyable: true,
-        resizable: false,
-        traits: [
-          {
-            type: 'text',
-            name: 'highlight-condition',
-            label: 'Highlight Condition',
-            placeholder: 'e.g., >50, <=100, =text, contains:word',
-            changeProp: 1,
-          },
-          {
-            type: 'color',
-            name: 'highlight-color',
-            label: 'Highlight Color',
-            placeholder: '#ffff99',
-            changeProp: 1,
-          }
-        ],
-        'custom-name': 'Enhanced Table'
-      },
-      
-      init() {
-        this.on('change:highlight-condition change:highlight-color', this.handleHighlightChange);
-      },
+  editor.on('storage:store', function() {
+  // Before storing, ensure running total data is preserved in components
+  try {
+    const canvasBody = editor.Canvas.getBody();
+    const tables = canvasBody.querySelectorAll('table[id^="table"]');
+    
+    tables.forEach(table => {
+      const tableId = table.id;
+      const tableComponent = editor.getWrapper().find('table')[0]; 
 
-      handleHighlightChange() {
-        const tableId = this.getId();
-        const condition = this.get('highlight-condition');
-        const color = this.get('highlight-color');
+      
+      if (tableComponent) {
+        // Find all running total cells and preserve their data
+        const runningTotalCells = table.querySelectorAll('[data-running-total-cell], [data-running-total-header]');
         
-        if (condition) {
-          applyHighlighting(tableId, condition, color);
-          // Trigger update to ensure GrapesJS recognizes changes
-          editor.trigger('component:update', this);
+        runningTotalCells.forEach(cell => {
+          const tableComponent = editor.getWrapper().find('table')[0]; 
+
+          if (cellComponent) {
+            // Preserve running total attributes in the component
+            const attributes = cellComponent.getAttributes();
+            
+            if (cell.hasAttribute('data-running-total-cell')) {
+              attributes['data-running-total-cell'] = cell.getAttribute('data-running-total-cell');
+            }
+            if (cell.hasAttribute('data-running-total-for')) {
+              attributes['data-running-total-for'] = cell.getAttribute('data-running-total-for');
+            }
+            if (cell.hasAttribute('data-running-total-value')) {
+              attributes['data-running-total-value'] = cell.getAttribute('data-running-total-value');
+            }
+            if (cell.hasAttribute('data-running-total-header')) {
+              attributes['data-running-total-header'] = cell.getAttribute('data-running-total-header');
+            }
+            
+            cellComponent.setAttributes(attributes);
+            
+            // Also ensure the cell content is preserved
+            const cellContent = cell.textContent || cell.innerHTML;
+            if (cellContent) {
+              cellComponent.set('content', cellContent);
+            }
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.warn('Error preserving running totals during export:', error);
+  }
+});
+
+// Override the default HTML export to include running total data
+const originalGetHtml = editor.getHtml;
+editor.getHtml = function() {
+  try {
+    // Get the original HTML
+    let html = originalGetHtml.call(this);
+    
+    // Process HTML to ensure running total cells are properly included
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // Find all tables and restore running total data from the canvas
+    const canvasBody = editor.Canvas.getBody();
+    const exportTables = tempDiv.querySelectorAll('table[id^="table"]');
+    
+    exportTables.forEach(exportTable => {
+      const tableId = exportTable.id;
+      const canvasTable = canvasBody.querySelector(`#${tableId}`);
+      
+      if (canvasTable) {
+        // Copy running total cells from canvas to export
+        const canvasRunningCells = canvasTable.querySelectorAll('[data-running-total-cell], [data-running-total-header]');
+        const exportRows = exportTable.querySelectorAll('tr');
+        const canvasRows = canvasTable.querySelectorAll('tr');
+        
+        canvasRows.forEach((canvasRow, rowIndex) => {
+          const exportRow = exportRows[rowIndex];
+          if (exportRow && canvasRow) {
+            const canvasCells = canvasRow.querySelectorAll('td, th');
+            const exportCells = exportRow.querySelectorAll('td, th');
+            
+            canvasCells.forEach((canvasCell, cellIndex) => {
+              const exportCell = exportCells[cellIndex];
+              
+              if (exportCell && canvasCell && 
+                  (canvasCell.hasAttribute('data-running-total-cell') || 
+                   canvasCell.hasAttribute('data-running-total-header'))) {
+                
+                // Copy running total attributes
+                ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
+                  if (canvasCell.hasAttribute(attr)) {
+                    exportCell.setAttribute(attr, canvasCell.getAttribute(attr));
+                  }
+                });
+                
+                // Copy the content
+                const content = canvasCell.textContent || canvasCell.innerHTML;
+                if (content) {
+                  exportCell.innerHTML = `<div>${content}</div>`;
+                }
+                
+                // Copy any styling
+                if (canvasCell.style.cssText) {
+                  exportCell.style.cssText = canvasCell.style.cssText;
+                }
+              }
+            });
+          }
+        });
+      }
+    });
+    
+    return tempDiv.innerHTML;
+    
+  } catch (error) {
+    console.warn('Error in enhanced HTML export:', error);
+    return originalGetHtml.call(this);
+  }
+};
+  // Add custom table component type with highlighting traits
+editor.DomComponents.addType('enhanced-table', {
+  isComponent: el => el.tagName === 'TABLE' && el.id && el.id.startsWith('table'),
+  model: {
+    defaults: {
+      tagName: 'table',
+      selectable: true,
+      hoverable: true,
+      editable: true,
+      droppable: false,
+      draggable: true,
+      removable: true,
+      copyable: true,
+      resizable: false,
+      traits: [
+        {
+          type: 'text',
+          name: 'highlight-condition',
+          label: 'Highlight Condition',
+          placeholder: 'e.g., >50, <=100, =text, contains:word',
+          changeProp: 1,
+        },
+        {
+          type: 'color',
+          name: 'highlight-color',
+          label: 'Highlight Color',
+          placeholder: '#ffff99',
+          changeProp: 1,
         }
+      ],
+      'custom-name': 'Enhanced Table'
+    },
+    
+    init() {
+      this.on('change:highlight-condition change:highlight-color', this.handleHighlightChange);
+    },
+
+    handleHighlightChange() {
+      const tableId = this.getId();
+      const condition = this.get('highlight-condition');
+      const color = this.get('highlight-color');
+      
+      if (condition) {
+        applyHighlighting(tableId, condition, color);
+        // Trigger update to ensure GrapesJS recognizes changes
+        editor.trigger('component:update', this);
       }
     }
-  });
+  }
+});
+
 
   // Add commands for highlighting
   editor.Commands.add('apply-table-highlighting', {
@@ -1049,6 +1246,56 @@ function customTable(editor) {
       showAllFormulasModal();
     }
   });
+
+  editor.DomComponents.addType('enhanced-table-cell', {
+  isComponent: el => (el.tagName === 'TD' || el.tagName === 'TH') && 
+                     el.closest('table') && 
+                     el.closest('table').id && 
+                     el.closest('table').id.startsWith('table'),
+  model: {
+    defaults: {
+      selectable: true,
+      hoverable: true,
+      editable: true,
+      droppable: false,
+      draggable: false,
+      removable: false,
+      copyable: false,
+      resizable: false,
+      traits: [
+        {
+          type: 'checkbox',
+          name: 'running-total',
+          label: 'Running Total',
+          changeProp: 1,
+        }
+      ],
+      'custom-name': 'Table Cell'
+    },
+    
+    init() {
+      this.on('change:running-total', this.handleRunningTotalChange);
+    },
+
+    handleRunningTotalChange() {
+      const isEnabled = this.get('running-total');
+      const cellElement = this.getEl();
+      
+      if (!cellElement) return;
+      
+      const table = cellElement.closest('table');
+      if (!table) return;
+      
+      const tableId = table.id;
+      
+      if (isEnabled) {
+        addRunningTotalColumn(tableId, cellElement);
+      } else {
+        removeRunningTotalColumn(tableId, cellElement);
+      }
+    }
+  }
+});
 
   // Function to open table creation modal
   function addTable() {
@@ -1323,6 +1570,334 @@ function customTable(editor) {
     }
   }
 
+  function updateDataTableStructure(tableId) {
+  try {
+    const canvasDoc = editor.Canvas.getDocument();
+    const win = canvasDoc.defaultView;
+    
+    if (win.$ && win.$.fn.DataTable) {
+      // Check if DataTable exists for this table
+      const tableElement = canvasDoc.getElementById(tableId);
+      if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
+        // Destroy existing DataTable
+        win.$(tableElement).DataTable().destroy();
+        
+        // Reinitialize DataTable with updated structure
+        setTimeout(() => {
+          try {
+            const dtOptions = {
+              dom: 'Bfrtip',
+              paging: true,
+              info: true,
+              lengthChange: true,
+              scrollX: true,
+              searching: true,
+              buttons: [],
+              drawCallback: function() {
+                setTimeout(() => enableFormulaEditing(tableId), 100);
+              }
+            };
+            
+            win.$(tableElement).DataTable(dtOptions);
+          } catch (error) {
+            console.warn('Error reinitializing DataTable:', error);
+          }
+        }, 100);
+      }
+    }
+  } catch (error) {
+    console.warn('Error updating DataTable structure:', error);
+  }
+}
+
+function addRunningTotalColumn(tableId, sourceCell) {
+  try {
+    const canvasBody = editor.Canvas.getBody();
+    const table = canvasBody.querySelector(`#${tableId}`);
+    if (!table) {
+      showToast('Table not found', 'error');
+      return;
+    }
+
+    // Get the GrapesJS table component
+    const tableComponent = editor.getWrapper().find('table')[0]; 
+
+    if (!tableComponent) {
+      showToast('Table component not found', 'error');
+      return;
+    }
+
+    // Get column index of the source cell
+    const sourceRow = sourceCell.parentNode;
+    const sourceCellIndex = Array.from(sourceRow.children).indexOf(sourceCell);
+    
+    // Check if source cell is in header
+    const isHeaderCell = sourceCell.tagName === 'TH' || sourceCell.closest('thead');
+    if (!isHeaderCell) {
+      showToast('Running total can only be applied to header cells', 'error');
+      return;
+    }
+
+    // Check if running total column already exists
+    const runningTotalColumnIndex = sourceCellIndex + 1;
+    const headerRow = table.querySelector('thead tr');
+    if (headerRow && headerRow.children[runningTotalColumnIndex] && 
+        headerRow.children[runningTotalColumnIndex].getAttribute('data-running-total-for') === sourceCellIndex.toString()) {
+      showToast('Running total column already exists for this column', 'warning');
+      return;
+    }
+
+    // Validate that the source column contains numeric data
+    const bodyRows = table.querySelectorAll('tbody tr');
+    let hasValidNumericData = false;
+    
+    for (let row of bodyRows) {
+      if (row.children[sourceCellIndex]) {
+        const cell = row.children[sourceCellIndex];
+        const cellValue = getCellValue(cell);
+        const numericValue = parseFloat(cellValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          hasValidNumericData = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasValidNumericData) {
+      showToast('Running total not possible: column contains non-numeric data', 'error');
+      
+      // Uncheck the trait
+      const cellComponent = editor.DomComponents.getComponentFromElement(sourceCell);
+      if (cellComponent) {
+        cellComponent.set('running-total', false);
+      }
+      return;
+    }
+
+    // === ADD TO ACTUAL COMPONENT HTML STRUCTURE ===
+    
+    // 1. Add header cell to GrapesJS component structure
+    const theadComponent = tableComponent.find('thead')[0];
+    if (theadComponent) {
+      const headerRowComponent = theadComponent.find('tr')[0];
+      if (headerRowComponent) {
+        const headerCells = headerRowComponent.components();
+        
+        // Create new header cell component
+        const newHeaderCellComponent = headerRowComponent.append({
+          tagName: 'th',
+          content: '<div>Running Total</div>',
+          attributes: {
+            'data-running-total-for': sourceCellIndex.toString(),
+            'data-running-total-header': 'true'
+          },
+          style: {
+            'background-color': '#e9ecef',
+            'font-weight': 'bold',
+            'border': '1px solid #000',
+            'padding': '8px',
+            'text-align': 'left'
+          }
+        });
+        
+        // Move to correct position if needed
+        if (runningTotalColumnIndex < headerCells.length) {
+          const targetIndex = runningTotalColumnIndex;
+          headerRowComponent.components().remove(newHeaderCellComponent[0]);
+          headerRowComponent.components().add(newHeaderCellComponent[0], { at: targetIndex });
+        }
+      }
+    }
+
+    // 2. Add data cells to GrapesJS component structure
+    const tbodyComponent = tableComponent.find('tbody')[0];
+    if (tbodyComponent) {
+      const bodyRowComponents = tbodyComponent.find('tr');
+      let runningSum = 0;
+      
+      bodyRowComponents.forEach((rowComponent, rowIndex) => {
+        const row = bodyRows[rowIndex];
+        if (row) {
+          const sourceDataCell = row.children[sourceCellIndex];
+          if (sourceDataCell) {
+            const cellValue = getCellValue(sourceDataCell);
+            const numericValue = parseFloat(cellValue);
+            
+            if (!isNaN(numericValue) && isFinite(numericValue)) {
+              runningSum += numericValue;
+            }
+
+            // Create new data cell component
+            const newDataCellComponent = rowComponent.append({
+              tagName: 'td',
+              content: `<div>${runningSum.toFixed(2)}</div>`,
+              attributes: {
+                'data-running-total-for': sourceCellIndex.toString(),
+                'data-running-total-value': runningSum.toString(),
+                'data-running-total-cell': 'true'
+              },
+              style: {
+                'background-color': '#f8f9fa',
+                'font-weight': '600',
+                'border': '1px solid #000',
+                'padding': '8px',
+                'text-align': 'left'
+              }
+            });
+            
+            // Move to correct position if needed
+            const rowCells = rowComponent.components();
+            if (runningTotalColumnIndex < rowCells.length - 1) {
+              const targetIndex = runningTotalColumnIndex;
+              rowComponent.components().remove(newDataCellComponent[0]);
+              rowComponent.components().add(newDataCellComponent[0], { at: targetIndex });
+            }
+          }
+        }
+      });
+    }
+
+    // === ALSO UPDATE THE DOM FOR IMMEDIATE VISUAL FEEDBACK ===
+    
+    // Add header cell for running total in DOM
+    if (headerRow) {
+      const existingRunningHeader = headerRow.querySelector(`[data-running-total-for="${sourceCellIndex}"]`);
+      if (!existingRunningHeader) {
+        const newHeaderCell = document.createElement('th');
+        newHeaderCell.innerHTML = '<div>Running Total</div>';
+        newHeaderCell.setAttribute('data-running-total-for', sourceCellIndex.toString());
+        newHeaderCell.setAttribute('data-running-total-header', 'true');
+        newHeaderCell.style.cssText = 'background-color: #e9ecef; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;';
+        
+        // Insert after source column
+        if (headerRow.children[runningTotalColumnIndex]) {
+          headerRow.insertBefore(newHeaderCell, headerRow.children[runningTotalColumnIndex]);
+        } else {
+          headerRow.appendChild(newHeaderCell);
+        }
+      }
+    }
+
+    // Add running total cells to body rows in DOM
+    let runningSum = 0;
+    bodyRows.forEach((row, rowIndex) => {
+      const sourceDataCell = row.children[sourceCellIndex];
+      if (sourceDataCell) {
+        const cellValue = getCellValue(sourceDataCell);
+        const numericValue = parseFloat(cellValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          runningSum += numericValue;
+        }
+
+        const existingRunningCell = row.querySelector(`[data-running-total-for="${sourceCellIndex}"]`);
+        if (!existingRunningCell) {
+          const newDataCell = document.createElement('td');
+          newDataCell.innerHTML = `<div>${runningSum.toFixed(2)}</div>`;
+          newDataCell.setAttribute('data-running-total-for', sourceCellIndex.toString());
+          newDataCell.setAttribute('data-running-total-value', runningSum.toString());
+          newDataCell.setAttribute('data-running-total-cell', 'true');
+          newDataCell.style.cssText = 'background-color: #f8f9fa; font-weight: 600; border: 1px solid #000; padding: 8px; text-align: left;';
+          
+          // Insert after source column
+          if (row.children[runningTotalColumnIndex]) {
+            row.insertBefore(newDataCell, row.children[runningTotalColumnIndex]);
+          } else {
+            row.appendChild(newDataCell);
+          }
+        }
+      }
+    });
+
+    // Update DataTable if it exists
+    updateDataTableStructure(tableId);
+    
+    // Force GrapesJS to recognize the changes
+    editor.trigger('component:update', tableComponent);
+    editor.trigger('change:canvasOffset');
+    
+    showToast('Running total column added successfully', 'success');
+
+  } catch (error) {
+    console.error('Error adding running total column:', error);
+    showToast('Error adding running total column', 'error');
+  }
+}
+
+function removeRunningTotalColumn(tableId, sourceCell) {
+  try {
+    const canvasBody = editor.Canvas.getBody();
+    const table = canvasBody.querySelector(`#${tableId}`);
+    if (!table) return;
+
+    // Get the GrapesJS table component
+    const tableComponent = editor.getWrapper().find('table')[0]; 
+    if (!tableComponent) return;
+
+    const sourceRow = sourceCell.parentNode;
+    const sourceCellIndex = Array.from(sourceRow.children).indexOf(sourceCell);
+
+    // === REMOVE FROM GRAPESJS COMPONENT STRUCTURE ===
+    
+    // Remove from header
+    const theadComponent = tableComponent.find('thead')[0];
+    if (theadComponent) {
+      const headerRowComponent = theadComponent.find('tr')[0];
+      if (headerRowComponent) {
+        const headerCells = headerRowComponent.components().models;
+        const runningTotalHeaderIndex = headerCells.findIndex(cell => {
+          const attrs = cell.getAttributes();
+          return attrs['data-running-total-for'] === sourceCellIndex.toString();
+        });
+        
+        if (runningTotalHeaderIndex !== -1) {
+          headerRowComponent.components().remove(headerCells[runningTotalHeaderIndex]);
+        }
+      }
+    }
+
+    // Remove from body rows
+    const tbodyComponent = tableComponent.find('tbody')[0];
+    if (tbodyComponent) {
+      const bodyRowComponents = tbodyComponent.find('tr');
+      
+      bodyRowComponents.forEach(rowComponent => {
+        const cells = rowComponent.components().models;
+        const runningTotalCellIndex = cells.findIndex(cell => {
+          const attrs = cell.getAttributes();
+          return attrs['data-running-total-for'] === sourceCellIndex.toString();
+        });
+        
+        if (runningTotalCellIndex !== -1) {
+          rowComponent.components().remove(cells[runningTotalCellIndex]);
+        }
+      });
+    }
+
+    // === ALSO REMOVE FROM DOM ===
+    
+    // Remove running total columns from DOM
+    const allRows = table.querySelectorAll('tr');
+    allRows.forEach(row => {
+      const runningTotalCells = row.querySelectorAll(`[data-running-total-for="${sourceCellIndex}"]`);
+      runningTotalCells.forEach(cell => cell.remove());
+    });
+
+    // Update DataTable if it exists
+    updateDataTableStructure(tableId);
+    
+    // Force GrapesJS to recognize the changes
+    editor.trigger('component:update', tableComponent);
+    editor.trigger('change:canvasOffset');
+    
+    showToast('Running total column removed', 'success');
+
+  } catch (error) {
+    console.error('Error removing running total column:', error);
+    showToast('Error removing running total column', 'error');
+  }
+}
   // Enhanced Formula editing handler with range support and suggestions
   function enableFormulaEditing(tableId) {
     const iframeDoc = editor.Canvas.getDocument();
@@ -1445,84 +2020,154 @@ function customTable(editor) {
       }
     }
 
-    function handleCellBlur() {
-      const cell = this;
-      let val = cell.innerText.trim();
-      
-      // Remove any existing formula suggestions
-      const iframeDoc = editor.Canvas.getDocument();
-      const suggestions = iframeDoc.querySelectorAll('.formula-suggestions');
-      suggestions.forEach(s => s.remove());
-      
-      if (val.startsWith('=')) {
-        cell.setAttribute('data-formula', val);
-        try {
-          // Validate formula syntax before parsing
-          const formulaContent = val.substring(1);
-          if (formulaContent.trim() === '') {
-            throw new Error('Empty formula');
-          }
-          
-          // Check for basic syntax errors
-          const openParens = (formulaContent.match(/\(/g) || []).length;
-          const closeParens = (formulaContent.match(/\)/g) || []).length;
-          
-          if (openParens !== closeParens) {
-            throw new Error('Mismatched parentheses');
-          }
-          
-          // Try to parse the formula
-          let res = parser.parse(formulaContent);
-          
-          // Check if result is valid
-          if (res.result !== undefined && res.result !== null && !isNaN(res.result) && res.result !== '#ERROR') {
-            cell.innerText = res.result;
-          } else if (res.result === '#ERROR' || isNaN(res.result)) {
-            throw new Error('Formula evaluation error');
-          } else {
-            cell.innerText = res.result || '#ERROR';
-          }
-          
-        } catch (error) {
-          console.warn('Formula parsing error:', error);
-          cell.innerText = '#ERROR';
-          
-          // Show error tooltip briefly
-          const errorTooltip = iframeDoc.createElement('div');
-          errorTooltip.style.cssText = `
-            position: absolute;
-            background: #ff4444;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            z-index: 10002;
-            pointer-events: none;
-            white-space: nowrap;
-          `;
-          errorTooltip.textContent = 'Invalid formula syntax';
-          
-          const cellRect = cell.getBoundingClientRect();
-          const canvasRect = editor.Canvas.getFrameEl().getBoundingClientRect();
-          errorTooltip.style.left = (cellRect.left - canvasRect.left) + 'px';
-          errorTooltip.style.top = (cellRect.top - canvasRect.top - 25) + 'px';
-          
-          iframeDoc.body.appendChild(errorTooltip);
-          
-          setTimeout(() => {
-            if (errorTooltip.parentNode) {
-              errorTooltip.parentNode.removeChild(errorTooltip);
-            }
-          }, 2000);
-        }
-      } else {
-        cell.removeAttribute('data-formula');
-        cell.innerText = val;
-      }
+function updateAffectedRunningTotals(changedCell) {
+  try {
+    const table = changedCell.closest('table');
+    if (!table) return;
+    
+    // Get the GrapesJS table component
+    const tableComponent = editor.getWrapper().find('table')[0]; 
 
-      // Update GrapesJS component WITHOUT replacing HTML
-      updateComponentContent(tableId);
+    if (!tableComponent) return;
+    
+    const row = changedCell.parentNode;
+    const cellIndex = Array.from(row.children).indexOf(changedCell);
+    
+    // Check if there's a running total column for this cell's column
+    const runningTotalColumn = table.querySelector(`[data-running-total-for="${cellIndex}"]`);
+    if (!runningTotalColumn) return;
+    
+    // Recalculate all running totals for this column
+    const bodyRows = table.querySelectorAll('tbody tr');
+    let runningSum = 0;
+    
+    // Update both DOM and GrapesJS components
+    const tbodyComponent = tableComponent.find('tbody')[0];
+    const bodyRowComponents = tbodyComponent ? tbodyComponent.find('tr') : [];
+    
+    bodyRows.forEach((currentRow, rowIndex) => {
+      const sourceDataCell = currentRow.children[cellIndex];
+      const runningTotalCell = currentRow.querySelector(`[data-running-total-for="${cellIndex}"]`);
+      const rowComponent = bodyRowComponents[rowIndex];
+      
+      if (sourceDataCell && runningTotalCell && rowComponent) {
+        const cellValue = getCellValue(sourceDataCell);
+        const numericValue = parseFloat(cellValue);
+        
+        if (!isNaN(numericValue) && isFinite(numericValue)) {
+          runningSum += numericValue;
+        }
+        
+        const newValue = runningSum.toFixed(2);
+        
+        // Update DOM
+        const targetDiv = runningTotalCell.querySelector('div');
+        if (targetDiv) {
+          targetDiv.textContent = newValue;
+        } else {
+          runningTotalCell.innerHTML = `<div>${newValue}</div>`;
+        }
+        runningTotalCell.setAttribute('data-running-total-value', runningSum.toString());
+        
+        // Update GrapesJS component
+        const cellComponents = rowComponent.components().models;
+        const runningTotalCellComponent = cellComponents.find(comp => {
+          const attrs = comp.getAttributes();
+          return attrs['data-running-total-for'] === cellIndex.toString();
+        });
+        
+        if (runningTotalCellComponent) {
+          runningTotalCellComponent.set('content', `<div>${newValue}</div>`);
+          const attrs = runningTotalCellComponent.getAttributes();
+          attrs['data-running-total-value'] = runningSum.toString();
+          runningTotalCellComponent.setAttributes(attrs);
+        }
+      }
+    });
+    
+    // Force GrapesJS to recognize the changes
+    editor.trigger('component:update', tableComponent);
+    
+  } catch (error) {
+    console.warn('Error updating running totals:', error);
+  }
+}
+
+function handleCellBlur() {
+  const cell = this;
+  let val = cell.innerText.trim();
+  
+  // Remove any existing formula suggestions
+  const iframeDoc = editor.Canvas.getDocument();
+  const suggestions = iframeDoc.querySelectorAll('.formula-suggestions');
+  suggestions.forEach(s => s.remove());
+  
+  if (val.startsWith('=')) {
+    cell.setAttribute('data-formula', val);
+    try {
+      const formulaContent = val.substring(1);
+      if (formulaContent.trim() === '') {
+        throw new Error('Empty formula');
+      }
+      
+      const openParens = (formulaContent.match(/\(/g) || []).length;
+      const closeParens = (formulaContent.match(/\)/g) || []).length;
+      
+      if (openParens !== closeParens) {
+        throw new Error('Mismatched parentheses');
+      }
+      
+      let res = parser.parse(formulaContent);
+      
+      if (res.result !== undefined && res.result !== null && !isNaN(res.result) && res.result !== '#ERROR') {
+        cell.innerText = res.result;
+      } else if (res.result === '#ERROR' || isNaN(res.result)) {
+        throw new Error('Formula evaluation error');
+      } else {
+        cell.innerText = res.result || '#ERROR';
+      }
+      
+    } catch (error) {
+      console.warn('Formula parsing error:', error);
+      cell.innerText = '#ERROR';
+      
+      const errorTooltip = iframeDoc.createElement('div');
+      errorTooltip.style.cssText = `
+        position: absolute;
+        background: #ff4444;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        z-index: 10002;
+        pointer-events: none;
+        white-space: nowrap;
+      `;
+      errorTooltip.textContent = 'Invalid formula syntax';
+      
+      const cellRect = cell.getBoundingClientRect();
+      const canvasRect = editor.Canvas.getFrameEl().getBoundingClientRect();
+      errorTooltip.style.left = (cellRect.left - canvasRect.left) + 'px';
+      errorTooltip.style.top = (cellRect.top - canvasRect.top - 25) + 'px';
+      
+      iframeDoc.body.appendChild(errorTooltip);
+      
+      setTimeout(() => {
+        if (errorTooltip.parentNode) {
+          errorTooltip.parentNode.removeChild(errorTooltip);
+        }
+      }, 2000);
     }
+  } else {
+    cell.removeAttribute('data-formula');
+    cell.innerText = val;
+  }
+
+  // Update running totals if this cell affects any
+  updateAffectedRunningTotals(cell);
+  
+  updateComponentContent(cell.closest('table').id);
+}
 
     // Function to update component content without destroying DOM structure
     function updateComponentContent(tableId) {
@@ -1554,14 +2199,17 @@ function customTable(editor) {
   }
 
   // Enhanced event listener for table selection to apply highlighting traits
-  editor.on('component:selected', function(component) {
-    if (component && component.get('tagName') === 'table' && component.getId() && component.getId().startsWith('table')) {
-      // Ensure this is recognized as an enhanced table
+editor.on('component:selected', function(component) {
+  if (component) {
+    const element = component.getEl();
+    const tagName = component.get('tagName');
+    
+    // Handle table selection
+    if (tagName === 'table' && component.getId() && component.getId().startsWith('table')) {
       if (component.get('type') !== 'enhanced-table') {
         component.set('type', 'enhanced-table');
       }
       
-      // Apply any existing highlighting conditions
       const condition = component.get('highlight-condition');
       const color = component.get('highlight-color');
       
@@ -1571,7 +2219,27 @@ function customTable(editor) {
         }, 100);
       }
     }
-  });
+    
+    // Handle table cell selection
+    if ((tagName === 'td' || tagName === 'th') && element) {
+      const table = element.closest('table');
+      if (table && table.id && table.id.startsWith('table')) {
+        // Set cell type to enhanced-table-cell
+        if (component.get('type') !== 'enhanced-table-cell') {
+          component.set('type', 'enhanced-table-cell');
+          
+          // Check if this cell already has a running total
+          const cellIndex = Array.from(element.parentNode.children).indexOf(element);
+          const runningTotalExists = table.querySelector(`[data-running-total-for="${cellIndex}"]`);
+          
+          if (runningTotalExists) {
+            component.set('running-total', true);
+          }
+        }
+      }
+    }
+  }
+});
 
   // Global function to update highlighting for external access
   window.updateTableHighlighting = function(tableId, condition, color) {
