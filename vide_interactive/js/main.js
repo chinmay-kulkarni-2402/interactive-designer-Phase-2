@@ -31,6 +31,7 @@ const editor = InteractiveDesigner.init({
    // customJsonTable,
     customTableOfContents,
     addLiveLineChartComponent,
+  //  initializePrintPlugin,
    // loadCustomTextboxComponent,
     "basic-block-component",
     "countdown-component",
@@ -1516,7 +1517,8 @@ cells.forEach((cell, cellIndex) => {
             .virtual-sections-panel,
             .section-panel-toggle,
             .page-section-label,
-            .page-section-dashed-line {
+            .page-section-dashed-line
+            .sections-container {
               display: none !important;
             }
             
@@ -1739,101 +1741,101 @@ editor.on('component:add', function (component) {
   }
 });
 
-editor.BlockManager.add('draggable-section-container', {
-  label: 'Draggable Container',
-  category: 'Basic',
-  media: '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h20V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h20a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z"/>\n      </svg>',
-  content: `
-  <style>
-      @media print {
-        .draggable-section-container {
-          border: none !important;
-        }
-      }
-    </style>
-    <div class="draggable-section-container" style="position: relative; border: 2px dashed #888; padding: 10px; min-height: 67px;">
-      <div class="draggable-child" style="width: 200px; height: 47px;">
-        Drag me inside
-      </div>
-    </div>
-  `,
-});
+// editor.BlockManager.add('draggable-section-container', {
+//   label: 'Draggable Container',
+//   category: 'Basic',
+//   media: '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h20V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h20a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z"/>\n      </svg>',
+//   content: `
+//   <style>
+//       @media print {
+//         .draggable-section-container {
+//           border: none !important;
+//         }
+//       }
+//     </style>
+//     <div class="draggable-section-container" style="position: relative; border: 2px dashed #888; padding: 10px; min-height: 67px;">
+//       <div class="draggable-child" style="width: 200px; height: 47px;">
+//         Drag me inside
+//       </div>
+//     </div>
+//   `,
+// });
 
-// === State variables for drag & rotation ===
-let isDragging = false;
-let startX = 0;
-let startY = 0;
-let currentX = 0;
-let currentY = 0;
-let currentRotation = 0;   // ✅ track rotation
-let selectedEl = null;
-let parentEl = null;
+// // === State variables for drag & rotation ===
+// let isDragging = false;
+// let startX = 0;
+// let startY = 0;
+// let currentX = 0;
+// let currentY = 0;
+// let currentRotation = 0;   // ✅ track rotation
+// let selectedEl = null;
+// let parentEl = null;
 
-editor.on('component:selected', (component) => {
-  const el = component.getEl();
+// editor.on('component:selected', (component) => {
+//   const el = component.getEl();
 
-  // ✅ Enable rotation logic for line & rectangle
-  if (component.get('type') === 'line' || component.get('type') === 'rectangle') {
-    const resizable = component.get('resizable') || {};
-    resizable.rotator = true;
+//   // ✅ Enable rotation logic for line & rectangle
+//   if (component.get('type') === 'line' || component.get('type') === 'rectangle') {
+//     const resizable = component.get('resizable') || {};
+//     resizable.rotator = true;
 
-    // ✅ Add rotation handler to merge transform
-    resizable.onRotate = (event, { rotation }) => {
-      currentRotation = rotation;
-      component.addStyle({
-        transform: `translate(${currentX}px, ${currentY}px) rotate(${currentRotation}deg)`
-      });
-    };
+//     // ✅ Add rotation handler to merge transform
+//     resizable.onRotate = (event, { rotation }) => {
+//       currentRotation = rotation;
+//       component.addStyle({
+//         transform: `translate(${currentX}px, ${currentY}px) rotate(${currentRotation}deg)`
+//       });
+//     };
 
-    component.set('resizable', resizable);
-  }
+//     component.set('resizable', resizable);
+//   }
 
-  // Check if it's a direct child of .custom-container
-  if (el?.parentElement?.classList.contains('draggable-section-container')) {
-    const parent = el.parentElement;
-    parent.style.position = 'relative';
-    selectedEl = el;
-    parentEl = parent;
+//   // Check if it's a direct child of .custom-container
+//   if (el?.parentElement?.classList.contains('draggable-section-container')) {
+//     const parent = el.parentElement;
+//     parent.style.position = 'relative';
+//     selectedEl = el;
+//     parentEl = parent;
 
-    const compId = component.getId();
-    const selector = `#${compId}`;
+//     const compId = component.getId();
+//     const selector = `#${compId}`;
 
-    el.onmousedown = function (e) {
-      e.preventDefault();
-      isDragging = true;
-      startX = e.clientX - currentX;
-      startY = e.clientY - currentY;
+//     el.onmousedown = function (e) {
+//       e.preventDefault();
+//       isDragging = true;
+//       startX = e.clientX - currentX;
+//       startY = e.clientY - currentY;
 
-      document.onmousemove = function (e) {
-        if (!isDragging) return;
+//       document.onmousemove = function (e) {
+//         if (!isDragging) return;
 
-        const newX = e.clientX - startX;
-        const newY = e.clientY - startY;
+//         const newX = e.clientX - startX;
+//         const newY = e.clientY - startY;
 
-        const parentRect = parentEl.getBoundingClientRect();
-        currentX = Math.max(0, Math.min(newX, parentRect.width - selectedEl.offsetWidth));
-        currentY = Math.max(0, Math.min(newY, parentRect.height - selectedEl.offsetHeight));
+//         const parentRect = parentEl.getBoundingClientRect();
+//         currentX = Math.max(0, Math.min(newX, parentRect.width - selectedEl.offsetWidth));
+//         currentY = Math.max(0, Math.min(newY, parentRect.height - selectedEl.offsetHeight));
 
-        // ✅ Merge translate + rotate in drag
-        const cssRule = editor.CssComposer.getRule(selector) || editor.CssComposer.add([selector]);
-        cssRule.addStyle({
-          transform: `translate(${currentX}px, ${currentY}px) rotate(${currentRotation}deg)`
-        });
-      };
+//         // ✅ Merge translate + rotate in drag
+//         const cssRule = editor.CssComposer.getRule(selector) || editor.CssComposer.add([selector]);
+//         cssRule.addStyle({
+//           transform: `translate(${currentX}px, ${currentY}px) rotate(${currentRotation}deg)`
+//         });
+//       };
 
-      document.onmouseup = function () {
-        isDragging = false;
-        document.onmousemove = null;
-        document.onmouseup = null;
-      };
-    };
-  } else {
-    // If selected component is not child of custom container, disable custom dragging
-    if (el) {
-      el.onmousedown = null;
-    }
-  }
-});
+//       document.onmouseup = function () {
+//         isDragging = false;
+//         document.onmousemove = null;
+//         document.onmouseup = null;
+//       };
+//     };
+//   } else {
+//     // If selected component is not child of custom container, disable custom dragging
+//     if (el) {
+//       el.onmousedown = null;
+//     }
+//   }
+// });
 
 // ******* END Resize and drag code ***********
 
