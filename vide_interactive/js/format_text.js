@@ -475,9 +475,17 @@ function addFormattedRichTextComponent(editor) {
             name: 'highlight-condition-type',
             label: 'Highlight Condition',
             options: [
-              { value: 'contains', label: 'Contains' },
-              { value: 'starts-with', label: 'Starts With' },
-              { value: 'ends-with', label: 'Ends With' }
+              { value: '', label: 'Select Condition Type' },
+              { value: 'contains', label: 'Text: Contains' },
+              { value: 'starts-with', label: 'Text: Starts With' },
+              { value: 'ends-with', label: 'Text: Ends With' },
+              { value: '>', label: 'Number: > (Greater than)' },
+              { value: '>=', label: 'Number: >= (Greater than or equal)' },
+              { value: '<', label: 'Number: < (Less than)' },
+              { value: '<=', label: 'Number: <= (Less than or equal)' },
+              { value: '=', label: 'Number: = (Equal to)' },
+              { value: '!=', label: 'Number: != (Not equal to)' },
+              { value: 'between', label: 'Number: Between (range)' }
             ],
             changeProp: 1
           },
@@ -648,25 +656,57 @@ applyConditionalFormatting(content) {
     
     conditions.forEach(condition => {
       if (condition) {
-        if (formatHelpers.isNumberCondition(condition)) {
-          if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
-            const numbers = formatHelpers.extractNumbers(processedContent);
-            const conditionObj = formatHelpers.parseNumberCondition(condition);
-            
-            if (conditionObj) {
-              numbers.forEach(num => {
-                if (conditionObj.evaluate(num)) {
-                  const escapedNum = this.escapeRegex(num.toString());
-                  const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
-                  processedContent = processedContent.replace(regex, 
-                    `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
-                  );
+        // Check if it's a number condition based on highlight condition type
+        const isNumberConditionType = ['>', '>=', '<', '<=', '=', '!=', 'between'].includes(highlightConditionType);
+        
+        if (isNumberConditionType) {
+          // For number conditions, handle based on condition type
+          if (highlightConditionType === 'between') {
+            // For 'between', expect format like "100 < value < 1000" or "100 <= value <= 1000"
+            if (formatHelpers.isNumberCondition(condition)) {
+              if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
+                const numbers = formatHelpers.extractNumbers(processedContent);
+                const conditionObj = formatHelpers.parseNumberCondition(condition);
+                
+                if (conditionObj) {
+                  numbers.forEach(num => {
+                    if (conditionObj.evaluate(num)) {
+                      const escapedNum = this.escapeRegex(num.toString());
+                      const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
+                      processedContent = processedContent.replace(regex, 
+                        `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
+                      );
+                    }
+                  });
                 }
-              });
+              }
+            }
+          } else {
+            // For other number conditions (>, >=, <, <=, =, !=)
+            // Create the condition string using the type and value
+            const conditionString = highlightConditionType + condition;
+            
+            if (formatHelpers.isNumberCondition(conditionString)) {
+              if (formatHelpers.evaluateNumberCondition(processedContent, conditionString)) {
+                const numbers = formatHelpers.extractNumbers(processedContent);
+                const conditionObj = formatHelpers.parseNumberCondition(conditionString);
+                
+                if (conditionObj) {
+                  numbers.forEach(num => {
+                    if (conditionObj.evaluate(num)) {
+                      const escapedNum = this.escapeRegex(num.toString());
+                      const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
+                      processedContent = processedContent.replace(regex, 
+                        `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
+                      );
+                    }
+                  });
+                }
+              }
             }
           }
         } else {
-          // Enhanced text matching based on condition type
+          // Text-based highlighting (contains, starts-with, ends-with, or default)
           let regex;
           
           if (highlightConditionType === 'contains') {
@@ -1266,17 +1306,17 @@ handleRTEExit() {
   });
 
   // Add component to blocks
-  editor.BlockManager.add('formatted-rich-text', {
-    label: 'Text',
-    content: {
-      type: 'formatted-rich-text',
-      content: 'Double-click to edit rich text content'
-    },
-    category: 'Text',
-    attributes: {
-      class: 'gjs-block-formatted-rich-text'
-    }
-  });
+  // editor.BlockManager.add('formatted-rich-text', {
+  //   label: 'Text',
+  //   content: {
+  //     type: 'formatted-rich-text',
+  //     content: 'Double-click to edit rich text content'
+  //   },
+  //   category: 'Text',
+  //   attributes: {
+  //     class: 'gjs-block-formatted-rich-text'
+  //   }
+  // });
 
   // Add custom styles using GrapesJS CSS classes for responsiveness
   editor.addStyle(`

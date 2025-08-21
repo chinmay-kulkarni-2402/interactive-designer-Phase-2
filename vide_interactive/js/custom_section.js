@@ -35,13 +35,6 @@ function customSections(editor) {
         cursor: pointer;
       }
 
-      /* Ensure all elements inside sections can be positioned absolutely */
-      .gjs-editor-header > *:not(.gjs-resizer-c),
-      .gjs-editor-content > *:not(.gjs-resizer-c),
-      .gjs-editor-footer > *:not(.gjs-resizer-c) {
-        position: absolute !important;
-      }
-
       /* Make sure resize handles work properly */
       .gjs-resizer-c {
         position: absolute !important;
@@ -221,113 +214,130 @@ function customSections(editor) {
   });
 
   // Percentage-based dragging setup (restored from original)
-  function setupPercentageDragging(component, el, sectionEl) {
-    el.onmousedown = function (e) {
-      // Don't interfere with resize handles
-      if (e.target.classList.contains('gjs-resizer-h') || e.target.closest('.gjs-resizer-c')) {
-        return;
-      }
+function setupPercentageDragging(component, el) {
+  el.onmousedown = function (e) {
+    // Skip GrapesJS resizer handles
+    if (
+      e.target.classList.contains("gjs-resizer-h") ||
+      e.target.closest(".gjs-resizer-c")
+    ) {
+      return;
+    }
 
-      e.preventDefault();
-      e.stopPropagation();
-      isDragging = true;
+    e.preventDefault();
+    e.stopPropagation();
+    isDragging = true;
 
-      const style = window.getComputedStyle(el);
+    // 🔑 Resolve parent dynamically every time
+    const parentEl = el.closest(".gjs-editor-header, .gjs-editor-content, .gjs-editor-footer");
+    if (!parentEl) return;
+
+    // Force absolute positioning when drag begins
+    el.style.position = "absolute";
+
+    const style = window.getComputedStyle(el);
+    const parentRect = parentEl.getBoundingClientRect();
+
+    // Convert current left/top into px for base calculations
+    let left = parseFloat(style.left) || 0;
+    let top = parseFloat(style.top) || 0;
+
+    if (style.left.includes("%")) {
+      left = (parseFloat(style.left) / 100) * parentRect.width;
+    }
+    if (style.top.includes("%")) {
+      top = (parseFloat(style.top) / 100) * parentRect.height;
+    }
+
+    currentX = left;
+    currentY = top;
+
+    // Track mouse offset within element
+    const elRect = el.getBoundingClientRect();
+    startX = e.clientX - elRect.left;
+    startY = e.clientY - elRect.top;
+
+    document.onmousemove = function (e) {
+      if (!isDragging) return;
+
       const parentRect = parentEl.getBoundingClientRect();
+      const newX = e.clientX - parentRect.left - startX;
+      const newY = e.clientY - parentRect.top - startY;
 
-      // Get current left/top from style (in % or px)
-      let left = parseFloat(style.left) || 0;
-      let top = parseFloat(style.top) || 0;
+      const parentWidth = parentRect.width;
+      const parentHeight = parentRect.height;
 
-      // Convert to pixels if currently in percentage
-      if (style.left.includes('%')) {
-        left = (parseFloat(style.left) / 100) * parentRect.width;
-      }
-      if (style.top.includes('%')) {
-        top = (parseFloat(style.top) / 100) * parentRect.height;
-      }
+      // Convert to %
+      const newLeftPercent = (newX / parentWidth) * 100;
+      const newTopPercent = (newY / parentHeight) * 100;
 
-      currentX = left;
-      currentY = top;
+      // Clamp to bounds
+      const elWidth = el.offsetWidth;
+      const elHeight = el.offsetHeight;
+      const maxLeftPercent = 100 - (elWidth / parentWidth) * 100;
+      const maxTopPercent = 100 - (elHeight / parentHeight) * 100;
 
-      // Calculate the offset from mouse to element's current position
-const elRect = el.getBoundingClientRect();
-startX = e.clientX - elRect.left;
-startY = e.clientY - elRect.top;
+      const clampedLeft = Math.max(0, Math.min(newLeftPercent, maxLeftPercent));
+      const clampedTop = Math.max(0, Math.min(newTopPercent, maxTopPercent));
 
-      document.onmousemove = function (e) {
-        if (!isDragging) return;
+      // Apply via CSSComposer so GrapesJS saves it
+      const compId = component.getId();
+      const selector = `#${compId}`;
+      const cssRule =
+        editor.CssComposer.getRule(selector) ||
+        editor.CssComposer.add([selector]);
 
-        const parentRect = parentEl.getBoundingClientRect();
-        
-        // Calculate new position based on mouse movement
-        const newX = e.clientX - parentRect.left - startX;
-        const newY = e.clientY - parentRect.top - startY;
-
-        const parentWidth = parentRect.width;
-        const parentHeight = parentRect.height;
-
-        // Convert to percentage values
-        const newLeftPercent = (newX / parentWidth) * 100;
-        const newTopPercent = (newY / parentHeight) * 100;
-
-        // Clamp within bounds (0% to 100% minus element size)
-        const elWidth = el.offsetWidth;
-        const elHeight = el.offsetHeight;
-        const maxLeftPercent = 100 - (elWidth / parentWidth) * 100;
-        const maxTopPercent = 100 - (elHeight / parentHeight) * 100;
-
-        const clampedLeft = Math.max(0, Math.min(newLeftPercent, maxLeftPercent));
-        const clampedTop = Math.max(0, Math.min(newTopPercent, maxTopPercent));
-
-        // Update component style with percentage values
-        const compId = component.getId();
-        const selector = `#${compId}`;
-        const cssRule = editor.CssComposer.getRule(selector) || editor.CssComposer.add([selector]);
-        
-        cssRule.addStyle({
-          position: "absolute",
-          left: `${clampedLeft}%`,
-          top: `${clampedTop}%`
-        });
-      };
-
-      document.onmouseup = function () {
-        isDragging = false;
-        document.onmousemove = null;
-        document.onmouseup = null;
-      };
+      cssRule.addStyle({
+        position: "absolute",
+        left: `${clampedLeft}%`,
+        top: `${clampedTop}%`,
+      });
     };
-  }
+
+    document.onmouseup = function () {
+      isDragging = false;
+      document.onmousemove = null;
+      document.onmouseup = null;
+    };
+  };
+}
+
+
 
   // Handle new components added to sections
-  editor.on('component:add', (component) => {
-    const sectionInfo = isInsideSection(component);
-    
-    if (sectionInfo.isInside) {
-      // Auto-position new components absolutely with percentage values
-      setTimeout(() => {
+
+// Handle new components added to sections
+editor.on('component:add', (component) => {
+  const sectionInfo = isInsideSection(component);
+
+  if (sectionInfo.isInside) {
+    // Let new elements flow normally, don't force absolute yet
+    setTimeout(() => {
+      if (component.getStyle('position') !== 'absolute') {
         component.addStyle({
-          position: 'absolute',
-          left: '5%',
-          top: '10%'
+          position: 'relative',   // keep in normal flow
+          display: 'block',
+          margin: '10px 0',       // give some space so they don’t overlap
+          width: 'auto',
+          top: 'auto',
+          left: 'auto'
         });
-      }, 100);
-    }
-  });
+      }
+    }, 50);
+  }
+});
 
   // Ensure style manager works properly for elements in sections
-  editor.on('component:styleUpdate', (component) => {
-    const sectionInfo = isInsideSection(component);
-    
-    if (sectionInfo.isInside) {
-      // Ensure position stays absolute when styles are updated
-      const currentPosition = component.getStyle('position');
-      if (currentPosition !== 'absolute') {
-        component.addStyle({ position: 'absolute' });
-      }
-    }
-  });
+editor.on('component:styleUpdate', (component) => {
+  const sectionInfo = isInsideSection(component);
+
+  if (sectionInfo.isInside) {
+    // Allow normal styles to apply — don't force absolute anymore
+    // If the user has already dragged it, it will already be absolute
+    // Nothing else needed here
+  }
+});
+
 
   // Clean up when component is deselected
   editor.on('component:deselected', (component) => {

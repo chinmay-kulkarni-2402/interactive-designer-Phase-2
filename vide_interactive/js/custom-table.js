@@ -38,122 +38,148 @@ function customTable(editor) {
   }
 
   // Function to evaluate highlighting conditions
-  function evaluateCondition(cellValue, condition) {
-    if (!condition || !condition.trim()) return false;
-    
-    try {
-      // Clean the condition
-      const cleanCondition = condition.trim();
-      
-      // Convert cell value to number if possible
-      const numericValue = parseFloat(cellValue);
-      const isNumeric = !isNaN(numericValue);
-      
-      // Handle different condition types
-      if (cleanCondition.includes('>=')) {
-        const threshold = parseFloat(cleanCondition.replace('>=', '').trim());
-        return isNumeric && numericValue >= threshold;
-      } else if (cleanCondition.includes('<=')) {
-        const threshold = parseFloat(cleanCondition.replace('<=', '').trim());
-        return isNumeric && numericValue <= threshold;
-      } else if (cleanCondition.includes('>')) {
-        const threshold = parseFloat(cleanCondition.replace('>', '').trim());
-        return isNumeric && numericValue > threshold;
-      } else if (cleanCondition.includes('<')) {
-        const threshold = parseFloat(cleanCondition.replace('<', '').trim());
-        return isNumeric && numericValue < threshold;
-      } else if (cleanCondition.includes('=')) {
-        const targetValue = cleanCondition.replace('=', '').trim();
-        const targetNumeric = parseFloat(targetValue);
-        if (!isNaN(targetNumeric)) {
-          return isNumeric && numericValue === targetNumeric;
-        } else {
-          return cellValue.toString().toLowerCase() === targetValue.toLowerCase();
-        }
-      } else if (cleanCondition.includes('!=')) {
-        const targetValue = cleanCondition.replace('!=', '').trim();
-        const targetNumeric = parseFloat(targetValue);
-        if (!isNaN(targetNumeric)) {
-          return isNumeric && numericValue !== targetNumeric;
-        } else {
-          return cellValue.toString().toLowerCase() !== targetValue.toLowerCase();
-        }
-      } else if (cleanCondition.startsWith('contains:')) {
-        const searchTerm = cleanCondition.replace('contains:', '').trim().toLowerCase();
-        return cellValue.toString().toLowerCase().includes(searchTerm);
-      } else if (cleanCondition.startsWith('startswith:')) {
-        const searchTerm = cleanCondition.replace('startswith:', '').trim().toLowerCase();
-        return cellValue.toString().toLowerCase().startsWith(searchTerm);
-      } else if (cleanCondition.startsWith('endswith:')) {
-        const searchTerm = cleanCondition.replace('endswith:', '').trim().toLowerCase();
-        return cellValue.toString().toLowerCase().endsWith(searchTerm);
-      } else {
-        // Exact text match (case insensitive)
-        return cellValue.toString().toLowerCase() === cleanCondition.toLowerCase();
-      }
-    } catch (error) {
-      console.warn('Error evaluating highlight condition:', error);
-      return false;
+function evaluateCondition(cellValue, conditionType, conditionValue) {
+  if (!conditionType || !conditionType.trim()) return false;
+  
+  try {
+    // Handle null/empty condition
+    if (conditionType === 'null') {
+      return !cellValue || cellValue.toString().trim() === '';
     }
+    
+    // If no condition value provided for non-null conditions, return false
+    if (!conditionValue && conditionType !== 'null') return false;
+    
+    const conditions = conditionValue.split(',').map(cond => cond.trim()).filter(cond => cond);
+    
+    return conditions.some(condition => {
+      // Check if it's a number condition based on condition type
+      const isNumberConditionType = ['>', '>=', '<', '<=', '=', '!=', 'between'].includes(conditionType);
+      
+      if (isNumberConditionType) {
+        const numericValue = parseFloat(cellValue);
+        const isNumeric = !isNaN(numericValue);
+        
+        if (!isNumeric) return false;
+        
+        if (conditionType === 'between') {
+          // For 'between', expect format like "100 < value < 1000" or "100 <= value <= 1000"
+          const trimmed = condition.trim();
+          
+          // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
+          const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
+          const rangeMatch = trimmed.match(rangePattern);
+          
+          if (rangeMatch) {
+            const [, min, minOp, maxOp, max] = rangeMatch;
+            const minValue = parseFloat(min);
+            const maxValue = parseFloat(max);
+            const minInclusive = minOp === '<=';
+            const maxInclusive = maxOp === '<=';
+            
+            const minCondition = minInclusive ? numericValue >= minValue : numericValue > minValue;
+            const maxCondition = maxInclusive ? numericValue <= maxValue : numericValue < maxValue;
+            
+            return minCondition && maxCondition;
+          }
+          return false;
+        } else {
+          // For other number conditions (>, >=, <, <=, =, !=)
+          const threshold = parseFloat(condition);
+          if (isNaN(threshold)) return false;
+          
+          switch (conditionType) {
+            case '>': return numericValue > threshold;
+            case '>=': return numericValue >= threshold;
+            case '<': return numericValue < threshold;
+            case '<=': return numericValue <= threshold;
+            case '=': return numericValue === threshold;
+            case '!=': return numericValue !== threshold;
+            default: return false;
+          }
+        }
+      } else {
+        // Text-based conditions
+        const cellText = cellValue.toString().toLowerCase();
+        const conditionText = condition.toLowerCase();
+        
+        switch (conditionType) {
+          case 'contains':
+            return cellText.includes(conditionText);
+          case 'starts-with':
+            return cellText.startsWith(conditionText);
+          case 'ends-with':
+            return cellText.endsWith(conditionText);
+          default:
+            // Exact match
+            return cellText === conditionText;
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.warn('Error evaluating highlight condition:', error);
+    return false;
   }
+}
 
   // Function to apply highlighting to table cells
-  function applyHighlighting(tableId, condition, highlightColor) {
-    try {
-      const canvasBody = editor.Canvas.getBody();
-      const table = canvasBody.querySelector(`#${tableId}`);
-      if (!table) return;
+function applyHighlighting(tableId, conditionType, conditionValue, highlightColor) {
+  try {
+    const canvasBody = editor.Canvas.getBody();
+    const table = canvasBody.querySelector(`#${tableId}`);
+    if (!table) return;
 
-      const wrapper = editor.DomComponents.getWrapper();
+    const wrapper = editor.DomComponents.getWrapper();
 
-      // === Always: Clear previous highlights
-      const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
-      prev.forEach(td => {
-        td.style.backgroundColor = '';
-        td.removeAttribute('data-highlighted');
+    // === Always: Clear previous highlights
+    const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
+    prev.forEach(td => {
+      td.style.backgroundColor = '';
+      td.removeAttribute('data-highlighted');
 
-        const id = td.id;
-        if (id) {
-          const comp = wrapper.find(`#${id}`)[0];
-          if (comp) {
-            comp.removeStyle('background-color');
-            comp.removeStyle('background');
+      const id = td.id;
+      if (id) {
+        const comp = wrapper.find(`#${id}`)[0];
+        if (comp) {
+          comp.removeStyle('background-color');
+          comp.removeStyle('background');
+        }
+      }
+    });
+
+    // === Only apply new highlights if condition exists
+    if (conditionType && conditionType.trim()) {
+      const bodyCells = table.querySelectorAll('tbody td');
+      bodyCells.forEach(td => {
+        const div = td.querySelector('div');
+        const val = div ? div.textContent.trim() : td.textContent.trim();
+
+        if (evaluateCondition(val, conditionType, conditionValue)) {
+          const bg = highlightColor || '#ffff99';
+          td.style.backgroundColor = bg;
+          td.setAttribute('data-highlighted', 'true');
+
+          const id = td.id;
+          if (id) {
+            const comp = wrapper.find(`#${id}`)[0];
+            if (comp) {
+              comp.addStyle({
+                'background-color': bg,
+                '-webkit-print-color-adjust': 'exact',
+                'color-adjust': 'exact',
+                'print-color-adjust': 'exact'
+              });
+            }
           }
         }
       });
-
-      // === Only apply new highlights if condition exists
-      if (condition && condition.trim()) {
-        const bodyCells = table.querySelectorAll('tbody td');
-        bodyCells.forEach(td => {
-          const div = td.querySelector('div');
-          const val = div ? div.textContent.trim() : td.textContent.trim();
-
-          if (evaluateCondition(val, condition)) {
-            const bg = highlightColor || '#ffff99';
-            td.style.backgroundColor = bg;
-            td.setAttribute('data-highlighted', 'true');
-
-            const id = td.id;
-            if (id) {
-              const comp = wrapper.find(`#${id}`)[0];
-              if (comp) {
-                comp.addStyle({
-                  'background-color': bg,
-                  '-webkit-print-color-adjust': 'exact',
-                  'color-adjust': 'exact',
-                  'print-color-adjust': 'exact'
-                });
-              }
-            }
-          }
-        });
-      }
-
-    } catch (err) {
-      console.warn('Error applying highlighting:', err);
     }
+
+  } catch (err) {
+    console.warn('Error applying highlighting:', err);
   }
+}
 
   // Enhanced function to get target container that works with page system
   function getTargetContainer() {
@@ -1007,21 +1033,24 @@ th[data-running-total-header] {
     };
   });
 
-  // Add formula icon to navbar
-  editor.on('load', () => {
-    // Add formula button to the navbar
-    const panelManager = editor.Panels;
-    
-    panelManager.addButton('options', {
-      id: 'show-formulas',
-      className: 'fa fa-calculator',
-      command: 'show-all-formulas',
-      attributes: {
-        title: 'Show All Formulas',
-        'data-tooltip-pos': 'bottom'
-      }
-    });
-  });
+editor.on("load", () => {
+  const devicesPanel = editor.Panels.getPanel("devices-c");
+
+  if (devicesPanel) {
+    const buttons = devicesPanel.get("buttons");
+
+      buttons.add([{
+        id: "show-formulas",
+        className: "fa fa-calculator",
+        command: "show-all-formulas",
+        attributes: {
+          title: "Show All Formulas",
+          "data-tooltip-pos": "bottom"
+        }
+      }]);
+  }
+});
+
 
   editor.on('storage:store', function() {
   // Before storing, ensure running total data is preserved in components
@@ -1159,35 +1188,55 @@ editor.DomComponents.addType('enhanced-table', {
       resizable: false,
       traits: [
         {
-          type: 'text',
-          name: 'highlight-condition',
+          type: 'select',
+          name: 'highlight-condition-type',
           label: 'Highlight Condition',
-          placeholder: 'e.g., >50, <=100, =text, contains:word',
-          changeProp: 1,
+          options: [
+            { value: '', label: 'Select Condition Type' },
+            { value: 'contains', label: 'Text: Contains' },
+            { value: 'starts-with', label: 'Text: Starts With' },
+            { value: 'ends-with', label: 'Text: Ends With' },
+            { value: '>', label: 'Number: > (Greater than)' },
+            { value: '>=', label: 'Number: >= (Greater than or equal)' },
+            { value: '<', label: 'Number: < (Less than)' },
+            { value: '<=', label: 'Number: <= (Less than or equal)' },
+            { value: '=', label: 'Number: = (Equal to)' },
+            { value: '!=', label: 'Number: != (Not equal to)' },
+            { value: 'between', label: 'Number: Between (range)' },
+            { value: 'null', label: 'Null/Empty (No value)' }
+          ],
+          changeProp: 1
+        },
+        {
+          type: 'text',
+          name: 'highlight-words',
+          label: 'Highlight Words/Conditions',
+          placeholder: 'Examples: word1, word2, >1000, <=100',
+          changeProp: 1
         },
         {
           type: 'color',
           name: 'highlight-color',
           label: 'Highlight Color',
           placeholder: '#ffff99',
-          changeProp: 1,
+          changeProp: 1
         }
       ],
       'custom-name': 'Enhanced Table'
     },
     
     init() {
-      this.on('change:highlight-condition change:highlight-color', this.handleHighlightChange);
+      this.on('change:highlight-condition-type change:highlight-words change:highlight-color', this.handleHighlightChange);
     },
 
     handleHighlightChange() {
       const tableId = this.getId();
-      const condition = this.get('highlight-condition');
+      const conditionType = this.get('highlight-condition-type');
+      const words = this.get('highlight-words');
       const color = this.get('highlight-color');
       
-      if (condition) {
-        applyHighlighting(tableId, condition, color);
-        // Trigger update to ensure GrapesJS recognizes changes
+      if (conditionType) {
+        applyHighlighting(tableId, conditionType, words, color);
         editor.trigger('component:update', this);
       }
     }
@@ -1196,49 +1245,52 @@ editor.DomComponents.addType('enhanced-table', {
 
 
   // Add commands for highlighting
-  editor.Commands.add('apply-table-highlighting', {
-    run(editor) {
-      const selected = editor.getSelected();
-      if (selected && selected.get('tagName') === 'table') {
-        const tableId = selected.getId();
-        const condition = selected.get('highlight-condition');
-        const color = selected.get('highlight-color');
-        
-        if (!condition) {
-          showToast('Please enter a highlight condition first', 'warning');
-          return;
-        }
-        
-        applyHighlighting(tableId, condition, color);
-        showToast('Cell highlighting applied successfully!', 'success');
-        
-        // Trigger editor update to ensure GrapesJS recognizes the changes
-        editor.trigger('component:update', selected);
+editor.Commands.add('apply-table-highlighting', {
+  run(editor) {
+    const selected = editor.getSelected();
+    if (selected && selected.get('tagName') === 'table') {
+      const tableId = selected.getId();
+      const conditionType = selected.get('highlight-condition-type');
+      const conditionValue = selected.get('highlight-words');
+      const color = selected.get('highlight-color');
+      
+      if (!conditionType) {
+        showToast('Please select a highlight condition type first', 'warning');
+        return;
       }
+      
+      if (conditionType !== 'null' && !conditionValue) {
+        showToast('Please enter highlight words/conditions', 'warning');
+        return;
+      }
+      
+      applyHighlighting(tableId, conditionType, conditionValue, color);
+      showToast('Cell highlighting applied successfully!', 'success');
+      
+      editor.trigger('component:update', selected);
     }
-  });
+  }
+});
 
-  // Enhanced command for clearing highlighting with GrapesJS sync
-  editor.Commands.add('clear-table-highlighting', {
-    run(editor) {
-      const selected = editor.getSelected();
-      if (selected && selected.get('tagName') === 'table') {
-        const tableId = selected.getId();
-        
-        // Clear highlighting by applying empty condition
-        applyHighlighting(tableId, '', '');
-        
-        // Clear the traits
-        selected.set('highlight-condition', '');
-        selected.set('highlight-color', '');
-        
-        showToast('Highlighting cleared successfully!', 'success');
-        
-        // Trigger editor update
-        editor.trigger('component:update', selected);
-      }
+editor.Commands.add('clear-table-highlighting', {
+  run(editor) {
+    const selected = editor.getSelected();
+    if (selected && selected.get('tagName') === 'table') {
+      const tableId = selected.getId();
+      
+      applyHighlighting(tableId, '', '', '');
+      
+      selected.set('highlight-condition-type', '');
+      selected.set('highlight-words', '');
+      selected.set('highlight-color', '');
+      
+      showToast('Highlighting cleared successfully!', 'success');
+      
+      editor.trigger('component:update', selected);
     }
-  });
+  }
+});
+
 
   // Add command to show all formulas
   editor.Commands.add('show-all-formulas', {
@@ -2242,20 +2294,18 @@ editor.on('component:selected', function(component) {
 });
 
   // Global function to update highlighting for external access
-  window.updateTableHighlighting = function(tableId, condition, color) {
-    applyHighlighting(tableId, condition, color);
-    
-    // Find the table component and trigger update
-    const canvasBody = editor.Canvas.getBody();
-    const tableEl = canvasBody.querySelector(`#${tableId}`);
-    if (tableEl) {
-      const tableComponent = editor.DomComponents.getComponentFromElement(tableEl);
-      if (tableComponent) {
-        editor.trigger('component:update', tableComponent);
-      }
+window.updateTableHighlighting = function(tableId, conditionType, conditionValue, color) {
+  applyHighlighting(tableId, conditionType, conditionValue, color);
+  
+  const canvasBody = editor.Canvas.getBody();
+  const tableEl = canvasBody.querySelector(`#${tableId}`);
+  if (tableEl) {
+    const tableComponent = editor.DomComponents.getComponentFromElement(tableEl);
+    if (tableComponent) {
+      editor.trigger('component:update', tableComponent);
     }
-  };
-
+  }
+};
   // Page system integration - ensure tables work properly when pages are created/modified
   editor.on('component:add component:update', function(component) {
     // Only process if this might be related to page structure changes
