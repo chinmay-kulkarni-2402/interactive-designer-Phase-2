@@ -13,12 +13,26 @@ function addFormattedRichTextComponent(editor) {
       defaultPattern: '#,##,###',
       icon: '🔢'
     },
-    currency: {
-      label: 'Currency',
-      patterns: ['$ 0', '$ 0.00', '₹ 0.00', '₹ 0', '¥ 0', '£ 0.00', '€ 0.00', 'IDR 0.000', 'OMR 0.000'],
-      defaultPattern: '₹ 0.00',
-      icon: '💰'
-    },
+currency: {
+  label: 'Currency',
+  patterns: [
+    '$ 0', '$ 0.00',           // USA, Canada
+    '₹ 0.00', '₹ 0',           // India (existing)
+    '¥ 0', '£ 0.00', '€ 0.00', // Existing
+    'IDR 0.000',               // Indonesia (existing)
+    'OMR 0.000',               // Oman (existing)
+    'R 0.00',                  // South Africa (ZAR)
+    '¥ 0.00',                  // China (CNY - different from JPY)
+    'S$ 0.00',                 // Singapore (SGD)
+    'RM 0.00',                 // Malaysia (MYR)
+    'Rs. 0.00',                // Sri Lanka (LKR)
+    'AED 0.00',                // UAE/Dubai (AED)
+    'SR 0.00',                 // Saudi Arabia (SAR)
+    '₽ 0.00'                   // Russia (RUB)
+  ],
+  defaultPattern: '₹ 0.00',
+  icon: '💰'
+},
 
     percentage: {
       label: 'Percentage',
@@ -205,13 +219,53 @@ function addFormattedRichTextComponent(editor) {
       }
     },
 
-    parseNumber(value) {
-      const textContent = this.extractTextContent(value);
-      if (typeof textContent === 'number') return textContent;
-      const cleanValue = String(textContent).replace(/[^\d.-]/g, '');
-      const parsed = parseFloat(cleanValue);
-      return isNaN(parsed) ? 0 : parsed;
-    },
+      parseNumber(value) {
+        const textContent = this.extractTextContent(value);
+        if (typeof textContent === 'number') return textContent;
+        
+        const str = String(textContent).trim();
+        
+        // Handle Indonesian format (dots as thousands, comma as decimal)
+        // Example: "1.234.567,89" should become 1234567.89
+        if (str.includes('.') && str.includes(',')) {
+          // Check if this looks like Indonesian format
+          const lastComma = str.lastIndexOf(',');
+          const lastDot = str.lastIndexOf('.');
+          
+          if (lastComma > lastDot) {
+            // Indonesian format: dots for thousands, comma for decimal
+            const cleanValue = str.replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleanValue.replace(/[^\d.-]/g, ''));
+            return isNaN(parsed) ? 0 : parsed;
+          }
+        }
+        
+        // Handle standard format or other edge cases
+        const cleanValue = str.replace(/[^\d.,-]/g, '');
+        
+        // If there are multiple dots and no comma, assume dots are thousand separators
+        if (cleanValue.split('.').length > 2 && !cleanValue.includes(',')) {
+          // Remove all dots except the last one (if it's followed by 1-3 digits)
+          const parts = cleanValue.split('.');
+          const lastPart = parts[parts.length - 1];
+          
+          if (lastPart.length <= 3) {
+            // Last dot is decimal separator
+            const wholePart = parts.slice(0, -1).join('');
+            const parsed = parseFloat(wholePart + '.' + lastPart);
+            return isNaN(parsed) ? 0 : parsed;
+          } else {
+            // All dots are thousand separators
+            const parsed = parseFloat(parts.join(''));
+            return isNaN(parsed) ? 0 : parsed;
+          }
+        }
+        
+        // Standard parsing for most formats
+        const standardClean = cleanValue.replace(/,/g, ''); // Remove commas (thousand separators)
+        const parsed = parseFloat(standardClean);
+        return isNaN(parsed) ? 0 : parsed;
+      },
 
     parseDate(value) {
       const textContent = this.extractTextContent(value);
@@ -246,39 +300,93 @@ function addFormattedRichTextComponent(editor) {
     },
 
     formatCurrency(value, pattern) {
-  const num = this.parseNumber(value);
-  // Extract currency symbol or code (leading non-digit, non-space part)
-  const symbolMatch = pattern.match(/^([^\d\s]+|[A-Z]{3})\s*/);
-  const currencySymbol = symbolMatch ? symbolMatch[1] : '';
-  // Determine decimal places from pattern (e.g., '.00' -> 2, '.000' -> 3)
-  const decimalsMatch = pattern.match(/\.0+/);
-  const decimals = decimalsMatch ? decimalsMatch[0].length - 1 : 0;
+      const num = this.parseNumber(value);
+      // Extract currency symbol or code (leading non-digit, non-space part)
+      const symbolMatch = pattern.match(/^([^\d\s]+|[A-Z]{2,3})\s*/);
+      const currencySymbol = symbolMatch ? symbolMatch[1] : '';
+      // Determine decimal places from pattern (e.g., '.00' -> 2, '.000' -> 3)
+      const decimalsMatch = pattern.match(/\.0+/);
+      const decimals = decimalsMatch ? decimalsMatch[0].length - 1 : 0;
 
-  let locale;
-  let options = {
-    minimumFractionDigits: decimals > 0 ? decimals : 0,
-    maximumFractionDigits: decimals > 0 ? decimals : 0,
-    useGrouping: true
-  };
+      let locale;
+      let options = {
+        minimumFractionDigits: decimals > 0 ? decimals : 0,
+        maximumFractionDigits: decimals > 0 ? decimals : 0,
+        useGrouping: true
+      };
 
-  if (currencySymbol === '₹') {
-    // Indian numbering system: en-IN already uses 00,00,000 grouping
-    locale = 'en-IN';
-  } else if (currencySymbol === 'IDR') {
-    // Indonesian formatting: use id-ID (dot as thousand separator, comma as decimal)
-    locale = 'id-ID';
-  } else {
-    // Default western grouping
-    locale = 'en-US';
-  }
+      // Determine locale based on currency symbol
+      if (currencySymbol === '₹') {
+        // Indian numbering system: en-IN uses 00,00,000 grouping
+        locale = 'en-IN';
+      } else if (currencySymbol === 'IDR') {
+        // Indonesian formatting: use id-ID (dots as thousands, comma as decimal)
+        locale = 'id-ID';
+      } else if (currencySymbol === 'R') {
+        // South African Rand: use en-ZA
+        locale = 'en-ZA';
+      } else if (currencySymbol === '¥' && decimals === 2) {
+        // Chinese Yuan (has decimals): use zh-CN
+        locale = 'zh-CN';
+      } else if (currencySymbol === '¥' && decimals === 0) {
+        // Japanese Yen (no decimals): use ja-JP
+        locale = 'ja-JP';
+      } else if (currencySymbol === 'S$') {
+        // Singapore Dollar: use en-SG
+        locale = 'en-SG';
+      } else if (currencySymbol === 'RM') {
+        // Malaysian Ringgit: use ms-MY
+        locale = 'ms-MY';
+      } else if (currencySymbol === 'Rs.') {
+        // Sri Lankan Rupee: use si-LK
+        locale = 'si-LK';
+      } else if (currencySymbol === 'AED') {
+        // UAE Dirham: use ar-AE
+        locale = 'ar-AE';
+      } else if (currencySymbol === 'SR') {
+        // Saudi Riyal: use ar-SA
+        locale = 'ar-SA';
+      } else if (currencySymbol === '₽') {
+        // Russian Ruble: use ru-RU
+        locale = 'ru-RU';
+      } else if (currencySymbol === 'OMR') {
+        // Omani Rial: use ar-OM
+        locale = 'ar-OM';
+      } else if (currencySymbol === '£') {
+        // British Pound: use en-GB
+        locale = 'en-GB';
+      } else if (currencySymbol === '€') {
+        // Euro: use de-DE
+        locale = 'de-DE';
+      } else {
+        // Default western grouping (USD, CAD, etc.)
+        locale = 'en-US';
+      }
 
-  const formattedNumber = new Intl.NumberFormat(locale, options).format(num);
+      let formattedNumber;
+      
+      // Special handling for Indonesian format
+      if (currencySymbol === 'IDR') {
+        // Indonesian uses dots for thousands and comma for decimal
+        if (decimals > 0) {
+          const integerPart = Math.floor(num);
+          const decimalPart = (num - integerPart).toFixed(decimals).substring(2);
+          
+          // Format integer part with dots as thousand separators
+          const integerFormatted = integerPart.toLocaleString('de-DE'); // German format uses dots for thousands
+          formattedNumber = integerFormatted + ',' + decimalPart;
+        } else {
+          formattedNumber = Math.floor(num).toLocaleString('de-DE'); // Use dots for thousands
+        }
+      } else {
+        // Use standard Intl.NumberFormat for other currencies
+        formattedNumber = new Intl.NumberFormat(locale, options).format(num);
+      }
 
-  // For symbols like 'OMR' (three-letter code), keep as-is; others prepend with space
-  const separator = /^[A-Z]{3}$/.test(currencySymbol) ? ' ' : ' ';
-  return currencySymbol + separator + formattedNumber;
-},
-
+      // For three-letter currency codes, use space separator; for symbols, use space
+      const separator = ' ';
+      return currencySymbol + separator + formattedNumber;
+    },
 
     formatPercentage(value, pattern) {
       const num = this.parseNumber(value);
