@@ -425,6 +425,7 @@ save.addEventListener("click", savePage, true);
 var importPage = document.getElementById("importPage");
 importPage.addEventListener("click", importSinglePages, true);
 
+
 // var filterBtn = document.getElementById("filterTable");
 // let filtersEnabled = false;
 // const activeFilters = new Map(); // Store active filters per table & column
@@ -1547,6 +1548,7 @@ cells.forEach((cell, cellIndex) => {
               overflow: visible !important;
               position: relative !important;
             }
+
 
             .page-section {
               border: none !important;

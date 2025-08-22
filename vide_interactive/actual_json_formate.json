@@ -4,18 +4,7 @@
      "content":"Content goes here content goes here", 
      "content1":"Test Data content1",
      "videoLink":"",
-      "SA":[
-         {
-            "name":"Vishal",
-            "surname":"Mishra",
-            "address":"Mumbai"
-         },
-         {
-            "name":"Sumit",
-            "surname":"Mishra",
-            "address":"Mumbai"
-         }
-      ],  
+      "SA":["Chinmay", "Vishal",  "Durgesh"],  
       "analytics_pie":{ 
         "series" : [{  
           "data":  [{
