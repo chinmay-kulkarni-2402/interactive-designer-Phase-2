@@ -828,210 +828,137 @@ function applyHighlighting(tableId, conditionType, conditionValue, highlightColo
   });
 
   // Load CSS inside GrapesJS iframe
-  editor.on('load', () => {
-    const iframe = editor.getContainer().querySelector('iframe'); 
-    const head = iframe.contentDocument.head;  
-    const style = document.createElement('style');
-    style.type = 'text/css'; 
-    style.innerHTML = `
-      a.dt-button { border: 1px solid #ccc !important; }
-      .dataTables_wrapper .dataTables_filter input {
-        border: 1px solid #ccc !important;
-      }
-      .dataTables_wrapper .dataTables_filter input:focus-visible { outline: 0px!important; }
-      .i_designer-dashed *[data-i_designer-highlightable] {
-        border: 1px solid #ccc !important;
-      }
-      .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-        border: 1px solid #ccc !important;
-      }
-      .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-        border: 1px solid #ccc !important;
-        background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
-      }
-      table.dataTable { border: 1px solid #ccc !important; }
-      table.dataTable thead th { border-bottom: 1px solid #ccc !important; }
+editor.on('load', () => {
+  const iframe = editor.getContainer().querySelector('iframe'); 
+  const head = iframe.contentDocument.head;  
+  const style = document.createElement('style');
+  style.type = 'text/css'; 
+  style.innerHTML = `
+    a.dt-button { border: 1px solid #ccc !important; }
+    .dataTables_wrapper .dataTables_filter input {
+      border: 1px solid #ccc !important;
+    }
+    .dataTables_wrapper .dataTables_filter input:focus-visible { outline: 0px!important; }
+    .i_designer-dashed *[data-i_designer-highlightable] {
+      border: 1px solid #ccc !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+      border: 1px solid #ccc !important;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+      border: 1px solid #ccc !important;
+      background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
+    }
+    table.dataTable { border: 1px solid #ccc !important; }
+    table.dataTable thead th { border-bottom: 1px solid #ccc !important; }
 
-      /* Enhanced highlighted cell styles - applied to td/th instead of div */
-      td[data-highlighted="true"], th[data-highlighted="true"] {
-        position: relative;
-      }
-      td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-        content: "★";
-        position: absolute;
-        top: 2px;
-        right: 2px;
-        font-size: 10px;
-        color: #ff6b35;
-        font-weight: bold;
-        z-index: 1;
-      }
+    /* Enhanced highlighted cell styles - applied to td/th instead of div */
+    td[data-highlighted="true"], th[data-highlighted="true"] {
+      position: relative;
+    }
+    td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+      content: "★";
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      font-size: 10px;
+      color: #ff6b35;
+      font-weight: bold;
+      z-index: 1;
+    }
 
-      /* Formula suggestions styling */
-      .formula-suggestions {
-        font-family: Arial, sans-serif !important;
-      }
-      .formula-suggestions div:hover {
-        background-color: #f0f0f0 !important;
-      }
+    /* Formula suggestions styling */
+    .formula-suggestions {
+      font-family: Arial, sans-serif !important;
+    }
+    .formula-suggestions div:hover {
+      background-color: #f0f0f0 !important;
+    }
 
-      /* Page-aware table styles */
-      .page-container .dataTables_wrapper {
-        max-width: 100%;
-        overflow: hidden;
-      }
-      
-      .main-content-area .dataTables_wrapper {
+    /* Page-aware table styles */
+    .page-container .dataTables_wrapper {
+      max-width: 100%;
+      overflow: hidden;
+    }
+    
+    .main-content-area .dataTables_wrapper {
+      width: 100% !important;
+      box-sizing: border-box;
+    }
+    
+    /* REMOVED: Running Total Cell Styling - No automatic styling */
+    
+    /* Enhanced print styles for tables in pages with cell highlighting preservation */
+    @media print {
+      .page-container table.dataTable {
+        border-collapse: collapse !important;
         width: 100% !important;
-        box-sizing: border-box;
+        font-size: 10px !important;
+        page-break-inside: avoid !important;
       }
       
-      /* Running Total Cell Styling - Preserved in Export and Print */
-      td[data-running-total-cell], th[data-running-total-header] {
-        background-color: #f8f9fa !important;
-        font-weight: 600 !important;
+      .page-container .dataTables_wrapper .dataTables_length,
+      .page-container .dataTables_wrapper .dataTables_filter,
+      .page-container .dataTables_wrapper .dataTables_info,
+      .page-container .dataTables_wrapper .dataTables_paginate,
+      .page-container .dataTables_wrapper .dt-buttons {
+        display: none !important;
+      }
+      
+      .page-container table.dataTable thead th,
+      .page-container table.dataTable tbody td {
         border: 1px solid #000 !important;
+        padding: 4px !important;
+        text-align: left !important;
+      }
+      
+      .page-container table.dataTable thead th {
+        background-color: #f5f5f5 !important;
+        font-weight: bold !important;
         -webkit-print-color-adjust: exact !important;
         color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
 
-      th[data-running-total-header] {
-        background-color: #e9ecef !important;
-        font-weight: bold !important;
+      /* Preserve cell highlighting in print - critical for PDF generation */
+      td[data-highlighted="true"], th[data-highlighted="true"] {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
-
-      /* Ensure running total cells are visible in all contexts */
-      @media print {
-        td[data-running-total-cell], th[data-running-total-header] {
-          display: table-cell !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-          background-color: #f8f9fa !important;
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        
-        th[data-running-total-header] {
-          background-color: #e9ecef !important;
-          font-weight: bold !important;
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        
-        /* Force running total content to be visible */
-        td[data-running-total-cell] div, th[data-running-total-header] div {
-          display: block !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-        }
+      
+      /* Ensure background colors are preserved in print/PDF */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
-      /* Enhanced print styles for tables in pages with cell highlighting preservation */
-      @media print {
-        .page-container table.dataTable {
-          border-collapse: collapse !important;
-          width: 100% !important;
-          font-size: 10px !important;
-          page-break-inside: avoid !important;
-        }
-        
-        .page-container .dataTables_wrapper .dataTables_length,
-        .page-container .dataTables_wrapper .dataTables_filter,
-        .page-container .dataTables_wrapper .dataTables_info,
-        .page-container .dataTables_wrapper .dataTables_paginate,
-        .page-container .dataTables_wrapper .dt-buttons {
-          display: none !important;
-        }
-        
-        .page-container table.dataTable thead th,
-        .page-container table.dataTable tbody td {
-          border: 1px solid #000 !important;
-          padding: 4px !important;
-          text-align: left !important;
-        }
-        
-        .page-container table.dataTable thead th {
-          background-color: #f5f5f5 !important;
-          font-weight: bold !important;
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-
-        /* Preserve cell highlighting in print - critical for PDF generation */
-        td[data-highlighted="true"], th[data-highlighted="true"] {
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        
-        /* Ensure background colors are preserved in print/PDF */
-        * {
-          -webkit-print-color-adjust: exact !important;
-          color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        
-        /* Hide the star indicator in print to avoid clutter */
-        td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-          display: none !important;
-        }
-          td[data-running-total-cell], th[data-running-total-header] {
-  background-color: #f8f9fa !important;
-  font-weight: 600 !important;
-  border: 1px solid #000 !important;
-  -webkit-print-color-adjust: exact !important;
-  color-adjust: exact !important;
-  print-color-adjust: exact !important;
-}
-
-th[data-running-total-header] {
-  background-color: #e9ecef !important;
-  font-weight: bold !important;
-}
-
-/* Ensure running total cells are visible in all contexts */
-@media print {
-  td[data-running-total-cell], th[data-running-total-header] {
-    display: table-cell !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    background-color: #f8f9fa !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  
-  th[data-running-total-header] {
-    background-color: #e9ecef !important;
-    font-weight: bold !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-}
+      
+      /* Hide the star indicator in print to avoid clutter */
+      td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+        display: none !important;
       }
-    `;
-    head.appendChild(style);
+    }
+  `;
+  head.appendChild(style);
 
-    // Inject formula parser library into iframe
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
-    head.appendChild(script);
+  // Inject formula parser library into iframe
+  const script = document.createElement('script');
+  script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+  head.appendChild(script);
 
-    // Wait for hot-formula-parser to load and then store supported formulas
-    script.onload = () => {
-      try {
-        if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
-          window.formulaParser = iframe.contentWindow.formulaParser;
-        }
-      } catch (error) {
-        console.warn('Could not access formula parser:', error);
+  // Wait for hot-formula-parser to load and then store supported formulas
+  script.onload = () => {
+    try {
+      if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
+        window.formulaParser = iframe.contentWindow.formulaParser;
       }
-    };
-  });
+    } catch (error) {
+      console.warn('Could not access formula parser:', error);
+    }
+  };
+});
+
 
 editor.on("load", () => {
   const devicesPanel = editor.Panels.getPanel("devices-c");
@@ -1052,7 +979,7 @@ editor.on("load", () => {
 });
 
 
-  editor.on('storage:store', function() {
+editor.on('storage:store', function() {
   // Before storing, ensure running total data is preserved in components
   try {
     const canvasBody = editor.Canvas.getBody();
@@ -1729,28 +1656,22 @@ function addRunningTotalColumn(tableId, sourceCell) {
 
     // === ADD TO ACTUAL COMPONENT HTML STRUCTURE ===
     
-    // 1. Add header cell to GrapesJS component structure
+    // 1. Add header cell to GrapesJS component structure - NO STYLING
     const theadComponent = tableComponent.find('thead')[0];
     if (theadComponent) {
       const headerRowComponent = theadComponent.find('tr')[0];
       if (headerRowComponent) {
         const headerCells = headerRowComponent.components();
         
-        // Create new header cell component
+        // Create new header cell component WITHOUT any styling
         const newHeaderCellComponent = headerRowComponent.append({
           tagName: 'th',
           content: '<div>Running Total</div>',
           attributes: {
             'data-running-total-for': sourceCellIndex.toString(),
             'data-running-total-header': 'true'
-          },
-          style: {
-            'background-color': '#e9ecef',
-            'font-weight': 'bold',
-            'border': '1px solid #000',
-            'padding': '8px',
-            'text-align': 'left'
           }
+          // REMOVED: style object - no automatic styling
         });
         
         // Move to correct position if needed
@@ -1762,7 +1683,7 @@ function addRunningTotalColumn(tableId, sourceCell) {
       }
     }
 
-    // 2. Add data cells to GrapesJS component structure
+    // 2. Add data cells to GrapesJS component structure - NO STYLING
     const tbodyComponent = tableComponent.find('tbody')[0];
     if (tbodyComponent) {
       const bodyRowComponents = tbodyComponent.find('tr');
@@ -1780,7 +1701,7 @@ function addRunningTotalColumn(tableId, sourceCell) {
               runningSum += numericValue;
             }
 
-            // Create new data cell component
+            // Create new data cell component WITHOUT any styling
             const newDataCellComponent = rowComponent.append({
               tagName: 'td',
               content: `<div>${runningSum.toFixed(2)}</div>`,
@@ -1788,14 +1709,8 @@ function addRunningTotalColumn(tableId, sourceCell) {
                 'data-running-total-for': sourceCellIndex.toString(),
                 'data-running-total-value': runningSum.toString(),
                 'data-running-total-cell': 'true'
-              },
-              style: {
-                'background-color': '#f8f9fa',
-                'font-weight': '600',
-                'border': '1px solid #000',
-                'padding': '8px',
-                'text-align': 'left'
               }
+              // REMOVED: style object - no automatic styling
             });
             
             // Move to correct position if needed
@@ -1810,7 +1725,7 @@ function addRunningTotalColumn(tableId, sourceCell) {
       });
     }
 
-    // === ALSO UPDATE THE DOM FOR IMMEDIATE VISUAL FEEDBACK ===
+    // === ALSO UPDATE THE DOM FOR IMMEDIATE VISUAL FEEDBACK - NO STYLING ===
     
     // Add header cell for running total in DOM
     if (headerRow) {
@@ -1820,7 +1735,7 @@ function addRunningTotalColumn(tableId, sourceCell) {
         newHeaderCell.innerHTML = '<div>Running Total</div>';
         newHeaderCell.setAttribute('data-running-total-for', sourceCellIndex.toString());
         newHeaderCell.setAttribute('data-running-total-header', 'true');
-        newHeaderCell.style.cssText = 'background-color: #e9ecef; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;';
+        // REMOVED: style.cssText - no automatic styling
         
         // Insert after source column
         if (headerRow.children[runningTotalColumnIndex]) {
@@ -1831,7 +1746,7 @@ function addRunningTotalColumn(tableId, sourceCell) {
       }
     }
 
-    // Add running total cells to body rows in DOM
+    // Add running total cells to body rows in DOM - NO STYLING
     let runningSum = 0;
     bodyRows.forEach((row, rowIndex) => {
       const sourceDataCell = row.children[sourceCellIndex];
@@ -1850,7 +1765,7 @@ function addRunningTotalColumn(tableId, sourceCell) {
           newDataCell.setAttribute('data-running-total-for', sourceCellIndex.toString());
           newDataCell.setAttribute('data-running-total-value', runningSum.toString());
           newDataCell.setAttribute('data-running-total-cell', 'true');
-          newDataCell.style.cssText = 'background-color: #f8f9fa; font-weight: 600; border: 1px solid #000; padding: 8px; text-align: left;';
+          // REMOVED: style.cssText - no automatic styling
           
           // Insert after source column
           if (row.children[runningTotalColumnIndex]) {
@@ -1876,6 +1791,7 @@ function addRunningTotalColumn(tableId, sourceCell) {
     showToast('Error adding running total column', 'error');
   }
 }
+
 
 function removeRunningTotalColumn(tableId, sourceCell) {
   try {
