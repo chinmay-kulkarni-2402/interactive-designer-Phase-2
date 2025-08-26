@@ -86,24 +86,6 @@ function customSections(editor) {
               "min-height": "80px",
               "position": "relative"
             },
-            components: [
-              {
-                tagName: "div",
-                content: "Header Content",
-                attributes: { class: "sample-element" },
-                style: {
-                  position: "absolute",
-                  left: "5%",
-                  top: "10%",
-                  width: "200px",
-                  height: "40px",
-                  border: "1px solid #888",
-                  padding: "10px",
-                  "background-color": "#e8f4fd",
-                  "border-radius": "4px"
-                }
-              }
-            ]
           },
           {
             tagName: "div",
@@ -117,24 +99,6 @@ function customSections(editor) {
               "padding": "10px",
               "position": "relative"
             },
-            components: [
-              {
-                tagName: "div",
-                content: "Content Area",
-                attributes: { class: "sample-element" },
-                style: {
-                  position: "absolute",
-                  left: "10%",
-                  top: "15%",
-                  width: "300px",
-                  height: "60px",
-                  border: "1px solid #888",
-                  padding: "10px",
-                  "background-color": "#f0f8f0",
-                  "border-radius": "4px"
-                }
-              }
-            ]
           },
           {
             tagName: "div",
@@ -148,24 +112,6 @@ function customSections(editor) {
               "min-height": "60px",
               "position": "relative"
             },
-            components: [
-              {
-                tagName: "div",
-                content: "Footer Content",
-                attributes: { class: "sample-element" },
-                style: {
-                  position: "absolute",
-                  left: "5%",
-                  top: "20%",
-                  width: "250px",
-                  height: "30px",
-                  border: "1px solid #888",
-                  padding: "10px",
-                  "background-color": "#fff4e6",
-                  "border-radius": "4px"
-                }
-              }
-            ]
           }
         ],
         style: {
@@ -332,9 +278,6 @@ editor.on('component:styleUpdate', (component) => {
   const sectionInfo = isInsideSection(component);
 
   if (sectionInfo.isInside) {
-    // Allow normal styles to apply — don't force absolute anymore
-    // If the user has already dragged it, it will already be absolute
-    // Nothing else needed here
   }
 });
 

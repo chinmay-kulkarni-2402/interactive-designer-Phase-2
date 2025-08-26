@@ -250,11 +250,31 @@
                 })
               );
 
+                // w("sections") &&
+                // t.add(
+                //   "sections",
+                //   e(e({}, M), {
+                //     label: a.labelSection,
+                //     media:`
+                //       <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                //       <rect x="2" y="3" width="20" height="4" rx="1" fill="#6c757d"/>
+                //       <rect x="2" y="10" width="20" height="8" rx="1" fill="#f8f9fa" stroke="#6c757d"/>
+                //       <rect x="2" y="21" width="20" height="3" rx="1" fill="#343a40"/>
+                //       </svg>`,
+                //     content: {
+                //       type: "sections",
+                //       content: "", 
+                      
+                //     },
+                //   })
+                // );
+
+
               w("Dynamic Header Footer") &&
               t.add(
                 "Dynamic Header Footer",
                 e(e({}, M), {
-                  label: a.labelSection,
+                  label: "Dynamic Header Footer",
                   media:`
                     <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
                     <rect x="2" y="3" width="20" height="4" rx="1" fill="#6c757d"/>

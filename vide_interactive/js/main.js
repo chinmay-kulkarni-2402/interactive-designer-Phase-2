@@ -31,6 +31,7 @@ const editor = InteractiveDesigner.init({
    // customJsonTable,
     customTableOfContents,
     addLiveLineChartComponent,
+    linkTrackerPlugin,
   //  initializePrintPlugin,
    // loadCustomTextboxComponent,
     "basic-block-component",
@@ -550,6 +551,7 @@ function generatePrintDialog() {
     const editorHTML = editor.getHtml();
     const editorCSS = editor.getCss();
     console.log("html", editorHTML);
+    console.log("css", editorCSS)
     
     // Create a hidden iframe for printing
     const printFrame = document.createElement("iframe");
@@ -982,6 +984,7 @@ cells.forEach((cell, cellIndex) => {
           tbody.style.setProperty('display', 'table-row-group', 'important');
         }
       });
+      
       
       // Process all elements with Bootstrap classes (keep existing Bootstrap logic)
       const allElements = tempDiv.querySelectorAll('*');
@@ -1617,7 +1620,38 @@ cells.forEach((cell, cellIndex) => {
     // Write content to iframe
     const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
     frameDoc.open();
-    frameDoc.write(printContent);
+    const checkAndProcessLinks = (htmlContent) => {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = htmlContent;
+  
+  // Get current editor CSS to check for pointer-events: none rules
+  const editorCSS = editor.getCss();
+  
+  // Find all anchor tags
+  const allLinks = tempDiv.querySelectorAll('a[id]');
+  
+  allLinks.forEach(link => {
+    const linkId = link.id;
+    
+    // Check if CSS contains pointer-events: none for this ID
+    const idSelector = `#${linkId}`;
+    const cssRegex = new RegExp(`#${linkId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{}]*{[^{}]*pointer-events\\s*:\\s*none`, 'i');
+    
+    if (cssRegex.test(editorCSS)) {
+      // Remove href attribute completely
+      link.removeAttribute('href');
+      console.log(`Removed href from link: ${linkId}`);
+    }
+  });
+  
+  return tempDiv.innerHTML;
+};
+
+// Process the HTML content
+const processedHTMLWithLinksFixed = checkAndProcessLinks(processedHTMLWithInlineStyles);
+
+const finalPrintContent = printContent.replace(processedHTMLWithInlineStyles, processedHTMLWithLinksFixed);
+frameDoc.write(finalPrintContent);
     frameDoc.close();
 
     // Wait for content to load, then trigger print dialog
@@ -1840,7 +1874,59 @@ editor.on('component:add', function (component) {
 // });
 
 // ******* END Resize and drag code ***********
+// ✅ Always track internal <a> links
+editor.on('load', () => {
+  console.log("hiiiiiii")
+  const scanLinks = () => {
+    const wrapper = editor.getWrapper();
+    const allLinks = wrapper.find('a');
 
+    allLinks.forEach(linkComp => {
+      const href = linkComp.getAttributes().href || '';
+
+      if (href.startsWith('#')) {
+        console.log("# found)")
+        const pageContainer = linkComp.closest('.page-container');
+        if (!pageContainer) return;
+
+        const targetId = href.slice(1); // remove "#"
+        const target = pageContainer.find(`#${targetId}`);
+
+        if (target && target.length > 0) {
+          // ✅ Target found → force styles
+          linkComp.setStyle({
+            ...linkComp.getStyle(),
+            color: 'black',
+            cursor: 'text',
+          });
+        } else {
+          // ❌ Target missing → reset only our forced styles
+          const style = { ...linkComp.getStyle() };
+          delete style.color;
+          delete style.cursor;
+          linkComp.setStyle(style);
+        }
+      } else {
+        // ❌ Not an internal anchor → reset styles if we forced them
+        const style = { ...linkComp.getStyle() };
+        delete style.color;
+        delete style.cursor;
+        linkComp.setStyle(style);
+      }
+    });
+  };
+
+  // 🔄 Initial run
+  scanLinks();
+
+  // 🔄 Keep scanning on any change
+  editor.on('component:add', scanLinks);
+  editor.on('component:update', scanLinks);
+  editor.on('component:remove', scanLinks);
+});
+
+
+// ******** Same Link Page disable code
 
 function importSinglePages() {
   editor.Modal.setTitle("Add Pages From JSON");
