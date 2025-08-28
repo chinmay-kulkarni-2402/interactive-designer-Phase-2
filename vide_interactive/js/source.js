@@ -1,6 +1,4 @@
 function source(editor) {
-  const props_test_audio = (i) => i;
-
   const id_Trait = {
     changeProp: 1,
     name: "id",
@@ -15,13 +13,13 @@ function source(editor) {
     placeholder: "Audio Name",
   };
 
-  const audio_path_Trait = ["audiopath"].map((name) => ({
+  const audio_path_Trait = {
     changeProp: 1,
     type: "text",
-    placeholder: "Enter Audio Link",
+    name: "audiopath",
     label: "Audio Link",
-    name,
-  }));
+    placeholder: "Enter Audio Link",
+  };
 
   const loop_Trait = {
     changeProp: 1,
@@ -32,68 +30,48 @@ function source(editor) {
 
   const all_audio_Traits = [
     name_Trait,
-    ...audio_path_Trait,
+    audio_path_Trait,
     loop_Trait,
   ];
 
   editor.Components.addType("Audio", {
     model: {
-      defaults: props_test_audio({
+      defaults: {
         tagName: "audio",
         resizable: 1,
         droppable: 0,
         stylable: 1,
         traits: [id_Trait, ...all_audio_Traits],
+        attributes: {
+          controls: true,
+          src: "https://commondatastorage.googleapis.com/codeskulptor-demos/pyman_assets/intromusic.ogg",
+        },
         style: {
           padding: "10px 0px",
         },
-        script: `
-          const init = () => {
-            const ctx = this.id;
-            let audiopath1 = "{[ audiopath ]}";
-            let shouldLoop = "{[ loop ]}" === "true";
-            let audioLink = 'https://commondatastorage.googleapis.com/codeskulptor-demos/pyman_assets/intromusic.ogg';
-            if(audiopath1 && audiopath1.trim() !== '') {
-              audioLink = audiopath1;
-            }
-            const audioElement = document.getElementById(ctx);
-            audioElement.controls = true;
-            audioElement.style.padding = '10px';
-
-            // Clear existing children
-            while (audioElement.firstChild) {
-              audioElement.removeChild(audioElement.firstChild);
-            }
-
-            const source = document.createElement('source');
-            source.src = audioLink;
-            source.type = 'audio/mpeg';
-            audioElement.appendChild(source);
-
-            // Apply loop if needed
-            if (shouldLoop) {
-              audioElement.setAttribute("loop", "");
-            } else {
-              audioElement.removeAttribute("loop");
-            }
-          };
-
-          if (!window.Highcharts) {
-            const scr = document.createElement("script");
-            scr.onload = init;
-          } else {
-            init();
-          }
-        `,
-      }),
+      },
 
       init() {
-        const events = all_audio_Traits
-          .filter((i) => ["strings"].indexOf(i.name) < 0)
-          .map((i) => `change:${i.name}`)
-          .join(" ");
-        this.on(events, () => {
-          this.trigger("change:script");
+        // Update src when audiopath changes
+        this.on("change:audiopath", () => {
+          const path = this.get("audiopath");
+          if (path && path.trim() !== "") {
+            this.addAttributes({ src: path });
+          } else {
+            this.addAttributes({
+              src: "https://commondatastorage.googleapis.com/codeskulptor-demos/pyman_assets/intromusic.ogg",
+            });
+          }
+        });
+
+        // Update loop when trait changes
+        this.on("change:loop", () => {
+          const shouldLoop = this.get("loop");
+          if (shouldLoop) {
+            this.addAttributes({ loop: true });
+          } else {
+            this.removeAttributes("loop");
+          }
         });
       },
     },
