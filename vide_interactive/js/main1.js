@@ -1260,13 +1260,13 @@ function prepareEnhancedHTMLContent(tabContents) {
         </head>
         <body>
             ${tabContents
-              .map(
-                (tab, index) =>
-                  `<div class="pdf-page" data-page="${index + 1}">
+      .map(
+        (tab, index) =>
+          `<div class="pdf-page" data-page="${index + 1}">
                     ${processContentForFinalPreview(tab.content, tab.elements, index)}
                 </div>`,
-              )
-              .join("")}
+      )
+      .join("")}
             ${scriptTags}
             ${contentOverflowCheck}
         </body>
@@ -1407,7 +1407,7 @@ function showEnhancedPDFPreview() {
 
   // FIXED: Calculate exact PDF dimensions and apply dynamic positioning
   const dimensions = getExactPDFDimensions()
-  
+
   // FIXED: Set the preview content container to exact PDF page size
   previewContent.style.width = dimensions.width + "px"
   previewContent.style.height = dimensions.height + "px"
@@ -1496,9 +1496,9 @@ function getExactPDFDimensions() {
     format: format,
     orientation: orientation,
     mmDimensions: { width: dim.width, height: dim.height },
-    orientedMmDimensions: { 
-      width: orientation === "landscape" ? dim.height : dim.width, 
-      height: orientation === "landscape" ? dim.width : dim.height 
+    orientedMmDimensions: {
+      width: orientation === "landscape" ? dim.height : dim.width,
+      height: orientation === "landscape" ? dim.width : dim.height
     },
     mmToPxRatio: mmToPx,
     finalPixels: { width, height },
@@ -1518,43 +1518,43 @@ function getExactPDFDimensions() {
 function applyDynamicPositioning(previewContent, dimensions) {
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  
+
   // Get the available space in the preview container (accounting for toolbar and settings panel)
   const toolbar = document.querySelector('.pdf-toolbar')
   const settingsPanel = document.querySelector('.pdf-settings-panel')
   const toolbarHeight = toolbar ? toolbar.offsetHeight : 60
   const settingsPanelWidth = settingsPanel && settingsPanel.style.display !== 'none' ? settingsPanel.offsetWidth : 0
-  
+
   // Calculate available space with minimal padding
   const availableWidth = viewportWidth - settingsPanelWidth - 20 // Reduced padding from 40px to 20px
   const availableHeight = viewportHeight - toolbarHeight - 20 // Reduced padding from 40px to 20px
-  
+
   // Calculate scale factor to maximize content size while maintaining aspect ratio
   const scaleX = availableWidth / dimensions.width
   const scaleY = availableHeight / dimensions.height
-  
+
   // Use the minimum scale to ensure content fits, but aim for larger display
   // Increase minimum scale to 0.9 to ensure preview is not too small
   const scale = Math.min(scaleX, scaleY)
-  
+
   // Calculate final dimensions after scaling
   const finalWidth = dimensions.width * scale
   const finalHeight = dimensions.height * scale
-  
+
   // Calculate dynamic margins for centering with minimal spacing
   const horizontalMargin = Math.max(0, (availableWidth - finalWidth) / 2)
   const verticalMargin = Math.max(0, (availableHeight - finalHeight) / 2)
-  
+
   // Apply dynamic positioning and scaling
   previewContent.style.transform = `scale(${scale})`
   previewContent.style.transformOrigin = 'top left'
-  
+
   // Apply minimal margins to reduce empty space
   previewContent.style.marginTop = Math.max(5, verticalMargin) + "px"
   previewContent.style.marginLeft = Math.max(5, horizontalMargin) + "px"
   previewContent.style.marginRight = "0px" // Remove right margin
   previewContent.style.marginBottom = "0px" // Remove bottom margin
-  
+
   // Update the content wrapper to handle the scaled content properly
   const contentWrapper = previewContent.parentElement
   if (contentWrapper) {
@@ -1563,7 +1563,7 @@ function applyDynamicPositioning(previewContent, dimensions) {
     contentWrapper.style.padding = '0' // Remove padding to maximize space
     contentWrapper.style.overflow = 'auto' // Allow scrolling if needed
   }
-  
+
   console.log("Dynamic Positioning Applied:", {
     format: pdfSystemData.settings.pageFormat,
     orientation: pdfSystemData.settings.orientation,
@@ -1667,13 +1667,13 @@ function setupEventListeners() {
 
   document.getElementById("pdfOrientation").onchange = updatePreviewDynamically
   document.getElementById("pdfOrientation").setAttribute("data-pdf-listener", "true")
-  ;["pdfMarginTop", "pdfMarginRight", "pdfMarginBottom", "pdfMarginLeft", "pdfMarginUnit"].forEach((id) => {
-    const element = document.getElementById(id)
-    element.oninput = updatePreviewDynamically
-    element.onchange = updatePreviewDynamically
-    element.onkeyup = updatePreviewDynamically
-    element.setAttribute("data-pdf-listener", "true")
-  })
+    ;["pdfMarginTop", "pdfMarginRight", "pdfMarginBottom", "pdfMarginLeft", "pdfMarginUnit"].forEach((id) => {
+      const element = document.getElementById(id)
+      element.oninput = updatePreviewDynamically
+      element.onchange = updatePreviewDynamically
+      element.onkeyup = updatePreviewDynamically
+      element.setAttribute("data-pdf-listener", "true")
+    })
 
   document.getElementById("pdfPasswordProtected").onchange = handlePasswordProtectionChange
   document.getElementById("pdfPasswordProtected").setAttribute("data-pdf-listener", "true")
@@ -2117,7 +2117,7 @@ function scrollToPage(pageNumber) {
 function toggleSettings() {
   const panel = document.getElementById("pdfSettingsPanel")
   panel.style.display = panel.style.display === "none" ? "block" : "none"
-  
+
   // FIXED: Recalculate positioning when settings panel is toggled
   setTimeout(() => {
     const previewContent = document.getElementById("pdfPreviewContent")

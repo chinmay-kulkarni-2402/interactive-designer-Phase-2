@@ -366,6 +366,18 @@ editor.on("load", () => {
   pageSetupManager = new PageSetupManager(editor);
 });
 
+editor.Commands.add("create-pages", {
+  run(editor) {
+    console.log("📄 Create Pages button clicked!");
+    if (typeof createPagesFromEditor === "function") {
+      createPagesFromEditor(editor);
+    } else {
+      alert("⚠️ createPagesFromEditor function not found!");
+    }
+  }
+});
+
+
 const pn = editor.Panels;
 const panelViews = pn.addPanel({
   id: "views",
@@ -411,6 +423,13 @@ editor.Panels.addPanel({ id: "devices-c" })
       attributes: { title: "Change Language", id: "multiLanguage" },
       className: "fa fa-language",
     },
+    {
+      id: "createPages", // unique id
+      className: "fa fa-file-alt", // pick any FontAwesome icon
+      attributes: { title: "Create Pages" },
+      command: "create-pages", // 👈 link to custom command
+      style: "border 2px solid red"
+    }
     // {
     //   id: "filterTable",
     //   attributes: { title: "Report Parameter", id: "filterTable" },
@@ -537,7 +556,223 @@ importPage.addEventListener("click", importSinglePages, true);
 // }
 
 // Enhanced PDF generation function with proper page break support
-// Enhanced PDF generation function with exact Bootstrap print support
+
+
+
+function createPagesFromEditor(editor) {
+   console.log("🚀 Running createPagesFromEditor");
+  // Get root components
+  const rootComponents = editor.getComponents();
+
+  // Find our dynamic block
+  const dynamicBlock = rootComponents.find(cmp => cmp.get('name') === 'Dynamic Header Footer');
+  if (!dynamicBlock) {
+    alert("⚠️ No Dynamic Header Footer block found!");
+    return;
+  }
+
+  // Get its children
+  const children = dynamicBlock.components();
+
+  // The 2nd child is "Content"
+  const contentComponent = children.at(1);
+  if (!contentComponent) {
+    alert("⚠️ No Content section found!");
+    return;
+  }
+
+  // Now get raw text inside
+  const content = contentComponent.view.el.innerText.trim();
+  if (!content) {
+    alert("⚠️ Content section is empty!");
+    return;
+  }
+
+  console.log("📄 Found content snippet:", content.substring(0, 200));
+
+  // Try parsing JSON
+  try {
+    const jsonData = JSON.parse(content);
+    console.log("✅ Parsed JSON records:", jsonData.length);
+  } catch (e) {
+    console.warn("Not valid JSON, treating as plain text.", e);
+  }
+}
+
+
+
+
+// editor.Components.addType("Dynamic Header Footer", {
+//   model: {
+//     defaults: {
+//       tagName: "div",
+//       name: "Dynamic Header Footer",
+//       attributes: { class: "sections-container" },
+//       selectable: true,
+//       highlightable: true,
+//       components: [
+//         {
+//           tagName: "div",
+//           name: "Header",
+//           attributes: {
+//             class: "section-header gjs-editor-header",
+//             'data-gjs-name': 'Header'
+//           },
+//           components: []
+//         },
+//         {
+//           tagName: "div",
+//           name: "Content",
+//           attributes: {
+//             class: "section-content gjs-editor-content",
+//             'data-gjs-name': 'Content'
+//           },
+//           components: []
+//         },
+//         {
+//           tagName: "div",
+//           name: "Footer",
+//           attributes: {
+//             class: "section-footer gjs-editor-footer",
+//             'data-gjs-name': 'Footer'
+//           },
+//           components: []
+//         }
+//       ],
+//       traits: [
+//         {
+//           type: "text",
+//           label: "Header Min Height",
+//           name: "header-min-height",
+//           placeholder: "60px, 5vh",
+//           changeProp: 1,
+//           default: "60px",
+//         },
+//         {
+//           type: "text",
+//           label: "Content Min Height",
+//           name: "content-min-height",
+//           placeholder: "200px, 30vh",
+//           changeProp: 1,
+//           default: "200px",
+//         },
+//         {
+//           type: "text",
+//           label: "Footer Min Height",
+//           name: "footer-min-height",
+//           placeholder: "50px, 5vh",
+//           changeProp: 1,
+//           default: "50px",
+//         },
+//       ],
+//       style: {
+//         "display": "flex",
+//         "flex-direction": "column",
+//         "width": "100%",
+//         "min-height": "50vh",
+//         "margin": "10px 0",
+//         "padding": "5px"
+//       },
+//     },
+
+//     init() {
+//       this.listenTo(
+//         this,
+//         "change:header-min-height change:content-min-height change:footer-min-height change:layout-style",
+//         this.updateSections
+//       );
+//       this.initializeSections();
+//     },
+
+//     initializeSections() {
+//       const components = this.components();
+
+//       const headerComponent = components.at(0);
+//       if (headerComponent) {
+//         headerComponent.addStyle({
+//           "padding": "10px",
+//           "min-height": "60px",
+//           "position": "relative"
+//         });
+//       }
+
+//       const contentComponent = components.at(1);
+//       if (contentComponent) {
+//         contentComponent.addStyle({
+//           "flex": "1",
+//           "padding": "10px",
+//           "min-height": "200px",
+//           "position": "relative"
+//         });
+//       }
+
+//       const footerComponent = components.at(2);
+//       if (footerComponent) {
+//         footerComponent.addStyle({
+//           "padding": "10px",
+//           "min-height": "50px",
+//           "position": "relative"
+//         });
+//       }
+//     },
+
+//     updateSections() {
+//       const headerMinHeight = this.get("header-min-height") || "60px";
+//       const contentMinHeight = this.get("content-min-height") || "200px";
+//       const footerMinHeight = this.get("footer-min-height") || "50px";
+//       const components = this.components();
+
+//       const headerComponent = components.at(0);
+//       if (headerComponent) {
+//         let headerStyles = {
+//           "min-height": headerMinHeight,
+//           "padding": "10px",
+//           "position": "relative"
+//         };
+//         headerComponent.addStyle(headerStyles);
+//       }
+
+//       const contentComponent = components.at(1);
+//       if (contentComponent) {
+//         let contentStyles = {
+//           "min-height": contentMinHeight,
+//           "flex": "1",
+//           "padding": "10px",
+//           "position": "relative"
+//         };
+//         contentComponent.addStyle(contentStyles);
+//       }
+
+//       const footerComponent = components.at(2);
+//       if (footerComponent) {
+//         let footerStyles = {
+//           "min-height": footerMinHeight,
+//           "padding": "10px",
+//           "position": "relative"
+//         };
+//         footerComponent.addStyle(footerStyles);
+//       }
+//     },
+//   },
+// });
+
+
+function getUsableHeight(contentArea) {
+  const el = contentArea.view.el;
+  const pageContainer = el.closest(".sections-container");
+
+  const totalHeight = pageContainer ? pageContainer.clientHeight : 1123;
+  const header = pageContainer.querySelector(".gjs-editor-header");
+  const footer = pageContainer.querySelector(".gjs-editor-footer");
+
+  const headerH = header ? header.clientHeight : 0;
+  const footerH = footer ? footer.clientHeight : 0;
+  const topMargin = parseInt(pageContainer.dataset.marginTop || 0, 10);
+  const bottomMargin = parseInt(pageContainer.dataset.marginBottom || 0, 10);
+
+  return totalHeight - (headerH + footerH + topMargin + bottomMargin);
+}
+
 function generatePrintDialog() {
   try {
     if (typeof editor === "undefined") {
@@ -567,8 +802,11 @@ function generatePrintDialog() {
     // Get hide-on-print class name
     const HIDE_CLASS = "hide-on-print";
 
+    // Extract header and footer content from the editor HTML
+    const { headerContent, footerContent, mainContent } = extractHeaderFooterContent(editorHTML);
+
     // Process HTML to handle page breaks properly
-    const processedHTML = processPageBreaks(editorHTML);
+    const processedHTML = processPageBreaks(mainContent);
 
     // Enhanced function to convert Bootstrap classes and preserve ALL table styling
     function convertBootstrapToInlineStyles(html) {
@@ -1107,6 +1345,89 @@ cells.forEach((cell, cellIndex) => {
           
           /* Enhanced table print styles with FULL style preservation */
           @media print {
+            @page {
+              margin: 0.5in;
+              size: auto;
+            }
+            
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+              font-family: Arial, sans-serif;
+              line-height: 1.4;
+              color: #333;
+            }
+            
+            /* Force headers and footers using table display */
+            .print-table {
+              display: table !important;
+              width: 100% !important;
+              height: 100vh !important;
+              table-layout: fixed !important;
+            }
+            
+            .print-header {
+              display: table-header-group !important;
+              height: auto !important;
+              background: white !important;
+              border-bottom: 1px solid #ddd !important;
+              padding: 10px 0 !important;
+            }
+            
+            .print-footer {
+              display: table-footer-group !important;
+              height: auto !important;
+              background: white !important;
+              border-top: 1px solid #ddd !important;
+              padding: 10px 0 !important;
+            }
+            
+            .print-body {
+              display: table-row-group !important;
+              height: 100% !important;
+            }
+            
+            .print-cell {
+              display: table-cell !important;
+              vertical-align: top !important;
+              padding: 0 !important;
+            }
+            
+            /* Alternative approach using fixed positioning */
+            .fixed-header {
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              background: white !important;
+              border-bottom: 1px solid #ddd !important;
+              padding: 15px 20px !important;
+              z-index: 1000 !important;
+              ${headerContent ? 'height: auto !important; min-height: 80px !important;' : 'height: 0 !important;'}
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            }
+            
+            .fixed-footer {
+              position: fixed !important;
+              bottom: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
+              background: white !important;
+              border-top: 1px solid #ddd !important;
+              padding: 15px 20px !important;
+              z-index: 1000 !important;
+              ${footerContent ? 'height: auto !important; min-height: 80px !important;' : 'height: 0 !important;'}
+              box-shadow: 0 -2px 4px rgba(0,0,0,0.1) !important;
+            }
+            
+            .content-with-margins {
+              margin-top: ${headerContent ? '80px' : '20px'} !important;
+              margin-bottom: ${footerContent ? '80px' : '20px'} !important;
+              padding: 0 20px !important;
+            }
+            
+            /* Hide elements */
             * {
               -webkit-print-color-adjust: exact !important;
               color-adjust: exact !important;
@@ -1558,13 +1879,14 @@ cells.forEach((cell, cellIndex) => {
               background: transparent !important;
             }
             
+            /* Hide original headers/footers */
+            .section-header,
+            .section-footer,
             .page-header-element,
-            .page-footer-element {
-              display: flex !important;
-              position: static !important;
-              background: transparent !important;
-              border: none !important;
-              box-shadow: none !important;
+            .page-footer-element,
+            .gjs-editor-header,
+            .gjs-editor-footer {
+              display: none !important;
             }
             
             .page-number-element {
@@ -1605,14 +1927,70 @@ cells.forEach((cell, cellIndex) => {
               background: white;
               margin: 0;
             }
+            
+            .fixed-header, .fixed-footer {
+              position: relative !important;
+              margin: 10px 0 !important;
+            }
+            
+            .content-with-margins {
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            
+            .fixed-header, .fixed-footer {
+              position: relative !important;
+              margin: 10px 0 !important;
+            }
+            
+            .content-with-margins {
+              margin: 0 !important;
+              padding: 0 !important;
+            }
           }
           
           /* Original editor CSS */
           ${editorCSS}
         </style>
+        <script>
+          // JavaScript to handle the page break insertion after content loads
+          document.addEventListener('DOMContentLoaded', function() {
+            if (window.matchMedia && window.matchMedia('print').matches) {
+              return; // Don't run during printing
+            }
+            
+            // Function to insert headers and footers for print
+            function insertHeadersFootersForPrint() {
+              const content = document.querySelector('.content-with-margins');
+              if (!content) return;
+              
+              const headerContent = '${headerContent ? headerContent.replace(/'/g, "\\'").replace(/\n/g, '\\n') : ''}';
+              const footerContent = '${footerContent ? footerContent.replace(/'/g, "\\'").replace(/\n/g, '\\n') : ''}';
+              
+              if (!headerContent && !footerContent) return;
+              
+              // Break content into chunks and insert headers/footers
+              const contentHeight = content.scrollHeight;
+              const pageHeight = window.innerHeight - 160; // Account for margins
+              
+              if (contentHeight > pageHeight) {
+                // Content spans multiple pages - this will be handled by fixed positioning
+                console.log('Content spans multiple pages, using fixed positioning');
+              }
+            }
+            
+            insertHeadersFootersForPrint();
+          });
+        </script>
       </head>
       <body>
-        ${processedHTMLWithInlineStyles}
+        ${headerContent ? `<div class="fixed-header">${headerContent}</div>` : ''}
+        
+        <div class="content-with-margins">
+          ${processedHTMLWithInlineStyles}
+        </div>
+        
+        ${footerContent ? `<div class="fixed-footer">${footerContent}</div>` : ''}
       </body>
       </html>
     `;
@@ -1672,6 +2050,49 @@ frameDoc.write(finalPrintContent);
     console.error("Error generating print dialog:", error);
     alert("Error opening print dialog. Please try again.");
   }
+}
+
+function extractHeaderFooterContent(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Extract header content - look for both possible selectors
+  const headerElements = doc.querySelectorAll('.section-header, .page-header-element, .gjs-editor-header');
+  let headerContent = '';
+  headerElements.forEach(header => {
+    // Only include headers that have actual content
+    if (header.textContent.trim()) {
+      headerContent += header.innerHTML;
+    }
+  });
+
+  // Extract footer content - look for both possible selectors
+  const footerElements = doc.querySelectorAll('.section-footer, .page-footer-element, .gjs-editor-footer');
+  let footerContent = '';
+  footerElements.forEach(footer => {
+    // Only include footers that have actual content
+    if (footer.textContent.trim()) {
+      footerContent += footer.innerHTML;
+    }
+  });
+
+  // Create a copy of the document for main content
+  const mainDoc = doc.cloneNode(true);
+
+  // Remove header and footer elements from main content
+  const headersToRemove = mainDoc.querySelectorAll('.section-header, .page-header-element, .gjs-editor-header');
+  const footersToRemove = mainDoc.querySelectorAll('.section-footer, .page-footer-element, .gjs-editor-footer');
+
+  headersToRemove.forEach(el => el.remove());
+  footersToRemove.forEach(el => el.remove());
+
+  const mainContent = mainDoc.body.innerHTML;
+
+  return {
+    headerContent: headerContent.trim() || null,
+    footerContent: footerContent.trim() || null,
+    mainContent: mainContent
+  };
 }
 
 function processPageBreaks(html) {
