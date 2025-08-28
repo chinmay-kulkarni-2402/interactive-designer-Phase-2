@@ -195,14 +195,15 @@ function customTableOfContents(editor) {
     },
   });
 
-  // ✅ Add Heading block
+  // ✅ Add Heading block with fa-heading icon
   editor.BlockManager.add('custom-heading', {
     label: 'Heading',
     category: 'Basic',
     content: { type: 'custom-heading' },
+    media: '<i class="fa fa-heading"></i>', // Font Awesome heading icon
   });
 
-  // ✅ TOC block type - Fixed bullet display issues
+  // ✅ TOC block type - Fixed bullet display issues and added borders trait
   domc.addType('toc-block', {
     model: {
       defaults: {
@@ -216,9 +217,15 @@ function customTableOfContents(editor) {
             name: 'list-type',
             label: 'List Type',
             options: [
+              { id: 'ol', name: 'ordered' },
               { id: 'ul', name: 'Unordered' },
-              { id: 'ol', name: 'Ordered' },
             ],
+            changeProp: 1,
+          },
+          {
+            type: 'checkbox',
+            name: 'want-border',
+            label: 'Show Borders',
             changeProp: 1,
           },
         ],
@@ -309,34 +316,137 @@ function customTableOfContents(editor) {
             color: #666;
           }
           
-          /* Border styles when want-border is enabled */
-.table-of-contents.with-borders ul li {
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-}
-.table-of-contents.with-borders ol li {
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-}
-/* Remove border from last item */
-.table-of-contents.with-borders ul li:last-child,
-.table-of-contents.with-borders ol li:last-child {
-  border-bottom: none;
-  margin-bottom: 6px;
-}
+          /* Border styles when want-border is enabled - Table-like structure */
+          .table-of-contents.with-borders {
+            border: 3px solid #333;
+            background: #fff;
+            border-radius: 0;
+            padding: 0;
+          }
+          .table-of-contents.with-borders h2 {
+            background: #333;
+            color: #fff;
+            margin: 0;
+            padding: 12px 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #222;
+          }
+          .table-of-contents.with-borders ul,
+          .table-of-contents.with-borders ol {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0;
+            border-top: 2px solid #333;
+            border-bottom: 2px solid #333;
+          }
+          .table-of-contents.with-borders ul li,
+          .table-of-contents.with-borders ol li {
+            border-bottom: 1px solid #333;
+            border-left: 2px solid #333;
+            border-right: 2px solid #333;
+            padding: 10px 0;
+            margin: 0;
+            background: #f8f9fa;
+            position: relative;
+          }
+          .table-of-contents.with-borders ul li:nth-child(even),
+          .table-of-contents.with-borders ol li:nth-child(even) {
+            background: #ffffff;
+          }
+          .table-of-contents.with-borders ul li:last-child,
+          .table-of-contents.with-borders ol li:last-child {
+            border-bottom: 2px solid #333;
+          }
+          .table-of-contents.with-borders ul li:hover,
+          .table-of-contents.with-borders ol li:hover {
+            background: #e3f2fd;
+            border-left: 3px solid #2196F3;
+          }
+          
+          /* Fix bullet display in bordered mode */
+          .table-of-contents.with-borders ul li::before {
+            content: "•";
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+          }
+          
+          /* Fix number display in bordered mode */
+          .table-of-contents.with-borders ol li .number {
+            color: #333;
+            font-weight: bold;
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 4px;
+            border-radius: 2px;
+          }
+          
+          /* Table-like link styling with borders */
+          .table-of-contents.with-borders a {
+            padding: 8px 15px 8px 30px;
+            font-weight: 500;
+            border: 1px solid transparent;
+            margin: 2px;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+          }
+          .table-of-contents.with-borders a:hover {
+            border: 1px solid #2196F3;
+            background: rgba(33, 150, 243, 0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+          .table-of-contents.with-borders .dots {
+            border-bottom: 2px dotted #666;
+            margin-left: 8px;
+            margin-right: 12px;
+          }
+          .table-of-contents.with-borders .page-num {
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+          }
+          
           /* Level indentation */
           .table-of-contents .level-1 a { padding-left: 25px; }
           .table-of-contents .level-2 a { padding-left: 45px; }
           .table-of-contents .level-3 a { padding-left: 65px; }
+          
+          /* Bordered version indentation adjustments */
+          .table-of-contents.with-borders .level-1 a { padding-left: 25px; }
+          .table-of-contents.with-borders .level-2 a { padding-left: 45px; }
+          .table-of-contents.with-borders .level-3 a { padding-left: 65px; }
         `,
         'list-type': 'ul',
         'want-border': false,
       },
       init() {
         this.on('change:list-type', () => {
-          setTimeout(() => editor.runCommand('generate-toc'), 100);
+          setTimeout(() => {
+            editor.runCommand('generate-toc');
+            // Maintain border state after list type change
+            const wantBorder = this.get('want-border');
+            if (wantBorder) {
+              setTimeout(() => {
+                const tocContainer = this.view?.el;
+                if (tocContainer && !tocContainer.classList.contains('with-borders')) {
+                  tocContainer.classList.add('with-borders');
+                }
+              }, 150);
+            }
+          }, 100);
         });
         this.on('change:want-border', () => {
           const wantBorder = this.get('want-border');
@@ -353,11 +463,12 @@ function customTableOfContents(editor) {
     },
   });
 
-  // ✅ Add TOC block
+  // ✅ Add TOC block with fa-list icon
   editor.BlockManager.add('table-of-contents', {
     label: 'Table of Contents',
     category: 'Basic',
     content: { type: 'toc-block' },
+    media: '<i class="fa fa-list"></i>', // Font Awesome list icon
   });
 
   // ✅ Generate unique ID helper function
@@ -493,8 +604,19 @@ function customTableOfContents(editor) {
         tocComp.components().add(newListHtml, { parse: true });
       }
 
-      // Force re-render
+      // Force re-render and maintain border state
       tocComp.view.render();
+      
+      // Restore border state if it was enabled
+      const wantBorder = tocComp.get('want-border');
+      if (wantBorder) {
+        setTimeout(() => {
+          const tocContainer = tocComp.view?.el;
+          if (tocContainer && !tocContainer.classList.contains('with-borders')) {
+            tocContainer.classList.add('with-borders');
+          }
+        }, 50);
+      }
 
       console.log(`TOC generated with ${items.length} items`); // Debug log
     },
