@@ -50,7 +50,7 @@ const editor = InteractiveDesigner.init({
     "style-bg-component",
     "navbar-component",
     "page-manager-component",
-    "pageBreakPlugin",
+   // "pageBreakPlugin",
     "grapesjsHideOnPrint",
     window.addEventListener('load', () => {
   drawingTool(editor);
@@ -1532,14 +1532,14 @@ cells.forEach((cell, cellIndex) => {
               box-shadow: none !important;
               border: none !important;
               width: 100% !important;
-              height: auto !important;
+              height:1027px !important;
               display: block !important;
               overflow: visible !important;
             }
             
             .page-content {
               width: 100% !important;
-              height: auto !important;
+              height: 100% !important;
               margin: 0 !important;
               padding: 0 !important;
               overflow: visible !important;
@@ -1547,7 +1547,7 @@ cells.forEach((cell, cellIndex) => {
             
             .main-content-area {
               width: 100% !important;
-              height: auto !important;
+              height: 100% !important;
               overflow: visible !important;
               position: relative !important;
             }
