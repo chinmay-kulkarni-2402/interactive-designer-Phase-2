@@ -19,6 +19,10 @@ function customTableOfContents(editor) {
             { id: 'h1', name: 'Header 1' },
             { id: 'h2', name: 'Header 2' },
             { id: 'h3', name: 'Header 3' },
+            { id: 'h4', name: 'Header 4' },
+            { id: 'h5', name: 'Header 5' },
+            { id: 'h6', name: 'Header 6' },
+            { id: 'h7', name: 'Header 7' },
           ],
           changeProp: 1,
         },
@@ -28,6 +32,10 @@ function customTableOfContents(editor) {
           h1.custom-heading { font-size: 32px; font-weight: bold; margin: 16px 0; }
           h2.custom-heading { font-size: 24px; font-weight: bold; margin: 14px 0; }
           h3.custom-heading { font-size: 18px; font-weight: bold; margin: 12px 0; }
+          h4.custom-heading { font-size: 16px; font-weight: bold; margin: 10px 0; }
+          h5.custom-heading { font-size: 14px; font-weight: bold; margin: 8px 0; }
+          h6.custom-heading { font-size: 12px; font-weight: bold; margin: 6px 0; }
+          h7.custom-heading { font-size: 11px; font-weight: bold; margin: 4px 0; }
         `,
         attributes: { class: 'custom-heading' },
       },
@@ -423,11 +431,20 @@ function customTableOfContents(editor) {
           .table-of-contents .level-1 a { padding-left: 25px; }
           .table-of-contents .level-2 a { padding-left: 45px; }
           .table-of-contents .level-3 a { padding-left: 65px; }
+          .table-of-contents .level-4 a { padding-left: 85px; }
+          .table-of-contents .level-5 a { padding-left: 105px; }
+          .table-of-contents .level-6 a { padding-left: 125px; }
+          .table-of-contents .level-7 a { padding-left: 145px; }
           
           /* Bordered version indentation adjustments */
           .table-of-contents.with-borders .level-1 a { padding-left: 25px; }
           .table-of-contents.with-borders .level-2 a { padding-left: 45px; }
           .table-of-contents.with-borders .level-3 a { padding-left: 65px; }
+          .table-of-contents.with-borders .level-3 a { padding-left: 65px; }
+          .table-of-contents.with-borders .level-4 a { padding-left: 85px; }
+          .table-of-contents.with-borders .level-5 a { padding-left: 105px; }
+          .table-of-contents.with-borders .level-6 a { padding-left: 125px; }
+          .table-of-contents.with-borders .level-7 a { padding-left: 145px; }
         `,
         'list-type': 'ul',
         'want-border': false,
@@ -492,17 +509,17 @@ function customTableOfContents(editor) {
 
       const listType = tocComp.get('list-type') || 'ul';
       const doc = editor.Canvas.getDocument();
-      const headings = doc.querySelectorAll('h1.custom-heading, h2.custom-heading, h3.custom-heading');
+      const headings = doc.querySelectorAll('h1.custom-heading, h2.custom-heading, h3.custom-heading, h4.custom-heading, h5.custom-heading, h6.custom-heading, h7.custom-heading');
       const items = [];
 
       // Smart numbering system
-      const counters = [0, 0, 0]; // H1, H2, H3 counters
+      const counters = [0, 0, 0, 0, 0, 0, 0]; // H1, H2, H3, H4, H5, H6, H7 counters
 
       headings.forEach((el, i) => {
         const text = el.innerText.trim();
         if (!text) return;
 
-        // Get heading level (1, 2, or 3)
+        // Get heading level (1, 2, 3, 4, 5, 6, 7)
         const level = parseInt(el.tagName.substring(1));
         
         // Generate unique ID - FIXED: Ensure all levels get proper IDs
@@ -523,12 +540,39 @@ function customTableOfContents(editor) {
           counters[0]++; // Increment H1
           counters[1] = 0; // Reset H2
           counters[2] = 0; // Reset H3
+          counters[3] = 0; // Reset H4
+          counters[4] = 0; // Reset H5
+          counters[5] = 0; // Reset H6
+          counters[6] = 0; // Reset H7
         } else if (level === 2) {
           counters[1]++; // Increment H2
           counters[2] = 0; // Reset H3
+          counters[3] = 0; // Reset H4
+          counters[4] = 0; // Reset H5
+          counters[5] = 0; // Reset H6
+          counters[6] = 0; // Reset H7
         } else if (level === 3) {
           counters[2]++; // Increment H3
+          counters[3] = 0; // Reset H4
+          counters[4] = 0; // Reset H5
+          counters[5] = 0; // Reset H6
+          counters[6] = 0; // Reset H7
+        } else if (level === 4) {
+          counters[3]++; // Increment H4
+          counters[4] = 0; // Reset H5
+          counters[5] = 0; // Reset H6
+          counters[6] = 0; // Reset H7
+        } else if (level === 5) {
+          counters[4]++; // Increment H5
+          counters[5] = 0; // Reset H6
+          counters[6] = 0; // Reset H7
+        } else if (level === 6) {
+          counters[5]++; // Increment H6
+          counters[6] = 0; // Reset H7
+        } else if (level === 7) {
+          counters[6]++; // Increment H7
         }
+
 
         // Generate smart numbering string
         let numberString = '';
@@ -539,8 +583,17 @@ function customTableOfContents(editor) {
             numberString = `${counters[0]}.${counters[1]}`;
           } else if (level === 3) {
             numberString = `${counters[0]}.${counters[1]}.${counters[2]}`;
+          } else if (level === 4) {
+            numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}`;
+          } else if (level === 5) {
+            numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}.${counters[4]}`;
+          } else if (level === 6) {
+            numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}.${counters[4]}.${counters[5]}`;
+          } else if (level === 7) {
+            numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}.${counters[4]}.${counters[5]}.${counters[6]}`;
           }
         }
+
         
         // Find page number
         const pageEl = el.closest('.page-container');
@@ -680,7 +733,7 @@ function customTableOfContents(editor) {
           });
           
           // Debug: Log all heading IDs
-          document.querySelectorAll('h1.custom-heading, h2.custom-heading, h3.custom-heading').forEach((heading, index) => {
+          document.querySelectorAll('h1.custom-heading, h2.custom-heading, h3.custom-heading, h4.custom-heading, h5.custom-heading, h6.custom-heading, h7.custom-heading').forEach((heading, index) => {
             console.log('Heading', index, heading.tagName, 'ID:', heading.id, 'Text:', heading.textContent);
           });
         });

@@ -1,6 +1,3 @@
-// daynamic header and footer
-
-
 class PageSetupManager {
   constructor(editor) {
     this._lastAppliedHeaderText = "";
@@ -8081,7 +8078,7 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
         <img class="page-watermark-image" src="${watermark.image.url}" style="
           width: ${watermark.image.width}px !important;
           height: ${watermark.image.height}px !important;
-          opacity: ${watermark.image.opacity} !important;
+          opacity: 0.5 !important;
           max-width: 100% !important;
           max-height: 100% !important;
           object-fit: contain !important;
@@ -8103,7 +8100,7 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
         bottom: 0 !important;
         pointer-events: none !important;
         user-select: none !important;
-        z-index: 1 !important;
+        opacity: 0.5 !important;
         ${positionStyles}
       ">${watermarkContent}</div>
     `)[0];
