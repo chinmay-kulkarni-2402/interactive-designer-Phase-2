@@ -1,8 +1,12 @@
 {  
    "english":{
      "audioLink":"https://www.w3schools.com/html/horse.mp3", 
-     "content":"Content goes here content goes here", 
-     "content1":"Test Data content1",
+     "summery":"2000, 3000, 4000, Insert Your text here, sample data loading", 
+     "CASA":"CASA",
+     "deposit": "deposits data", 
+     "loans": "loans data", 
+     "Invesment": "Invesment data", 
+     "contact us": "contact us data", 
      "videoLink":"",
       "SA":["Chinmay", "Vishal",  "Durgesh"],  
       "analytics_pie":{ 

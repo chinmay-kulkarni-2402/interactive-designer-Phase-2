@@ -1295,7 +1295,7 @@ editor.Commands.add('clear-table-highlighting', {
       const pageContainer = targetContainer.closest('.page-container');
       if (pageContainer) {
         const pageIndex = pageContainer.getAttributes()['data-page-index'];
-        containerInfo = `Page ${parseInt(pageIndex) + 1}`;
+       // containerInfo = `Page ${parseInt(pageIndex) + 1}`;
       } else {
         containerInfo = 'page content area';
       }
@@ -1534,7 +1534,7 @@ editor.Commands.add('clear-table-highlighting', {
       const pageContainer = container.closest('.page-container');
       if (pageContainer) {
         const pageIndex = pageContainer.getAttributes()['data-page-index'];
-        containerType = `Page ${parseInt(pageIndex) + 1}`;
+       // containerType = `Page ${parseInt(pageIndex) + 1}`;
       } else if (container.getEl()?.classList.contains('main-content-area')) {
         containerType = 'content area';
       } else if (container.get('tagName')) {

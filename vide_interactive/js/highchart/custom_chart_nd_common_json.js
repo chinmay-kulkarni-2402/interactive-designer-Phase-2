@@ -2072,11 +2072,11 @@ const getTraitsForChartType = (chartType) => {
           // Re-initialize on print/export events
           if (typeof window !== 'undefined') {
             window.addEventListener('beforeprint', () => {
-              setTimeout(initializeChart, 100);
+              setTimeout(initializeChart, 3000);
             });
             
             window.addEventListener('afterprint', () => {
-              setTimeout(initializeChart, 100);
+              setTimeout(initializeChart, 3000);
             });
           }
         },
@@ -2206,7 +2206,7 @@ const getTraitsForChartType = (chartType) => {
       const componentType = selectedComponent?.get('type');
       
       // Support both 'text' and 'formatted-rich-text' components
-      if (componentType === 'text' || componentType === 'formatted-rich-text') {
+      if (componentType === 'text' || componentType === 'formatted-rich-text' ||  componentType === 'custom-heading') {
         const content = selectedComponent?.get('content');
         if (content !== undefined) {
           try {

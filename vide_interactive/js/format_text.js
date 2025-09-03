@@ -1,4 +1,12 @@
 function addFormattedRichTextComponent(editor) {
+
+  const FormulaParser = HyperFormula.HyperFormula;
+
+  // Create a HyperFormula instance for formula evaluation
+  const formulaEngine = HyperFormula.buildEmpty({
+    licenseKey: 'gpl-v3'
+  });
+
   // Format configurations
   const formatConfigs = {
     text: {
@@ -13,26 +21,26 @@ function addFormattedRichTextComponent(editor) {
       defaultPattern: '#,##,###',
       icon: '🔢'
     },
-currency: {
-  label: 'Currency',
-  patterns: [
-    '$ 0', '$ 0.00',           // USA, Canada
-    '₹ 0.00', '₹ 0',           // India (existing)
-    '¥ 0', '£ 0.00', '€ 0.00', // Existing
-    'IDR 0.000',               // Indonesia (existing)
-    'OMR 0.000',               // Oman (existing)
-    'R 0.00',                  // South Africa (ZAR)
-    '¥ 0.00',                  // China (CNY - different from JPY)
-    'S$ 0.00',                 // Singapore (SGD)
-    'RM 0.00',                 // Malaysia (MYR)
-    'Rs. 0.00',                // Sri Lanka (LKR)
-    'AED 0.00',                // UAE/Dubai (AED)
-    'SR 0.00',                 // Saudi Arabia (SAR)
-    '₽ 0.00'                   // Russia (RUB)
-  ],
-  defaultPattern: '₹ 0.00',
-  icon: '💰'
-},
+    currency: {
+      label: 'Currency',
+      patterns: [
+        '$ 0', '$ 0.00',           // USA, Canada
+        '₹ 0.00', '₹ 0',           // India (existing)
+        '¥ 0', '£ 0.00', '€ 0.00', // Existing
+        'IDR 0.000',               // Indonesia (existing)
+        'OMR 0.000',               // Oman (existing)
+        'R 0.00',                  // South Africa (ZAR)
+        '¥ 0.00',                  // China (CNY - different from JPY)
+        'S$ 0.00',                 // Singapore (SGD)
+        'RM 0.00',                 // Malaysia (MYR)
+        'Rs. 0.00',                // Sri Lanka (LKR)
+        'AED 0.00',                // UAE/Dubai (AED)
+        'SR 0.00',                 // Saudi Arabia (SAR)
+        '₽ 0.00'                   // Russia (RUB)
+      ],
+      defaultPattern: '₹ 0.00',
+      icon: '💰'
+    },
 
     percentage: {
       label: 'Percentage',
@@ -71,7 +79,7 @@ currency: {
     preserveRichTextStructure(htmlContent, newTextContent) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
-      
+
       // Find all text nodes and replace with formatted content
       const walker = document.createTreeWalker(
         tempDiv,
@@ -79,7 +87,7 @@ currency: {
         null,
         false
       );
-      
+
       const textNodes = [];
       let node;
       while (node = walker.nextNode()) {
@@ -87,13 +95,13 @@ currency: {
           textNodes.push(node);
         }
       }
-      
+
       if (textNodes.length === 1) {
         textNodes[0].textContent = newTextContent;
       } else if (textNodes.length === 0) {
         tempDiv.textContent = newTextContent;
       }
-      
+
       return tempDiv.innerHTML;
     },
 
@@ -106,18 +114,18 @@ currency: {
     // Parse and evaluate number conditions
     parseNumberCondition(condition) {
       const trimmed = condition.trim();
-      
+
       // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
       const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
       const rangeMatch = trimmed.match(rangePattern);
-      
+
       if (rangeMatch) {
         const [, min, minOp, maxOp, max] = rangeMatch;
         const minValue = parseFloat(min);
         const maxValue = parseFloat(max);
         const minInclusive = minOp === '<=';
         const maxInclusive = maxOp === '<=';
-        
+
         return {
           type: 'range',
           min: minValue,
@@ -127,23 +135,23 @@ currency: {
           evaluate: (value) => {
             const num = parseFloat(value);
             if (isNaN(num)) return false;
-            
+
             const minCondition = minInclusive ? num >= minValue : num > minValue;
             const maxCondition = maxInclusive ? num <= maxValue : num < maxValue;
-            
+
             return minCondition && maxCondition;
           }
         };
       }
-      
+
       // Handle simple conditions: <1000, >=500, =100, !=50, etc.
       const simplePattern = /^(<|<=|>|>=|=|!=)\s*(\d+(?:\.\d+)?)$/;
       const simpleMatch = trimmed.match(simplePattern);
-      
+
       if (simpleMatch) {
         const [, operator, valueStr] = simpleMatch;
         const conditionValue = parseFloat(valueStr);
-        
+
         return {
           type: 'simple',
           operator,
@@ -151,7 +159,7 @@ currency: {
           evaluate: (value) => {
             const num = parseFloat(value);
             if (isNaN(num)) return false;
-            
+
             switch (operator) {
               case '<': return num < conditionValue;
               case '<=': return num <= conditionValue;
@@ -164,7 +172,7 @@ currency: {
           }
         };
       }
-      
+
       return null;
     },
 
@@ -180,19 +188,19 @@ currency: {
     evaluateNumberCondition(content, condition) {
       const conditionObj = this.parseNumberCondition(condition);
       if (!conditionObj) return false;
-      
+
       const numbers = this.extractNumbers(content);
       return numbers.some(num => conditionObj.evaluate(num));
     },
 
     validateFormat(value, formatType) {
       const textContent = this.extractTextContent(value);
-      
+
       if (formatType.includes('+')) {
         const [primary] = formatType.split('+');
         return this.validateFormat(textContent, primary);
       }
-      
+
       switch (formatType) {
         case 'text':
           return { valid: true };
@@ -200,17 +208,17 @@ currency: {
         case 'currency':
         case 'percentage':
           if (!this.canConvertToNumber(textContent)) {
-            return { 
-              valid: false, 
-              error: `"${textContent}" cannot be converted to ${formatType}. Please enter a valid number.` 
+            return {
+              valid: false,
+              error: `"${textContent}" cannot be converted to ${formatType}. Please enter a valid number.`
             };
           }
           return { valid: true };
         case 'date':
           if (!this.canConvertToDate(textContent)) {
-            return { 
-              valid: false, 
-              error: `"${textContent}" cannot be converted to date.` 
+            return {
+              valid: false,
+              error: `"${textContent}" cannot be converted to date.`
             };
           }
           return { valid: true };
@@ -219,53 +227,53 @@ currency: {
       }
     },
 
-      parseNumber(value) {
-        const textContent = this.extractTextContent(value);
-        if (typeof textContent === 'number') return textContent;
-        
-        const str = String(textContent).trim();
-        
-        // Handle Indonesian format (dots as thousands, comma as decimal)
-        // Example: "1.234.567,89" should become 1234567.89
-        if (str.includes('.') && str.includes(',')) {
-          // Check if this looks like Indonesian format
-          const lastComma = str.lastIndexOf(',');
-          const lastDot = str.lastIndexOf('.');
-          
-          if (lastComma > lastDot) {
-            // Indonesian format: dots for thousands, comma for decimal
-            const cleanValue = str.replace(/\./g, '').replace(',', '.');
-            const parsed = parseFloat(cleanValue.replace(/[^\d.-]/g, ''));
-            return isNaN(parsed) ? 0 : parsed;
-          }
+    parseNumber(value) {
+      const textContent = this.extractTextContent(value);
+      if (typeof textContent === 'number') return textContent;
+
+      const str = String(textContent).trim();
+
+      // Handle Indonesian format (dots as thousands, comma as decimal)
+      // Example: "1.234.567,89" should become 1234567.89
+      if (str.includes('.') && str.includes(',')) {
+        // Check if this looks like Indonesian format
+        const lastComma = str.lastIndexOf(',');
+        const lastDot = str.lastIndexOf('.');
+
+        if (lastComma > lastDot) {
+          // Indonesian format: dots for thousands, comma for decimal
+          const cleanValue = str.replace(/\./g, '').replace(',', '.');
+          const parsed = parseFloat(cleanValue.replace(/[^\d.-]/g, ''));
+          return isNaN(parsed) ? 0 : parsed;
         }
-        
-        // Handle standard format or other edge cases
-        const cleanValue = str.replace(/[^\d.,-]/g, '');
-        
-        // If there are multiple dots and no comma, assume dots are thousand separators
-        if (cleanValue.split('.').length > 2 && !cleanValue.includes(',')) {
-          // Remove all dots except the last one (if it's followed by 1-3 digits)
-          const parts = cleanValue.split('.');
-          const lastPart = parts[parts.length - 1];
-          
-          if (lastPart.length <= 3) {
-            // Last dot is decimal separator
-            const wholePart = parts.slice(0, -1).join('');
-            const parsed = parseFloat(wholePart + '.' + lastPart);
-            return isNaN(parsed) ? 0 : parsed;
-          } else {
-            // All dots are thousand separators
-            const parsed = parseFloat(parts.join(''));
-            return isNaN(parsed) ? 0 : parsed;
-          }
+      }
+
+      // Handle standard format or other edge cases
+      const cleanValue = str.replace(/[^\d.,-]/g, '');
+
+      // If there are multiple dots and no comma, assume dots are thousand separators
+      if (cleanValue.split('.').length > 2 && !cleanValue.includes(',')) {
+        // Remove all dots except the last one (if it's followed by 1-3 digits)
+        const parts = cleanValue.split('.');
+        const lastPart = parts[parts.length - 1];
+
+        if (lastPart.length <= 3) {
+          // Last dot is decimal separator
+          const wholePart = parts.slice(0, -1).join('');
+          const parsed = parseFloat(wholePart + '.' + lastPart);
+          return isNaN(parsed) ? 0 : parsed;
+        } else {
+          // All dots are thousand separators
+          const parsed = parseFloat(parts.join(''));
+          return isNaN(parsed) ? 0 : parsed;
         }
-        
-        // Standard parsing for most formats
-        const standardClean = cleanValue.replace(/,/g, ''); // Remove commas (thousand separators)
-        const parsed = parseFloat(standardClean);
-        return isNaN(parsed) ? 0 : parsed;
-      },
+      }
+
+      // Standard parsing for most formats
+      const standardClean = cleanValue.replace(/,/g, ''); // Remove commas (thousand separators)
+      const parsed = parseFloat(standardClean);
+      return isNaN(parsed) ? 0 : parsed;
+    },
 
     parseDate(value) {
       const textContent = this.extractTextContent(value);
@@ -276,7 +284,7 @@ currency: {
 
     formatNumber(value, pattern) {
       const num = this.parseNumber(value);
-      
+
       switch (pattern) {
         case '0':
           return Math.round(num).toString();
@@ -292,7 +300,7 @@ currency: {
           return new Intl.NumberFormat('en-IN').format(num);
         case '#,##,###.##':
           return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(num);
-          case '#,##,###.###':
+        case '#,##,###.###':
           return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 3 }).format(num);
         default:
           return num.toString();
@@ -364,14 +372,14 @@ currency: {
       }
 
       let formattedNumber;
-      
+
       // Special handling for Indonesian format
       if (currencySymbol === 'IDR') {
         // Indonesian uses dots for thousands and comma for decimal
         if (decimals > 0) {
           const integerPart = Math.floor(num);
           const decimalPart = (num - integerPart).toFixed(decimals).substring(2);
-          
+
           // Format integer part with dots as thousand separators
           const integerFormatted = integerPart.toLocaleString('de-DE'); // German format uses dots for thousands
           formattedNumber = integerFormatted + ',' + decimalPart;
@@ -399,8 +407,8 @@ currency: {
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
       const day = date.getDate();
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
       switch (pattern) {
         case 'MM/DD/YYYY':
@@ -423,7 +431,7 @@ currency: {
         const formattedText = this.formatCombined(value, pattern);
         return this.preserveRichTextStructure(value, formattedText);
       }
-      
+
       let formattedText;
       switch (formatType) {
         case 'number':
@@ -441,9 +449,70 @@ currency: {
         default:
           return value;
       }
-      
+
       return this.preserveRichTextStructure(value, formattedText);
-    }
+    },
+    evaluateFormula(formulaString) {
+      try {
+        // Clean the formula string
+        const cleanFormula = formulaString.trim();
+
+        // Add the formula to the engine (row 0, col 0)
+        formulaEngine.addSheet('calculations');
+        const sheetId = formulaEngine.getSheetId('calculations');
+
+        // Set the formula in cell A1
+        formulaEngine.setCellContents({
+          row: 0,
+          col: 0,
+          sheet: sheetId
+        }, cleanFormula);
+
+        // Get the calculated value
+        const result = formulaEngine.getCellValue({
+          row: 0,
+          col: 0,
+          sheet: sheetId
+        });
+
+        // Clean up
+        formulaEngine.removeSheet(sheetId);
+
+        return result;
+      } catch (error) {
+        console.error('Formula evaluation error:', error);
+        return `#ERROR: ${error.message}`;
+      }
+    },
+
+    isFormula(content) {
+      const textContent = this.extractTextContent(content);
+      return typeof textContent === 'string' && textContent.trim().startsWith('=');
+    },
+
+    processFormulaContent(content, isFormulaEnabled) {
+      if (!isFormulaEnabled) {
+        return content;
+      }
+
+      const textContent = this.extractTextContent(content);
+
+      if (this.isFormula(textContent)) {
+        const formulaString = textContent.trim();
+        const result = this.evaluateFormula(formulaString);
+
+        // If result is an error, show both formula and error
+        if (typeof result === 'string' && result.startsWith('#ERROR')) {
+          return this.preserveRichTextStructure(content, `${formulaString} → ${result}`);
+        } else {
+          // Return the calculated result
+          return this.preserveRichTextStructure(content, String(result));
+        }
+      }
+
+      return content;
+    },
+
   };
 
   // Get all format options
@@ -452,7 +521,7 @@ currency: {
       value: key,
       label: `${formatConfigs[key].icon} ${formatConfigs[key].label}`
     }));
-    
+
     return options;
   }
 
@@ -475,7 +544,7 @@ currency: {
       }
     },
     {
-      name: "italic", 
+      name: "italic",
       icon: "<i>I</i>",
       attributes: { title: "Italic" },
       result: function (rte) {
@@ -519,13 +588,13 @@ currency: {
       result: function (rte) {
         const selection = rte.selection();
         if (!selection) return;
-        
+
         const anchorNode = selection.anchorNode;
         const focusNode = selection.focusNode;
         const anchorParent = anchorNode?.parentNode;
         const focusParent = focusNode?.parentNode;
         const hasLink = anchorParent?.nodeName === 'A' || focusParent?.nodeName === 'A';
-        
+
         if (hasLink) {
           rte.exec("unlink");
         } else {
@@ -538,6 +607,153 @@ currency: {
     }
   ];
 
+  function initializeConditionManager(component, initialConditions) {
+    const conditionTypeSelect = document.getElementById('condition-type');
+    const singleValueInput = document.getElementById('single-value-input');
+    const rangeInputs = document.getElementById('range-inputs');
+    const conditionValue = document.getElementById('condition-value');
+    const minValue = document.getElementById('min-value');
+    const maxValue = document.getElementById('max-value');
+    const addBtn = document.getElementById('add-condition-btn');
+    const closeBtn = document.getElementById('close-manager-btn');
+    const applyBtn = document.getElementById('apply-conditions-btn');
+    const conditionsList = document.getElementById('conditions-list');
+
+    let currentConditions = [...initialConditions];
+
+    // Handle condition type change
+    conditionTypeSelect.addEventListener('change', function () {
+      const selectedType = this.value;
+
+      if (selectedType === 'between') {
+        singleValueInput.style.display = 'none';
+        rangeInputs.style.display = 'block';
+      } else {
+        singleValueInput.style.display = 'block';
+        rangeInputs.style.display = 'none';
+      }
+
+      // Update placeholder based on condition type
+      if (['>', '>=', '<', '<=', '=', '!='].includes(selectedType)) {
+        conditionValue.placeholder = 'Enter number';
+        conditionValue.type = 'number';
+      } else {
+        conditionValue.placeholder = 'Enter text';
+        conditionValue.type = 'text';
+      }
+    });
+
+    // Add condition
+    addBtn.addEventListener('click', function () {
+      const type = conditionTypeSelect.value;
+
+      if (!type) {
+        alert('Please select a condition type');
+        return;
+      }
+
+      let newCondition;
+
+      if (type === 'between') {
+        const min = parseFloat(minValue.value);
+        const max = parseFloat(maxValue.value);
+
+        if (isNaN(min) || isNaN(max)) {
+          alert('Please enter valid numbers for min and max values');
+          return;
+        }
+
+        if (min >= max) {
+          alert('Min value must be less than max value');
+          return;
+        }
+
+        newCondition = {
+          type: 'between',
+          minValue: min,
+          maxValue: max,
+          label: `Between ${min} and ${max}`
+        };
+
+        minValue.value = '';
+        maxValue.value = '';
+      } else {
+        const value = conditionValue.value.trim();
+
+        if (!value) {
+          alert('Please enter a value');
+          return;
+        }
+
+        const typeLabels = {
+          'contains': 'Contains',
+          'starts-with': 'Starts with',
+          'ends-with': 'Ends with',
+          'exact': 'Exact match',
+          'once-if': 'Once if',
+          '>': 'Greater than',
+          '>=': 'Greater than or equal to',
+          '<': 'Less than',
+          '<=': 'Less than or equal to',
+          '=': 'Equal to',
+          '!=': 'Not equal to'
+        };
+
+        newCondition = {
+          type: type,
+          value: value,
+          label: `${typeLabels[type]}: "${value}"`
+        };
+
+        conditionValue.value = '';
+      }
+
+      currentConditions.push(newCondition);
+      renderConditionsList();
+
+      // Reset form
+      conditionTypeSelect.value = '';
+      singleValueInput.style.display = 'block';
+      rangeInputs.style.display = 'none';
+    });
+
+    // Render conditions list
+    function renderConditionsList() {
+      if (currentConditions.length === 0) {
+        conditionsList.innerHTML = '<p style="color: #666;">No conditions added yet.</p>';
+        return;
+      }
+
+      const conditionsHtml = currentConditions.map((condition, index) => `
+      <div class="condition-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 5px; border-radius: 4px; border: 1px solid #ddd;">
+        <span>${condition.label}</span>
+        <button onclick="removeCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
+      </div>
+    `).join('');
+
+      conditionsList.innerHTML = conditionsHtml;
+    }
+
+    // Remove condition function (global scope for onclick)
+    window.removeCondition = function (index) {
+      currentConditions.splice(index, 1);
+      renderConditionsList();
+    };
+
+    // Apply conditions
+    applyBtn.addEventListener('click', function () {
+      component.setHighlightConditions(currentConditions);
+      editor.Modal.close();
+    });
+
+    // Close modal
+    closeBtn.addEventListener('click', function () {
+      editor.Modal.close();
+    });
+
+    // Initial render
+    renderConditionsList();
+  }
   // Add the formatted-rich-text component
   editor.DomComponents.addType('formatted-rich-text', {
     model: {
@@ -551,6 +767,12 @@ currency: {
           'data-gjs-type': 'formatted-rich-text'
         },
         traits: [
+          {
+            type: 'checkbox',
+            name: 'formula-label',
+            label: 'Enable Formula',
+            changeProp: 1
+          },
           {
             type: 'select',
             name: 'format-type',
@@ -579,29 +801,12 @@ currency: {
             changeProp: 1
           },
           {
-            type: 'select',
-            name: 'highlight-condition-type',
-            label: 'Highlight Condition',
-            options: [
-              { value: '', label: 'Select Condition Type' },
-              { value: 'contains', label: 'Text: Contains' },
-              { value: 'starts-with', label: 'Text: Starts With' },
-              { value: 'ends-with', label: 'Text: Ends With' },
-              { value: '>', label: 'Number: > (Greater than)' },
-              { value: '>=', label: 'Number: >= (Greater than or equal)' },
-              { value: '<', label: 'Number: < (Less than)' },
-              { value: '<=', label: 'Number: <= (Less than or equal)' },
-              { value: '=', label: 'Number: = (Equal to)' },
-              { value: '!=', label: 'Number: != (Not equal to)' },
-              { value: 'between', label: 'Number: Between (range)' }
-            ],
-            changeProp: 1
-          },
-          {
-            type: 'text',
-            name: 'highlight-words',
-            label: 'Highlight Words/Conditions',
-            placeholder: 'Examples: word1, word2, >1000, <=100',
+            type: 'button',
+            name: 'manage-highlight-conditions',
+            label: 'Manage Highlight Conditions',
+            text: 'Add/Edit Conditions',
+            full: true,
+            command: 'open-condition-manager',
             changeProp: 1
           },
           {
@@ -615,7 +820,9 @@ currency: {
         'format-pattern': 'None',
         'raw-content': 'Insert your text here',
         'is-editing': false,
+        'formula-label': false,
         'hide-words': '',
+        'highlight-conditions': [],
         'highlight-condition-type': '',
         'highlight-words': '',
         'highlight-color': '#ffff00'
@@ -629,6 +836,7 @@ currency: {
         this.on('change:highlight-color', this.updateContent);
         this.on('change:my-input-json', this.handleJsonPathChange);
         this.on('change:highlight-condition-type', this.updateContent);
+        this.on('change:formula-label', this.updateContent);
         this.updateFormatPattern();
         this.updateTooltip();
       },
@@ -644,12 +852,12 @@ currency: {
         const rawContent = this.get('raw-content') || '';
 
         const validation = formatHelpers.validateFormat(rawContent, newFormatType);
-        
+
         if (!validation.valid) {
           alert(validation.error);
           return;
         }
-        
+
         this.updateFormatPattern();
         this.updateContent();
         this.updateTooltip();
@@ -659,32 +867,32 @@ currency: {
         console.log('=== COMPONENT JSON PATH CHANGE ===');
         const jsonPath = this.get('my-input-json');
         console.log('JSON Path:', jsonPath);
-        
+
         // FIXED: Force stop RTE before updating
         if (this.view && this.view.rteActive) {
           console.log('RTE active, forcing stop before JSON update');
           this.view.forceStopRTE();
         }
-        
+
         if (jsonPath && jsonPath.trim()) {
           try {
             const commonJson = JSON.parse(localStorage.getItem("common_json"));
             const fullJsonPath = `commonJson.${custom_language}.${jsonPath}`;
             const value = eval(fullJsonPath);
             console.log('Evaluated value:', value);
-            
+
             if (value !== undefined && value !== null) {
               const stringValue = String(value);
               console.log('Setting raw-content to:', stringValue);
-              
+
               this.set('raw-content', stringValue, { silent: true });
               this.updateContent();
               console.log('Content updated');
-              
+
               if (this.view && this.view.el) {
                 this.view.render();
                 console.log('View rendered immediately');
-                
+
                 if (this.em) {
                   this.em.trigger('change:canvasOffset');
                 }
@@ -696,10 +904,43 @@ currency: {
         }
       },
 
+      getHighlightConditions() {
+        return this.get('highlight-conditions') || [];
+      },
+
+      setHighlightConditions(conditions) {
+        this.set('highlight-conditions', conditions);
+        // Update the old format for backward compatibility
+        const conditionStrings = conditions.map(cond => {
+          if (cond.type === 'once-if') {
+            return `once-if:${cond.value}`;
+          } else if (['>', '>=', '<', '<=', '=', '!='].includes(cond.type)) {
+            return `${cond.type}${cond.value}`;
+          } else if (cond.type === 'between') {
+            return `${cond.minValue}<value<${cond.maxValue}`;
+          } else {
+            return `${cond.type}:${cond.value}`;
+          }
+        });
+        this.set('highlight-words', conditionStrings.join(', '), { silent: true });
+        this.updateContent();
+      },
+
+      addHighlightCondition(condition) {
+        const conditions = this.getHighlightConditions();
+        conditions.push(condition);
+        this.setHighlightConditions(conditions);
+      },
+
+      removeHighlightCondition(index) {
+        const conditions = this.getHighlightConditions();
+        conditions.splice(index, 1);
+        this.setHighlightConditions(conditions);
+      },
       updateFormatPattern() {
         const formatType = this.get('format-type') || 'text';
         const config = formatConfigs[formatType];
-        
+
         if (config) {
           const patternTrait = this.getTrait('format-pattern');
           if (patternTrait) {
@@ -707,7 +948,7 @@ currency: {
               value: pattern,
               label: pattern
             })));
-            
+
             const defaultPattern = config.defaultPattern || config.patterns[0];
             this.set('format-pattern', defaultPattern);
           }
@@ -718,165 +959,207 @@ currency: {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       },
 
-applyConditionalFormatting(content) {
-  if (!content || typeof content !== 'string') {
-    return content || '';
-  }
+      applyOnceIfHighlight(content, condition, highlightColor) {
+        const characters = condition.split('');
 
-  let processedContent = content;
-  const hideWords = this.get('hide-words') || '';
-  const highlightWords = this.get('highlight-words') || '';
-  const highlightColor = this.get('highlight-color') || '#ffff00';
-  const highlightConditionType = this.get('highlight-condition-type') || '';
+        characters.forEach(char => {
+          if (char.trim()) {
+            const escapedChar = this.escapeRegex(char);
 
-  processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
-  processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
-
-  const hasHideConditions = hideWords.trim().length > 0;
-  const hasHighlightConditions = highlightWords.trim().length > 0;
-  
-  if (!hasHideConditions && !hasHighlightConditions) {
-    return processedContent;
-  }
-
-  if (hasHideConditions) {
-    const conditions = hideWords.split(',').map(cond => cond.trim()).filter(cond => cond);
-    
-    conditions.forEach(condition => {
-      if (condition) {
-        if (formatHelpers.isNumberCondition(condition)) {
-          if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
-            processedContent = `<span class="hidden-word" style="display: none;">${processedContent}</span>`;
+            if (/\d/.test(char)) {
+              const regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, 'g');
+              content = content.replace(regex,
+                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+              );
+            } else if (/[a-zA-Z]/.test(char)) {
+              const regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, 'gi');
+              content = content.replace(regex,
+                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+              );
+            }
           }
-        } else {
-          const escapedWord = this.escapeRegex(condition);
-          const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
-          processedContent = processedContent.replace(regex, 
-            `<span class="hidden-word" style="display: none;">${condition}</span>`
-          );
+        });
+
+        return content;
+      },
+      applyHighlightCondition(content, condition, highlightColor) {
+        const conditionType = condition.type;
+        const conditionValue = condition.value;
+
+        // Handle "once-if" condition type
+        if (conditionType === 'once-if') {
+          return this.applyOnceIfHighlight(content, conditionValue, highlightColor);
         }
-      }
-    });
-  }
 
-  if (hasHighlightConditions) {
-    const conditions = highlightWords.split(',').map(cond => cond.trim()).filter(cond => cond);
-    
-    conditions.forEach(condition => {
-      if (condition) {
-        // Check if it's a number condition based on highlight condition type
-        const isNumberConditionType = ['>', '>=', '<', '<=', '=', '!=', 'between'].includes(highlightConditionType);
-        
-        if (isNumberConditionType) {
-          // For number conditions, handle based on condition type
-          if (highlightConditionType === 'between') {
-            // For 'between', expect format like "100 < value < 1000" or "100 <= value <= 1000"
-            if (formatHelpers.isNumberCondition(condition)) {
-              if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
-                const numbers = formatHelpers.extractNumbers(processedContent);
-                const conditionObj = formatHelpers.parseNumberCondition(condition);
-                
-                if (conditionObj) {
-                  numbers.forEach(num => {
-                    if (conditionObj.evaluate(num)) {
-                      const escapedNum = this.escapeRegex(num.toString());
-                      const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
-                      processedContent = processedContent.replace(regex, 
-                        `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
-                      );
-                    }
-                  });
-                }
-              }
-            }
-          } else {
-            // For other number conditions (>, >=, <, <=, =, !=)
-            // Create the condition string using the type and value
-            const conditionString = highlightConditionType + condition;
-            
-            if (formatHelpers.isNumberCondition(conditionString)) {
-              if (formatHelpers.evaluateNumberCondition(processedContent, conditionString)) {
-                const numbers = formatHelpers.extractNumbers(processedContent);
-                const conditionObj = formatHelpers.parseNumberCondition(conditionString);
-                
-                if (conditionObj) {
-                  numbers.forEach(num => {
-                    if (conditionObj.evaluate(num)) {
-                      const escapedNum = this.escapeRegex(num.toString());
-                      const regex = new RegExp(`\\b${escapedNum}\\b`, 'g');
-                      processedContent = processedContent.replace(regex, 
-                        `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">${num}</span>`
-                      );
-                    }
-                  });
-                }
+        // Handle number conditions
+        if (['>', '>=', '<', '<=', '=', '!='].includes(conditionType)) {
+          const conditionString = conditionType + conditionValue;
+
+          if (formatHelpers.isNumberCondition(conditionString)) {
+            if (formatHelpers.evaluateNumberCondition(content, conditionString)) {
+              const numbers = formatHelpers.extractNumbers(content);
+              const conditionObj = formatHelpers.parseNumberCondition(conditionString);
+
+              if (conditionObj) {
+                numbers.forEach(num => {
+                  if (conditionObj.evaluate(num)) {
+                    const escapedNum = this.escapeRegex(num.toString());
+                    const regex = new RegExp(`(?!<[^>]*>)\\b(${escapedNum})\\b(?![^<]*<\\/span>)`, 'g');
+                    content = content.replace(regex,
+                      `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+                    );
+                  }
+                });
               }
             }
           }
-        } else {
-          // Text-based highlighting (contains, starts-with, ends-with, or default)
-          let regex;
-          
-          if (highlightConditionType === 'contains') {
-            const escapedWord = this.escapeRegex(condition);
-            regex = new RegExp(`(?!<[^>]*?>)\\b(\\w*${escapedWord}\\w*)\\b(?![^<]*?<\\/span>)`, 'gi');
-          } else if (highlightConditionType === 'starts-with') {
-            const escapedWord = this.escapeRegex(condition);
-            regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord}\\w*)(?![^<]*?<\/span>)`, 'gi');
-          } else if (highlightConditionType === 'ends-with') {
-            const escapedWord = this.escapeRegex(condition);
-            regex = new RegExp(`(?!<[^>]*?>)\\b(\\w*${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
-          } else {
-            // Default behavior (exact word match)
-            const escapedWord = this.escapeRegex(condition);
-            regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
+          return content;
+        }
+
+        // Handle between condition
+        if (conditionType === 'between') {
+          const betweenCondition = `${condition.minValue}<value<${condition.maxValue}`;
+          if (formatHelpers.isNumberCondition(betweenCondition)) {
+            if (formatHelpers.evaluateNumberCondition(content, betweenCondition)) {
+              const numbers = formatHelpers.extractNumbers(content);
+              const conditionObj = formatHelpers.parseNumberCondition(betweenCondition);
+
+              if (conditionObj) {
+                numbers.forEach(num => {
+                  if (conditionObj.evaluate(num)) {
+                    const escapedNum = this.escapeRegex(num.toString());
+                    const regex = new RegExp(`(?!<[^>]*>)\\b(${escapedNum})\\b(?![^<]*<\\/span>)`, 'g');
+                    content = content.replace(regex,
+                      `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+                    );
+                  }
+                });
+              }
+            }
           }
-          
-          processedContent = processedContent.replace(regex, 
+          return content;
+        }
+
+        // Handle text-based highlighting
+        let regex;
+
+        if (conditionType === 'contains') {
+          const escapedWord = this.escapeRegex(conditionValue);
+          regex = new RegExp(`(?!<[^>]*?>)(\\w*${escapedWord}\\w*)(?![^<]*?<\\/span>)`, 'gi');
+        } else if (conditionType === 'starts-with') {
+          const escapedWord = this.escapeRegex(conditionValue);
+          regex = new RegExp(`(?!<[^>]*?>)(${escapedWord}\\w*)(?![^<]*?<\/span>)`, 'gi');
+        } else if (conditionType === 'ends-with') {
+          const escapedWord = this.escapeRegex(conditionValue);
+          regex = new RegExp(`(?!<[^>]*?>)(\\w*${escapedWord})\\b(?![^<]*?<\\/span>)`, 'gi');
+        } else if (conditionType === 'exact') {
+          const escapedWord = this.escapeRegex(conditionValue);
+          regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
+        }
+
+        if (regex) {
+          content = content.replace(regex,
             `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
           );
         }
-      }
-    });
-  }
 
-  return processedContent;
-},
+        return content;
+      },
+      applyConditionalFormatting(content) {
+        if (!content || typeof content !== 'string') {
+          return content || '';
+        }
+
+        let processedContent = content;
+        const hideWords = this.get('hide-words') || '';
+        const highlightConditions = this.getHighlightConditions();
+        const highlightColor = this.get('highlight-color') || '#ffff00';
+
+        // Remove existing formatting
+        processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
+        processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
+
+        const hasHideConditions = hideWords.trim().length > 0;
+        const hasHighlightConditions = highlightConditions.length > 0;
+
+        if (!hasHideConditions && !hasHighlightConditions) {
+          return processedContent;
+        }
+
+        // Handle hide conditions (existing logic)
+        if (hasHideConditions) {
+          const conditions = hideWords.split(',').map(cond => cond.trim()).filter(cond => cond);
+
+          conditions.forEach(condition => {
+            if (condition) {
+              if (formatHelpers.isNumberCondition(condition)) {
+                if (formatHelpers.evaluateNumberCondition(processedContent, condition)) {
+                  processedContent = `<span class="hidden-word" style="display: none;">${processedContent}</span>`;
+                }
+              } else {
+                const escapedWord = this.escapeRegex(condition);
+                const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+                processedContent = processedContent.replace(regex,
+                  `<span class="hidden-word" style="display: none;">${condition}</span>`
+                );
+              }
+            }
+          });
+        }
+
+        // Apply highlight conditions
+        if (hasHighlightConditions) {
+          highlightConditions.forEach(condition => {
+            processedContent = this.applyHighlightCondition(processedContent, condition, highlightColor);
+          });
+        }
+
+        return processedContent;
+      },
 
       updateContent() {
-  const formatType = this.get('format-type') || 'text';
-  const pattern = this.get('format-pattern') || 'None';
-  let rawContent = this.get('raw-content') || '';
+        const formatType = this.get('format-type') || 'text';
+        const pattern = this.get('format-pattern') || 'None';
+        const isFormulaEnabled = this.get('formula-label') || false;
+        let rawContent = this.get('raw-content') || '';
 
-  if (typeof rawContent !== 'string') {
-    rawContent = String(rawContent);
-  }
+        if (typeof rawContent !== 'string') {
+          rawContent = String(rawContent);
+        }
 
-  const previousContent = this.get('content');
+        const previousContent = this.get('content');
 
-  let formattedContent;
-  
-  if (formatType === 'text' || pattern === 'None') {
-    formattedContent = rawContent;
-  } else {
-    try {
-      formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
-    } catch (error) {
-      console.warn('Format error:', error);
-      formattedContent = rawContent;
-    }
-  }
+        let formattedContent;
 
-  const finalContent = this.applyConditionalFormatting(formattedContent);
-  
-  if (finalContent !== previousContent) {
-    this.set('content', finalContent);
-    // FIXED: Update raw-content to match when formatting is applied
-    if (formatType !== 'text' && pattern !== 'None') {
-      this.set('raw-content', formatHelpers.extractTextContent(finalContent), { silent: true });
-    }
-  }
-},
+        // NEW: Process formula first if enabled
+        if (isFormulaEnabled) {
+          const formulaProcessed = formatHelpers.processFormulaContent(rawContent, true);
+          rawContent = formulaProcessed;
+        }
+
+        // Then apply regular formatting
+        if (formatType === 'text' || pattern === 'None') {
+          formattedContent = rawContent;
+        } else {
+          try {
+            formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
+          } catch (error) {
+            console.warn('Format error:', error);
+            formattedContent = rawContent;
+          }
+        }
+
+        const finalContent = this.applyConditionalFormatting(formattedContent);
+
+        if (finalContent !== previousContent) {
+          this.set('content', finalContent);
+          // UPDATED: Handle raw-content updates with formula consideration
+          if (formatType !== 'text' && pattern !== 'None' && !isFormulaEnabled) {
+            this.set('raw-content', formatHelpers.extractTextContent(finalContent), { silent: true });
+          }
+        }
+      },
+
 
       updateFromJsonPath(jsonPath) {
         if (jsonPath && jsonPath.trim()) {
@@ -908,86 +1191,86 @@ applyConditionalFormatting(content) {
       },
 
       handleSingleClick(e) {
-  // Check if the clicked element is a link or inside a link
-  const clickedElement = e.target;
-  const linkElement = clickedElement.closest('a');
-  
-  if (linkElement) {
-    // Prevent the event from bubbling up to avoid selecting the text component
-    e.stopPropagation();
-    
-    // Get the editor manager
-    const em = this.model.em;
-    if (!em) return;
-    
-    // Create a temporary DOM component for the link
-    const linkComponent = {
-      tagName: 'a',
-      attributes: {
-        href: linkElement.getAttribute('href') || '',
-        target: linkElement.getAttribute('target') || '_self'
-      },
-      content: linkElement.innerHTML
-    };
-    
-    // Create traits for the link
-    const linkTraits = [
-      {
-        type: 'text',
-        name: 'href',
-        label: 'Href',
-        value: linkElement.getAttribute('href') || ''
-      },
-      {
-        type: 'select',
-        name: 'target',
-        label: 'Target',
-        options: [
-          { value: '_self', label: 'This window' },
-          { value: '_blank', label: 'New window' }
-        ],
-        value: linkElement.getAttribute('target') || '_self'
-      }
-    ];
-    
-    // Show the traits panel with link-specific traits
-    const traitManager = em.get('TraitManager');
-    if (traitManager) {
-      // Clear existing traits
-      traitManager.getCurrent().forEach(trait => {
-        traitManager.removeTrait(trait.get('name'));
-      });
-      
-      // Add link traits
-      linkTraits.forEach(traitConfig => {
-        const trait = traitManager.addTrait(traitConfig);
-        
-        // Handle trait changes
-        trait.on('change:value', () => {
-          const traitName = trait.get('name');
-          const traitValue = trait.get('value');
-          
-          // Update the actual link element
-          if (traitName === 'href') {
-            linkElement.setAttribute('href', traitValue);
-          } else if (traitName === 'target') {
-            linkElement.setAttribute('target', traitValue);
+        // Check if the clicked element is a link or inside a link
+        const clickedElement = e.target;
+        const linkElement = clickedElement.closest('a');
+
+        if (linkElement) {
+          // Prevent the event from bubbling up to avoid selecting the text component
+          e.stopPropagation();
+
+          // Get the editor manager
+          const em = this.model.em;
+          if (!em) return;
+
+          // Create a temporary DOM component for the link
+          const linkComponent = {
+            tagName: 'a',
+            attributes: {
+              href: linkElement.getAttribute('href') || '',
+              target: linkElement.getAttribute('target') || '_self'
+            },
+            content: linkElement.innerHTML
+          };
+
+          // Create traits for the link
+          const linkTraits = [
+            {
+              type: 'text',
+              name: 'href',
+              label: 'Href',
+              value: linkElement.getAttribute('href') || ''
+            },
+            {
+              type: 'select',
+              name: 'target',
+              label: 'Target',
+              options: [
+                { value: '_self', label: 'This window' },
+                { value: '_blank', label: 'New window' }
+              ],
+              value: linkElement.getAttribute('target') || '_self'
+            }
+          ];
+
+          // Show the traits panel with link-specific traits
+          const traitManager = em.get('TraitManager');
+          if (traitManager) {
+            // Clear existing traits
+            traitManager.getCurrent().forEach(trait => {
+              traitManager.removeTrait(trait.get('name'));
+            });
+
+            // Add link traits
+            linkTraits.forEach(traitConfig => {
+              const trait = traitManager.addTrait(traitConfig);
+
+              // Handle trait changes
+              trait.on('change:value', () => {
+                const traitName = trait.get('name');
+                const traitValue = trait.get('value');
+
+                // Update the actual link element
+                if (traitName === 'href') {
+                  linkElement.setAttribute('href', traitValue);
+                } else if (traitName === 'target') {
+                  linkElement.setAttribute('target', traitValue);
+                }
+
+                // Update the model's raw content
+                this.model.set('raw-content', this.el.innerHTML, { silent: true });
+              });
+            });
+
+            // Trigger trait update
+            traitManager.trigger('update');
           }
-          
-          // Update the model's raw content
-          this.model.set('raw-content', this.el.innerHTML, { silent: true });
-        });
-      });
-      
-      // Trigger trait update
-      traitManager.trigger('update');
-    }
-    
-    return;
-  }
-  
-  // If not clicking on a link, allow normal GrapesJS selection behavior
-},
+
+          return;
+        }
+
+        // If not clicking on a link, allow normal GrapesJS selection behavior
+      },
 
       handleEditingChange() {
         const isEditing = this.model.get('is-editing');
@@ -999,186 +1282,186 @@ applyConditionalFormatting(content) {
       },
 
       enableRichTextEditing(e) {
-  console.log('=== DOUBLE CLICK DETECTED ===');
-  e.preventDefault();
-  e.stopPropagation();
+        console.log('=== DOUBLE CLICK DETECTED ===');
+        e.preventDefault();
+        e.stopPropagation();
 
-  // FIXED: Clear any pending timeout
-  if (this.rteTimeout) {
-    clearTimeout(this.rteTimeout);
-    this.rteTimeout = null;
-  }
+        // FIXED: Clear any pending timeout
+        if (this.rteTimeout) {
+          clearTimeout(this.rteTimeout);
+          this.rteTimeout = null;
+        }
 
-  // FIXED: Force stop any existing RTE first
-  if (this.rteActive) {
-    console.log('RTE already active, forcing stop first');
-    this.forceStopRTE();
-    // Wait a bit before starting new RTE session
-    setTimeout(() => {
-      this.model.enableRTE();
-    }, 100);
-    return;
-  }
+        // FIXED: Force stop any existing RTE first
+        if (this.rteActive) {
+          console.log('RTE already active, forcing stop first');
+          this.forceStopRTE();
+          // Wait a bit before starting new RTE session
+          setTimeout(() => {
+            this.model.enableRTE();
+          }, 100);
+          return;
+        }
 
-  // Check if content is hidden
-  const hideWords = this.model.get('hide-words') || '';
-  if (hideWords.trim()) {
-    const content = this.model.get('content') || '';
-    if (content.includes('class="hidden-word"') && content.includes('display: none')) {
-      console.log('Content is hidden, cannot edit');
-      return;
-    }
-  }
+        // Check if content is hidden
+        const hideWords = this.model.get('hide-words') || '';
+        if (hideWords.trim()) {
+          const content = this.model.get('content') || '';
+          if (content.includes('class="hidden-word"') && content.includes('display: none')) {
+            console.log('Content is hidden, cannot edit');
+            return;
+          }
+        }
 
-  console.log('Enabling RTE...');
-  this.model.enableRTE();
-},
+        console.log('Enabling RTE...');
+        this.model.enableRTE();
+      },
 
       startRTE() {
-  console.log('=== STARTING RTE ===');
-  
-  if (this.rteActive) {
-    console.log('RTE already active, aborting start');
-    return;
-  }
+        console.log('=== STARTING RTE ===');
 
-  const em = this.model.em;
-  if (!em) {
-    console.log('No editor manager found');
-    return;
-  }
+        if (this.rteActive) {
+          console.log('RTE already active, aborting start');
+          return;
+        }
 
-  const rte = em.get('RichTextEditor');
-  if (!rte) {
-    console.log('No RTE found');
-    return;
-  }
+        const em = this.model.em;
+        if (!em) {
+          console.log('No editor manager found');
+          return;
+        }
 
-  // FIXED: Set state immediately to prevent double initialization
-  this.rteActive = true;
+        const rte = em.get('RichTextEditor');
+        if (!rte) {
+          console.log('No RTE found');
+          return;
+        }
 
-  // Store original actions
-  this.originalActions = rte.getAll().slice();
-  console.log('Stored original actions:', this.originalActions.length);
-  
-  // Clear existing actions
-  this.originalActions.forEach(action => {
-    try {
-      rte.remove(action.name);
-    } catch (e) {
-      console.log('Error removing action:', action.name);
-    }
-  });
+        // FIXED: Set state immediately to prevent double initialization
+        this.rteActive = true;
 
-  // Add custom actions
-  customRteActions.forEach(action => {
-    try {
-      rte.add(action.name, action);
-    } catch (e) {
-      console.log('Error adding action:', action.name);
-    }
-  });
+        // Store original actions
+        this.originalActions = rte.getAll().slice();
+        console.log('Stored original actions:', this.originalActions.length);
 
-  // FIXED: Proper content handling for editing
-  const rawContent = this.model.get('raw-content') || '';
-  console.log('Raw content for editing:', rawContent);
-  
-  // Set element content to raw content for editing
-  this.el.innerHTML = rawContent;
-  
-  // FIXED: Make element editable BEFORE enabling RTE
-  this.el.contentEditable = true;
+        // Clear existing actions
+        this.originalActions.forEach(action => {
+          try {
+            rte.remove(action.name);
+          } catch (e) {
+            console.log('Error removing action:', action.name);
+          }
+        });
 
-  // Enable RTE with enhanced configuration
-  try {
-    console.log('Enabling RTE on element');
-    rte.enable(this, null, { 
-      actions: customRteActions.map(a => a.name),
-      styleWithCSS: false
-    });
-    console.log('RTE enabled successfully');
-  } catch (e) {
-    console.error('RTE enable error:', e);
-    this.rteActive = false;
-    this.el.contentEditable = false;
-    return;
-  }
+        // Add custom actions
+        customRteActions.forEach(action => {
+          try {
+            rte.add(action.name, action);
+          } catch (e) {
+            console.log('Error adding action:', action.name);
+          }
+        });
 
-  // FIXED: Enhanced content change handler with debouncing
-  this.rteChangeHandler = this.debounce(() => {
-    const content = this.el.innerHTML;
-    console.log("Content changed in RTE:", content);
-    this.model.set('raw-content', content, { silent: true });
-  }, 150);
+        // FIXED: Proper content handling for editing
+        const rawContent = this.model.get('raw-content') || '';
+        console.log('Raw content for editing:', rawContent);
 
-  console.log('Adding event listeners');
-  this.el.addEventListener('input', this.rteChangeHandler);
-  this.el.addEventListener('paste', this.handleRTEPaste.bind(this));
-  
-  // FIXED: Add global click handler to detect outside clicks
-// In startRTE, replace the globalClickHandler assignment:
-this.globalClickHandler = (e) => {
-  if (!this.el.contains(e.target) && !e.target.closest('.gjs-rte-toolbar')) {
-    console.log('Clicked outside, stopping RTE');
-    this.handleRTEExit(); // Changed from handleRTEFocusOut
-  }
-};
+        // Set element content to raw content for editing
+        this.el.innerHTML = rawContent;
 
-// And update escape handler:
-this.escapeHandler = (e) => {
-  if (e.key === 'Escape') {
-    console.log('Escape key pressed, closing RTE');
-    this.handleRTEExit(); // Changed from handleRTEFocusOut
-  }
-};
-  
-  // FIXED: Add event listeners with proper timing
-  setTimeout(() => {
-    document.addEventListener('click', this.globalClickHandler);
-    document.addEventListener('keydown', this.escapeHandler);
-  }, 100);
-  
-  // FIXED: Focus the element with proper timing and cursor positioning
-  setTimeout(() => {
-    if (this.rteActive && this.el) {
-      this.el.focus();
-      
-      // FIXED: Set cursor to end of content
-      const range = document.createRange();
-      const selection = window.getSelection();
-      
-      // Find the last text node
-      const walker = document.createTreeWalker(
-        this.el,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-      );
-      
-      let lastTextNode = null;
-      let node;
-      while (node = walker.nextNode()) {
-        lastTextNode = node;
-      }
-      
-      if (lastTextNode) {
-        range.setStart(lastTextNode, lastTextNode.textContent.length);
-        range.setEnd(lastTextNode, lastTextNode.textContent.length);
-      } else {
-        // If no text nodes, set range to end of element
-        range.selectNodeContents(this.el);
-        range.collapse(false);
-      }
-      
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      console.log('Element focused with cursor positioned');
-    }
-  }, 200);
-  
-  console.log('RTE startup complete');
-},
+        // FIXED: Make element editable BEFORE enabling RTE
+        this.el.contentEditable = true;
+
+        // Enable RTE with enhanced configuration
+        try {
+          console.log('Enabling RTE on element');
+          rte.enable(this, null, {
+            actions: customRteActions.map(a => a.name),
+            styleWithCSS: false
+          });
+          console.log('RTE enabled successfully');
+        } catch (e) {
+          console.error('RTE enable error:', e);
+          this.rteActive = false;
+          this.el.contentEditable = false;
+          return;
+        }
+
+        // FIXED: Enhanced content change handler with debouncing
+        this.rteChangeHandler = this.debounce(() => {
+          const content = this.el.innerHTML;
+          console.log("Content changed in RTE:", content);
+          this.model.set('raw-content', content, { silent: true });
+        }, 150);
+
+        console.log('Adding event listeners');
+        this.el.addEventListener('input', this.rteChangeHandler);
+        this.el.addEventListener('paste', this.handleRTEPaste.bind(this));
+
+        // FIXED: Add global click handler to detect outside clicks
+        // In startRTE, replace the globalClickHandler assignment:
+        this.globalClickHandler = (e) => {
+          if (!this.el.contains(e.target) && !e.target.closest('.gjs-rte-toolbar')) {
+            console.log('Clicked outside, stopping RTE');
+            this.handleRTEExit(); // Changed from handleRTEFocusOut
+          }
+        };
+
+        // And update escape handler:
+        this.escapeHandler = (e) => {
+          if (e.key === 'Escape') {
+            console.log('Escape key pressed, closing RTE');
+            this.handleRTEExit(); // Changed from handleRTEFocusOut
+          }
+        };
+
+        // FIXED: Add event listeners with proper timing
+        setTimeout(() => {
+          document.addEventListener('click', this.globalClickHandler);
+          document.addEventListener('keydown', this.escapeHandler);
+        }, 100);
+
+        // FIXED: Focus the element with proper timing and cursor positioning
+        setTimeout(() => {
+          if (this.rteActive && this.el) {
+            this.el.focus();
+
+            // FIXED: Set cursor to end of content
+            const range = document.createRange();
+            const selection = window.getSelection();
+
+            // Find the last text node
+            const walker = document.createTreeWalker(
+              this.el,
+              NodeFilter.SHOW_TEXT,
+              null,
+              false
+            );
+
+            let lastTextNode = null;
+            let node;
+            while (node = walker.nextNode()) {
+              lastTextNode = node;
+            }
+
+            if (lastTextNode) {
+              range.setStart(lastTextNode, lastTextNode.textContent.length);
+              range.setEnd(lastTextNode, lastTextNode.textContent.length);
+            } else {
+              // If no text nodes, set range to end of element
+              range.selectNodeContents(this.el);
+              range.collapse(false);
+            }
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            console.log('Element focused with cursor positioned');
+          }
+        }, 200);
+
+        console.log('RTE startup complete');
+      },
 
       // FIXED: Add debounce utility function
       debounce(func, wait) {
@@ -1205,175 +1488,217 @@ this.escapeHandler = (e) => {
       },
 
       stopRTE() {
-  console.log('=== STOPPING RTE ===');
-  
-  if (!this.rteActive) {
-    console.log('RTE not active, nothing to stop');
-    return;
-  }
+        console.log('=== STOPPING RTE ===');
 
-  const em = this.model.em;
-  if (!em) {
-    console.log('No editor manager found');
-    return;
-  }
+        if (!this.rteActive) {
+          console.log('RTE not active, nothing to stop');
+          return;
+        }
 
-  const rte = em.get('RichTextEditor');
-  if (!rte) {
-    console.log('No RTE found');
-    return;
-  }
+        const em = this.model.em;
+        if (!em) {
+          console.log('No editor manager found');
+          return;
+        }
 
-  // FIXED: Set state immediately to prevent race conditions
-  this.rteActive = false;
+        const rte = em.get('RichTextEditor');
+        if (!rte) {
+          console.log('No RTE found');
+          return;
+        }
 
-  // Remove event listeners first
-  if (this.rteChangeHandler) {
-    console.log('Removing event listeners');
-    this.el.removeEventListener('input', this.rteChangeHandler);
-    this.el.removeEventListener('paste', this.handleRTEPaste);
-    this.rteChangeHandler = null;
-  }
+        // FIXED: Set state immediately to prevent race conditions
+        this.rteActive = false;
 
-  // FIXED: Remove global event handlers
-  if (this.globalClickHandler) {
-    console.log('Removing global click handler');
-    document.removeEventListener('click', this.globalClickHandler);
-    this.globalClickHandler = null;
-  }
+        // Remove event listeners first
+        if (this.rteChangeHandler) {
+          console.log('Removing event listeners');
+          this.el.removeEventListener('input', this.rteChangeHandler);
+          this.el.removeEventListener('paste', this.handleRTEPaste);
+          this.rteChangeHandler = null;
+        }
 
-  if (this.escapeHandler) {
-    console.log('Removing escape key handler');
-    document.removeEventListener('keydown', this.escapeHandler);
-    this.escapeHandler = null;
-  }
+        // FIXED: Remove global event handlers
+        if (this.globalClickHandler) {
+          console.log('Removing global click handler');
+          document.removeEventListener('click', this.globalClickHandler);
+          this.globalClickHandler = null;
+        }
 
-  // Disable RTE
-  try {
-    console.log('Disabling RTE');
-    rte.disable(this);
-    console.log('RTE disabled successfully');
-  } catch (e) {
-    console.error('RTE disable error:', e);
-  }
+        if (this.escapeHandler) {
+          console.log('Removing escape key handler');
+          document.removeEventListener('keydown', this.escapeHandler);
+          this.escapeHandler = null;
+        }
 
-  // Restore original actions
-  if (this.originalActions) {
-    console.log('Restoring original actions');
-    
-    // Remove custom actions first
-    customRteActions.forEach(action => {
-      try {
-        rte.remove(action.name);
-      } catch (e) {
-        console.log('Error removing custom action:', action.name);
-      }
-    });
+        // Disable RTE
+        try {
+          console.log('Disabling RTE');
+          rte.disable(this);
+          console.log('RTE disabled successfully');
+        } catch (e) {
+          console.error('RTE disable error:', e);
+        }
 
-    // Add back original actions
-    this.originalActions.forEach(action => {
-      try {
-        rte.add(action.name, action);
-      } catch (e) {
-        console.log('Error restoring action:', action.name);
-      }
-    });
-    
-    this.originalActions = null;
-    console.log('Original actions restored');
-  }
+        // Restore original actions
+        if (this.originalActions) {
+          console.log('Restoring original actions');
 
-  // FIXED: Clear any pending timeouts
-  if (this.rteTimeout) {
-    clearTimeout(this.rteTimeout);
-    this.rteTimeout = null;
-  }
+          // Remove custom actions first
+          customRteActions.forEach(action => {
+            try {
+              rte.remove(action.name);
+            } catch (e) {
+              console.log('Error removing custom action:', action.name);
+            }
+          });
 
-  // FIXED: Ensure element is properly reset
-  this.el.contentEditable = false;
-  this.el.blur();
-  
-  console.log('RTE stop complete');
-},
+          // Add back original actions
+          this.originalActions.forEach(action => {
+            try {
+              rte.add(action.name, action);
+            } catch (e) {
+              console.log('Error restoring action:', action.name);
+            }
+          });
+
+          this.originalActions = null;
+          console.log('Original actions restored');
+        }
+
+        // FIXED: Clear any pending timeouts
+        if (this.rteTimeout) {
+          clearTimeout(this.rteTimeout);
+          this.rteTimeout = null;
+        }
+
+        // FIXED: Ensure element is properly reset
+        this.el.contentEditable = false;
+        this.el.blur();
+
+        console.log('RTE stop complete');
+      },
 
       // FIXED: Force stop method for external calls
       forceStopRTE() {
-  console.log('=== FORCE STOP RTE ===');
-  if (this.rteActive) {
-    console.log('Forcing RTE to stop');
-    
-    // FIXED: Clear timeouts before stopping
-    if (this.rteTimeout) {
-      clearTimeout(this.rteTimeout);
-      this.rteTimeout = null;
-    }
-    
-    this.stopRTE();
-    this.model.set('is-editing', false, { silent: true });
-    
-    // FIXED: Ensure element state is reset
-    if (this.el) {
-      this.el.contentEditable = false;
-      this.el.blur();
-    }
-  }
-},
+        console.log('=== FORCE STOP RTE ===');
+        if (this.rteActive) {
+          console.log('Forcing RTE to stop');
+
+          // FIXED: Clear timeouts before stopping
+          if (this.rteTimeout) {
+            clearTimeout(this.rteTimeout);
+            this.rteTimeout = null;
+          }
+
+          this.stopRTE();
+          this.model.set('is-editing', false, { silent: true });
+
+          // FIXED: Ensure element state is reset
+          if (this.el) {
+            this.el.contentEditable = false;
+            this.el.blur();
+          }
+        }
+      },
 
       // FIXED: Use focusout instead of blur for better handling
       // FIXED: Remove handleRTEFocusOut method completely and replace with this simpler version
-handleRTEExit() {
-  console.log('=== RTE EXIT TRIGGERED ===');
-  
-  if (!this.rteActive) {
-    console.log('RTE already inactive, ignoring exit');
-    return;
-  }
-  
-  const content = this.el.innerHTML;
-  console.log('Content on exit:', content);
-  
-  const formatType = this.model.get('format-type');
-  console.log('Format type:', formatType);
-  
-  // Validate format before applying
-  const validation = formatHelpers.validateFormat(content, formatType);
-  
-  if (!validation.valid) {
-    console.log('Validation failed:', validation.error);
-    alert(validation.error);
-    // Revert to previous content
-    const previousContent = this.model.get('raw-content');
-    this.el.innerHTML = previousContent;
-  } else {
-    console.log('Validation passed, updating content');
-    this.model.set('raw-content', content, { silent: true });
-    this.model.updateContent();
-  }
-  
-  // Disable editing
-  console.log('Disabling RTE from exit handler');
-  this.model.disableRTE();
-},
+      handleRTEExit() {
+        console.log('=== RTE EXIT TRIGGERED ===');
+
+        if (!this.rteActive) {
+          console.log('RTE already inactive, ignoring exit');
+          return;
+        }
+
+        const content = this.el.innerHTML;
+        console.log('Content on exit:', content);
+
+        const formatType = this.model.get('format-type');
+        const isFormulaEnabled = this.model.get('formula-label') || false;
+        console.log('Format type:', formatType, 'Formula enabled:', isFormulaEnabled);
+
+        // NEW: Special handling for formula content
+        if (isFormulaEnabled) {
+          const textContent = formatHelpers.extractTextContent(content);
+
+          if (formatHelpers.isFormula(textContent)) {
+            // For formulas, validate that it's a proper formula syntax
+            try {
+              const result = formatHelpers.evaluateFormula(textContent.trim());
+              if (typeof result === 'string' && result.startsWith('#ERROR')) {
+                console.log('Formula validation failed:', result);
+                alert(`Formula Error: ${result.replace('#ERROR: ', '')}`);
+                // Revert to previous content
+                const previousContent = this.model.get('raw-content');
+                this.el.innerHTML = previousContent;
+                return;
+              }
+            } catch (error) {
+              console.log('Formula validation error:', error);
+              alert(`Formula Error: ${error.message}`);
+              // Revert to previous content
+              const previousContent = this.model.get('raw-content');
+              this.el.innerHTML = previousContent;
+              return;
+            }
+          }
+
+          // For formula-enabled content, skip format validation since formula result will be formatted
+          console.log('Formula content validated, updating');
+          this.model.set('raw-content', content, { silent: true });
+          this.model.updateContent();
+        } else {
+          // Existing validation for non-formula content
+          const validation = formatHelpers.validateFormat(content, formatType);
+
+          if (!validation.valid) {
+            console.log('Validation failed:', validation.error);
+            alert(validation.error);
+            // Revert to previous content
+            const previousContent = this.model.get('raw-content');
+            this.el.innerHTML = previousContent;
+          } else {
+            console.log('Validation passed, updating content');
+            this.model.set('raw-content', content, { silent: true });
+            this.model.updateContent();
+          }
+        }
+
+        // Disable editing
+        console.log('Disabling RTE from exit handler');
+        this.model.disableRTE();
+      },
+
 
       // FIXED: Enhanced render method
       onRender() {
         console.log('=== VIEW RENDER ===');
         console.log('RTE Active:', this.rteActive);
-        
+
         // Ensure element is not editable by default
         this.el.contentEditable = false;
-        
+
         // Set tooltip based on format type
         const formatType = this.model.get('format-type') || 'text';
         const label = getFormatLabel(formatType);
         this.el.setAttribute('title', label);
-        
+
+        // NEW: Add formula indicator
+        const isFormulaEnabled = this.model.get('formula-label') || false;
+        if (isFormulaEnabled) {
+          this.el.setAttribute('data-formula', 'true');
+        } else {
+          this.el.removeAttribute('data-formula');
+        }
+
         // Get current content
         const content = this.model.get('content') || '';
         console.log('Content to render:', content);
         console.log('Current element innerHTML:', this.el.innerHTML);
-        
-        // FIXED: Only update content if not in RTE mode and content has changed
+
+        // Only update content if not in RTE mode and content has changed
         if (!this.rteActive) {
           if (this.el.innerHTML !== content) {
             console.log('Updating element innerHTML (not in RTE mode)');
@@ -1382,29 +1707,31 @@ handleRTEExit() {
         } else {
           console.log('Skipping innerHTML update - RTE is active');
         }
-        
-        // FIXED: Ensure proper styling
+
+        // Ensure proper styling
         this.el.style.minHeight = '40px';
         this.el.style.padding = '12px';
         this.el.style.wordWrap = 'break-word';
         this.el.style.overflowWrap = 'break-word';
       },
 
+
+
       // FIXED: Override destroy method to cleanup
       destroy() {
         console.log('=== VIEW DESTROY ===');
-        
+
         // Force stop RTE if active
         if (this.rteActive) {
           this.forceStopRTE();
         }
-        
+
         // Clear any pending timeouts
         if (this.rteTimeout) {
           clearTimeout(this.rteTimeout);
           this.rteTimeout = null;
         }
-        
+
         // Call parent destroy
         if (this.constructor.__super__ && this.constructor.__super__.destroy) {
           this.constructor.__super__.destroy.apply(this, arguments);
@@ -1413,6 +1740,89 @@ handleRTEExit() {
     }
   });
 
+  editor.Commands.add('open-condition-manager', {
+    run(editor) {
+      const selected = editor.getSelected();
+      if (!selected || selected.get('type') !== 'formatted-rich-text') return;
+
+      const conditions = selected.getHighlightConditions();
+
+      // Create modal content
+      const modalContent = `
+      <div class="condition-manager" style="padding: 20px; max-width: 600px;">
+        <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Highlight Conditions</h3>
+        
+        <div class="add-condition-form" style=" padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+          <h4 style="margin-top: 0;">Add New Condition</h4>
+          
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
+            <select id="condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              <option value="">Select Condition Type</option>
+              <option value="contains">Text: Contains</option>
+              <option value="starts-with">Text: Starts With</option>
+              <option value="ends-with">Text: Ends With</option>
+              <option value="exact">Text: Exact Match</option>
+              <option value="once-if">Once If: Highlight individual letters/numbers</option>
+              <option value=">">Number: > (Greater than)</option>
+              <option value=">=">Number: >= (Greater than or equal)</option>
+              <option value="<">Number: < (Less than)</option>
+              <option value="<=">Number: <= (Less than or equal)</option>
+              <option value="=">Number: = (Equal to)</option>
+              <option value="!=">Number: != (Not equal to)</option>
+              <option value="between">Number: Between (range)</option>
+            </select>
+          </div>
+          
+          <div id="condition-inputs">
+            <div id="single-value-input" style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
+              <input type="text" id="condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
+            </div>
+            
+            <div id="range-inputs" style="display: none; margin-bottom: 15px;">
+              <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
+                  <input type="number" id="min-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="flex: 1;">
+                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
+                  <input type="number" id="max-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <button id="add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
+        </div>
+        
+        <div class="existing-conditions">
+          <h4>Existing Conditions</h4>
+          <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
+            ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
+          </div>
+        </div>
+        
+        <div style="text-align: right; margin-top: 20px;">
+          <button id="close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
+          <button id="apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
+        </div>
+      </div>
+    `;
+
+      // Create and show modal
+      const modal = editor.Modal;
+      modal.setTitle('Condition Manager');
+      modal.setContent(modalContent);
+      modal.open();
+
+      // Initialize the condition manager
+      setTimeout(() => {
+        initializeConditionManager(selected, conditions);
+      }, 100);
+    }
+  });
   // Add component to blocks
   // editor.BlockManager.add('formatted-rich-text', {
   //   label: 'Text',
@@ -1591,8 +2001,25 @@ handleRTEExit() {
       border-color: #28a745 !important;
       background-color: rgba(40, 167, 69, 0.1) !important;
     }
+        [data-gjs-type="formatted-rich-text"][data-formula="true"]::after {
+    content: "ƒx";
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    background: #28a745;
+    color: white;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    z-index: 1000;
+    font-weight: bold;
+  }
+  
+  [data-gjs-type="formatted-rich-text"][data-formula="true"] {
+    border-left: 3px solid #28a745;
+  }
   `);
 
   console.log('Text component initialized successfully!');
-  
+
 }

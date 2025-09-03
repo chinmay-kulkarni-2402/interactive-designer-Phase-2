@@ -65,66 +65,66 @@ function customSections(editor) {
   let selectedComponent = null;
   let parentEl = null;
 
-  editor.Components.addType("Dynamic Header Footer", {
-    model: {
-      defaults: {
-        tagName: "div",
-        name: "Dynamic Header Footer",
-        attributes: { class: "sections-container" },
-        selectable: true,
-        highlightable: true,
-        components: [
-          {
-            tagName: "div",
-            name: "Header",
-            attributes: {
-              class: "section-header gjs-editor-header",
-              'data-gjs-name': 'Header'
-            },
-            style: {
-              "padding": "10px",
-              "min-height": "80px",
-              "position": "relative"
-            },
-          },
-          {
-            tagName: "div",
-            name: "Content",
-            attributes: {
-              class: "section-content gjs-editor-content",
-              'data-gjs-name': 'Content'
-            },
-            style: {
-              "flex": "1",
-              "padding": "10px",
-              "position": "relative"
-            },
-          },
-          {
-            tagName: "div",
-            name: "Footer",
-            attributes: {
-              class: "section-footer gjs-editor-footer",
-              'data-gjs-name': 'Footer'
-            },
-            style: {
-              "padding": "10px",
-              "min-height": "60px",
-              "position": "relative"
-            },
-          }
-        ],
-        style: {
-          "display": "flex",
-          "flex-direction": "column",
-          "width": "100%",
-          "min-height": "50vh",
-          "margin": "10px 0",
-          "padding": "5px"
-        },
-      }
-    },
-  });
+  // editor.Components.addType("Dynamic Header Footer", {
+  //   model: {
+  //     defaults: {
+  //       tagName: "div",
+  //       name: "Dynamic Header Footer",
+  //       attributes: { class: "sections-container" },
+  //       selectable: true,
+  //       highlightable: true,
+  //       components: [
+  //         {
+  //           tagName: "div",
+  //           name: "Header",
+  //           attributes: {
+  //             class: "section-header gjs-editor-header",
+  //             'data-gjs-name': 'Header'
+  //           },
+  //           style: {
+  //             "padding": "10px",
+  //             "min-height": "80px",
+  //             "position": "relative"
+  //           },
+  //         },
+  //         {
+  //           tagName: "div",
+  //           name: "Content",
+  //           attributes: {
+  //             class: "section-content gjs-editor-content",
+  //             'data-gjs-name': 'Content'
+  //           },
+  //           style: {
+  //             "flex": "1",
+  //             "padding": "10px",
+  //             "position": "relative"
+  //           },
+  //         },
+  //         {
+  //           tagName: "div",
+  //           name: "Footer",
+  //           attributes: {
+  //             class: "section-footer gjs-editor-footer",
+  //             'data-gjs-name': 'Footer'
+  //           },
+  //           style: {
+  //             "padding": "10px",
+  //             "min-height": "60px",
+  //             "position": "relative"
+  //           },
+  //         }
+  //       ],
+  //       style: {
+  //         "display": "flex",
+  //         "flex-direction": "column",
+  //         "width": "100%",
+  //         "min-height": "99%",
+  //         "margin": "10px 0",
+  //         "padding": "5px"
+  //       },
+  //     }
+  //   },
+  // });
 
   // Function to check if element is inside a section
   function isInsideSection(component) {

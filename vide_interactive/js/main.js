@@ -23,17 +23,18 @@ const editor = InteractiveDesigner.init({
     customVideoIn,
     customSeparator,
     customSections,
+    jsontablecustom,
     addFormattedRichTextComponent,
     marqueTag,
     addQRBarcodeComponent,
-   // jsonTableComponent,
+    // jsonTableComponent,
     registerCustomShapes,
-   // customJsonTable,
+    // customJsonTable,
     customTableOfContents,
     addLiveLineChartComponent,
     linkTrackerPlugin,
-  //  initializePrintPlugin,
-   // loadCustomTextboxComponent,
+    //  initializePrintPlugin,
+    // loadCustomTextboxComponent,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -50,11 +51,11 @@ const editor = InteractiveDesigner.init({
     "style-bg-component",
     "navbar-component",
     "page-manager-component",
-   // "pageBreakPlugin",
+    // "pageBreakPlugin",
     "grapesjsHideOnPrint",
     window.addEventListener('load', () => {
-  drawingTool(editor);
-}), 
+      drawingTool(editor);
+    }),
   ],
   pluginsOpts: {
     "grapesjs-plugin-toolbox": {
@@ -113,6 +114,7 @@ const editor = InteractiveDesigner.init({
       "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
       "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
       "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
+      "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
     ],
   },
 });
@@ -537,8 +539,154 @@ importPage.addEventListener("click", importSinglePages, true);
 // }
 
 // Enhanced PDF generation function with proper page break support
-// Enhanced PDF generation function with exact Bootstrap print support
 function generatePrintDialog() {
+
+  // Add this function before the try block in generatePrintDialog
+  async function captureChartsAsImages(htmlContent) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+
+    // Find all chart containers
+    const chartContainers = tempDiv.querySelectorAll('[data-i_designer-type="custom_line_chart"]');
+
+    for (let container of chartContainers) {
+      const chartId = container.id;
+      if (!chartId) continue;
+
+      try {
+        // Get the actual chart element from the editor
+        const editorDoc = editor.Canvas.getDocument();
+        const sourceChartContainer = editorDoc.getElementById(chartId);
+
+        if (sourceChartContainer) {
+          // Get chart instance
+          const chartInstance = sourceChartContainer.chartInstance;
+
+          if (chartInstance && window.Highcharts) {
+            try {
+              // Use Highcharts built-in export functionality
+              const chartSVG = chartInstance.getSVG({
+                chart: {
+                  backgroundColor: '#ffffff'
+                },
+                exporting: {
+                  sourceWidth: chartInstance.chartWidth || 800,
+                  sourceHeight: chartInstance.chartHeight || 400
+                }
+              });
+
+              // Convert SVG to base64 image
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              const img = new Image();
+
+              await new Promise((resolve, reject) => {
+                img.onload = () => {
+                  canvas.width = img.width || 800;
+                  canvas.height = img.height || 400;
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(img, 0, 0);
+
+                  const imageDataUrl = canvas.toDataURL('image/png');
+
+                  // Replace chart container with image
+                  const imgElement = document.createElement('img');
+                  imgElement.src = imageDataUrl;
+                  imgElement.style.cssText = `
+                  width: 100% !important;
+                  height: auto !important;
+                  max-width: 100% !important;
+                  display: block !important;
+                  margin: 10px 0 !important;
+                  page-break-inside: avoid !important;
+                  break-inside: avoid !important;
+                `;
+
+                  // Copy container's styling to image wrapper
+                  const imgWrapper = document.createElement('div');
+                  imgWrapper.style.cssText = container.style.cssText;
+                  imgWrapper.appendChild(imgElement);
+
+                  container.parentNode.replaceChild(imgWrapper, container);
+                  resolve();
+                };
+
+                img.onerror = reject;
+                img.src = 'data:image/svg+xml;base64,' + btoa(chartSVG);
+              });
+
+            } catch (svgError) {
+              console.warn('SVG export failed, trying canvas capture:', svgError);
+              await fallbackCanvasCapture(sourceChartContainer, container);
+            }
+          } else {
+            console.warn('No chart instance found, trying canvas capture');
+            await fallbackCanvasCapture(sourceChartContainer, container);
+          }
+        }
+      } catch (error) {
+        console.error('Error capturing chart:', chartId, error);
+      }
+    }
+
+    return tempDiv.innerHTML;
+  }
+
+  // Fallback canvas capture method
+  async function fallbackCanvasCapture(sourceElement, targetContainer) {
+    if (!sourceElement) return;
+
+    try {
+      // Use html2canvas if available, otherwise create placeholder
+      if (typeof html2canvas !== 'undefined') {
+        const canvas = await html2canvas(sourceElement, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          width: sourceElement.offsetWidth || 800,
+          height: sourceElement.offsetHeight || 400
+        });
+
+        const imageDataUrl = canvas.toDataURL('image/png');
+
+        const imgElement = document.createElement('img');
+        imgElement.src = imageDataUrl;
+        imgElement.style.cssText = `
+        width: 100% !important;
+        height: auto !important;
+        max-width: 100% !important;
+        display: block !important;
+        margin: 10px 0 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      `;
+
+        targetContainer.innerHTML = '';
+        targetContainer.appendChild(imgElement);
+      } else {
+        // Create a placeholder if html2canvas is not available
+        targetContainer.innerHTML = `
+        <div style="
+          width: 100%; 
+          height: 300px; 
+          border: 2px dashed #ccc; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center;
+          background: #f9f9f9;
+          margin: 10px 0;
+          page-break-inside: avoid;
+        ">
+          <span style="color: #666; font-family: Arial, sans-serif;">Chart (ID: ${targetContainer.id})</span>
+        </div>
+      `;
+      }
+    } catch (error) {
+      console.error('Canvas capture failed:', error);
+    }
+  }
   try {
     if (typeof editor === "undefined") {
       console.error(
@@ -552,7 +700,7 @@ function generatePrintDialog() {
     const editorCSS = editor.getCss();
     console.log("html", editorHTML);
     console.log("css", editorCSS)
-    
+
     // Create a hidden iframe for printing
     const printFrame = document.createElement("iframe");
     printFrame.style.position = "absolute";
@@ -568,24 +716,80 @@ function generatePrintDialog() {
     const HIDE_CLASS = "hide-on-print";
 
     // Process HTML to handle page breaks properly
-    const processedHTML = processPageBreaks(editorHTML);
+    // First capture current display styles from live document
+    const htmlWithCurrentStyles = captureCurrentDisplayStyles(editorHTML);
+    const processedHTML = processPageBreaks(htmlWithCurrentStyles);
 
+    // Function to capture current computed display styles from the live document
+    function captureCurrentDisplayStyles(htmlContent) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+
+      // Get the current iframe document to check actual computed styles
+      const currentIframeDoc = editor.Canvas.getDocument();
+
+      if (currentIframeDoc) {
+        // Find all elements in the temp content
+        const allElements = tempDiv.querySelectorAll('*[id]');
+
+        allElements.forEach(element => {
+          const elementId = element.id;
+          if (elementId) {
+            // Find the corresponding element in the live document
+            const liveElement = currentIframeDoc.getElementById(elementId);
+            if (liveElement) {
+              // Check the computed style of the live element
+              const computedStyle = currentIframeDoc.defaultView.getComputedStyle(liveElement);
+              const displayValue = computedStyle.getPropertyValue('display');
+
+              // If the live element is hidden, hide it in the print version too
+              if (displayValue === 'none' || liveElement.style.display === 'none') {
+                element.style.setProperty('display', 'none', 'important');
+                // Also add a class to ensure it's hidden
+                element.classList.add('dynamic-hidden-element');
+              }
+            }
+          }
+        });
+      }
+
+      return tempDiv.innerHTML;
+    }
     // Enhanced function to convert Bootstrap classes and preserve ALL table styling
     function convertBootstrapToInlineStyles(html) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
-      
+
+      // Get current editor CSS for display:none checking
+      const currentEditorCSS = editor.getCss();
+
+      // Remove elements that should be hidden in print
+      const allElementsToCheck = tempDiv.querySelectorAll('*');
+      const elementsToRemove = [];
+
+      allElementsToCheck.forEach(element => {
+        if (shouldHideInPrint(element, currentEditorCSS)) {
+          elementsToRemove.push(element);
+        }
+      });
+
+      // Remove hidden elements
+      elementsToRemove.forEach(element => {
+        if (element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
+      });
       // Get the current iframe document to access formula data and styling
       const currentIframeDoc = editor.Canvas.getDocument();
-      
+
       // Helper function to extract all computed styles from an element
       function extractAllStyles(sourceElement, targetElement) {
         if (!sourceElement || !targetElement) return;
-        
+
         // Get computed styles from the source element
         const computedStyle = window.getComputedStyle(sourceElement);
         const inlineStyle = sourceElement.style;
-        
+
         // Preserve all visual styles
         const stylesToPreserve = [
           'background-color', 'background', 'background-image', 'background-repeat', 'background-position', 'background-size',
@@ -602,7 +806,7 @@ function generatePrintDialog() {
           'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
           'opacity', 'box-shadow', 'text-shadow', 'border-collapse'
         ];
-        
+
         // First, copy inline styles (highest priority)
         for (let i = 0; i < inlineStyle.length; i++) {
           const property = inlineStyle[i];
@@ -612,7 +816,7 @@ function generatePrintDialog() {
             targetElement.style.setProperty(property, value, priority || 'important');
           }
         }
-        
+
         // Then, copy computed styles for important visual properties
         stylesToPreserve.forEach(property => {
           const value = computedStyle.getPropertyValue(property);
@@ -624,33 +828,33 @@ function generatePrintDialog() {
           }
         });
 
-        if (sourceElement.hasAttribute('data-running-total-cell') || 
-    sourceElement.hasAttribute('data-running-total-for') ||
-    sourceElement.hasAttribute('data-running-total-value')) {
-  
-  // Copy all running total attributes
-  ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
-    if (sourceElement.hasAttribute(attr)) {
-      targetElement.setAttribute(attr, sourceElement.getAttribute(attr));
-    }
-  });
-  
-  // Ensure running total cell content is preserved
-  if (sourceElement.hasAttribute('data-running-total-value')) {
-    const runningValue = sourceElement.getAttribute('data-running-total-value');
-    const displayValue = parseFloat(runningValue);
-    if (!isNaN(displayValue)) {
-      targetElement.textContent = displayValue.toFixed(2);
-    }
-  }
-}
+        if (sourceElement.hasAttribute('data-running-total-cell') ||
+          sourceElement.hasAttribute('data-running-total-for') ||
+          sourceElement.hasAttribute('data-running-total-value')) {
+
+          // Copy all running total attributes
+          ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
+            if (sourceElement.hasAttribute(attr)) {
+              targetElement.setAttribute(attr, sourceElement.getAttribute(attr));
+            }
+          });
+
+          // Ensure running total cell content is preserved
+          if (sourceElement.hasAttribute('data-running-total-value')) {
+            const runningValue = sourceElement.getAttribute('data-running-total-value');
+            const displayValue = parseFloat(runningValue);
+            if (!isNaN(displayValue)) {
+              targetElement.textContent = displayValue.toFixed(2);
+            }
+          }
+        }
         // Special handling for JSON tables with default black borders
         if (sourceElement.tagName === 'TABLE' || sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
           // Check if this is a JSON table (has data attributes or is within custom_table)
-          const isJsonTable = sourceElement.hasAttribute('data-display-value') || 
-                             sourceElement.hasAttribute('data-formula') ||
-                             sourceElement.closest('[data-i_designer-type="custom_table"]');
-          
+          const isJsonTable = sourceElement.hasAttribute('data-display-value') ||
+            sourceElement.hasAttribute('data-formula') ||
+            sourceElement.closest('[data-i_designer-type="custom_table"]');
+
           if (isJsonTable) {
             // Preserve the default JSON table styling
             if (sourceElement.tagName === 'TABLE') {
@@ -659,7 +863,7 @@ function generatePrintDialog() {
                 targetElement.style.setProperty('border', '1px solid #000', 'important');
               }
             }
-            
+
             if (sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
               if (!targetElement.style.border) {
                 targetElement.style.setProperty('border', '1px solid #000', 'important');
@@ -671,7 +875,7 @@ function generatePrintDialog() {
                 targetElement.style.setProperty('text-align', 'left', 'important');
               }
             }
-            
+
             if (sourceElement.tagName === 'TH') {
               if (!targetElement.style.fontWeight) {
                 targetElement.style.setProperty('font-weight', 'bold', 'important');
@@ -683,23 +887,50 @@ function generatePrintDialog() {
           }
         }
       }
-      
+      // Function to check if element should be hidden in print based on CSS
+      function shouldHideInPrint(element, editorCSS) {
+        const elementId = element.id;
+        const elementClasses = Array.from(element.classList);
+
+        // Check inline styles first
+        if (element.style.display === 'none') {
+          return true;
+        }
+
+        // Check CSS for ID selector
+        if (elementId) {
+          const idRegex = new RegExp(`#${elementId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{}]*{[^{}]*display\\s*:\\s*none`, 'i');
+          if (idRegex.test(editorCSS)) {
+            return true;
+          }
+        }
+
+        // Check CSS for class selectors
+        for (const className of elementClasses) {
+          const classRegex = new RegExp(`\\.${className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{}]*{[^{}]*display\\s*:\\s*none`, 'i');
+          if (classRegex.test(editorCSS)) {
+            return true;
+          }
+        }
+
+        return false;
+      }
       // First, handle all custom tables and DataTables
       const allTables = tempDiv.querySelectorAll('table, [id*="table"], [data-i_designer-type="custom_table"] table');
       allTables.forEach(table => {
         const tableId = table.id;
         let parentContainer = table.closest('[data-i_designer-type="custom_table"]');
-        
+
         // If it's inside a custom table container, get the container ID
         let containerId = null;
         if (parentContainer) {
           containerId = parentContainer.id;
         }
-        
+
         // Find corresponding table in current iframe to get current data AND styling
         let sourceTable = null;
         let sourceContainer = null;
-        
+
         if (currentIframeDoc) {
           if (containerId) {
             sourceContainer = currentIframeDoc.getElementById(containerId);
@@ -709,7 +940,7 @@ function generatePrintDialog() {
           } else if (tableId) {
             sourceTable = currentIframeDoc.getElementById(tableId);
           }
-          
+
           // For JSON tables, also try to find by table ID within custom containers
           if (!sourceTable && tableId) {
             const allCustomContainers = currentIframeDoc.querySelectorAll('[data-i_designer-type="custom_table"]');
@@ -722,7 +953,7 @@ function generatePrintDialog() {
             });
           }
         }
-        
+
         // Remove DataTables wrapper and controls
         const wrapper = table.closest('.dataTables_wrapper');
         if (wrapper) {
@@ -731,18 +962,18 @@ function generatePrintDialog() {
           parent.insertBefore(table, wrapper);
           parent.removeChild(wrapper);
         }
-        
+
         // Preserve table-level styling from source
         if (sourceTable) {
           extractAllStyles(sourceTable, table);
         }
-        
+
         // Ensure basic table structure for print
         table.className = (table.className || '') + ' table table-bordered print-table';
         table.style.setProperty('width', '100%', 'important');
         table.style.setProperty('border-collapse', 'collapse', 'important');
         table.style.setProperty('page-break-inside', 'auto', 'important');
-        
+
         // Process table headers with style preservation
         const headers = table.querySelectorAll('thead th, thead td');
         headers.forEach((header, headerIndex) => {
@@ -754,7 +985,7 @@ function generatePrintDialog() {
               sourceHeader = sourceHeaderRow.cells[headerIndex];
             }
           }
-          
+
           // Preserve header styling
           if (sourceHeader) {
             extractAllStyles(sourceHeader, header);
@@ -767,18 +998,18 @@ function generatePrintDialog() {
             header.style.setProperty('font-weight', 'bold', 'important');
             header.style.setProperty('background-color', '#e0e0e0', 'important');
           }
-          
+
           // Handle header content - check for divs, spans, or direct text
           const headerDiv = header.querySelector('div');
           const headerSpan = header.querySelector('.cell-display, span');
-          
+
           let content = '';
-          
+
           if (sourceHeader) {
             // Get the display value from the source
             const displaySpan = sourceHeader.querySelector('.cell-display');
             const displayValue = sourceHeader.getAttribute('data-display-value');
-            
+
             if (displaySpan && displaySpan.textContent) {
               content = displaySpan.textContent;
             } else if (displayValue) {
@@ -793,7 +1024,7 @@ function generatePrintDialog() {
               }
             }
           }
-          
+
           // Fallback to current content if no source found
           if (!content) {
             if (headerDiv) {
@@ -804,10 +1035,10 @@ function generatePrintDialog() {
               content = header.textContent || header.innerHTML;
             }
           }
-          
+
           header.innerHTML = content.trim();
         });
-        
+
         // Process table body cells with enhanced data extraction AND style preservation
         const rows = table.querySelectorAll('tbody tr');
         rows.forEach((row, rowIndex) => {
@@ -820,145 +1051,145 @@ function generatePrintDialog() {
               extractAllStyles(sourceRow, row);
             }
           }
-          
+
           row.style.setProperty('page-break-inside', 'avoid', 'important');
           row.style.setProperty('break-inside', 'avoid', 'important');
-          
-         const cells = row.querySelectorAll('td, th');
-cells.forEach((cell, cellIndex) => {
-  let sourceCell = null;
-  if (sourceRow && sourceRow.cells[cellIndex]) {
-    sourceCell = sourceRow.cells[cellIndex];
-    // Preserve all cell styling
-    extractAllStyles(sourceCell, cell);
-  } else {
-    // Apply default JSON table cell styling if no source found
-    cell.style.setProperty('border', '1px solid #000', 'important');
-    cell.style.setProperty('padding', '8px', 'important');
-    cell.style.setProperty('text-align', 'left', 'important');
-    cell.style.setProperty('vertical-align', 'middle', 'important');
-  }
-  
-  // Ensure basic print cell styling (only if not already styled)
-  if (!cell.style.border) {
-    cell.style.setProperty('border', '1px solid #333', 'important');
-  }
-  if (!cell.style.padding) {
-    cell.style.setProperty('padding', '8px', 'important');
-  }
-  if (!cell.style.textAlign) {
-    cell.style.setProperty('text-align', 'left', 'important');
-  }
-  if (!cell.style.verticalAlign) {
-    cell.style.setProperty('vertical-align', 'middle', 'important');
-  }
-  cell.style.setProperty('word-break', 'break-word', 'important');
-  
-  let content = '';
-  
-  // PRIORITY: Check for running total cells first
-  if (sourceCell && (sourceCell.hasAttribute('data-running-total-cell') || sourceCell.hasAttribute('data-running-total-header'))) {
-    // Copy running total attributes
-    ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
-      if (sourceCell.hasAttribute(attr)) {
-        cell.setAttribute(attr, sourceCell.getAttribute(attr));
-      }
-    });
-    
-    if (sourceCell.hasAttribute('data-running-total-value')) {
-      // This is a running total data cell
-      const runningValue = sourceCell.getAttribute('data-running-total-value');
-      const displayValue = parseFloat(runningValue);
-      content = !isNaN(displayValue) ? displayValue.toFixed(2) : runningValue;
-    } else if (sourceCell.hasAttribute('data-running-total-header')) {
-      // This is a running total header cell
-      content = sourceCell.textContent || sourceCell.innerText || 'Running Total';
-    } else {
-      // Fallback to regular cell content extraction
-      content = sourceCell.textContent || sourceCell.innerText || '';
-    }
-  } else {
-    // Regular cell processing (existing logic)
-    
-    // Try to get data from source table first
-    if (sourceCell) {
-      // For JSON tables, prioritize data-display-value attribute
-      const displayValue = sourceCell.getAttribute('data-display-value');
-      const formulaValue = sourceCell.getAttribute('data-formula');
-      const displaySpan = sourceCell.querySelector('.cell-display');
-      
-      if (displayValue !== null && displayValue !== '') {
-        content = displayValue;
-      } else if (displaySpan && displaySpan.textContent.trim()) {
-        content = displaySpan.textContent.trim();
-      } else if (formulaValue && !formulaValue.startsWith('=')) {
-        content = formulaValue;
-      } else {
-        // Get text content but exclude input values
-        const inputs = sourceCell.querySelectorAll('input');
-        let cellText = sourceCell.textContent || sourceCell.innerText || '';
-        
-        // Remove input values from text content
-        inputs.forEach(input => {
-          if (input.value && cellText.includes(input.value)) {
-            cellText = cellText.replace(input.value, '').trim();
-          }
+
+          const cells = row.querySelectorAll('td, th');
+          cells.forEach((cell, cellIndex) => {
+            let sourceCell = null;
+            if (sourceRow && sourceRow.cells[cellIndex]) {
+              sourceCell = sourceRow.cells[cellIndex];
+              // Preserve all cell styling
+              extractAllStyles(sourceCell, cell);
+            } else {
+              // Apply default JSON table cell styling if no source found
+              cell.style.setProperty('border', '1px solid #000', 'important');
+              cell.style.setProperty('padding', '8px', 'important');
+              cell.style.setProperty('text-align', 'left', 'important');
+              cell.style.setProperty('vertical-align', 'middle', 'important');
+            }
+
+            // Ensure basic print cell styling (only if not already styled)
+            if (!cell.style.border) {
+              cell.style.setProperty('border', '1px solid #333', 'important');
+            }
+            if (!cell.style.padding) {
+              cell.style.setProperty('padding', '8px', 'important');
+            }
+            if (!cell.style.textAlign) {
+              cell.style.setProperty('text-align', 'left', 'important');
+            }
+            if (!cell.style.verticalAlign) {
+              cell.style.setProperty('vertical-align', 'middle', 'important');
+            }
+            cell.style.setProperty('word-break', 'break-word', 'important');
+
+            let content = '';
+
+            // PRIORITY: Check for running total cells first
+            if (sourceCell && (sourceCell.hasAttribute('data-running-total-cell') || sourceCell.hasAttribute('data-running-total-header'))) {
+              // Copy running total attributes
+              ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
+                if (sourceCell.hasAttribute(attr)) {
+                  cell.setAttribute(attr, sourceCell.getAttribute(attr));
+                }
+              });
+
+              if (sourceCell.hasAttribute('data-running-total-value')) {
+                // This is a running total data cell
+                const runningValue = sourceCell.getAttribute('data-running-total-value');
+                const displayValue = parseFloat(runningValue);
+                content = !isNaN(displayValue) ? displayValue.toFixed(2) : runningValue;
+              } else if (sourceCell.hasAttribute('data-running-total-header')) {
+                // This is a running total header cell
+                content = sourceCell.textContent || sourceCell.innerText || 'Running Total';
+              } else {
+                // Fallback to regular cell content extraction
+                content = sourceCell.textContent || sourceCell.innerText || '';
+              }
+            } else {
+              // Regular cell processing (existing logic)
+
+              // Try to get data from source table first
+              if (sourceCell) {
+                // For JSON tables, prioritize data-display-value attribute
+                const displayValue = sourceCell.getAttribute('data-display-value');
+                const formulaValue = sourceCell.getAttribute('data-formula');
+                const displaySpan = sourceCell.querySelector('.cell-display');
+
+                if (displayValue !== null && displayValue !== '') {
+                  content = displayValue;
+                } else if (displaySpan && displaySpan.textContent.trim()) {
+                  content = displaySpan.textContent.trim();
+                } else if (formulaValue && !formulaValue.startsWith('=')) {
+                  content = formulaValue;
+                } else {
+                  // Get text content but exclude input values
+                  const inputs = sourceCell.querySelectorAll('input');
+                  let cellText = sourceCell.textContent || sourceCell.innerText || '';
+
+                  // Remove input values from text content
+                  inputs.forEach(input => {
+                    if (input.value && cellText.includes(input.value)) {
+                      cellText = cellText.replace(input.value, '').trim();
+                    }
+                  });
+
+                  content = cellText;
+                }
+
+                // If we have a formula, try to get calculated result
+                if (!content && formulaValue && formulaValue.startsWith('=')) {
+                  // Look for any text that's not the formula itself
+                  const allText = sourceCell.textContent || sourceCell.innerText || '';
+                  if (allText && allText !== formulaValue) {
+                    content = allText;
+                  }
+                }
+              }
+
+              // Fallback to current cell content if no source data found
+              if (!content) {
+                // Check for data attributes first (common in JSON tables)
+                const displayValue = cell.getAttribute('data-display-value');
+                if (displayValue !== null && displayValue !== '') {
+                  content = displayValue;
+                } else {
+                  const cellDiv = cell.querySelector('div');
+                  const cellSpan = cell.querySelector('.cell-display, span');
+
+                  if (cellDiv) {
+                    content = cellDiv.textContent || cellDiv.innerHTML;
+                  } else if (cellSpan) {
+                    content = cellSpan.textContent || cellSpan.innerHTML;
+                  } else {
+                    content = cell.textContent || cell.innerHTML;
+                  }
+                }
+              }
+            }
+
+            // Clean up content and set it
+            content = content.replace(/^\s+|\s+$/g, ''); // Trim whitespace
+            content = content.replace(/\n\s*\n/g, '\n'); // Remove multiple newlines
+
+            cell.innerHTML = content || '';
+
+            // Remove any remaining input elements for print
+            const inputs = cell.querySelectorAll('input');
+            inputs.forEach(input => input.remove());
+
+            // Remove formula indicators for print (but keep running total attributes)
+            cell.style.setProperty('position', 'relative', 'important');
+            if (!cell.hasAttribute('data-running-total-cell') && !cell.hasAttribute('data-running-total-header')) {
+              cell.removeAttribute('data-formula');
+              cell.removeAttribute('data-display-value');
+              cell.removeAttribute('data-cell-ref');
+            }
+          });
         });
-        
-        content = cellText;
-      }
-      
-      // If we have a formula, try to get calculated result
-      if (!content && formulaValue && formulaValue.startsWith('=')) {
-        // Look for any text that's not the formula itself
-        const allText = sourceCell.textContent || sourceCell.innerText || '';
-        if (allText && allText !== formulaValue) {
-          content = allText;
-        }
-      }
-    }
-    
-    // Fallback to current cell content if no source data found
-    if (!content) {
-      // Check for data attributes first (common in JSON tables)
-      const displayValue = cell.getAttribute('data-display-value');
-      if (displayValue !== null && displayValue !== '') {
-        content = displayValue;
-      } else {
-        const cellDiv = cell.querySelector('div');
-        const cellSpan = cell.querySelector('.cell-display, span');
-        
-        if (cellDiv) {
-          content = cellDiv.textContent || cellDiv.innerHTML;
-        } else if (cellSpan) {
-          content = cellSpan.textContent || cellSpan.innerHTML;
-        } else {
-          content = cell.textContent || cell.innerHTML;
-        }
-      }
-    }
-  }
-  
-  // Clean up content and set it
-  content = content.replace(/^\s+|\s+$/g, ''); // Trim whitespace
-  content = content.replace(/\n\s*\n/g, '\n'); // Remove multiple newlines
-  
-  cell.innerHTML = content || '';
-  
-  // Remove any remaining input elements for print
-  const inputs = cell.querySelectorAll('input');
-  inputs.forEach(input => input.remove());
-  
-  // Remove formula indicators for print (but keep running total attributes)
-  cell.style.setProperty('position', 'relative', 'important');
-  if (!cell.hasAttribute('data-running-total-cell') && !cell.hasAttribute('data-running-total-header')) {
-    cell.removeAttribute('data-formula');
-    cell.removeAttribute('data-display-value');
-    cell.removeAttribute('data-cell-ref');
-  }
-});
-        });
-        
+
         // Ensure thead is properly displayed
         const thead = table.querySelector('thead');
         if (thead) {
@@ -971,7 +1202,7 @@ cells.forEach((cell, cellIndex) => {
           thead.style.setProperty('display', 'table-header-group', 'important');
           thead.style.setProperty('page-break-after', 'avoid', 'important');
         }
-        
+
         // Ensure tbody is properly displayed
         const tbody = table.querySelector('tbody');
         if (tbody) {
@@ -984,15 +1215,15 @@ cells.forEach((cell, cellIndex) => {
           tbody.style.setProperty('display', 'table-row-group', 'important');
         }
       });
-      
-      
+
+
       // Process all elements with Bootstrap classes (keep existing Bootstrap logic)
       const allElements = tempDiv.querySelectorAll('*');
-      
+
       allElements.forEach(element => {
         const classList = Array.from(element.classList);
         let computedStyles = {};
-        
+
         // Handle container classes
         if (classList.includes('container') || classList.includes('container-fluid')) {
           computedStyles.width = '100%';
@@ -1000,7 +1231,7 @@ cells.forEach((cell, cellIndex) => {
           computedStyles.margin = '0';
           computedStyles.padding = '0';
         }
-        
+
         // Handle row classes
         if (classList.includes('row')) {
           computedStyles.display = 'flex';
@@ -1009,7 +1240,7 @@ cells.forEach((cell, cellIndex) => {
           computedStyles.width = '100%';
           computedStyles.minHeight = 'auto';
         }
-        
+
         // Handle column classes - check all possible Bootstrap column classes
         let isColumn = false;
         classList.forEach(className => {
@@ -1022,7 +1253,7 @@ cells.forEach((cell, cellIndex) => {
             computedStyles.width = '100%';
             isColumn = true;
           }
-          
+
           // Handle col-sm-*, col-md-*, col-lg-*, col-xl-* classes
           if (className.match(/^col-(sm|md|lg|xl)-(\d+)$/)) {
             const colSize = parseInt(className.split('-')[2]);
@@ -1032,7 +1263,7 @@ cells.forEach((cell, cellIndex) => {
             computedStyles.width = '100%';
             isColumn = true;
           }
-          
+
           // Handle plain col class
           if (className === 'col') {
             computedStyles.flex = '1 0 0%';
@@ -1041,7 +1272,7 @@ cells.forEach((cell, cellIndex) => {
             isColumn = true;
           }
         });
-        
+
         // For columns, ensure proper height calculation
         if (isColumn) {
           const hasContent = element.textContent.trim().length > 0 || element.children.length > 0;
@@ -1051,11 +1282,11 @@ cells.forEach((cell, cellIndex) => {
           } else {
             computedStyles.minHeight = '45px';
           }
-          
+
           computedStyles.boxSizing = 'border-box';
           computedStyles.display = 'block';
         }
-        
+
         // Apply computed styles as inline styles (only if not conflicting with preserved styles)
         Object.keys(computedStyles).forEach(property => {
           const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -1065,7 +1296,7 @@ cells.forEach((cell, cellIndex) => {
           }
         });
       });
-      
+
       return tempDiv.innerHTML;
     }
 
@@ -1566,14 +1797,17 @@ cells.forEach((cell, cellIndex) => {
               border: none !important;
               box-shadow: none !important;
             }
-            
-            .page-number-element {
-              display: flex !important;
-              position: absolute !important;
-              background: transparent !important;
-              border: none !important;
-              box-shadow: none !important;
-            }
+.page-number-element {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  z-index: 9999 !important;
+  font-family: Arial, sans-serif !important;
+  background: transparent !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
             
             .page-watermark {
               display: flex !important;
@@ -1594,6 +1828,114 @@ cells.forEach((cell, cellIndex) => {
               visibility: visible !important;
               opacity: 1 !important;
             }
+/* Hide dynamically hidden elements */
+.dynamic-hidden-element {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Also hide by inline style */
+*[style*="display: none"],
+*[style*="display:none"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+              /* Highcharts container handling */
+  [data-i_designer-type="custom_line_chart"],
+  .highcharts-container,
+  .highcharts-root {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 300px !important;
+    overflow: visible !important;
+    position: relative !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Highcharts SVG elements */
+  .highcharts-container svg,
+  .highcharts-root svg {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Force chart elements to be visible */
+  .highcharts-series,
+  .highcharts-series-group,
+  .highcharts-markers,
+  .highcharts-line-series,
+  .highcharts-area-series,
+  .highcharts-column-series,
+  .highcharts-bar-series,
+  .highcharts-pie-series,
+  .highcharts-legend,
+  .highcharts-title,
+  .highcharts-subtitle,
+  .highcharts-axis,
+  .highcharts-axis-labels,
+  .highcharts-grid {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Hide chart loading indicators */
+  .highcharts-loading,
+  .highcharts-loading-inner {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Ensure chart labels are readable */
+  .highcharts-axis-labels text,
+  .highcharts-data-labels text,
+  .highcharts-legend-item text,
+  .highcharts-title,
+  .highcharts-subtitle {
+    fill: #333 !important;
+    color: #333 !important;
+    font-size: 12px !important;
+    font-family: Arial, sans-serif !important;
+  }
           }
           
           /* Screen styles */
@@ -1621,39 +1963,38 @@ cells.forEach((cell, cellIndex) => {
     const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
     frameDoc.open();
     const checkAndProcessLinks = (htmlContent) => {
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlContent;
-  
-  // Get current editor CSS to check for pointer-events: none rules
-  const editorCSS = editor.getCss();
-  
-  // Find all anchor tags
-  const allLinks = tempDiv.querySelectorAll('a[id]');
-  
-  allLinks.forEach(link => {
-    const linkId = link.id;
-    
-    // Check if CSS contains pointer-events: none for this ID
-    const idSelector = `#${linkId}`;
-    const cssRegex = new RegExp(`#${linkId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{}]*{[^{}]*pointer-events\\s*:\\s*none`, 'i');
-    
-    if (cssRegex.test(editorCSS)) {
-      // Remove href attribute completely
-      link.removeAttribute('href');
-      console.log(`Removed href from link: ${linkId}`);
-    }
-  });
-  
-  return tempDiv.innerHTML;
-};
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
 
-// Process the HTML content
-const processedHTMLWithLinksFixed = checkAndProcessLinks(processedHTMLWithInlineStyles);
+      // Get current editor CSS to check for pointer-events: none rules
+      const editorCSS = editor.getCss();
 
-const finalPrintContent = printContent.replace(processedHTMLWithInlineStyles, processedHTMLWithLinksFixed);
-frameDoc.write(finalPrintContent);
+      // Find all anchor tags
+      const allLinks = tempDiv.querySelectorAll('a[id]');
+
+      allLinks.forEach(link => {
+        const linkId = link.id;
+
+        // Check if CSS contains pointer-events: none for this ID
+        const idSelector = `#${linkId}`;
+        const cssRegex = new RegExp(`#${linkId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{}]*{[^{}]*pointer-events\\s*:\\s*none`, 'i');
+
+        if (cssRegex.test(editorCSS)) {
+          // Remove href attribute completely
+          link.removeAttribute('href');
+          console.log(`Removed href from link: ${linkId}`);
+        }
+      });
+
+      return tempDiv.innerHTML;
+    };
+
+    // Process the HTML content
+    const processedHTMLWithLinksFixed = checkAndProcessLinks(processedHTMLWithInlineStyles);
+
+    const finalPrintContent = printContent.replace(processedHTMLWithInlineStyles, processedHTMLWithLinksFixed);
+    frameDoc.write(finalPrintContent);
     frameDoc.close();
-
     // Wait for content to load, then trigger print dialog
     printFrame.onload = () => {
       setTimeout(() => {
@@ -1928,36 +2269,62 @@ editor.on('load', () => {
 
 // ******** Same Link Page disable code
 
-function importSinglePages() {
-  editor.Modal.setTitle("Add Pages From JSON");
-
-  const container = document.createElement("div");
-  container.className = "new-table-form";
-
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.className = "form-control popupinput2";
-  fileInput.style.width = "95%";
-  fileInput.accept = "application/json";
-  fileInput.multiple = true;
-  fileInput.id = "importMultiplePageInput";
-
-  const addButton = document.createElement("input");
-  addButton.type = "button";
-  addButton.value = "Add";
-  addButton.className = "popupaddbtn";
-  addButton.id = "import-multiple-file";
-
-  container.appendChild(fileInput);
-  container.appendChild(addButton);
-
-  editor.Modal.setContent("");
-  editor.Modal.setContent(container);
-  editor.Modal.open();
-
-  addButton.addEventListener("click", importMultipleFiles, true);
+function importSinglePages(){ 
+  editor.Modal.setTitle('Add Page Name');
+  editor.Modal.setContent(`<div class="new-table-form">
+  <div> 
+      <input type="file" class="form-control popupinput2" value="" accept="application/json" placeholder="Enter page name" style="width:95%"  name="importSinglePageInput" id="importSinglePageInput">
+  </div>  
+  <input id="import-single-file" class="popupaddbtn" type="button" value="Add" data-component-id="c1006">
+  </div>
+  </div>
+  `);
+  editor.Modal.open(); 
+  var el = document.getElementById("import-single-file");
+  el.addEventListener("click", importFile, true);   
 }
 
+function importFile() {
+  const input = document.getElementById('importSinglePageInput');
+  const file = input.files[0];
+  if (!file) {
+    alert('No file selected');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const content = e.target.result;
+    const pageData = JSON.parse(content);
+
+    editor.setComponents(pageData.components);
+    editor.setStyle(pageData.style);
+
+    // Apply HTML and CSS separately to ensure complete restoration
+    const wrapper = editor.getWrapper();
+    wrapper.set('content', '');
+    wrapper.components(pageData.html);
+    editor.addStyle(pageData.css);
+
+    // Restore custom traits' values
+    for (const cid in pageData.traits) {
+      if (pageData.traits.hasOwnProperty(cid)) {
+        const comp = wrapper.find(`#${cid}`)[0];
+        if (comp) {
+          pageData.traits[cid].forEach(traitData => {
+            const trait = comp.getTrait(traitData.name);
+            if (trait) {
+              trait.set('value', traitData.value);
+            }
+          });
+        }
+      }
+    } 
+    editor.Modal.close();
+    updateComponentsWithNewJson(editor);
+  };
+  reader.readAsText(file);
+} 
 function importMultipleFiles() {
   const input = document.getElementById("importMultiplePageInput");
   const files = Array.from(input.files);
