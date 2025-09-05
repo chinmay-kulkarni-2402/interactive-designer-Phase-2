@@ -849,43 +849,43 @@ function generatePrintDialog() {
           }
         }
         // Special handling for JSON tables with default black borders
-        if (sourceElement.tagName === 'TABLE' || sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
-          // Check if this is a JSON table (has data attributes or is within custom_table)
-          const isJsonTable = sourceElement.hasAttribute('data-display-value') ||
-            sourceElement.hasAttribute('data-formula') ||
-            sourceElement.closest('[data-i_designer-type="custom_table"]');
+        // if (sourceElement.tagName === 'TABLE' || sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
+        //   // Check if this is a JSON table (has data attributes or is within custom_table)
+        //   const isJsonTable = sourceElement.hasAttribute('data-display-value') ||
+        //     sourceElement.hasAttribute('data-formula') ||
+        //     sourceElement.closest('[data-i_designer-type="custom_table"]');
 
-          if (isJsonTable) {
-            // Preserve the default JSON table styling
-            if (sourceElement.tagName === 'TABLE') {
-              targetElement.style.setProperty('border-collapse', 'collapse', 'important');
-              if (!targetElement.style.border) {
-                targetElement.style.setProperty('border', '1px solid #000', 'important');
-              }
-            }
+        //   if (isJsonTable) {
+        //     // Preserve the default JSON table styling
+        //     if (sourceElement.tagName === 'TABLE') {
+        //       targetElement.style.setProperty('border-collapse', 'collapse', 'important');
+        //       if (!targetElement.style.border) {
+        //         targetElement.style.setProperty('border', '1px solid #000', 'important');
+        //       }
+        //     }
 
-            if (sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
-              if (!targetElement.style.border) {
-                targetElement.style.setProperty('border', '1px solid #000', 'important');
-              }
-              if (!targetElement.style.padding) {
-                targetElement.style.setProperty('padding', '8px', 'important');
-              }
-              if (!targetElement.style.textAlign) {
-                targetElement.style.setProperty('text-align', 'left', 'important');
-              }
-            }
+        //     if (sourceElement.tagName === 'TH' || sourceElement.tagName === 'TD') {
+        //       if (!targetElement.style.border) {
+        //         targetElement.style.setProperty('border', '1px solid #000', 'important');
+        //       }
+        //       if (!targetElement.style.padding) {
+        //         targetElement.style.setProperty('padding', '8px', 'important');
+        //       }
+        //       if (!targetElement.style.textAlign) {
+        //         targetElement.style.setProperty('text-align', 'left', 'important');
+        //       }
+        //     }
 
-            if (sourceElement.tagName === 'TH') {
-              if (!targetElement.style.fontWeight) {
-                targetElement.style.setProperty('font-weight', 'bold', 'important');
-              }
-              if (!targetElement.style.backgroundColor) {
-                targetElement.style.setProperty('background-color', '#e0e0e0', 'important');
-              }
-            }
-          }
-        }
+        //     if (sourceElement.tagName === 'TH') {
+        //       if (!targetElement.style.fontWeight) {
+        //         targetElement.style.setProperty('font-weight', 'bold', 'important');
+        //       }
+        //       if (!targetElement.style.backgroundColor) {
+        //         targetElement.style.setProperty('background-color', '#e0e0e0', 'important');
+        //       }
+        //     }
+        //   }
+        // }
       }
       // Function to check if element should be hidden in print based on CSS
       function shouldHideInPrint(element, editorCSS) {

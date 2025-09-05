@@ -1,92 +1,90 @@
 function jsontablecustom(editor) {
+    loadFormulaParser();
+    function loadFormulaParser(callback) {
+        if (typeof HotFormulaParser === 'undefined') {
+            const script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
+            script.onload = function () {
+                console.log('HotFormulaParser loaded successfully');
+                if (callback) callback();
+            };
+            script.onerror = function () {
+                console.warn('Failed to load HotFormulaParser');
+            };
+            document.head.appendChild(script);
+        } else {
+            if (callback) callback();
+        }
+    }
+
     // Add highlighting evaluation function from custom table
-    function evaluateCondition(cellValue, conditionType, conditionValue) {
-        if (!conditionType || !conditionType.trim()) return false;
-        
+    function evaluateFormula(formula, tableData, currentRow, currentCol) {
         try {
-            // Handle null/empty condition
-            if (conditionType === 'null') {
-                return !cellValue || cellValue.toString().trim() === '';
+            // Simple formula evaluation without external parser
+            let processedFormula = formula;
+
+            // Handle basic math operations
+            if (processedFormula.match(/^[\d\s\+\-\*\/\(\)\.]+$/)) {
+                // Simple arithmetic expression
+                try {
+                    const result = Function('"use strict"; return (' + processedFormula + ')')();
+                    return typeof result === 'number' ? result : processedFormula;
+                } catch (e) {
+                    return `#ERROR: ${e.message}`;
+                }
             }
-            
-            // If no condition value provided for non-null conditions, return false
-            if (!conditionValue && conditionType !== 'null') return false;
-            
-            const conditions = conditionValue.split(',').map(cond => cond.trim()).filter(cond => cond);
-            
-            return conditions.some(condition => {
-                // Check if it's a number condition based on condition type
-                const isNumberConditionType = ['>', '>=', '<', '<=', '=', '!=', 'between'].includes(conditionType);
-                
-                if (isNumberConditionType) {
-                    const numericValue = parseFloat(cellValue);
-                    const isNumeric = !isNaN(numericValue);
-                    
-                    if (!isNumeric) return false;
-                    
-                    if (conditionType === 'between') {
-                        // For 'between', expect format like "100 < value < 1000" or "100 <= value <= 1000"
-                        const trimmed = condition.trim();
-                        
-                        // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
-                        const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
-                        const rangeMatch = trimmed.match(rangePattern);
-                        
-                        if (rangeMatch) {
-                            const [, min, minOp, maxOp, max] = rangeMatch;
-                            const minValue = parseFloat(min);
-                            const maxValue = parseFloat(max);
-                            const minInclusive = minOp === '<=';
-                            const maxInclusive = maxOp === '<=';
-                            
-                            const minCondition = minInclusive ? numericValue >= minValue : numericValue > minValue;
-                            const maxCondition = maxInclusive ? numericValue <= maxValue : numericValue < maxValue;
-                            
-                            return minCondition && maxCondition;
-                        }
-                        return false;
-                    } else {
-                        // For other number conditions (>, >=, <, <=, =, !=)
-                        const threshold = parseFloat(condition);
-                        if (isNaN(threshold)) return false;
-                        
-                        switch (conditionType) {
-                            case '>': return numericValue > threshold;
-                            case '>=': return numericValue >= threshold;
-                            case '<': return numericValue < threshold;
-                            case '<=': return numericValue <= threshold;
-                            case '=': return numericValue === threshold;
-                            case '!=': return numericValue !== threshold;
-                            default: return false;
-                        }
+
+            // Handle SUM function
+            if (processedFormula.toUpperCase().startsWith('SUM(') && processedFormula.endsWith(')')) {
+                const expression = processedFormula.slice(4, -1); // Remove SUM( and )
+                try {
+                    const result = Function('"use strict"; return (' + expression + ')')();
+                    return typeof result === 'number' ? result : processedFormula;
+                } catch (e) {
+                    return `#ERROR: ${e.message}`;
+                }
+            }
+
+            // Parse cell references like A1, B2, etc.
+            const cellReferencePattern = /([A-Z]+)(\d+)/g;
+
+            // Replace cell references with actual values
+            processedFormula = processedFormula.replace(cellReferencePattern, (match, colLetter, rowNum) => {
+                try {
+                    const colIndex = columnLetterToIndex(colLetter);
+                    const rowIndex = parseInt(rowNum) - 1; // Convert to 0-based index
+
+                    if (tableData && tableData[rowIndex] && colIndex < Object.keys(tableData[0] || {}).length) {
+                        const columnKeys = Object.keys(tableData[0]);
+                        const columnKey = columnKeys[colIndex];
+                        const cellValue = tableData[rowIndex][columnKey];
+
+                        // Return numeric value or 0 if not numeric
+                        const numericValue = parseFloat(cellValue);
+                        return isNaN(numericValue) ? 0 : numericValue;
                     }
-                } else {
-                    // Text-based conditions
-                    const cellText = cellValue.toString().toLowerCase();
-                    const conditionText = condition.toLowerCase();
-                    
-                    switch (conditionType) {
-                        case 'contains':
-                            return cellText.includes(conditionText);
-                        case 'starts-with':
-                            return cellText.startsWith(conditionText);
-                        case 'ends-with':
-                            return cellText.endsWith(conditionText);
-                        default:
-                            // Exact match
-                            return cellText === conditionText;
-                    }
+                    return 0;
+                } catch (e) {
+                    return 0;
                 }
             });
-            
+
+            // Try to evaluate the processed formula
+            try {
+                const result = Function('"use strict"; return (' + processedFormula + ')')();
+                return typeof result === 'number' ? result : `#ERROR: Invalid formula`;
+            } catch (error) {
+                return `#ERROR: ${error.message}`;
+            }
+
         } catch (error) {
-            console.warn('Error evaluating highlight condition:', error);
-            return false;
+            console.warn('Formula evaluation error:', error);
+            return `#ERROR: ${error.message}`;
         }
     }
 
     // Add highlighting function from custom table
-    function applyHighlighting(tableId, conditionType, conditionValue, highlightColor) {
+    function applyHighlighting(tableId, conditions, highlightColor) {
         try {
             const canvasBody = editor.Canvas.getBody();
             const table = canvasBody.querySelector(`#${tableId}`);
@@ -94,10 +92,12 @@ function jsontablecustom(editor) {
 
             const wrapper = editor.DomComponents.getWrapper();
 
-            // === Always: Clear previous highlights
+            // Always clear previous highlights
             const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
             prev.forEach(td => {
                 td.style.backgroundColor = '';
+                td.style.color = '';
+                td.style.fontFamily = '';
                 td.removeAttribute('data-highlighted');
 
                 const id = td.id;
@@ -105,33 +105,49 @@ function jsontablecustom(editor) {
                     const comp = wrapper.find(`#${id}`)[0];
                     if (comp) {
                         comp.removeStyle('background-color');
-                        comp.removeStyle('background');
+                        comp.removeStyle('color');
+                        comp.removeStyle('font-family');
                     }
                 }
             });
 
-            // === Only apply new highlights if condition exists
-            if (conditionType && conditionType.trim()) {
+            // Only apply new highlights if conditions exist
+            if (conditions && conditions.length > 0) {
                 const bodyCells = table.querySelectorAll('tbody td');
                 bodyCells.forEach(td => {
                     const div = td.querySelector('div');
                     const val = div ? div.textContent.trim() : td.textContent.trim();
 
-                    if (evaluateCondition(val, conditionType, conditionValue)) {
-                        const bg = highlightColor || '#ffff99';
-                        td.style.backgroundColor = bg;
+                    // Check if any condition matches
+                    const shouldHighlight = conditions.some(condition =>
+                        evaluateCondition(val, condition)
+                    );
+
+                    if (shouldHighlight) {
+                        // Apply all highlight styles
+                        const bgColor = highlightColor || '#ffff99';
+                        const textColor = conditions[0].textColor || '';
+                        const fontFamily = conditions[0].fontFamily || '';
+
+                        td.style.backgroundColor = bgColor;
+                        if (textColor) td.style.color = textColor;
+                        if (fontFamily) td.style.fontFamily = fontFamily;
                         td.setAttribute('data-highlighted', 'true');
 
                         const id = td.id;
                         if (id) {
                             const comp = wrapper.find(`#${id}`)[0];
                             if (comp) {
-                                comp.addStyle({
-                                    'background-color': bg,
+                                const styles = {
+                                    'background-color': bgColor,
                                     '-webkit-print-color-adjust': 'exact',
                                     'color-adjust': 'exact',
                                     'print-color-adjust': 'exact'
-                                });
+                                };
+                                if (textColor) styles.color = textColor;
+                                if (fontFamily) styles['font-family'] = fontFamily;
+
+                                comp.addStyle(styles);
                             }
                         }
                     }
@@ -141,6 +157,76 @@ function jsontablecustom(editor) {
         } catch (err) {
             console.warn('Error applying highlighting:', err);
         }
+    }
+    function evaluateCondition(cellValue, condition) {
+        const value = String(cellValue || '').trim();
+
+        switch (condition.type) {
+            case 'contains':
+                return condition.caseSensitive ?
+                    value.includes(condition.value) :
+                    value.toLowerCase().includes(condition.value.toLowerCase());
+
+            case 'starts-with':
+                return condition.caseSensitive ?
+                    value.startsWith(condition.value) :
+                    value.toLowerCase().startsWith(condition.value.toLowerCase());
+
+            case 'ends-with':
+                return condition.caseSensitive ?
+                    value.endsWith(condition.value) :
+                    value.toLowerCase().endsWith(condition.value.toLowerCase());
+
+            case 'exact':
+                return condition.caseSensitive ?
+                    value === condition.value :
+                    value.toLowerCase() === condition.value.toLowerCase();
+
+            case 'once-if':
+                const chars = condition.value.split('');
+                return chars.some(char => condition.caseSensitive ?
+                    value.includes(char) :
+                    value.toLowerCase().includes(char.toLowerCase()));
+
+            case '>':
+                return parseFloat(value) > parseFloat(condition.value);
+            case '>=':
+                return parseFloat(value) >= parseFloat(condition.value);
+            case '<':
+                return parseFloat(value) < parseFloat(condition.value);
+            case '<=':
+                return parseFloat(value) <= parseFloat(condition.value);
+            case '=':
+                return parseFloat(value) === parseFloat(condition.value);
+            case '!=':
+                return parseFloat(value) !== parseFloat(condition.value);
+            case 'between':
+                const numValue = parseFloat(value);
+                return numValue >= parseFloat(condition.minValue) && numValue <= parseFloat(condition.maxValue);
+            case 'null':
+                return !value || value === '';
+
+            default:
+                return false;
+        }
+    }
+    // Helper function to convert column letters to index (A=0, B=1, etc.)
+    function columnLetterToIndex(letters) {
+        let result = 0;
+        for (let i = 0; i < letters.length; i++) {
+            result = result * 26 + (letters.charCodeAt(i) - 65 + 1);
+        }
+        return result - 1;
+    }
+
+    // Helper function to convert index to column letters
+    function indexToColumnLetter(index) {
+        let result = '';
+        while (index >= 0) {
+            result = String.fromCharCode(65 + (index % 26)) + result;
+            index = Math.floor(index / 26) - 1;
+        }
+        return result;
     }
 
     editor.DomComponents.addType('json-table', {
@@ -235,41 +321,6 @@ function jsontablecustom(editor) {
                         label: 'Json Path',
                         placeholder: 'Enter Json Path'
                     },
-                    // Add highlighting traits from custom table
-                    {
-                        type: 'select',
-                        name: 'highlight-condition-type',
-                        label: 'Highlight Condition',
-                        options: [
-                            { value: '', name: 'Select Condition Type' },
-                            { value: 'contains', name: 'Text: Contains' },
-                            { value: 'starts-with', name: 'Text: Starts With' },
-                            { value: 'ends-with', name: 'Text: Ends With' },
-                            { value: '>', name: 'Number: > (Greater than)' },
-                            { value: '>=', name: 'Number: >= (Greater than or equal)' },
-                            { value: '<', name: 'Number: < (Less than)' },
-                            { value: '<=', name: 'Number: <= (Less than or equal)' },
-                            { value: '=', name: 'Number: = (Equal to)' },
-                            { value: '!=', name: 'Number: != (Not equal to)' },
-                            { value: 'between', name: 'Number: Between (range)' },
-                            { value: 'null', name: 'Null/Empty (No value)' }
-                        ],
-                        changeProp: 1
-                    },
-                    {
-                        type: 'text',
-                        name: 'highlight-words',
-                        label: 'Highlight Words/Conditions',
-                        placeholder: 'Examples: word1, word2, >1000, <=100',
-                        changeProp: 1
-                    },
-                    {
-                        type: 'color',
-                        name: 'highlight-color',
-                        label: 'Highlight Color',
-                        placeholder: '#ffff99',
-                        changeProp: 1
-                    },
                     {
                         type: 'button',
                         name: 'json-suggestion-btn',
@@ -277,6 +328,29 @@ function jsontablecustom(editor) {
                         text: 'Suggestion',
                         full: true,
                         command: 'open-json-table-suggestion'
+                    },
+                    {
+                        type: 'select',
+                        name: 'filter-column',
+                        label: 'Filter Column',
+                        options: [{ value: "", name: "First enter JSON path" }],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'text',
+                        name: 'filter-value',
+                        label: 'Filter Value',
+                        placeholder: 'Enter filter value or "=" for all data',
+                        changeProp: 1
+                    },
+                    // Add highlighting traits from custom table
+                    {
+                        type: 'button',
+                        name: 'manage-highlight-conditions',
+                        label: 'Manage Highlight Conditions',
+                        text: 'Add/Edit Conditions',
+                        full: true,
+                        command: 'open-table-condition-manager'
                     },
                     {
                         type: 'button',
@@ -319,24 +393,102 @@ function jsontablecustom(editor) {
                 'cell-styles': {},
                 'selected-cell': null,
                 // Add highlighting properties
+                'highlight-conditions': [],
                 'highlight-condition-type': '',
                 'highlight-words': '',
-                'highlight-color': '#ffff99'
+                'highlight-color': '#ffff99',
+                'highlight-text-color': '',
+                'highlight-font-family': '',
+                'show-placeholder': true,
+                'cell-formulas': {},
+                'cell-map': {},
+                'formula-parser': null
             },
 
             init() {
-                this.on('change:json-path', this.updateTableFromJson);
-                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateTableHTML);
-                // Add highlighting change handlers
-                this.on('change:highlight-condition-type change:highlight-words change:highlight-color', this.handleHighlightChange);
-
-                // Initialize custom data if not present
-                if (!this.get('custom-data') && !this.get('custom-headers')) {
-                    this.initializeDefaultTable();
+                // Clear any existing formula data to prevent cross-table contamination
+                window.globalCellMap = {};
+                if (window.globalFormulaParser) {
+                    window.globalFormulaParser = null;
                 }
 
-                // Initial render
+                this.on('change:json-path', () => {
+                    this.updateTableFromJson();
+                    this.updateFilterColumnOptions();
+                    this.set('filter-column', '');
+                    this.set('filter-value', '');
+                });
+
+                this.on('change:filter-column change:filter-value', () => {
+                    if (this.get('filter-value') && this.get('filter-value').trim() !== '') {
+                        this.updateTableHTML();
+                    }
+                });
+
+                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateTableHTML);
+                this.on('change:highlight-conditions change:highlight-color', this.handleHighlightChange);
+
+                this.set('show-placeholder', true);
                 this.updateTableHTML();
+            },
+            updateFilterColumnOptions() {
+                try {
+                    const jsonPath = this.get('json-path');
+                    if (!jsonPath || jsonPath.trim() === "") {
+                        return;
+                    }
+
+                    let custom_language = localStorage.getItem('language') || 'english';
+                    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+
+                    if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+                        return;
+                    }
+
+                    const str = jsonDataN[custom_language][jsonPath];
+                    const tableData = eval(str);
+
+                    if (!tableData || !tableData.heading) {
+                        return;
+                    }
+
+                    const objectKeys = Object.keys(tableData.heading);
+
+                    // Update the filter column trait options
+                    const filterTrait = this.getTrait('filter-column');
+                    if (filterTrait) {
+                        const options = [
+                            { value: "", name: "Select Column to Filter" },
+                            ...objectKeys.map(key => ({
+                                value: key,
+                                name: tableData.heading[key]
+                            }))
+                        ];
+                        filterTrait.set('options', options);
+                    }
+                } catch (error) {
+                    console.log('Error updating filter options:', error);
+                }
+            },
+            getHighlightConditions() {
+                return this.get('highlight-conditions') || [];
+            },
+
+            setHighlightConditions(conditions) {
+                this.set('highlight-conditions', conditions);
+                this.updateTableHTML();
+            },
+
+            addHighlightCondition(condition) {
+                const conditions = this.getHighlightConditions();
+                conditions.push(condition);
+                this.setHighlightConditions(conditions);
+            },
+
+            removeHighlightCondition(index) {
+                const conditions = this.getHighlightConditions();
+                conditions.splice(index, 1);
+                this.setHighlightConditions(conditions);
             },
 
             // Add highlighting change handler
@@ -345,32 +497,38 @@ function jsontablecustom(editor) {
                 if (!tableElement || !tableElement.id) return;
 
                 const tableId = tableElement.id;
-                const conditionType = this.get('highlight-condition-type');
-                const words = this.get('highlight-words');
+                const conditions = this.getHighlightConditions();
                 const color = this.get('highlight-color');
-                
-                if (conditionType) {
-                    applyHighlighting(tableId, conditionType, words, color);
-                    editor.trigger('component:update', this);
-                }
+
+                applyHighlighting(tableId, conditions, color);
+                editor.trigger('component:update', this);
             },
 
             initializeDefaultTable() {
-                const defaultHeaders = {
-                    'col1': 'Sample Header 1',
-                    'col2': 'Sample Header 2',
-                    'col3': 'Sample Header 3'
-                };
-
-                const defaultData = [
-                    { 'col1': 'Sample Data 1', 'col2': 'Sample Data 2', 'col3': 'Sample Data 3' },
-                    { 'col1': 'Sample Data 4', 'col2': 'Sample Data 5', 'col3': 'Sample Data 6' }
-                ];
-
-                this.set('custom-headers', defaultHeaders);
-                this.set('custom-data', defaultData);
+                // Don't set default data, just show placeholder
+                this.set('custom-headers', null);
+                this.set('custom-data', null);
+                this.set('show-placeholder', true);
             },
+            initializeFormulaParser() {
+                if (!window.globalFormulaParser) {
+                    window.globalFormulaParser = new HotFormulaParser.Parser();
+                }
+                if (!window.globalCellMap) {
+                    window.globalCellMap = {};
+                }
 
+                const parser = window.globalFormulaParser;
+                const cellMap = window.globalCellMap;
+
+                parser.on('callCellValue', function (cellCoord, done) {
+                    const label = cellCoord.label;
+                    done(cellMap[label] || 0);
+                });
+
+                this.set('formula-parser', parser);
+                this.set('cell-map', cellMap);
+            },
             updateTableFromJson() {
                 const jsonPath = this.get('json-path');
                 if (!jsonPath) return;
@@ -392,10 +550,20 @@ function jsontablecustom(editor) {
                     if (tableData && tableData.heading && tableData.data) {
                         this.set('table-headers', tableData.heading);
                         this.set('table-data', tableData.data);
-                        // Also set as custom data for editing
                         this.set('custom-headers', tableData.heading);
-                        this.set('custom-data', [...tableData.data]); // Create copy
+                        this.set('custom-data', [...tableData.data]);
+                        this.set('show-placeholder', false);
+
+                        // Initialize formula parser
+                        this.initializeFormulaParser();
+
                         this.updateTableHTML();
+
+                        setTimeout(() => {
+                            this.trigger('change:content');
+                            this.view.render();
+                            this.registerTableCellComponents();
+                        }, 50);
                     } else {
                         console.error('Invalid table data structure');
                     }
@@ -404,6 +572,43 @@ function jsontablecustom(editor) {
                 }
             },
 
+            registerTableCellComponents() {
+                const tableElement = this.view.el.querySelector('.json-data-table');
+                if (!tableElement) return;
+
+                setTimeout(() => {
+                    const wrapper = editor.DomComponents.getWrapper();
+
+                    // Register both th and td elements
+                    const allCells = tableElement.querySelectorAll('th, td');
+                    allCells.forEach((cell) => {
+                        // Ensure proper component attributes
+                        cell.setAttribute('data-gjs-type', 'json-table-cell');
+                        cell.setAttribute('data-gjs-selectable', 'true');
+                        cell.setAttribute('data-gjs-hoverable', 'true');
+                        cell.setAttribute('data-gjs-editable', 'false');
+
+                        // Add a unique ID if missing
+                        if (!cell.id) {
+                            cell.id = `cell-${Math.random().toString(36).substr(2, 9)}`;
+                        }
+
+                        // Force component recognition
+                        const existingComp = wrapper.find(`#${cell.id}`)[0];
+                        if (!existingComp) {
+                            // Just register the existing DOM element without adding new component
+                            const existingComp = wrapper.find(`#${cell.id}`)[0];
+                            if (!existingComp) {
+                                // Force component recognition for existing DOM element
+                                editor.getModelForEl(cell);
+                            }
+                        }
+                    });
+
+                    // Refresh component recognition
+                    editor.trigger('component:update');
+                }, 200);
+            },
             addRow() {
                 const headers = this.get('custom-headers') || this.get('table-headers');
                 const data = this.get('custom-data') || this.get('table-data') || [];
@@ -480,15 +685,61 @@ function jsontablecustom(editor) {
             updateCellData(rowIndex, columnKey, newValue) {
                 const data = this.get('custom-data') || this.get('table-data') || [];
                 const updatedData = [...data];
+                const cellFormulas = this.get('cell-formulas') || {};
 
                 if (updatedData[rowIndex]) {
-                    updatedData[rowIndex] = { ...updatedData[rowIndex], [columnKey]: newValue };
-                    this.set('custom-data', updatedData);
-                    
-                    // Store the change in the component for export
                     const cellId = `cell-${rowIndex}-${columnKey}`;
+
+                    if (typeof newValue === 'string' && newValue.trim().startsWith('=')) {
+                        // Store formula
+                        const formula = newValue.trim();
+                        cellFormulas[cellId] = formula;
+
+                        // Evaluate formula
+                        try {
+                            const formulaExpression = formula.substring(1); // Remove '='
+                            const evaluatedValue = evaluateFormula(formulaExpression, updatedData, rowIndex, columnKey);
+                            updatedData[rowIndex][columnKey] = evaluatedValue;
+                        } catch (error) {
+                            updatedData[rowIndex][columnKey] = '#ERROR';
+                        }
+                    } else {
+                        // Regular value
+                        updatedData[rowIndex][columnKey] = newValue;
+                        delete cellFormulas[cellId];
+                    }
+
+                    this.set('custom-data', updatedData);
+                    this.set('cell-formulas', cellFormulas);
                     this.set(`cell-content-${cellId}`, newValue);
-                    
+
+                    this.updateTableHTML();
+                }
+            },
+
+
+            recalculateFormulas() {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                let hasFormulas = false;
+
+                // Check if any cells have formulas and re-evaluate them
+                const updatedData = data.map((row, rowIndex) => {
+                    const updatedRow = { ...row };
+                    Object.keys(row).forEach(columnKey => {
+                        const cellId = `cell-${rowIndex}-${columnKey}`;
+                        const formula = this.get(`cell-formula-${cellId}`);
+
+                        if (formula && formula.startsWith('=')) {
+                            hasFormulas = true;
+                            const evaluatedValue = evaluateFormula(formula.substring(1), data, rowIndex, columnKey);
+                            updatedRow[columnKey] = evaluatedValue;
+                        }
+                    });
+                    return updatedRow;
+                });
+
+                if (hasFormulas) {
+                    this.set('custom-data', updatedData);
                     this.updateTableHTML();
                 }
             },
@@ -497,10 +748,10 @@ function jsontablecustom(editor) {
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const updatedHeaders = { ...headers, [columnKey]: newValue };
                 this.set('custom-headers', updatedHeaders);
-                
+
                 // Store the change in the component for export
                 this.set(`header-content-${columnKey}`, newValue);
-                
+
                 this.updateTableHTML();
             },
 
@@ -531,24 +782,56 @@ function jsontablecustom(editor) {
                 const caption = this.get('caption') || 'no';
                 const captionAlign = this.get('caption-align') || 'left';
                 const fileDownload = this.get('file-download') || '';
-                
+                const showPlaceholder = this.get('show-placeholder');
+
                 // Generate unique table ID
                 const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
 
+                // --- PLACEHOLDER HANDLING ---
+                if ((!headers || !data) && showPlaceholder) {
+                    const placeholderHTML = `
+        <div class="json-table-placeholder" style="
+            width: 100%; 
+            min-height: 200px; 
+            border: 2px dashed #007bff; 
+            border-radius: 8px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            background-color: #f8f9fa;
+            color: #6c757d;
+            text-align: center;
+            padding: 40px 20px;
+            font-family: Arial, sans-serif;
+        ">
+            <div style="font-size: 48px; margin-bottom: 20px; color: #007bff;">📊</div>
+            <h3 style="margin: 0 0 10px 0; color: #495057;">JSON Table Data</h3>
+            <p style="margin: 0; font-size: 14px;">Add JSON path from the properties panel to display table data</p>
+        </div>`;
+
+                    this.set('content', placeholderHTML);
+                    return;
+                }
+
+                // Clear placeholder flag when data is available
+                if (headers && data) {
+                    this.set('show-placeholder', false);
+                }
+
+                // --- START TABLE GENERATION ---
                 let tableHTML = `<div class="json-table-wrapper" style="width: 100%; overflow-x: auto;">`;
 
                 if (title) {
                     tableHTML += `<h3 style="margin-bottom: 15px;">${title}</h3>`;
                 }
 
-                // Table controls
+                // Controls (Search & File Download)
                 if (search === 'yes' || fileDownload) {
                     tableHTML += `<div class="table-controls" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">`;
-
                     if (search === 'yes') {
                         tableHTML += `<input type="text" placeholder="Search..." class="table-search" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px;">`;
                     }
-
                     if (fileDownload) {
                         const downloadOptions = fileDownload.replace(/"/g, '').split(',').map(opt => opt.trim());
                         tableHTML += `<div class="download-buttons">`;
@@ -557,7 +840,6 @@ function jsontablecustom(editor) {
                         });
                         tableHTML += `</div>`;
                     }
-
                     tableHTML += `</div>`;
                 }
 
@@ -569,34 +851,66 @@ function jsontablecustom(editor) {
                 }
 
                 if (headers && data) {
-                    // Table header
-                    tableHTML += `<thead style="background-color: #f8f9fa;"><tr>`;
+                    // Table Header with div wrappers
+                    tableHTML += `<thead style="background-color: #f8f9fa; border: 1px solid #000;"><tr>`;
                     Object.entries(headers).forEach(([key, header]) => {
                         const headerId = `${tableId}-header-${key}`;
-                        // Check for stored header content
                         const storedHeader = this.get(`header-content-${key}`) || header;
-                        tableHTML += `<th id="${headerId}" class="editable-header json-table-cell" data-column-key="${key}" style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold; cursor: pointer; position: relative;">${storedHeader}</th>`;
+                        tableHTML += `<th id="${headerId}" class="editable-header json-table-cell" data-column-key="${key}" data-gjs-type="json-table-cell" data-gjs-selectable="true" data-gjs-hoverable="true" style="padding: 0; text-align: left; border: 1px solid #000000ff; font-weight: bold; cursor: pointer; position: relative;">
+                <div class="cell-content" style="padding: 12px; width: 100%; height: 100%; box-sizing: border-box;">${storedHeader}</div>
+            </th>`;
                     });
                     tableHTML += `</tr></thead>`;
 
-                    // Table body
+                    // Table Body with div wrappers and filtering
                     tableHTML += `<tbody>`;
-                    data.forEach((row, rowIndex) => {
-                        const rowClass = rowIndex % 2 === 0 ? 'even-row' : 'odd-row';
-                        tableHTML += `<tr class="${rowClass}" style="background-color: ${rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'};">`;
-                        Object.keys(headers).forEach(key => {
-                            const cellId = `${tableId}-cell-${rowIndex}-${key}`;
-                            const cellStyles = this.getCellStyle(rowIndex, key);
-                            const cellStyleString = Object.entries(cellStyles).map(([prop, value]) => `${prop}: ${value}`).join('; ');
-                            const combinedStyle = `padding: 12px; border-bottom: 1px solid #dee2e6; cursor: pointer; position: relative; ${cellStyleString}`;
-                            
-                            // Check for stored cell content
-                            const storedContent = this.get(`cell-content-cell-${rowIndex}-${key}`) || row[key] || '';
+                    if (headers && data) {
+                        const filterColumn = this.get('filter-column');
+                        const filterValue = this.get('filter-value');
 
-                            tableHTML += `<td id="${cellId}" class="editable-cell json-table-cell" data-row="${rowIndex}" data-column-key="${key}" style="${combinedStyle}">${storedContent}</td>`;
-                        });
-                        tableHTML += `</tr>`;
-                    });
+                        let filteredData = data;
+                        if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
+                            if (filterValue === "=") {
+                                filteredData = data;
+                            } else {
+                                filteredData = data.filter(row => {
+                                    const cellValue = String(row[filterColumn] || "").toLowerCase();
+                                    const searchValue = String(filterValue).toLowerCase();
+                                    return cellValue.includes(searchValue);
+                                });
+                            }
+                        }
+
+                        if (filteredData.length === 0) {
+                            const columnCount = Object.keys(headers).length;
+                            tableHTML += `<tr><td colspan="${columnCount}" style="text-align: center; padding: 20px; color: #666;">No data found</td></tr>`;
+                        } else {
+                            filteredData.forEach((row, rowIndex) => {
+                                const actualRowIndex = data.indexOf(row); // Get original row index
+                                const rowClass = actualRowIndex % 2 === 0 ? 'even-row' : 'odd-row';
+                                tableHTML += `<tr class="${rowClass}" style="background-color: ${actualRowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'};">`;
+                                Object.keys(headers).forEach(key => {
+                                    const cellId = `${tableId}-cell-${actualRowIndex}-${key}`;
+                                    const cellStyles = this.getCellStyle(actualRowIndex, key);
+                                    const formulaCellId = `cell-${actualRowIndex}-${key}`;
+                                    const cellFormulas = this.get('cell-formulas') || {};
+                                    const hasFormula = cellFormulas[formulaCellId];
+                                    const cellStyleString = Object.entries(cellStyles).map(([prop, value]) => `${prop}: ${value}`).join('; ');
+                                    const formulaClass = hasFormula ? ' formula-cell' : '';
+
+                                    // Use clean border styling with no padding on td, padding on div
+                                    const combinedStyle = `padding: 0; border: 1px solid #000; cursor: pointer; position: relative; ${cellStyleString}`;
+                                    const storedContent = this.get(`cell-content-${formulaCellId}`) || row[key] || '';
+                                    const displayValue = row[key] || ''; // Always show the evaluated value
+
+                                    tableHTML += `<td id="${cellId}" class="editable-cell json-table-cell${formulaClass}" data-row="${actualRowIndex}" data-column-key="${key}" data-gjs-type="json-table-cell" data-gjs-selectable="true" data-gjs-hoverable="true" style="${combinedStyle}" title="${hasFormula ? hasFormula : ''}" data-formula="${hasFormula || ''}">
+                            <div class="cell-content" style="padding: 8px; width: 100%; height: 100%; box-sizing: border-box;">${displayValue}</div>
+                        </td>`;
+                                });
+                                tableHTML += `</tr>`;
+                            });
+                        }
+                    }
                     tableHTML += `</tbody>`;
 
                     // Footer
@@ -608,99 +922,194 @@ function jsontablecustom(editor) {
                         tableHTML += `</tr></tfoot>`;
                     }
                 } else {
-                    // Placeholder when no data
-                    tableHTML += `<thead style="background-color: #f8f9fa;"><tr>`;
-                    tableHTML += `<th class="json-table-cell" style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">Sample Header 1</th>`;
-                    tableHTML += `<th class="json-table-cell" style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">Sample Header 2</th>`;
-                    tableHTML += `<th class="json-table-cell" style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">Sample Header 3</th>`;
-                    tableHTML += `</tr></thead>`;
-
-                    tableHTML += `<tbody>`;
-                    tableHTML += `<tr style="background-color: #ffffff;"><td class="json-table-cell" style="padding: 12px; border-bottom: 1px solid #dee2e6;">Sample Data 1</td><td class="json-table-cell" style="padding: 12px; border-bottom: 1px solid #dee2e6;">Sample Data 2</td><td class="json-table-cell" style="padding: 12px; border-bottom: 1px solid #dee2e6;">Sample Data 3</td></tr>`;
-                    tableHTML += `<tr style="background-color: #f8f9fa;"><td class="json-table-cell" style="padding: 12px; border-bottom: 1px solid #dee2e6;">Sample Data 4</td><td class="json-table-cell" style="padding: 12px; border-bottom: 1px solid #dee2e6;">Sample Data 5</td><td class="json-table-cell" style="padding: 12px; border-bottom: 1px solid #dee2e6;">Sample Data 6</td></tr>`;
-                    tableHTML += `</tbody>`;
+                    // Fallback sample data if no headers/data and placeholder is off
+                    tableHTML += `<thead style="background-color: #f8f9fa;"><tr>
+            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
+                <div class="cell-content" style="padding: 12px;">Sample Header 1</div>
+            </th>
+            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
+                <div class="cell-content" style="padding: 12px;">Sample Header 2</div>
+            </th>
+            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
+                <div class="cell-content" style="padding: 12px;">Sample Header 3</div>
+            </th>
+        </tr></thead>
+        <tbody>
+            <tr style="background-color: #ffffff;">
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 1</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 2</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 3</div>
+                </td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 4</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 5</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 6</div>
+                </td>
+            </tr>
+        </tbody>`;
                 }
 
                 tableHTML += `</table>`;
 
                 // Pagination
                 if (pagination === 'yes') {
-                    tableHTML += `<div class="table-pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">`;
-                    tableHTML += `<div>Show <select class="page-length-select" style="padding: 4px;"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</div>`;
-                    tableHTML += `<div class="pagination-controls">`;
-                    tableHTML += `<button class="page-btn" data-page="prev" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Previous</button>`;
-                    tableHTML += `<span class="page-info" style="padding: 0 10px;">Page 1 of 1</span>`;
-                    tableHTML += `<button class="page-btn" data-page="next" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Next</button>`;
-                    tableHTML += `</div></div>`;
+                    tableHTML += `<div class="table-pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div>Show <select class="page-length-select" style="padding: 4px;">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select> entries</div>
+            <div class="pagination-controls">
+                <button class="page-btn" data-page="prev" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Previous</button>
+                <span class="page-info" style="padding: 0 10px;">Page 1 of 1</span>
+                <button class="page-btn" data-page="next" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Next</button>
+            </div>
+        </div>`;
                 }
 
                 tableHTML += `</div>`;
 
-                // Add print-specific styles with highlighting preservation
+                // Updated styles with proper print handling
+
                 tableHTML += `<style>
-                @media print {
-                    /* Preserve highlighting in print */
-                    td[data-highlighted="true"], th[data-highlighted="true"] {
-                        -webkit-print-color-adjust: exact !important;
-                        color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-                    /* Ensure background colors are preserved in print/PDF */
-                    * {
-                        -webkit-print-color-adjust: exact !important;
-                        color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-                }
-                
-                .json-data-table tr:hover {
-                    background-color: #f5f5f5 !important;
-                }
-                
-                .download-btn:hover,
-                .page-btn:hover {
-                    background: #0056b3 !important;
-                }
+/* Regular styles */
+.json-table-container {
+    min-height: 200px;
+    padding: 10px 0 10px 0;
+    width: 100%;
+    margin: 10px 0;
+}
 
-                /* Enhanced highlighted cell styles */
-                td[data-highlighted="true"], th[data-highlighted="true"] {
-                    position: relative;
-                }
-                td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-                    content: "★";
-                    position: absolute;
-                    top: 2px;
-                    right: 2px;
-                    font-size: 10px;
-                    color: #ff6b35;
-                    font-weight: bold;
-                    z-index: 1;
-                }
+.json-table-wrapper {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    width: 100%;
+    overflow-x: auto;
+}
 
-                /* Cell editing styles */
-                .json-table-cell.editing {
-                    background-color: #e3f2fd !important;
-                    outline: 2px solid #007bff !important;
-                }
+.json-data-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 2px solid #000;
+}
 
-                .json-table-cell:hover {
-                    background-color: #f0f8ff !important;
-                }
-            </style>`;
+.json-data-table th,
+.json-data-table td {
+    border: 1px solid #000;
+    padding: 3px;
+    text-align: left;
+    background-color: #fff;
+    word-wrap: break-word;
+    overflow: hidden;
+    position: relative;
+}
+
+.json-data-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.json-table-cell {
+    position: relative;
+    min-height: 40px; /* Ensure minimum height */
+    overflow: hidden;
+}
+
+.cell-content {
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    display: block;
+    word-wrap: break-word;
+}
+
+.json-table-cell.editing .cell-content {
+    background-color: #e3f2fd !important;
+    outline: 2px solid #007bff !important;
+    min-height: inherit;
+    overflow: hidden;
+}
+
+
+td[data-highlighted="true"], th[data-highlighted="true"] {
+    position: relative;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+    content: "★";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    color: #ff6b35;
+    font-weight: bold;
+    z-index: 1;
+}
+
+   @media print {
+  .json-data-table {
+    border: 1px solid #000 !important;
+    border-collapse: separate !important;   
+    border-spacing: 0 !important;          
+    width: 100% !important;
+  }
+
+  .json-data-table th,
+  .json-data-table td {
+    border: 1px solid #000 !important;
+    background: #fff !important;
+    padding: 4px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .json-data-table th,
+  .json-data-table td {
+    position: relative;
+  }
+
+  .json-data-table th::after,
+  .json-data-table td::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border: 1px solid #000 !important;
+    pointer-events: none;
+  }
+    .cell-content{
+    padding: 2px !important}
+</style>`;
 
                 this.set('content', tableHTML);
-                
-                // Apply highlighting after HTML is updated
+
+                // Apply highlighting
                 setTimeout(() => {
-                    const conditionType = this.get('highlight-condition-type');
-                    const words = this.get('highlight-words');
+                    const conditions = this.getHighlightConditions();
                     const color = this.get('highlight-color');
-                    
-                    if (conditionType) {
-                        applyHighlighting(tableId, conditionType, words, color);
+                    if (conditions && conditions.length > 0) {
+                        applyHighlighting(tableId, conditions, color);
                     }
+
+                    // Register components after table is rendered
+                    this.registerTableCellComponents();
                 }, 100);
             }
+
+
         },
 
         view: {
@@ -714,8 +1123,14 @@ function jsontablecustom(editor) {
                 'blur .header-input': 'handleHeaderEdit',
                 'keydown .cell-input': 'handleCellKeydown',
                 'keydown .header-input': 'handleHeaderKeydown',
+                'dblclick .json-table-cell': 'preventDoubleClick',
             },
-
+            preventDoubleClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Just trigger single click behavior instead
+                this.handleCellClick(e);
+            },
             handleSearch(e) {
                 const searchTerm = e.target.value.toLowerCase();
                 const table = this.el.querySelector('.json-data-table tbody');
@@ -816,60 +1231,116 @@ function jsontablecustom(editor) {
             handleCellClick(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                
-                const cell = e.target;
-                
-                // Stop editing mode for any currently editing cell
-                const currentlyEditing = this.el.querySelector('.json-table-cell.editing');
-                if (currentlyEditing && currentlyEditing !== cell) {
-                    this.stopCellEditing(currentlyEditing);
-                }
 
-                // If this cell is already in editing mode, stop editing and select it
-                if (cell.classList.contains('editing')) {
-                    this.stopCellEditing(cell);
-                    
-                    // Create a GrapesJS component for this cell to make it selectable
-                    const cellComponent = this.createCellComponent(cell);
-                    if (cellComponent) {
-                        editor.select(cellComponent);
-                    }
+                const clickedElement = e.target;
+                let cell, cellContent;
+
+                // Determine if we clicked on cell or div content
+                if (clickedElement.classList.contains('cell-content')) {
+                    cellContent = clickedElement;
+                    cell = clickedElement.parentElement;
+                } else if (clickedElement.classList.contains('json-table-cell')) {
+                    cell = clickedElement;
+                    cellContent = cell.querySelector('.cell-content');
+                } else {
                     return;
                 }
 
-                // Check if cell is already being edited with input
-                if (cell.querySelector('.cell-input, .header-input')) return;
+                // If clicked on div content, start editing
+                if (clickedElement.classList.contains('cell-content')) {
+                    // Stop editing mode for any currently editing cell
+                    const currentlyEditing = this.el.querySelector('.json-table-cell.editing');
+                    if (currentlyEditing && currentlyEditing !== cell) {
+                        this.stopCellEditing(currentlyEditing);
+                    }
 
-                // Start editing mode
-                this.startCellEditing(cell);
+                    // If this cell is already in editing mode, stop editing
+                    if (cell.classList.contains('editing')) {
+                        this.stopCellEditing(cell);
+                        return;
+                    }
+
+                    // Check if cell is already being edited with input
+                    if (cell.querySelector('.cell-input, .header-input')) return;
+
+                    // For formula cells, show the original formula for editing
+                    const rowIndex = cell.getAttribute('data-row');
+                    const columnKey = cell.getAttribute('data-column-key');
+                    const isHeader = cell.classList.contains('editable-header');
+
+                    if (!isHeader && rowIndex !== null && columnKey) {
+                        const cellId = `cell-${rowIndex}-${columnKey}`;
+                        const cellFormulas = this.model.get('cell-formulas') || {};
+                        const storedFormula = cellFormulas[cellId];
+
+                        if (storedFormula) {
+                            // Start editing with the original formula
+                            this.startCellEditingWithValue(cell, cellContent, storedFormula);
+                            return;
+                        }
+                    }
+
+                    // Start normal editing mode
+                    this.startCellEditing(cell, cellContent);
+                } else if (clickedElement.classList.contains('json-table-cell')) {
+                    // If clicked on cell area but not div content, select the cell component
+                    const cellComponent = editor.DomComponents.getComponentFromElement(cell);
+                    if (cellComponent) {
+                        editor.select(cellComponent);
+                    }
+                }
             },
 
-            startCellEditing(cell) {
+            // Add this new method
+            startCellEditingWithValue(cell, cellContent, value) {
                 const rowIndex = cell.getAttribute('data-row');
                 const columnKey = cell.getAttribute('data-column-key');
                 const isHeader = cell.classList.contains('editable-header');
 
-                const currentValue = cell.textContent;
                 const input = document.createElement('input');
                 input.type = 'text';
-                input.value = currentValue;
+                input.value = value; // Use the provided value (like formula)
                 input.className = isHeader ? 'header-input' : 'cell-input';
-                input.style.cssText = 'width: 100%; border: 2px solid #007bff; padding: 8px; box-sizing: border-box; background: white; font-family: inherit; font-size: inherit;';
+                input.style.cssText = 'width: 100%; height: 100%; border: 2px solid #007bff; padding: 8px; box-sizing: border-box; background: white; font-family: inherit; font-size: inherit; margin: 0; min-height: inherit; resize: none;';
 
                 if (isHeader) {
                     input.style.fontWeight = 'bold';
                 }
 
                 cell.classList.add('editing');
-                cell.innerHTML = '';
-                cell.appendChild(input);
+                cellContent.innerHTML = '';
+                cellContent.appendChild(input);
+                input.focus();
+                input.select();
+            },
+
+            startCellEditing(cell, cellContent) {
+                const rowIndex = cell.getAttribute('data-row');
+                const columnKey = cell.getAttribute('data-column-key');
+                const isHeader = cell.classList.contains('editable-header');
+
+                const currentValue = cellContent.textContent;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentValue;
+                input.className = isHeader ? 'header-input' : 'cell-input';
+                input.style.cssText = 'width: 100%; height: 100%; border: 2px solid #007bff; padding: 8px; box-sizing: border-box; background: white; font-family: inherit; font-size: inherit; margin: 0; min-height: inherit; resize: none;';
+
+                if (isHeader) {
+                    input.style.fontWeight = 'bold';
+                }
+
+                cell.classList.add('editing');
+                cellContent.innerHTML = '';
+                cellContent.appendChild(input);
                 input.focus();
                 input.select();
             },
 
             stopCellEditing(cell) {
-                const input = cell.querySelector('.cell-input, .header-input');
-                if (!input) return;
+                const cellContent = cell.querySelector('.cell-content');
+                const input = cellContent?.querySelector('.cell-input, .header-input');
+                if (!input || !cellContent) return;
 
                 const rowIndex = cell.getAttribute('data-row');
                 const columnKey = cell.getAttribute('data-column-key');
@@ -883,10 +1354,21 @@ function jsontablecustom(editor) {
                     this.model.updateHeaderData(columnKey, newValue);
                 } else {
                     this.model.updateCellData(parseInt(rowIndex), columnKey, newValue);
+
+                    // Handle formula display logic
+                    if (newValue.startsWith('=')) {
+                        const cellId = `cell-${rowIndex}-${columnKey}`;
+                        const cellFormulas = this.model.get('cell-formulas') || {};
+                        const evaluatedValue = cellFormulas[cellId] ? this.model.get('custom-data')[rowIndex][columnKey] : newValue;
+                        cellContent.innerHTML = evaluatedValue;
+                    } else {
+                        cellContent.innerHTML = newValue;
+                    }
+                    return;
                 }
 
-                // Update cell display
-                cell.innerHTML = newValue;
+                // Update cell display for non-formula cells
+                cellContent.innerHTML = newValue;
             },
 
             createCellComponent(cell) {
@@ -958,7 +1440,7 @@ function jsontablecustom(editor) {
                     });
 
                     return cellComponent;
-                    
+
                 } catch (error) {
                     console.warn('Error creating cell component:', error);
                     return null;
@@ -968,8 +1450,27 @@ function jsontablecustom(editor) {
             handleCellEdit(e) {
                 const input = e.target;
                 const cell = input.parentElement;
+                const rowIndex = parseInt(cell.getAttribute('data-row'));
+                const columnKey = cell.getAttribute('data-column-key');
+                const newValue = input.value;
+
+                // Handle formula input
+                if (newValue.startsWith('=')) {
+                    cell.classList.add('formula-cell');
+                    cell.title = newValue; // Show formula in tooltip
+                } else {
+                    cell.classList.remove('formula-cell', 'formula-error');
+                    cell.title = '';
+                }
+
                 this.stopCellEditing(cell);
+
+                // Update the model with the new value
+                if (rowIndex !== null && columnKey) {
+                    this.model.updateCellData(rowIndex, columnKey, newValue);
+                }
             },
+
 
             handleHeaderEdit(e) {
                 const input = e.target;
@@ -1008,6 +1509,35 @@ function jsontablecustom(editor) {
                     header.classList.remove('editing');
                     header.innerHTML = originalValue;
                 }
+            },
+            onRender() {
+                // Register components immediately after render
+                setTimeout(() => {
+                    this.model.registerTableCellComponents();
+
+                    // Force component scanner to run
+                    const canvasBody = editor.Canvas.getBody();
+                    const cells = this.el.querySelectorAll('.json-table-cell');
+
+                    cells.forEach(cell => {
+                        // Try to get the existing component model from the DOM element
+                        let comp = editor.getModelForEl(cell);
+
+                        // If it doesn't exist, create a new component
+                        if (!comp) {
+                            comp = editor.DomComponents.addComponent({
+                                type: 'json-table-cell',
+                                selectable: true,
+                                hoverable: true,
+                                // You can pass attributes/content if needed
+                            }, { at: undefined, avoidUpdateStyle: true, el: cell });
+                        }
+                    });
+
+
+                    // Refresh the canvas
+                    editor.refresh();
+                }, 100);
             }
         }
     });
@@ -1025,6 +1555,8 @@ function jsontablecustom(editor) {
                 removable: false,
                 copyable: false,
                 resizable: false,
+                propagate: [],
+                void: true,
                 traits: [
                     {
                         type: 'color',
@@ -1058,7 +1590,7 @@ function jsontablecustom(editor) {
                 ],
                 'custom-name': 'Table Cell'
             },
-            
+
             init() {
                 this.on('change:style', this.handleStyleChange);
             },
@@ -1075,7 +1607,7 @@ function jsontablecustom(editor) {
                     const rowIndex = element.getAttribute('data-row');
                     const columnKey = element.getAttribute('data-column-key');
                     const tableContainer = element.closest('.json-table-container');
-                    
+
                     if (tableContainer && rowIndex !== null && columnKey) {
                         const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
                         if (tableComponent) {
@@ -1088,10 +1620,10 @@ function jsontablecustom(editor) {
     });
 
     // Enhanced component selection handler
-    editor.on('component:selected', function(component) {
+    editor.on('component:selected', function (component) {
         if (component && component.getEl()) {
             const element = component.getEl();
-            
+
             // Handle JSON table cell selection
             if (element.classList.contains('json-table-cell')) {
                 if (component.get('type') !== 'json-table-cell') {
@@ -1114,11 +1646,11 @@ function jsontablecustom(editor) {
     });
 
     // Enhanced export handling for proper content preservation
-    editor.on('storage:store', function() {
+    editor.on('storage:store', function () {
         try {
             const canvasBody = editor.Canvas.getBody();
             const jsonTables = canvasBody.querySelectorAll('.json-table-container');
-            
+
             jsonTables.forEach(tableContainer => {
                 const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
                 if (tableComponent) {
@@ -1131,13 +1663,13 @@ function jsontablecustom(editor) {
                             const columnKey = cell.getAttribute('data-column-key');
                             const isHeader = cell.tagName === 'TH';
                             const content = cell.textContent || cell.innerHTML;
-                            
+
                             if (isHeader && columnKey) {
                                 tableComponent.set(`header-content-${columnKey}`, content);
                             } else if (rowIndex !== null && columnKey) {
                                 tableComponent.set(`cell-content-cell-${rowIndex}-${columnKey}`, content);
                             }
-                            
+
                             // Store cell styles
                             if (cell.style.cssText) {
                                 const styleObj = {};
@@ -1148,7 +1680,7 @@ function jsontablecustom(editor) {
                                         styleObj[prop.trim()] = value.trim();
                                     }
                                 });
-                                
+
                                 if (rowIndex !== null && columnKey && !isHeader) {
                                     tableComponent.setCellStyle(parseInt(rowIndex), columnKey, styleObj);
                                 }
@@ -1161,15 +1693,282 @@ function jsontablecustom(editor) {
             console.warn('Error storing JSON table data:', error);
         }
     });
+    editor.Commands.add('open-table-condition-manager', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
 
+            const conditions = selected.getHighlightConditions();
+
+            const modalContent = `
+<div class="condition-manager" style="padding: 20px; max-width: 700px;">
+    <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Table Highlight Conditions</h3>
+    
+    <!-- Highlight Style Settings -->
+    <div class="highlight-styles" style=" padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h4 style="margin-top: 0;">Highlight Styles</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
+                <input type="color" id="highlight-bg-color" value="#ffff99" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
+                <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
+            <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Default</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="Tahoma, sans-serif">Tahoma</option>
+                <option value="'Lucida Sans Unicode', sans-serif">Lucida Sans Unicode</option>
+                <option value="Impact, sans-serif">Impact</option>
+                <option value="Helvetica, sans-serif">Helvetica</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                <option value="'Brush Script MT', cursive">Brush Script MT</option>
+                <option value="'Arial Black', sans-serif">Arial Black</option>
+                <option value="Arial, sans-serif">Arial</option>
+            </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="add-condition-form" style="padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h4 style="margin-top: 0;">Add New Condition</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; margin-bottom: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
+                <select id="condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="">Select Condition Type</option>
+                    <option value="contains">Text: Contains</option>
+                    <option value="starts-with">Text: Starts With</option>
+                    <option value="ends-with">Text: Ends With</option>
+                    <option value="exact">Text: Exact Match</option>
+                    <option value="once-if">Once If: Highlight individual letters/numbers</option>
+                    <option value=">">Number: > (Greater than)</option>
+                    <option value=">=">Number: >= (Greater than or equal)</option>
+                    <option value="<">Number: < (Less than)</option>
+                    <option value="<=">Number: <= (Less than or equal)</option>
+                    <option value="=">Number: = (Equal to)</option>
+                    <option value="!=">Number: != (Not equal to)</option>
+                    <option value="between">Number: Between (range)</option>
+                    <option value="null">Null/Empty (No value)</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Case Sensitive:</label>
+                <input type="checkbox" id="case-sensitive" style="width: 20px; height: 20px; margin-top: 8px;">
+            </div>
+        </div>
+        
+        <div id="condition-inputs">
+            <div id="single-value-input" style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
+                <input type="text" id="condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
+            </div>
+            
+            <div id="range-inputs" style="display: none; margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
+                        <input type="number" id="min-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
+                        <input type="number" id="max-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
+    </div>
+    
+    <div class="existing-conditions">
+        <h4>Existing Conditions</h4>
+        <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
+            ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
+        </div>
+    </div>
+    
+    <div style="text-align: right; margin-top: 20px;">
+        <button id="close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
+        <button id="apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
+    </div>
+</div>`;
+
+            const modal = editor.Modal;
+            modal.setTitle('Table Condition Manager');
+            modal.setContent(modalContent);
+            modal.open();
+
+            setTimeout(() => {
+                initializeTableConditionManager(selected, conditions);
+            }, 100);
+        }
+    });
+    function initializeTableConditionManager(component, conditions) {
+        const conditionTypeSelect = document.getElementById('condition-type');
+        const conditionValueInput = document.getElementById('condition-value');
+        const caseSensitiveCheckbox = document.getElementById('case-sensitive');
+        const singleValueInput = document.getElementById('single-value-input');
+        const rangeInputs = document.getElementById('range-inputs');
+        const minValueInput = document.getElementById('min-value');
+        const maxValueInput = document.getElementById('max-value');
+        const addConditionBtn = document.getElementById('add-condition-btn');
+        const conditionsList = document.getElementById('conditions-list');
+        const closeBtn = document.getElementById('close-manager-btn');
+        const applyBtn = document.getElementById('apply-conditions-btn');
+
+        // Style controls
+        const bgColorInput = document.getElementById('highlight-bg-color');
+        const textColorInput = document.getElementById('highlight-text-color');
+        const fontFamilySelect = document.getElementById('highlight-font-family');
+
+        // Load current values
+        bgColorInput.value = component.get('highlight-color') || '#ffff99';
+        textColorInput.value = component.get('highlight-text-color') || '#000000';
+        fontFamilySelect.value = component.get('highlight-font-family') || '';
+
+        // Handle condition type change
+        conditionTypeSelect.addEventListener('change', function () {
+            const selectedType = this.value;
+            const isTextCondition = ['contains', 'starts-with', 'ends-with', 'exact', 'once-if'].includes(selectedType);
+
+            caseSensitiveCheckbox.style.display = isTextCondition ? 'block' : 'none';
+            caseSensitiveCheckbox.parentElement.style.display = isTextCondition ? 'block' : 'none';
+
+            if (selectedType === 'between') {
+                singleValueInput.style.display = 'none';
+                rangeInputs.style.display = 'block';
+            } else if (selectedType === 'null') {
+                singleValueInput.style.display = 'none';
+                rangeInputs.style.display = 'none';
+            } else {
+                singleValueInput.style.display = 'block';
+                rangeInputs.style.display = 'none';
+            }
+        });
+
+        // Add condition
+        addConditionBtn.addEventListener('click', function () {
+            const type = conditionTypeSelect.value;
+            if (!type) {
+                alert('Please select a condition type');
+                return;
+            }
+
+            let condition = {
+                type,
+                caseSensitive: caseSensitiveCheckbox.checked,
+                textColor: textColorInput.value,
+                fontFamily: fontFamilySelect.value
+            };
+
+            if (type === 'between') {
+                const minVal = minValueInput.value;
+                const maxVal = maxValueInput.value;
+                if (!minVal || !maxVal) {
+                    alert('Please enter both min and max values');
+                    return;
+                }
+                condition.minValue = minVal;
+                condition.maxValue = maxVal;
+            } else if (type !== 'null') {
+                const value = conditionValueInput.value;
+                if (!value) {
+                    alert('Please enter a value');
+                    return;
+                }
+                condition.value = value;
+            }
+
+            component.addHighlightCondition(condition);
+            component.set('highlight-color', bgColorInput.value);
+            component.set('highlight-text-color', textColorInput.value);
+            component.set('highlight-font-family', fontFamilySelect.value);
+            refreshConditionsList(component);
+
+            // Reset form
+            conditionTypeSelect.value = '';
+            conditionValueInput.value = '';
+            minValueInput.value = '';
+            maxValueInput.value = '';
+            caseSensitiveCheckbox.checked = false;
+            singleValueInput.style.display = 'block';
+            rangeInputs.style.display = 'none';
+            caseSensitiveCheckbox.parentElement.style.display = 'none';
+        });
+
+        // Close modal
+        closeBtn.addEventListener('click', function () {
+            editor.Modal.close();
+        });
+
+        // Apply changes and close
+        applyBtn.addEventListener('click', function () {
+            component.set('highlight-color', bgColorInput.value);
+            component.set('highlight-text-color', textColorInput.value);
+            component.set('highlight-font-family', fontFamilySelect.value);
+            component.handleHighlightChange();
+            editor.Modal.close();
+        });
+
+        // Refresh conditions list
+        function refreshConditionsList(component) {
+            const conditions = component.getHighlightConditions();
+
+            if (conditions.length === 0) {
+                conditionsList.innerHTML = '<p style="color: #666;">No conditions added yet.</p>';
+                return;
+            }
+
+            let html = '';
+            conditions.forEach((condition, index) => {
+                let conditionText = '';
+                const caseSensitive = condition.caseSensitive ? ' (Case Sensitive)' : '';
+
+                if (condition.type === 'between') {
+                    conditionText = `Between ${condition.minValue} and ${condition.maxValue}`;
+                } else if (condition.type === 'null') {
+                    conditionText = 'Null/Empty cells';
+                } else {
+                    conditionText = `${condition.type}: ${condition.value}${caseSensitive}`;
+                }
+
+                html += `
+        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>${conditionText}</span>
+            <button onclick="removeCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
+        </div>`;
+            });
+
+            conditionsList.innerHTML = html;
+        }
+
+        // Global function for removing conditions
+        window.removeCondition = function (index) {
+            component.removeHighlightCondition(index);
+            refreshConditionsList(component);
+        };
+
+        // Initial load
+        refreshConditionsList(component);
+    }
     // Override HTML export for proper content preservation
     const originalGetHtml = editor.getHtml;
-    editor.getHtml = function() {
+    editor.getHtml = function () {
         try {
             // Ensure all cell data is stored before export
             const canvasBody = editor.Canvas.getBody();
             const jsonTables = canvasBody.querySelectorAll('.json-table-container');
-            
+
             jsonTables.forEach(tableContainer => {
                 const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
                 if (tableComponent) {
@@ -1182,14 +1981,14 @@ function jsontablecustom(editor) {
                             const columnKey = cell.getAttribute('data-column-key');
                             const isHeader = cell.tagName === 'TH';
                             const content = cell.textContent;
-                            
+
                             if (isHeader && columnKey) {
                                 tableComponent.updateHeaderData(columnKey, content);
                             } else if (rowIndex !== null && columnKey) {
                                 tableComponent.updateCellData(parseInt(rowIndex), columnKey, content);
                             }
                         });
-                        
+
                         // Force table re-render to capture changes
                         tableComponent.updateTableHTML();
                     }
@@ -1197,7 +1996,7 @@ function jsontablecustom(editor) {
             });
 
             return originalGetHtml.call(this);
-            
+
         } catch (error) {
             console.warn('Error in JSON table HTML export:', error);
             return originalGetHtml.call(this);
@@ -1363,16 +2162,35 @@ function jsontablecustom(editor) {
 <style>
 .json-table-container {
     min-height: 200px;
+    padding: 10px;
     width: 100%;
     margin: 10px 0;
 }
 
 .json-table-wrapper {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    width: 100%;
+    overflow-x: auto;
 }
 
 .json-data-table {
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+    border: 2px solid #000;
+}
+
+.json-data-table th,
+.json-data-table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+    background-color: #fff;
+}
+
+.json-data-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
 }
 
 .json-table-cell.editing {
@@ -1380,9 +2198,21 @@ function jsontablecustom(editor) {
     outline: 2px solid #007bff !important;
 }
 
-.json-table-cell:hover {
+/* Formula cell styles */
+.formula-cell {
+    font-family: 'Courier New', monospace !important;
+    font-weight: bold;
     background-color: #f0f8ff !important;
-    cursor: pointer;
+}
+
+.formula-cell::before {
+    content: "f(x)";
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 8px;
+    color: #1976d2;
+    font-weight: bold;
 }
 
 /* Enhanced highlighted cell styles */
@@ -1404,7 +2234,9 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     z-index: 1;
 }
 
-/style>`;
+/* Print-specific styles */
+
+    </style>`;
 
     // Inject CSS
     if (!document.querySelector('#json-table-styles')) {
@@ -1413,4 +2245,5 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         styleElement.innerHTML = tableCSS;
         document.head.appendChild(styleElement);
     }
+
 }

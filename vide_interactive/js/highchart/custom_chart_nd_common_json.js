@@ -144,17 +144,17 @@ const getTraitsForChartType = (chartType) => {
         ...json_button_sugesstionTrait,
         ...chart_yAxis_Trait,
         ...Select_chart_layout_Trait,
-        ...legend_colors_Trait, // Always include legend colors
+        ...legend_colors_Trait, 
     ];
 
-    // Charts that support axis inversion
+
     const invertibleCharts = [
         'bar', 'column', 'line', 'area', 'scatter', 
-        'stacked-column', 'stacked-bar', 'line-column', 'bubble' // Added bubble
+        'stacked-column', 'stacked-bar', 'line-column', 'bubble' 
     ];
     
     if (invertibleCharts.includes(chartType)) {
-        baseTraits.splice(-1, 0, ...swap_axis_Trait); // Insert before legend colors
+        baseTraits.splice(-1, 0, ...swap_axis_Trait); 
     }
     
     return baseTraits;
@@ -190,7 +190,6 @@ const getTraitsForChartType = (chartType) => {
           width: "100%",
         },
         script: function () { 
-          // Enhanced initialization for export compatibility
           const initializeChart = () => {
             const ctx = this.id; 
             const element = document.getElementById(ctx);
@@ -210,17 +209,15 @@ const getTraitsForChartType = (chartType) => {
             let legendColors = "{[ legendColors ]}" || "";
             let customColors = null;
             if (legendColors && legendColors.trim()) {
-                // Filter out empty strings and validate hex colors
                 customColors = legendColors.split(',')
                     .map(color => color.trim())
                     .filter(color => color && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color));
                 
-                // If no valid colors found, set to null
                 if (customColors.length === 0) {
                     customColors = null;
                 }
             }
-            // Fallback data handling for export scenarios
+
             let language = 'english';
             let project_type = 'developmentJsonType';
             let str = null;
@@ -256,7 +253,6 @@ const getTraitsForChartType = (chartType) => {
             let seriesData2 = {};
             let chartAlign = chart_layout + 'Align';
 
-            // Chart type configurations with fallback data
             if (chartType === 'pie') {
                 if (!seriesData.series) {
                     seriesData = {
@@ -280,7 +276,7 @@ const getTraitsForChartType = (chartType) => {
                         plotBorderWidth: null,
                         plotShadow: false,
                         type: chartType,
-                        animation: false, // Disable animation for export
+                        animation: false, 
                     },
                     title: {
                         text: chart_Title,
@@ -307,7 +303,7 @@ const getTraitsForChartType = (chartType) => {
                                 enabled: false
                             },
                             showInLegend: true,
-                            animation: false // Disable animation for export
+                            animation: false 
                         }
                     },
                 };
@@ -666,7 +662,6 @@ const getTraitsForChartType = (chartType) => {
                 };
             }
 
-            // Drilldown charts (simplified for export)
             if (chartType === 'drilldown_bar') {
                 if (!seriesData.series) {
                     seriesData = {
@@ -729,7 +724,7 @@ const getTraitsForChartType = (chartType) => {
                                 format: "{point.y:.1f}%"
                             },
                             animation: false,
-                                                colors: customColors,
+                            colors: customColors,
                         }
                     },
                     legend: {
@@ -890,9 +885,7 @@ const getTraitsForChartType = (chartType) => {
                     },
                     credits: { enabled: false },
                 };
-            }
-
-// -------------------------------New Charts--------------------------------------------------            
+            }         
 
             if (chartType === 'donut') {
                 if (!seriesData.series) {
@@ -991,7 +984,6 @@ const getTraitsForChartType = (chartType) => {
             
             if (chartType === 'scatter') {
                 if (!seriesData.series) {
-                    // Sample static data for demo; replace with live fetch if needed
                     seriesData = {
                         series: [
                             {
@@ -1117,7 +1109,7 @@ const getTraitsForChartType = (chartType) => {
                         allowDecimals: false,
                         labels: {
                             formatter: function () {
-                                return this.value; // show year as-is
+                                return this.value; 
                             }
                         },
                         accessibility: {
@@ -1441,7 +1433,7 @@ const getTraitsForChartType = (chartType) => {
                     type: 'candlestick',
                     name: 'BTC/USDT',
                     id: 'live-series',
-                    data: [] // will be filled from WebSocket
+                    data: [] 
                     }]
                 };
 
@@ -1453,21 +1445,20 @@ const getTraitsForChartType = (chartType) => {
                         const chart = this;
                         const series = chart.get('live-series');
 
-                        // Fetch initial historical candles (e.g., last 100 candles)
                         fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`)
                             .then(res => res.json())
                             .then(data => {
                             const ohlc = data.map(d => [
-                                d[0],       // time
-                                parseFloat(d[1]), // open
-                                parseFloat(d[2]), // high
-                                parseFloat(d[3]), // low
-                                parseFloat(d[4])  // close
+                                d[0],      
+                                parseFloat(d[1]), 
+                                parseFloat(d[2]), 
+                                parseFloat(d[3]), 
+                                parseFloat(d[4]),
                             ]);
                             series.setData(ohlc, true, false, false);
                             });
 
-                        // Open WebSocket for live updates
+                 
                         const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`);
 
                         ws.onmessage = function (event) {
@@ -1475,16 +1466,16 @@ const getTraitsForChartType = (chartType) => {
                             const k = msg.k;
 
                             const point = [
-                            k.t,                         // open time
-                            parseFloat(k.o),             // open
-                            parseFloat(k.h),             // high
-                            parseFloat(k.l),             // low
-                            parseFloat(k.c)              // close
+                            k.t,                       
+                            parseFloat(k.o),             
+                            parseFloat(k.h),            
+                            parseFloat(k.l),             
+                            parseFloat(k.c)            
                             ];
 
                             const last = series.data[series.data.length - 1];
                             if (last && last.x === point[0]) {
-                            // update last candle
+                            
                             last.update({
                                 open: point[1],
                                 high: point[2],
@@ -1492,7 +1483,7 @@ const getTraitsForChartType = (chartType) => {
                                 close: point[4]
                             }, true, false);
                             } else {
-                            // add new candle
+                            
                             series.addPoint(point, true, series.data.length > 100);
                             }
                         };
@@ -1589,7 +1580,7 @@ const getTraitsForChartType = (chartType) => {
                     type: 'ohlc',
                     name: 'BTC/USDT',
                     id: 'live-ohlc-series',
-                    data: [] // will be filled dynamically
+                    data: [] 
                     }]
                 };
 
@@ -1601,21 +1592,19 @@ const getTraitsForChartType = (chartType) => {
                         const chart = this;
                         const series = chart.get('live-ohlc-series');
 
-                        // Load last 100 OHLC bars
                         fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`)
                             .then(res => res.json())
                             .then(data => {
                             const ohlc = data.map(d => [
-                                d[0],       // timestamp
-                                parseFloat(d[1]), // open
-                                parseFloat(d[2]), // high
-                                parseFloat(d[3]), // low
-                                parseFloat(d[4])  // close
+                                d[0],       
+                                parseFloat(d[1]), 
+                                parseFloat(d[2]), 
+                                parseFloat(d[3]), 
+                                parseFloat(d[4])  
                             ]);
                             series.setData(ohlc, true, false, false);
                             });
 
-                        // WebSocket connection
                         const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`);
 
                         ws.onmessage = function (event) {
@@ -1984,10 +1973,8 @@ const getTraitsForChartType = (chartType) => {
                 };
             }
 
-            // Create chart with error handling
             try {
               if (window.Highcharts) {
-                // Destroy existing chart if any
                 const existingChart = window.Highcharts.charts.find(chart => 
                   chart && chart.container && chart.container.id === ctx
                 );
@@ -1995,13 +1982,10 @@ const getTraitsForChartType = (chartType) => {
                   existingChart.destroy();
                 }
                 
-                // Create new chart
                 const chart = window.Highcharts.chart(ctx, seriesData2);
                 
-                // Store chart reference for cleanup
                 element.chartInstance = chart;
                 
-                // Ensure chart is rendered for export
                 setTimeout(() => {
                   if (chart && chart.reflow) {
                     chart.reflow();
@@ -2014,7 +1998,6 @@ const getTraitsForChartType = (chartType) => {
             }
           };
 
-          // Enhanced script loading with better export support
           const loadHighcharts = () => {
             return new Promise((resolve, reject) => {
               if (window.Highcharts) {
@@ -2025,11 +2008,10 @@ const getTraitsForChartType = (chartType) => {
               const script = document.createElement("script");
               script.src = "{[ custom_line_chartsrc ]}";
               script.onload = () => {
-                // Load drilldown module if needed
                 const drilldownScript = document.createElement("script");
                 drilldownScript.src = "https://code.highcharts.com/11.4.8/modules/drilldown.js";
                 drilldownScript.onload = resolve;
-                drilldownScript.onerror = resolve; // Continue even if drilldown fails
+                drilldownScript.onerror = resolve; 
                 document.head.appendChild(drilldownScript);
               };
               script.onerror = reject;
@@ -2037,15 +2019,12 @@ const getTraitsForChartType = (chartType) => {
             });
           };
 
-          // Initialize with proper timing
           const init = async () => {
             try {
               await loadHighcharts();
-              // Wait for DOM to be ready
               if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initializeChart);
               } else {
-                // Add small delay for export scenarios
                 setTimeout(initializeChart, 50);
               }
             } catch (error) {
@@ -2053,13 +2032,11 @@ const getTraitsForChartType = (chartType) => {
             }
           };
 
-          // Prevent multiple initializations
           if (!this.highchartsInitialized) {
             this.highchartsInitialized = true;
             init();
           }
 
-          // Cleanup on removal
           this.on('removed', () => {
             const element = document.getElementById(this.id);
             if (element && element.chartInstance) {
@@ -2069,7 +2046,6 @@ const getTraitsForChartType = (chartType) => {
             this.highchartsInitialized = false;
           });
 
-          // Re-initialize on print/export events
           if (typeof window !== 'undefined') {
             window.addEventListener('beforeprint', () => {
               setTimeout(initializeChart, 3000);
@@ -2082,14 +2058,12 @@ const getTraitsForChartType = (chartType) => {
         },
       }),
       init() {
-        // Handle chart type changes to update traits dynamically
         this.on('change:SelectChart', () => {
             const chartType = this.get('SelectChart');
             const newTraits = getTraitsForChartType(chartType);
             this.set('traits', [id_Trait, title_Trait, ...newTraits]);
         });
 
-        // Set up event listeners for all possible traits
         const allPossibleTraits = [
             name_Trait,
             ...chartTitle_Trait,
@@ -2130,7 +2104,6 @@ const getTraitsForChartType = (chartType) => {
   addCustomLineChartType(editor);
   
 
-  //  Common Json Code Started
   const styleManager = editor.StyleManager;
   let common_json_file_name_value = localStorage.getItem('common_json_file_name');
   let common_json_file_name_text = '';
@@ -2205,7 +2178,6 @@ const getTraitsForChartType = (chartType) => {
       const selectedComponent = editor.getSelected();
       const componentType = selectedComponent?.get('type');
       
-      // Support both 'text' and 'formatted-rich-text' components
       if (componentType === 'text' || componentType === 'formatted-rich-text' ||  componentType === 'custom-heading') {
         const content = selectedComponent?.get('content');
         if (content !== undefined) {
@@ -2215,18 +2187,15 @@ const getTraitsForChartType = (chartType) => {
             const value = eval(jsonPath);
             if (value !== undefined && value !== null) {
               if (componentType === 'formatted-rich-text') {
-                // For formatted-rich-text, update both raw-content and trigger update
                 selectedComponent.set('raw-content', String(value), { silent: true });
                 selectedComponent.set('my-input-json', event.value, { silent: true });
                 selectedComponent.updateContent();
               } else {
-                // For regular text components
                 const componentView = selectedComponent.view;
                 if (componentView) {
                   componentView.el.innerHTML = value;
                 }
               }
-              // Re-render traits to show updated values
               setTimeout(() => {
                 editor.TraitManager.render();
               }, 100);
@@ -2238,9 +2207,7 @@ const getTraitsForChartType = (chartType) => {
       }
     }
   }
-
-
-  // Start suggestion module   
+ 
   editor.on('load', function () {
       const jsonSector = document.querySelector('.i_designer-sm-sector__JSON'); 
       if (jsonSector) {
@@ -2258,7 +2225,6 @@ const getTraitsForChartType = (chartType) => {
       }
   });
 
-  // Recursive function to extract all metadata keys including nested keys with proper array indexing
   function extractMetaDataKeys(obj, prefix = '') {
       let keys = [];
       for (const key in obj) {
@@ -2278,13 +2244,10 @@ const getTraitsForChartType = (chartType) => {
       return keys;
   }
 
-  // open basic json popup model
   function openSuggestionJsonModal() {
-      // Extract metadata keys from common_json
       const commonJson = JSON.parse(localStorage.getItem('common_json'));
       const customLanguage = custom_language;
       const metaDataKeys = extractMetaDataKeys(commonJson[customLanguage]);
-      // Create the modal content with search functionality
       let modalContent = `
       <div class="new-table-form">
         <div style="padding-bottom:10px">
@@ -2293,7 +2256,6 @@ const getTraitsForChartType = (chartType) => {
         <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
     `;
 
-      // Display all metadata keys initially
       metaDataKeys.forEach(key => {
           modalContent += `<div class="suggestion" data-value="${key}">${key}</div>`;
       });
@@ -2422,7 +2384,7 @@ editor.on('component:selected', (component) => {
       });
   }  
 
-  // =============================
+
 function customTable2(editor){
     const props_test_table = (i) => i;  
     const id_Trait = {
@@ -2542,7 +2504,6 @@ function customTable2(editor){
       class:"json-suggestion-btn",  
     }));
 
-    // New traits for filtering
     const filter_column_trait = {
       changeProp: 1,
       type: "select",
@@ -2608,18 +2569,15 @@ function customTable2(editor){
     let JsonPath1 = "{[ jsonpath ]}";
     let filterColumn = "{[ filterColumn ]}";
     let filterValue = "{[ filterValue ]}";
-    
-    // Clear previous content
+
     divElement.innerHTML = "";
     
-    // Check if json path is provided
     if (!JsonPath1 || JsonPath1.trim() === "") {
-      return; // Show nothing
+      return; 
     }
 
-    // Check if filter value is provided (only show table after filter value is entered)
     if (!filterValue || filterValue.trim() === "") {
-      return; // Show nothing
+      return; 
     }
 
     let custom_language = localStorage.getItem('language') || 'english';
@@ -2640,14 +2598,11 @@ function customTable2(editor){
 
     const objectKeys = Object.keys(tableData.heading);
     
-    // Filter data based on filter column and value
     let filteredData = tableData.data;
     if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
       if (filterValue === "=") {
-        // Show all data
         filteredData = tableData.data;
       } else {
-        // Filter data based on column and value
         filteredData = tableData.data.filter(row => {
           const cellValue = String(row[filterColumn] || "").toLowerCase();
           const searchValue = String(filterValue).toLowerCase();
@@ -2662,7 +2617,6 @@ function customTable2(editor){
     table.style.border = "1px solid #000";
     table.setAttribute('id', 'table' + ctx);
 
-    // Create header
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
 
@@ -2684,7 +2638,6 @@ function customTable2(editor){
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Create body with filtered data
     const tbody = document.createElement('tbody');
     tbody.setAttribute("id", "tbody" + ctx);
     
@@ -2710,40 +2663,33 @@ function customTable2(editor){
               td.style.textAlign = "left";
               td.style.border = "1px solid #000";
 
-              // Get raw value from JSON
               const rawVal = row[key];
               let displayVal = rawVal;
 
-              // A1, B1, etc.
               const colLetter = String.fromCharCode(65 + j);
               const cellRef = colLetter + (rowIndex + 1);
 
-              // Initialize parser if not exists
               if (!window.globalFormulaParser) {
                 window.globalFormulaParser = new formulaParser.Parser();
               }
               const parser = window.globalFormulaParser;
 
-              // Setup shared map of values
               if (!window.globalCellMap) {
                 window.globalCellMap = {};
               }
               const cellMap = window.globalCellMap;
 
-              // Hook parser to use cellMap
               parser.on('callCellValue', function (cellCoord, done) {
                 const label = cellCoord.label;
                 done(cellMap[label] || 0);
               });
 
-              // Evaluate if formula
               if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
                 const res = parser.parse(rawVal.trim().substring(1));
                 displayVal = res.error ? '#ERR' : res.result;
               }
               cellMap[cellRef] = isNaN(displayVal) ? 0 : displayVal;
 
-              // Create both display span and hidden input for editing
               const displaySpan = document.createElement('span');
               displaySpan.className = 'cell-display';
               displaySpan.textContent = displayVal || '';
@@ -2767,7 +2713,6 @@ function customTable2(editor){
               td.setAttribute("data-cell-ref", cellRef);
               td.setAttribute("data-display-value", displayVal || '');
 
-              // Make cell editable on click for formula support
               td.addEventListener("click", function () {
                 if (td.isEditing) return;
                 
@@ -2812,7 +2757,6 @@ function customTable2(editor){
     table.appendChild(tbody);
     divElement.appendChild(table);
 
-    // Enhanced print styles that ensure data visibility
     const printStyles = document.createElement('style');
     printStyles.textContent = `
       @media print {
@@ -2898,9 +2842,7 @@ function customTable2(editor){
       document.head.appendChild(printStyles);
     }
 
-    // Add print event listeners to ensure data is properly displayed
     const beforePrintHandler = () => {
-      // Ensure all display spans contain the correct data
       const cells = divElement.querySelectorAll('td[data-display-value]');
       cells.forEach(cell => {
         const displaySpan = cell.querySelector('.cell-display');
@@ -2909,7 +2851,6 @@ function customTable2(editor){
           displaySpan.textContent = displayValue;
           displaySpan.style.display = 'block';
         }
-        // Hide any visible inputs
         const input = cell.querySelector('.cell-input');
         if (input) {
           input.style.display = 'none';
@@ -2917,16 +2858,12 @@ function customTable2(editor){
       });
     };
 
-    // Listen for print events
     window.addEventListener('beforeprint', beforePrintHandler);
     
-    // Store handler reference for cleanup
     divElement._printHandler = beforePrintHandler;
   };
 
-  // Load scripts and init
   const loadScriptsAndInit = () => {
-    // Load jQuery if not present
     if (!window.jQuery) {
       const jqueryScript = document.createElement("script");
       jqueryScript.src = "{[ custom_line_chartsrc ]}";
@@ -2955,12 +2892,10 @@ function customTable2(editor){
 
   this.on('removed', function () {
     this.tableInitialized = false;
-    // Clean up print styles
     const printStyleEl = document.getElementById('table-print-styles-' + this.id);
     if (printStyleEl) {
       printStyleEl.remove();
     }
-    // Clean up event listeners
     const divElement = document.getElementById(this.id);
     if (divElement && divElement._printHandler) {
       window.removeEventListener('beforeprint', divElement._printHandler);
@@ -2969,22 +2904,17 @@ function customTable2(editor){
 },
           }),
           init() {
-            // Update filter column options when jsonpath changes (silently)
             this.on('change:jsonpath', () => {
               this.updateFilterColumnOptions();
-              // Reset filter selections
               this.set('filterColumn', '');
               this.set('filterValue', '');
-              // Don't trigger table regeneration
             });
 
-            // Only regenerate table when filter value changes
             this.on('change:filterValue', () => {
               this.tableInitialized = false;  
               this.trigger("change:script");
             });
 
-            // Also regenerate when filter column changes (but only if filter value exists)
             this.on('change:filterColumn', () => {
               if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
                 this.tableInitialized = false;  
@@ -2992,7 +2922,6 @@ function customTable2(editor){
               }
             });
 
-            // Handle other trait changes
             const otherTraits = all_Traits
               .filter((i) => !["jsonpath", "filterColumn", "filterValue"].includes(i.name))
               .map((i) => `change:${i.name}`)
@@ -3000,7 +2929,6 @@ function customTable2(editor){
             
             if (otherTraits) {
               this.on(otherTraits, () => {
-                // Only regenerate if table is already visible (i.e., filter value exists)
                 if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
                   this.tableInitialized = false;  
                   this.trigger("change:script");
@@ -3046,7 +2974,6 @@ function customTable2(editor){
               const filterColumnTrait = this.getTrait('filterColumn');
               
               if (filterColumnTrait) {
-                // Update options
                 const options = [
                   { value: "", label: "Select Column to Filter" },
                   ...objectKeys.map(key => ({
