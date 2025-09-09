@@ -1,87 +1,123 @@
 function jsontablecustom(editor) {
-    loadFormulaParser();
+    let HotFormulaParser = null;
     function loadFormulaParser(callback) {
-        if (typeof HotFormulaParser === 'undefined') {
-            const script = document.createElement('script');
-            script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
-            script.onload = function () {
-                console.log('HotFormulaParser loaded successfully');
-                if (callback) callback();
-            };
-            script.onerror = function () {
-                console.warn('Failed to load HotFormulaParser');
-            };
-            document.head.appendChild(script);
-        } else {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+        script.onload = function () {
+            console.log('HotFormulaParser loaded successfully');
+            HotFormulaParser = new formulaParser.Parser();
+
+            // ✅ Add custom formulas after parser is initialized
+            registerCustomFormulas();
+
+            console.log("parser", HotFormulaParser);
             if (callback) callback();
-        }
+        };
+        script.onerror = function () {
+            console.warn('Failed to load HotFormulaParser');
+            if (callback) callback(); // fallback so UI doesn’t hang
+        };
+        document.head.appendChild(script);
     }
 
-    // Add highlighting evaluation function from custom table
-    function evaluateFormula(formula, tableData, currentRow, currentCol) {
-        try {
-            // Simple formula evaluation without external parser
-            let processedFormula = formula;
+    // ✅ Register custom formulas
+    function registerCustomFormulas() {
+        // --- PERCENT(base, percent) ---
+        HotFormulaParser.setFunction('PERCENT', function (params) {
+            if (params.length !== 2) return '#N/A';
+            const base = parseFloat(params[0]);
+            const percent = parseFloat(params[1]);
+            if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+            return base * (percent / 100);
+        });
 
-            // Handle basic math operations
-            if (processedFormula.match(/^[\d\s\+\-\*\/\(\)\.]+$/)) {
-                // Simple arithmetic expression
-                try {
-                    const result = Function('"use strict"; return (' + processedFormula + ')')();
-                    return typeof result === 'number' ? result : processedFormula;
-                } catch (e) {
-                    return `#ERROR: ${e.message}`;
-                }
-            }
+        // --- Load number-to-words library ---
+        const numScript = document.createElement('script');
+        numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
+        numScript.onload = function () {
+            // --- NUMTOWORDS(number [, mode]) ---
+            // mode = "currency" will format as "rupees and paise"
+            HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+                if (params.length < 1) return '#N/A';
 
-            // Handle SUM function
-            if (processedFormula.toUpperCase().startsWith('SUM(') && processedFormula.endsWith(')')) {
-                const expression = processedFormula.slice(4, -1); // Remove SUM( and )
-                try {
-                    const result = Function('"use strict"; return (' + expression + ')')();
-                    return typeof result === 'number' ? result : processedFormula;
-                } catch (e) {
-                    return `#ERROR: ${e.message}`;
-                }
-            }
+                const raw = params[0];
+                const num = parseFloat(raw);
+                if (isNaN(num)) return '#VALUE!';
 
-            // Parse cell references like A1, B2, etc.
-            const cellReferencePattern = /([A-Z]+)(\d+)/g;
+                const mode = (params[1] || "").toString().toLowerCase();
 
-            // Replace cell references with actual values
-            processedFormula = processedFormula.replace(cellReferencePattern, (match, colLetter, rowNum) => {
-                try {
-                    const colIndex = columnLetterToIndex(colLetter);
-                    const rowIndex = parseInt(rowNum) - 1; // Convert to 0-based index
-
-                    if (tableData && tableData[rowIndex] && colIndex < Object.keys(tableData[0] || {}).length) {
-                        const columnKeys = Object.keys(tableData[0]);
-                        const columnKey = columnKeys[colIndex];
-                        const cellValue = tableData[rowIndex][columnKey];
-
-                        // Return numeric value or 0 if not numeric
-                        const numericValue = parseFloat(cellValue);
-                        return isNaN(numericValue) ? 0 : numericValue;
+                let words = "";
+                if (Number.isInteger(num)) {
+                    // Integer only
+                    words = numberToWords.toWords(num);
+                } else {
+                    // Decimal handling
+                    const [intPart, decPart] = raw.toString().split(".");
+                    const intWords = numberToWords.toWords(parseInt(intPart));
+                    if (mode === "currency") {
+                        // Convert decimals as paise (up to 2 digits)
+                        const paise = parseInt(decPart.substring(0, 2).padEnd(2, "0"));
+                        const paiseWords = paise > 0 ? numberToWords.toWords(paise) + " paise" : "";
+                        words = intWords + " rupees" + (paiseWords ? " and " + paiseWords : "");
+                    } else {
+                        // Default: spell out each decimal digit
+                        const decWords = decPart.split("").map(d => numberToWords.toWords(parseInt(d))).join(" ");
+                        words = intWords + " point " + decWords;
                     }
-                    return 0;
-                } catch (e) {
-                    return 0;
                 }
+
+                return words;
             });
 
-            // Try to evaluate the processed formula
-            try {
-                const result = Function('"use strict"; return (' + processedFormula + ')')();
-                return typeof result === 'number' ? result : `#ERROR: Invalid formula`;
-            } catch (error) {
-                return `#ERROR: ${error.message}`;
+            console.log("NUMTOWORDS formula registered");
+        };
+        document.head.appendChild(numScript);
+    }
+
+
+    // ✅ Formula evaluation function
+    function evaluateFormula(formula, tableData, currentRow, currentCol) {
+        try {
+            if (!HotFormulaParser) {
+                return '#ERROR: Parser not loaded';
             }
 
+            // Clear and rebuild the cell map with current table data
+            window.globalCellMap = {};
+            const headers = Object.keys(tableData[0] || {});
+
+            tableData.forEach((row, rowIdx) => {
+                headers.forEach((columnKey, colIdx) => {
+                    const colLetter = indexToColumnLetter(colIdx);
+                    const cellLabel = colLetter + (rowIdx + 1); // Excel-style A1, B2 etc.
+                    let value = row[columnKey];
+                    if (value === null || value === undefined) value = '';
+                    window.globalCellMap[cellLabel] = value;
+                });
+            });
+
+            // Handle cell references
+            HotFormulaParser.on('callCellValue', function (cellCoord, done) {
+                let cellValue = window.globalCellMap[cellCoord.label];
+                if (cellValue === null || cellValue === undefined) {
+                    cellValue = '';
+                }
+                done(cellValue);
+            });
+
+            // Parse and evaluate
+            const { result, error } = HotFormulaParser.parse(formula);
+            if (error) {
+                return `#ERROR: ${error}`;
+            }
+
+            return result;
         } catch (error) {
-            console.warn('Formula evaluation error:', error);
+            console.error('Formula evaluation error:', error);
             return `#ERROR: ${error.message}`;
         }
     }
+
 
     // Add highlighting function from custom table
     function applyHighlighting(tableId, conditions, highlightColor) {
@@ -354,6 +390,14 @@ function jsontablecustom(editor) {
                     },
                     {
                         type: 'button',
+                        name: 'manage-running-totals-btn',
+                        label: 'Manage Running Totals',
+                        text: 'Configure Running Totals',
+                        full: true,
+                        command: 'open-running-total-manager'
+                    },
+                    {
+                        type: 'button',
                         name: 'add-row-btn',
                         label: 'Add Row',
                         text: 'Add Row',
@@ -415,8 +459,14 @@ function jsontablecustom(editor) {
                 this.on('change:json-path', () => {
                     this.updateTableFromJson();
                     this.updateFilterColumnOptions();
+                    this.updateRunningTotalColumnOptions();
                     this.set('filter-column', '');
                     this.set('filter-value', '');
+                    this.set('running-total-column', '');
+                    this.set('enable-running-total', false);
+                });
+                this.on('change:selected-running-total-columns', () => {
+                    this.updateRunningTotals();
                 });
 
                 this.on('change:filter-column change:filter-value', () => {
@@ -430,6 +480,7 @@ function jsontablecustom(editor) {
 
                 this.set('show-placeholder', true);
                 this.updateTableHTML();
+
             },
             updateFilterColumnOptions() {
                 try {
@@ -470,6 +521,241 @@ function jsontablecustom(editor) {
                     console.log('Error updating filter options:', error);
                 }
             },
+            updateRunningTotalColumnOptions() {
+                try {
+                    const jsonPath = this.get('json-path');
+                    if (!jsonPath || jsonPath.trim() === "") {
+                        return;
+                    }
+
+                    let custom_language = localStorage.getItem('language') || 'english';
+                    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+
+                    if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+                        return;
+                    }
+
+                    const str = jsonDataN[custom_language][jsonPath];
+                    const tableData = eval(str);
+
+                    if (!tableData || !tableData.heading) {
+                        return;
+                    }
+
+                    const objectKeys = Object.keys(tableData.heading);
+
+                    // Update the running total column trait options
+                    const runningTotalTrait = this.getTrait('running-total-column');
+                    if (runningTotalTrait) {
+                        const options = [
+                            { value: "", name: "Select Column for Running Total" },
+                            ...objectKeys.map(key => ({
+                                value: key,
+                                name: tableData.heading[key]
+                            }))
+                        ];
+                        runningTotalTrait.set('options', options);
+                    }
+                } catch (error) {
+                    console.log('Error updating running total options:', error);
+                }
+            },
+            updateRunningTotals() {
+                const selectedColumns = this.get('selected-running-total-columns') || [];
+
+                // Remove all existing running total columns
+                this.removeAllRunningTotalColumns();
+
+                // Add running totals for selected columns
+                selectedColumns.forEach(column => {
+                    this.addSingleRunningTotalColumn(column);
+                });
+
+                this.updateTableHTML();
+            },
+
+            removeAllRunningTotalColumns() {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+
+                // Remove running total columns from headers
+                const updatedHeaders = {};
+                Object.keys(headers).forEach(key => {
+                    if (!key.endsWith('_running_total')) {
+                        updatedHeaders[key] = headers[key];
+                    }
+                });
+
+                // Remove running total columns from data
+                const updatedData = data.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(key => {
+                        if (!key.endsWith('_running_total')) {
+                            newRow[key] = row[key];
+                        }
+                    });
+                    return newRow;
+                });
+
+                this.set('custom-headers', updatedHeaders);
+                this.set('custom-data', updatedData);
+            },
+
+            addSingleRunningTotalColumn(selectedColumn) {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+
+                // Check if the selected column contains numeric data
+                const isNumericColumn = data.every(row => {
+                    const value = row[selectedColumn];
+                    return value === '' || value === null || value === undefined || !isNaN(parseFloat(value));
+                });
+
+                if (!isNumericColumn) {
+                    console.warn(`Cannot create running total for column "${headers[selectedColumn]}". Column contains non-numeric data.`);
+                    return;
+                }
+
+                // Add running total column to headers
+                const newColumnKey = `${selectedColumn}_running_total`;
+                const newColumnName = `${headers[selectedColumn]} (Running Total)`;
+
+                // Insert running total column right after the original column
+                const headerKeys = Object.keys(headers);
+                const originalIndex = headerKeys.indexOf(selectedColumn);
+                const newHeaders = {};
+
+                headerKeys.forEach((key, index) => {
+                    newHeaders[key] = headers[key];
+                    if (index === originalIndex) {
+                        newHeaders[newColumnKey] = newColumnName;
+                    }
+                });
+
+                // Calculate running totals and add to data
+                let runningTotal = 0;
+                const updatedData = data.map(row => {
+                    const value = parseFloat(row[selectedColumn]) || 0;
+                    runningTotal += value;
+
+                    const newRow = {};
+                    Object.keys(newHeaders).forEach(key => {
+                        if (key === newColumnKey) {
+                            newRow[key] = runningTotal.toFixed(2);
+                        } else {
+                            newRow[key] = row[key];
+                        }
+                    });
+
+                    return newRow;
+                });
+
+                this.set('custom-headers', newHeaders);
+                this.set('custom-data', updatedData);
+            },
+            addRunningTotalColumn() {
+                const selectedColumn = this.get('running-total-column');
+                const enableRunningTotal = this.get('enable-running-total');
+
+                if (!selectedColumn || !enableRunningTotal) return;
+
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+
+                // Check if the selected column contains numeric data
+                const isNumericColumn = data.every(row => {
+                    const value = row[selectedColumn];
+                    return value === '' || value === null || value === undefined || !isNaN(parseFloat(value));
+                });
+
+                if (!isNumericColumn) {
+                    alert(`Cannot create running total for column "${headers[selectedColumn]}". Column contains non-numeric data.`);
+                    this.set('enable-running-total', false);
+                    return;
+                }
+
+                const runningTotalColumns = this.get('running-total-columns') || [];
+
+                // Check if running total already exists for this column
+                if (runningTotalColumns.includes(selectedColumn)) {
+                    return; // Already exists
+                }
+
+                // Add to running total columns list
+                runningTotalColumns.push(selectedColumn);
+                this.set('running-total-columns', runningTotalColumns);
+
+                // Add running total column to headers
+                const newColumnKey = `${selectedColumn}_running_total`;
+                const newColumnName = `${headers[selectedColumn]} (Running Total)`;
+                const updatedHeaders = { ...headers };
+
+                // Insert running total column right after the original column
+                const headerKeys = Object.keys(headers);
+                const originalIndex = headerKeys.indexOf(selectedColumn);
+                const newHeaders = {};
+
+                headerKeys.forEach((key, index) => {
+                    newHeaders[key] = headers[key];
+                    if (index === originalIndex) {
+                        newHeaders[newColumnKey] = newColumnName;
+                    }
+                });
+
+                // Calculate running totals and add to data
+                let runningTotal = 0;
+                const updatedData = data.map(row => {
+                    const value = parseFloat(row[selectedColumn]) || 0;
+                    runningTotal += value;
+
+                    const newRow = { ...row };
+                    // Insert running total column in the correct position
+                    const newRowOrdered = {};
+                    Object.keys(newHeaders).forEach(key => {
+                        if (key === newColumnKey) {
+                            newRowOrdered[key] = runningTotal.toFixed(2);
+                        } else {
+                            newRowOrdered[key] = newRow[key];
+                        }
+                    });
+
+                    return newRowOrdered;
+                });
+
+                this.set('custom-headers', newHeaders);
+                this.set('custom-data', updatedData);
+                this.updateTableHTML();
+            },
+            removeRunningTotalColumns() {
+                const runningTotalColumns = this.get('running-total-columns') || [];
+                if (runningTotalColumns.length === 0) return;
+
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                // Remove running total columns from headers
+                const updatedHeaders = { ...headers };
+                runningTotalColumns.forEach(originalColumn => {
+                    const runningTotalKey = `${originalColumn}_running_total`;
+                    delete updatedHeaders[runningTotalKey];
+                });
+
+                // Remove running total columns from data
+                const updatedData = data.map(row => {
+                    const newRow = { ...row };
+                    runningTotalColumns.forEach(originalColumn => {
+                        const runningTotalKey = `${originalColumn}_running_total`;
+                        delete newRow[runningTotalKey];
+                    });
+                    return newRow;
+                });
+
+                this.set('custom-headers', updatedHeaders);
+                this.set('custom-data', updatedData);
+                this.set('running-total-columns', []);
+                this.updateTableHTML();
+            },
+
             getHighlightConditions() {
                 return this.get('highlight-conditions') || [];
             },
@@ -511,23 +797,19 @@ function jsontablecustom(editor) {
                 this.set('show-placeholder', true);
             },
             initializeFormulaParser() {
-                if (!window.globalFormulaParser) {
-                    window.globalFormulaParser = new HotFormulaParser.Parser();
-                }
-                if (!window.globalCellMap) {
-                    window.globalCellMap = {};
-                }
+                const self = this;
+                loadFormulaParser(function () { });
 
-                const parser = window.globalFormulaParser;
                 const cellMap = window.globalCellMap;
-
-                parser.on('callCellValue', function (cellCoord, done) {
+                HotFormulaParser.on('callCellValue', function (cellCoord, done) {
                     const label = cellCoord.label;
                     done(cellMap[label] || 0);
                 });
+                console.log("cell map", cellMap);
+                console.log("hotformulaparcer", HotFormulaParser)
+                self.set('formula-parser', HotFormulaParser);
+                self.set('cell-map', cellMap);
 
-                this.set('formula-parser', parser);
-                this.set('cell-map', cellMap);
             },
             updateTableFromJson() {
                 const jsonPath = this.get('json-path');
@@ -558,7 +840,7 @@ function jsontablecustom(editor) {
                         this.initializeFormulaParser();
 
                         this.updateTableHTML();
-
+                        this.updateRunningTotalColumnOptions();
                         setTimeout(() => {
                             this.trigger('change:content');
                             this.view.render();
@@ -595,14 +877,14 @@ function jsontablecustom(editor) {
 
                         // Force component recognition
                         const existingComp = wrapper.find(`#${cell.id}`)[0];
-                        if (!existingComp) {
-                            // Just register the existing DOM element without adding new component
-                            const existingComp = wrapper.find(`#${cell.id}`)[0];
-                            if (!existingComp) {
-                                // Force component recognition for existing DOM element
-                                editor.getModelForEl(cell);
-                            }
-                        }
+                        // if (!existingComp) {
+                        //     // Just register the existing DOM element without adding new component
+                        //     const existingComp = wrapper.find(`#${cell.id}`)[0];
+                        //     if (!existingComp) {
+                        //         // Force component recognition for existing DOM element
+                        //         editor.getModelForEl(cell);
+                        //     }
+                        // }
                     });
 
                     // Refresh component recognition
@@ -686,6 +968,7 @@ function jsontablecustom(editor) {
                 const data = this.get('custom-data') || this.get('table-data') || [];
                 const updatedData = [...data];
                 const cellFormulas = this.get('cell-formulas') || {};
+                const selectedRunningTotalColumns = this.get('selected-running-total-columns') || [];
 
                 if (updatedData[rowIndex]) {
                     const cellId = `cell-${rowIndex}-${columnKey}`;
@@ -713,8 +996,32 @@ function jsontablecustom(editor) {
                     this.set('cell-formulas', cellFormulas);
                     this.set(`cell-content-${cellId}`, newValue);
 
+                    // Check if this column has a running total and recalculate
+                    if (selectedRunningTotalColumns.includes(columnKey)) {
+                        this.recalculateRunningTotalsForColumn(columnKey);
+                    }
+
                     this.updateTableHTML();
                 }
+            },
+
+            recalculateRunningTotalsForColumn(columnKey) {
+                const data = this.get('custom-data') || [];
+                const runningTotalKey = `${columnKey}_running_total`;
+
+                // Recalculate running total for this column
+                let runningTotal = 0;
+                const updatedData = data.map(row => {
+                    const value = parseFloat(row[columnKey]) || 0;
+                    runningTotal += value;
+
+                    return {
+                        ...row,
+                        [runningTotalKey]: runningTotal.toFixed(2)
+                    };
+                });
+
+                this.set('custom-data', updatedData);
             },
 
 
@@ -1061,6 +1368,16 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     z-index: 1;
 }
 
+.running-total-column {
+    background-color: #f0f8ff !important;
+    font-weight: bold;
+    border-left: 3px solid #007bff !important;
+}
+
+.running-total-column .cell-content {
+    color: #1976d2 !important;
+    font-family: 'Courier New', monospace !important;
+}
    @media print {
   .json-data-table {
     border: 1px solid #000 !important;
@@ -1092,6 +1409,13 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
   }
     .cell-content{
     padding: 2px !important}
+    .running-total-column {
+        background-color: #f0f8ff !important;
+        border-left: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
 </style>`;
 
                 this.set('content', tableHTML);
@@ -1371,81 +1695,81 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 cellContent.innerHTML = newValue;
             },
 
-            createCellComponent(cell) {
-                try {
-                    const rowIndex = cell.getAttribute('data-row');
-                    const columnKey = cell.getAttribute('data-column-key');
-                    const isHeader = cell.classList.contains('editable-header');
-                    const cellId = cell.id;
+            // createCellComponent(cell) {
+            //     try {
+            //         const rowIndex = cell.getAttribute('data-row');
+            //         const columnKey = cell.getAttribute('data-column-key');
+            //         const isHeader = cell.classList.contains('editable-header');
+            //         const cellId = cell.id;
 
-                    // Create a temporary component for style editing
-                    const cellComponent = editor.DomComponents.addComponent({
-                        tagName: isHeader ? 'th' : 'td',
-                        content: cell.innerHTML,
-                        attributes: {
-                            id: cellId,
-                            'data-row': rowIndex,
-                            'data-column-key': columnKey,
-                            class: cell.className
-                        },
-                        style: {
-                            padding: '12px',
-                            border: '1px solid #dee2e6',
-                            'text-align': 'left'
-                        },
-                        traits: [
-                            {
-                                type: 'color',
-                                name: 'background-color',
-                                label: 'Background Color'
-                            },
-                            {
-                                type: 'color',
-                                name: 'color',
-                                label: 'Text Color'
-                            },
-                            {
-                                type: 'select',
-                                name: 'font-weight',
-                                label: 'Font Weight',
-                                options: [
-                                    { value: 'normal', name: 'Normal' },
-                                    { value: 'bold', name: 'Bold' }
-                                ]
-                            },
-                            {
-                                type: 'select',
-                                name: 'text-align',
-                                label: 'Text Align',
-                                options: [
-                                    { value: 'left', name: 'Left' },
-                                    { value: 'center', name: 'Center' },
-                                    { value: 'right', name: 'Right' }
-                                ]
-                            }
-                        ]
-                    });
+            //         // Create a temporary component for style editing
+            //         const cellComponent = editor.DomComponents.addComponent({
+            //             tagName: isHeader ? 'th' : 'td',
+            //             content: cell.innerHTML,
+            //             attributes: {
+            //                 id: cellId,
+            //                 'data-row': rowIndex,
+            //                 'data-column-key': columnKey,
+            //                 class: cell.className
+            //             },
+            //             style: {
+            //                 padding: '12px',
+            //                 border: '1px solid #dee2e6',
+            //                 'text-align': 'left'
+            //             },
+            //             traits: [
+            //                 {
+            //                     type: 'color',
+            //                     name: 'background-color',
+            //                     label: 'Background Color'
+            //                 },
+            //                 {
+            //                     type: 'color',
+            //                     name: 'color',
+            //                     label: 'Text Color'
+            //                 },
+            //                 {
+            //                     type: 'select',
+            //                     name: 'font-weight',
+            //                     label: 'Font Weight',
+            //                     options: [
+            //                         { value: 'normal', name: 'Normal' },
+            //                         { value: 'bold', name: 'Bold' }
+            //                     ]
+            //                 },
+            //                 {
+            //                     type: 'select',
+            //                     name: 'text-align',
+            //                     label: 'Text Align',
+            //                     options: [
+            //                         { value: 'left', name: 'Left' },
+            //                         { value: 'center', name: 'Center' },
+            //                         { value: 'right', name: 'Right' }
+            //                     ]
+            //                 }
+            //             ]
+            //         });
 
-                    // Listen for style changes and apply them to the actual cell
-                    cellComponent.on('change:style', () => {
-                        const styles = cellComponent.getStyle();
-                        Object.keys(styles).forEach(prop => {
-                            cell.style[prop] = styles[prop];
-                        });
+            //         // Listen for style changes and apply them to the actual cell
+            //         cellComponent.on('change:style', () => {
+            //             const styles = cellComponent.getStyle();
+            //             Object.keys(styles).forEach(prop => {
+            //                 cell.style[prop] = styles[prop];
+            //             });
 
-                        // Store styles in the model
-                        if (!isHeader && rowIndex !== null && columnKey) {
-                            this.model.setCellStyle(parseInt(rowIndex), columnKey, styles);
-                        }
-                    });
+            //             // Store styles in the model
+            //             if (!isHeader && rowIndex !== null && columnKey) {
+            //                 this.model.setCellStyle(parseInt(rowIndex), columnKey, styles);
+            //             }
+            //         });
 
-                    return cellComponent;
+            //         return cellComponent;
 
-                } catch (error) {
-                    console.warn('Error creating cell component:', error);
-                    return null;
-                }
-            },
+            //     } catch (error) {
+            //         console.warn('Error creating cell component:', error);
+            //         return null;
+            //     }
+            // },
 
             handleCellEdit(e) {
                 const input = e.target;
@@ -1543,95 +1867,95 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     });
 
     // Add enhanced table cell component type for style manager integration
-    editor.DomComponents.addType('json-table-cell', {
-        isComponent: el => el.classList && el.classList.contains('json-table-cell'),
-        model: {
-            defaults: {
-                selectable: true,
-                hoverable: true,
-                editable: false,
-                droppable: false,
-                draggable: false,
-                removable: false,
-                copyable: false,
-                resizable: false,
-                propagate: [],
-                void: true,
-                traits: [
-                    {
-                        type: 'color',
-                        name: 'background-color',
-                        label: 'Background Color'
-                    },
-                    {
-                        type: 'color',
-                        name: 'color',
-                        label: 'Text Color'
-                    },
-                    {
-                        type: 'select',
-                        name: 'font-weight',
-                        label: 'Font Weight',
-                        options: [
-                            { value: 'normal', name: 'Normal' },
-                            { value: 'bold', name: 'Bold' }
-                        ]
-                    },
-                    {
-                        type: 'select',
-                        name: 'text-align',
-                        label: 'Text Align',
-                        options: [
-                            { value: 'left', name: 'Left' },
-                            { value: 'center', name: 'Center' },
-                            { value: 'right', name: 'Right' }
-                        ]
-                    }
-                ],
-                'custom-name': 'Table Cell'
-            },
+    // editor.DomComponents.addType('json-table-cell', {
+    //     isComponent: el => el.classList && el.classList.contains('json-table-cell'),
+    //     model: {
+    //         defaults: {
+    //             selectable: true,
+    //             hoverable: true,
+    //             editable: false,
+    //             droppable: false,
+    //             draggable: false,
+    //             removable: false,
+    //             copyable: false,
+    //             resizable: false,
+    //             propagate: [],
+    //             void: true,
+    //             traits: [
+    //                 {
+    //                     type: 'color',
+    //                     name: 'background-color',
+    //                     label: 'Background Color'
+    //                 },
+    //                 {
+    //                     type: 'color',
+    //                     name: 'color',
+    //                     label: 'Text Color'
+    //                 },
+    //                 {
+    //                     type: 'select',
+    //                     name: 'font-weight',
+    //                     label: 'Font Weight',
+    //                     options: [
+    //                         { value: 'normal', name: 'Normal' },
+    //                         { value: 'bold', name: 'Bold' }
+    //                     ]
+    //                 },
+    //                 {
+    //                     type: 'select',
+    //                     name: 'text-align',
+    //                     label: 'Text Align',
+    //                     options: [
+    //                         { value: 'left', name: 'Left' },
+    //                         { value: 'center', name: 'Center' },
+    //                         { value: 'right', name: 'Right' }
+    //                     ]
+    //                 }
+    //             ],
+    //             'custom-name': 'Table Cell'
+    //         },
 
-            init() {
-                this.on('change:style', this.handleStyleChange);
-            },
+    //         init() {
+    //             this.on('change:style', this.handleStyleChange);
+    //         },
 
-            handleStyleChange() {
-                const element = this.getEl();
-                if (element) {
-                    const styles = this.getStyle();
-                    Object.keys(styles).forEach(prop => {
-                        element.style[prop] = styles[prop];
-                    });
+    //         handleStyleChange() {
+    //             const element = this.getEl();
+    //             if (element) {
+    //                 const styles = this.getStyle();
+    //                 Object.keys(styles).forEach(prop => {
+    //                     element.style[prop] = styles[prop];
+    //                 });
 
-                    // Store styles for export
-                    const rowIndex = element.getAttribute('data-row');
-                    const columnKey = element.getAttribute('data-column-key');
-                    const tableContainer = element.closest('.json-table-container');
+    //                 // Store styles for export
+    //                 const rowIndex = element.getAttribute('data-row');
+    //                 const columnKey = element.getAttribute('data-column-key');
+    //                 const tableContainer = element.closest('.json-table-container');
 
-                    if (tableContainer && rowIndex !== null && columnKey) {
-                        const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
-                        if (tableComponent) {
-                            tableComponent.setCellStyle(parseInt(rowIndex), columnKey, styles);
-                        }
-                    }
-                }
-            }
-        }
-    });
+    //                 if (tableContainer && rowIndex !== null && columnKey) {
+    //                     const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
+    //                     if (tableComponent) {
+    //                         tableComponent.setCellStyle(parseInt(rowIndex), columnKey, styles);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // });
 
     // Enhanced component selection handler
-    editor.on('component:selected', function (component) {
-        if (component && component.getEl()) {
-            const element = component.getEl();
+    // editor.on('component:selected', function (component) {
+    //     if (component && component.getEl()) {
+    //         const element = component.getEl();
 
-            // Handle JSON table cell selection
-            if (element.classList.contains('json-table-cell')) {
-                if (component.get('type') !== 'json-table-cell') {
-                    component.set('type', 'json-table-cell');
-                }
-            }
-        }
-    });
+    //         // Handle JSON table cell selection
+    //         if (element.classList.contains('json-table-cell')) {
+    //             if (component.get('type') !== 'json-table-cell') {
+    //                 component.set('type', 'json-table-cell');
+    //             }
+    //         }
+    //     }
+    // });
 
     // Add the component to blocks panel
     editor.BlockManager.add('json-table', {
@@ -1646,53 +1970,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     });
 
     // Enhanced export handling for proper content preservation
-    editor.on('storage:store', function () {
-        try {
-            const canvasBody = editor.Canvas.getBody();
-            const jsonTables = canvasBody.querySelectorAll('.json-table-container');
-
-            jsonTables.forEach(tableContainer => {
-                const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
-                if (tableComponent) {
-                    const table = tableContainer.querySelector('.json-data-table');
-                    if (table) {
-                        // Store current cell contents
-                        const cells = table.querySelectorAll('.json-table-cell');
-                        cells.forEach(cell => {
-                            const rowIndex = cell.getAttribute('data-row');
-                            const columnKey = cell.getAttribute('data-column-key');
-                            const isHeader = cell.tagName === 'TH';
-                            const content = cell.textContent || cell.innerHTML;
-
-                            if (isHeader && columnKey) {
-                                tableComponent.set(`header-content-${columnKey}`, content);
-                            } else if (rowIndex !== null && columnKey) {
-                                tableComponent.set(`cell-content-cell-${rowIndex}-${columnKey}`, content);
-                            }
-
-                            // Store cell styles
-                            if (cell.style.cssText) {
-                                const styleObj = {};
-                                const styles = cell.style.cssText.split(';');
-                                styles.forEach(style => {
-                                    const [prop, value] = style.split(':');
-                                    if (prop && value) {
-                                        styleObj[prop.trim()] = value.trim();
-                                    }
-                                });
-
-                                if (rowIndex !== null && columnKey && !isHeader) {
-                                    tableComponent.setCellStyle(parseInt(rowIndex), columnKey, styleObj);
-                                }
-                            }
-                        });
-                    }
-                }
-            });
-        } catch (error) {
-            console.warn('Error storing JSON table data:', error);
-        }
-    });
     editor.Commands.add('open-table-condition-manager', {
         run(editor) {
             const selected = editor.getSelected();
@@ -1810,6 +2087,78 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
             setTimeout(() => {
                 initializeTableConditionManager(selected, conditions);
+            }, 100);
+        }
+    });
+    editor.Commands.add('open-running-total-manager', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
+
+            const headers = selected.get('custom-headers') || selected.get('table-headers') || {};
+            const data = selected.get('custom-data') || selected.get('table-data') || [];
+            const selectedColumns = selected.get('selected-running-total-columns') || [];
+
+            // Filter headers to only show columns that have at least some numeric data
+            const numericHeaders = {};
+            Object.entries(headers).forEach(([key, name]) => {
+                // Check if column has at least some numeric values (not all empty/null/text)
+                const hasNumericData = data.some(row => {
+                    const value = row[key];
+                    return value !== '' && value !== null && value !== undefined && !isNaN(parseFloat(value));
+                });
+
+                if (hasNumericData) {
+                    numericHeaders[key] = name;
+                }
+            });
+
+            // Check if there are any columns with numeric data
+            if (Object.keys(numericHeaders).length === 0) {
+                alert('No columns with numeric data available for running totals.');
+                return;
+            }
+
+            const modalContent = `
+<div class="running-total-manager" style="padding: 20px; max-width: 500px;">
+    <h3 style="margin-top: 0; margin-bottom: 20px;">Configure Running Total Columns</h3>
+    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Only columns containing numeric data are shown below:</p>
+    
+    <div class="column-checkboxes" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+        ${Object.entries(numericHeaders).map(([key, name]) => `
+            <div style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" value="${key}" ${selectedColumns.includes(key) ? 'checked' : ''} 
+                           style="margin-right: 10px; width: 16px; height: 16px;">
+                    <span>${name}</span>
+                </label>
+            </div>
+        `).join('')}
+    </div>
+    
+    <div style="text-align: right; margin-top: 20px;">
+        <button id="cancel-running-totals" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
+        <button id="apply-running-totals" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply</button>
+    </div>
+</div>`;
+
+            const modal = editor.Modal;
+            modal.setTitle('Running Total Configuration');
+            modal.setContent(modalContent);
+            modal.open();
+
+            setTimeout(() => {
+                document.getElementById('cancel-running-totals').addEventListener('click', () => {
+                    editor.Modal.close();
+                });
+
+                document.getElementById('apply-running-totals').addEventListener('click', () => {
+                    const checkboxes = document.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked');
+                    const selectedColumns = Array.from(checkboxes).map(cb => cb.value);
+
+                    selected.set('selected-running-total-columns', selectedColumns);
+                    editor.Modal.close();
+                });
             }, 100);
         }
     });
@@ -1962,46 +2311,47 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         refreshConditionsList(component);
     }
     // Override HTML export for proper content preservation
-    const originalGetHtml = editor.getHtml;
-    editor.getHtml = function () {
-        try {
-            // Ensure all cell data is stored before export
-            const canvasBody = editor.Canvas.getBody();
-            const jsonTables = canvasBody.querySelectorAll('.json-table-container');
+    // const originalGetHtml = editor.getHtml;
+    // editor.getHtml = function () {
+    //     try {
+    //         // Ensure all cell data is stored before export
+    //         const canvasBody = editor.Canvas.getBody();
+    //         const jsonTables = canvasBody.querySelectorAll('.json-table-container');
 
-            jsonTables.forEach(tableContainer => {
-                const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
-                if (tableComponent) {
-                    const table = tableContainer.querySelector('.json-data-table');
-                    if (table) {
-                        // Update the component's HTML with current cell contents
-                        const cells = table.querySelectorAll('.json-table-cell');
-                        cells.forEach(cell => {
-                            const rowIndex = cell.getAttribute('data-row');
-                            const columnKey = cell.getAttribute('data-column-key');
-                            const isHeader = cell.tagName === 'TH';
-                            const content = cell.textContent;
+    //         jsonTables.forEach(tableContainer => {
+    //             const tableComponent =editor.getModelByEl(tableContainer);
 
-                            if (isHeader && columnKey) {
-                                tableComponent.updateHeaderData(columnKey, content);
-                            } else if (rowIndex !== null && columnKey) {
-                                tableComponent.updateCellData(parseInt(rowIndex), columnKey, content);
-                            }
-                        });
+    //             if (tableComponent) {
+    //                 const table = tableContainer.querySelector('.json-data-table');
+    //                 if (table) {
+    //                     // Update the component's HTML with current cell contents
+    //                     const cells = table.querySelectorAll('.json-table-cell');
+    //                     cells.forEach(cell => {
+    //                         const rowIndex = cell.getAttribute('data-row');
+    //                         const columnKey = cell.getAttribute('data-column-key');
+    //                         const isHeader = cell.tagName === 'TH';
+    //                         const content = cell.textContent;
 
-                        // Force table re-render to capture changes
-                        tableComponent.updateTableHTML();
-                    }
-                }
-            });
+    //                         if (isHeader && columnKey) {
+    //                             tableComponent.updateHeaderData(columnKey, content);
+    //                         } else if (rowIndex !== null && columnKey) {
+    //                             tableComponent.updateCellData(parseInt(rowIndex), columnKey, content);
+    //                         }
+    //                     });
 
-            return originalGetHtml.call(this);
+    //                     // Force table re-render to capture changes
+    //                     tableComponent.updateTableHTML();
+    //                 }
+    //             }
+    //         });
 
-        } catch (error) {
-            console.warn('Error in JSON table HTML export:', error);
-            return originalGetHtml.call(this);
-        }
-    };
+    //         return originalGetHtml.call(this);
+
+    //     } catch (error) {
+    //         console.warn('Error in JSON table HTML export:', error);
+    //         return originalGetHtml.call(this);
+    //     }
+    // };
 
     // Add remaining commands and functions from original code
     editor.Commands.add('open-json-table-suggestion', {

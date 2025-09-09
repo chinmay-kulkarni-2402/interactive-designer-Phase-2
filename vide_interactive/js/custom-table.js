@@ -1092,18 +1092,61 @@ function customTable(editor) {
     // Inject formula parser library into iframe
     const script = document.createElement('script');
     script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
-    head.appendChild(script);
+    document.head.appendChild(script);
 
     // Wait for hot-formula-parser to load and then store supported formulas
     script.onload = () => {
       try {
         if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
           window.formulaParser = iframe.contentWindow.formulaParser;
+
+          // Initialize parser
+          window.HotFormulaParser = new window.formulaParser.Parser();
+
+          // ✅ Register custom formulas
+          registerCustomFormulas();
         }
       } catch (error) {
         console.warn('Could not access formula parser:', error);
       }
     };
+
+    // ✅ Custom formula registration
+    function registerCustomFormulas() {
+      if (!window.HotFormulaParser) return;
+
+      // PERCENT(base, percent)
+      window.HotFormulaParser.setFunction('PERCENT', function (params) {
+        if (params.length !== 2) return '#N/A';
+        const base = parseFloat(params[0]);
+        const percent = parseFloat(params[1]);
+        if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+        return base * (percent / 100);
+      });
+
+      // ABSOLUTE(number)
+      window.HotFormulaParser.setFunction('ABSOLUTE', function (params) {
+        if (params.length !== 1) return '#N/A';
+        const num = parseFloat(params[0]);
+        if (isNaN(num)) return '#VALUE!';
+        return Math.abs(num);
+      });
+
+      // NUMTOWORDS(number) → loads external library
+      const numScript = document.createElement('script');
+      numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
+      numScript.onload = function () {
+        window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+          if (params.length !== 1) return '#N/A';
+          const num = parseInt(params[0]);
+          if (isNaN(num)) return '#VALUE!';
+          return numberToWords.toWords(num);
+        });
+        console.log("NUMTOWORDS formula registered");
+      };
+      document.head.appendChild(numScript);
+    }
+
   });
 
 
