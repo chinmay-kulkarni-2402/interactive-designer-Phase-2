@@ -1,8 +1,22 @@
-// daynamic header and footer
-
-
 class PageSetupManager {
   constructor(editor) {
+    this.editor = editor;
+    this.registerDynamicHeaderFooter();
+    document.addEventListener('arrayDataSelected', function (event) {
+      const { data, jsonPath } = event.detail;
+      console.log('Array data selection event received:', { data, jsonPath });
+
+      // Call the distribution handler
+      // Note: Replace 'pageManagerInstance' with your actual instance variable
+      if (window.pageManagerInstance && window.pageManagerInstance.handleArrayDataDistribution) {
+        window.pageManagerInstance.handleArrayDataDistribution(data, jsonPath);
+      } else if (typeof handleArrayDataDistribution === 'function') {
+        // If it's a standalone function, call it directly
+        handleArrayDataDistribution(data, jsonPath);
+      } else {
+        console.error('No page manager instance or function available to handle array data');
+      }
+    });
     this._lastAppliedHeaderText = "";
     this._lastAppliedFooterText = "";
     this._overflowAttempts = new Map();
@@ -18,6 +32,7 @@ class PageSetupManager {
     this._componentUpdateHandler = null;
     this._pasteHandler = null;
     this.editor = editor;
+
     this.pageSettings = {
       autoFlow: true,
       preserveFormatting: true,
@@ -115,6 +130,8 @@ class PageSetupManager {
       }
     }
 
+    this.openSuggestionJsonModal = this.openSuggestionJsonModal.bind(this);
+    this.handleArrayDataDistribution = this.handleArrayDataDistribution.bind(this);
 
     this.init()
   }
@@ -130,6 +147,8 @@ class PageSetupManager {
     this.initSharedRegionSync()
     this.setupSectionSelection()
     this.addPageBreakComponent()
+    this.setupJsonSuggestionButton()
+    this.initializeArrayDataListener()
     const MAX_HEIGHT = 1027;
 
     console.log("🆕 Page break component initialized");
@@ -177,16 +196,16 @@ class PageSetupManager {
     //   },
     // });
 
-      editor.BlockManager.add('page-break', {
-    label: `
+    editor.BlockManager.add('page-break', {
+      label: `
       <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px;">
         <div style="font-size: 20px; color: #ff6b6b;">✂️</div>
         <span style="font-size: 10px; font-weight: bold; color: #333;">Page Break</span>
       </div>
     `,
-    category: 'Basic',
-    content: '<div class="page-break" style="height:0; border-top:1px dashed #999; margin:20px 0;"></div>'
-  });
+      category: 'Basic',
+      content: '<div class="page-break" style="height:0; border-top:1px dashed #999; margin:20px 0;"></div>'
+    });
 
     // Add CSS rules for page breaks first
     // this.addPageBreakCSS();
@@ -383,185 +402,185 @@ class PageSetupManager {
 
   //   wrapper.getEl().appendChild(newPage);
   // }
-  
-//  createNewPage() {
-//   console.log('createNewPage CALL ============');
 
-//   const wrapper = this.editor.getWrapper();
-//   const newPageIndex = wrapper.find('[data-page-index]').length;
+  //  createNewPage() {
+  //   console.log('createNewPage CALL ============');
 
-//   // Use GrapesJS API instead of raw DOM
-//   const newPage = wrapper.append(`
-//     <div class="page-container" data-page-id="page-${newPageIndex + 1}" data-page-index="${newPageIndex}">
-//       <div class="page-content">
-//         <div data-shared-region="header" class="header-wrapper">
-//           <div class="page-header-element"></div>
-//         </div>
-//         <div class="content-wrapper">
-//           <div class="main-content-area"></div>
-//         </div>
-//         <div data-shared-region="footer" class="footer-wrapper">
-//           <div class="page-footer-element"></div>
-//         </div>
-//       </div>
-//     </div>
-//   `);
+  //   const wrapper = this.editor.getWrapper();
+  //   const newPageIndex = wrapper.find('[data-page-index]').length;
 
-//   // ✅ wrapper.append() returns an array of components
-//   return newPage[0];
-// } 
+  //   // Use GrapesJS API instead of raw DOM
+  //   const newPage = wrapper.append(`
+  //     <div class="page-container" data-page-id="page-${newPageIndex + 1}" data-page-index="${newPageIndex}">
+  //       <div class="page-content">
+  //         <div data-shared-region="header" class="header-wrapper">
+  //           <div class="page-header-element"></div>
+  //         </div>
+  //         <div class="content-wrapper">
+  //           <div class="main-content-area"></div>
+  //         </div>
+  //         <div data-shared-region="footer" class="footer-wrapper">
+  //           <div class="page-footer-element"></div>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   `);
 
-
-// handlePageBreak(pageIndex) {
-//   console.log('PAGE BREAK CALL ==========');
-//   const wrapper = this.editor.getWrapper();
-//   if (!wrapper) return;
-
-//   // Step 1: Current page lo
-//   const pageComponents = wrapper.find(`[data-page-index="${pageIndex}"]`);
-//   if (!pageComponents.length) return;
-
-//   const pageComponent = pageComponents[0];
-//   const contentArea = pageComponent.find('.main-content-area')[0];
-//   if (!contentArea) return;
-
-//   const contentEl = contentArea.getEl();
-//   if (!contentEl) return;
-
-//   const pageBreakEl = contentEl.querySelector('.page-break');
-//   if (!pageBreakEl) return;
-
-//   // Step 2: Collect elements after break
-//   let foundBreak = false;
-//   const allChildren = Array.from(contentArea.components()); // ✅ GrapesJS components, not raw DOM
-//   const afterBreak = [];
-
-//   for (let cmp of allChildren) {
-//     if (foundBreak) afterBreak.push(cmp);
-//     if (cmp.getEl() === pageBreakEl) foundBreak = true;
-//   }
-
-//   if (afterBreak.length === 0) return;
-
-//   // Step 3: Find next page or create one
-//   let nextPage = wrapper.find(`[data-page-index="${pageIndex + 1}"]`)[0];
-//   if (!nextPage) {
-//     nextPage = this.createNewPage();
-//   }
-
-//   if (!nextPage) {
-//     console.warn('❌ Failed to create or find next page');
-//     return;
-//   }
-
-//   // Step 4: Get next main-content-area
-//   const nextContentArea = nextPage.find('.main-content-area')[0];
-//   if (!nextContentArea) {
-//     console.warn('❌ next page does not have a main-content-area');
-//     return;
-//   }
-
-//   // Step 5: Move elements using GrapesJS API
-//   afterBreak.forEach(cmp => {
-//     nextContentArea.append(cmp); // ✅ GrapesJS way
-//   });
-
-//   // Remove the page-break element
-//   const breakCmp = this.editor.getComponents().find(c => c.getEl() === pageBreakEl);
-//   if (breakCmp) breakCmp.remove();
-
-//   console.log(`✅ Moved ${afterBreak.length} components to page ${pageIndex + 1}`);
-// }
+  //   // ✅ wrapper.append() returns an array of components
+  //   return newPage[0];
+  // } 
 
 
-// ===============================
-//+Latest+ Create New Page
-// ===============================
-createNewPage() {
-  console.log('createNewPage CALL ============');
+  // handlePageBreak(pageIndex) {
+  //   console.log('PAGE BREAK CALL ==========');
+  //   const wrapper = this.editor.getWrapper();
+  //   if (!wrapper) return;
 
-  const wrapper = this.editor.getWrapper();
-  const newPageIndex = wrapper.find('[data-page-index]').length;
+  //   // Step 1: Current page lo
+  //   const pageComponents = wrapper.find(`[data-page-index="${pageIndex}"]`);
+  //   if (!pageComponents.length) return;
 
-  // +Latest+ use buildPageSkeleton so that new page looks exactly like existing pages
-  const newPage = wrapper.append(this.addNewPage());
+  //   const pageComponent = pageComponents[0];
+  //   const contentArea = pageComponent.find('.main-content-area')[0];
+  //   if (!contentArea) return;
 
-  // ✅ GrapesJS component return karega
-  return newPage[0];
-}
+  //   const contentEl = contentArea.getEl();
+  //   if (!contentEl) return;
+
+  //   const pageBreakEl = contentEl.querySelector('.page-break');
+  //   if (!pageBreakEl) return;
+
+  //   // Step 2: Collect elements after break
+  //   let foundBreak = false;
+  //   const allChildren = Array.from(contentArea.components()); // ✅ GrapesJS components, not raw DOM
+  //   const afterBreak = [];
+
+  //   for (let cmp of allChildren) {
+  //     if (foundBreak) afterBreak.push(cmp);
+  //     if (cmp.getEl() === pageBreakEl) foundBreak = true;
+  //   }
+
+  //   if (afterBreak.length === 0) return;
+
+  //   // Step 3: Find next page or create one
+  //   let nextPage = wrapper.find(`[data-page-index="${pageIndex + 1}"]`)[0];
+  //   if (!nextPage) {
+  //     nextPage = this.createNewPage();
+  //   }
+
+  //   if (!nextPage) {
+  //     console.warn('❌ Failed to create or find next page');
+  //     return;
+  //   }
+
+  //   // Step 4: Get next main-content-area
+  //   const nextContentArea = nextPage.find('.main-content-area')[0];
+  //   if (!nextContentArea) {
+  //     console.warn('❌ next page does not have a main-content-area');
+  //     return;
+  //   }
+
+  //   // Step 5: Move elements using GrapesJS API
+  //   afterBreak.forEach(cmp => {
+  //     nextContentArea.append(cmp); // ✅ GrapesJS way
+  //   });
+
+  //   // Remove the page-break element
+  //   const breakCmp = this.editor.getComponents().find(c => c.getEl() === pageBreakEl);
+  //   if (breakCmp) breakCmp.remove();
+
+  //   console.log(`✅ Moved ${afterBreak.length} components to page ${pageIndex + 1}`);
+  // }
 
 
-// ===============================
-// +Latest+ Handle Page Break
-// ===============================
-handlePageBreak(pageIndex) {
-  console.log('PAGE BREAK CALL ==========');
-  const wrapper = this.editor.getWrapper();
-  if (!wrapper) return;
+  // ===============================
+  //+Latest+ Create New Page
+  // ===============================
+  createNewPage() {
+    console.log('createNewPage CALL ============');
 
-  // Step 1: Get current page
-  const pageComponents = wrapper.find(`[data-page-index="${pageIndex}"]`);
-  if (!pageComponents.length) return;
+    const wrapper = this.editor.getWrapper();
+    const newPageIndex = wrapper.find('[data-page-index]').length;
 
-  const pageComponent = pageComponents[0];
-  const contentArea = pageComponent.find('.main-content-area')[0];
-  if (!contentArea) return;
+    // +Latest+ use buildPageSkeleton so that new page looks exactly like existing pages
+    const newPage = wrapper.append(this.addNewPage());
 
-  const contentEl = contentArea.getEl();
-  if (!contentEl) return;
-
-  const pageBreakEl = contentEl.querySelector('.page-break');
-  if (!pageBreakEl) return;
-
-  // Step 2: Collect elements after break
-  let foundBreak = false;
-  const allChildren = Array.from(contentArea.components()); // ✅ GrapesJS components
-  const afterBreak = [];
-
-  for (let cmp of allChildren) {
-    if (foundBreak) afterBreak.push(cmp);
-    if (cmp.getEl() === pageBreakEl) foundBreak = true;
+    // ✅ GrapesJS component return karega
+    return newPage[0];
   }
 
-  if (afterBreak.length === 0) return;
 
-  // Step 3: Find next page or create one
-  let nextPage = wrapper.find(`[data-page-index="${pageIndex + 1}"]`)[0];
-  if (!nextPage) {
-    nextPage = this.createNewPage(); // ✅ returns GrapesJS component
+  // ===============================
+  // +Latest+ Handle Page Break
+  // ===============================
+  handlePageBreak(pageIndex) {
+    console.log('PAGE BREAK CALL ==========');
+    const wrapper = this.editor.getWrapper();
+    if (!wrapper) return;
+
+    // Step 1: Get current page
+    const pageComponents = wrapper.find(`[data-page-index="${pageIndex}"]`);
+    if (!pageComponents.length) return;
+
+    const pageComponent = pageComponents[0];
+    const contentArea = pageComponent.find('.main-content-area')[0];
+    if (!contentArea) return;
+
+    const contentEl = contentArea.getEl();
+    if (!contentEl) return;
+
+    const pageBreakEl = contentEl.querySelector('.page-break');
+    if (!pageBreakEl) return;
+
+    // Step 2: Collect elements after break
+    let foundBreak = false;
+    const allChildren = Array.from(contentArea.components()); // ✅ GrapesJS components
+    const afterBreak = [];
+
+    for (let cmp of allChildren) {
+      if (foundBreak) afterBreak.push(cmp);
+      if (cmp.getEl() === pageBreakEl) foundBreak = true;
+    }
+
+    if (afterBreak.length === 0) return;
+
+    // Step 3: Find next page or create one
+    let nextPage = wrapper.find(`[data-page-index="${pageIndex + 1}"]`)[0];
+    if (!nextPage) {
+      nextPage = this.createNewPage(); // ✅ returns GrapesJS component
+    }
+
+
+    if (!nextPage) {
+      console.warn('❌ Failed to create or find next page');
+      return;
+    }
+
+    // Step 4: Get next main-content-area
+    const nextContentArea = nextPage.find('.main-content-area')[0];
+    if (!nextContentArea) {
+      console.warn('❌ next page does not have a main-content-area');
+      return;
+    }
+
+    // Step 5: Move elements using GrapesJS API (MOVE, not CLONE)
+    // +Latest+
+    afterBreak.reverse().forEach(cmp => {
+      // remove from current parent first
+      cmp.remove({ temporary: true }); // ✅ moves component out of old page without destroying
+
+      // then add to next page at top
+      nextContentArea.components().add(cmp, { at: 0 });
+    });
+
+
+
+    // Step 6: Remove the page-break element
+    const breakCmp = this.editor.getComponents().find(c => c.getEl() === pageBreakEl);
+    if (breakCmp) breakCmp.remove();
+
+    console.log(`✅ Moved ${afterBreak.length} components to page ${pageIndex + 1}`);
   }
-  
-
-  if (!nextPage) {
-    console.warn('❌ Failed to create or find next page');
-    return;
-  }
-
-  // Step 4: Get next main-content-area
-  const nextContentArea = nextPage.find('.main-content-area')[0];
-  if (!nextContentArea) {
-    console.warn('❌ next page does not have a main-content-area');
-    return;
-  }
-
- // Step 5: Move elements using GrapesJS API (MOVE, not CLONE)
-// +Latest+
-afterBreak.reverse().forEach(cmp => {
-  // remove from current parent first
-  cmp.remove({ temporary: true }); // ✅ moves component out of old page without destroying
-  
-  // then add to next page at top
-  nextContentArea.components().add(cmp, { at: 0 });
-});
-
-
-
-  // Step 6: Remove the page-break element
-  const breakCmp = this.editor.getComponents().find(c => c.getEl() === pageBreakEl);
-  if (breakCmp) breakCmp.remove();
-
-  console.log(`✅ Moved ${afterBreak.length} components to page ${pageIndex + 1}`);
-}
 
 
 
@@ -780,22 +799,22 @@ afterBreak.reverse().forEach(cmp => {
 
   // +Latest+ matched CSS of first static page (794x1123px etc.)
 
-// buildPageSkeleton() {
-//   return `
-//     <div class="page-container" data-page-id="page-${Date.now()}">
-//       <div class="page-content" style="width:794px; height:1123px; margin:0; position:relative; overflow:hidden; background-color:#ffffff; display:flex; flex-direction:column; box-sizing:border-box; border:1px dashed #dee2e6; -webkit-print-color-adjust:exact; color-adjust:exact; print-color-adjust:exact;">
-//         <div data-shared-region="header" class="header-wrapper" style="width:100%; height:48px; flex-shrink:0;">
-//           <div class="page-header-element" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; border:2px dashed transparent;"></div>
-//         </div>
-//         <div class="content-wrapper" style="flex:1; display:flex; flex-direction:column; height:1027px;">
-//           <div class="main-content-area" style="width:100%; height:100%; border:2px dashed transparent; transition:border-color 0.2s ease; overflow:hidden; position:relative;"></div>
-//         </div>
-//         <div data-shared-region="footer" class="footer-wrapper" style="width:100%; height:48px; flex-shrink:0;">
-//           <div class="page-footer-element" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; border:2px dashed transparent;"></div>
-//         </div>
-//       </div>
-//     </div>`;
-// }
+  // buildPageSkeleton() {
+  //   return `
+  //     <div class="page-container" data-page-id="page-${Date.now()}">
+  //       <div class="page-content" style="width:794px; height:1123px; margin:0; position:relative; overflow:hidden; background-color:#ffffff; display:flex; flex-direction:column; box-sizing:border-box; border:1px dashed #dee2e6; -webkit-print-color-adjust:exact; color-adjust:exact; print-color-adjust:exact;">
+  //         <div data-shared-region="header" class="header-wrapper" style="width:100%; height:48px; flex-shrink:0;">
+  //           <div class="page-header-element" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; border:2px dashed transparent;"></div>
+  //         </div>
+  //         <div class="content-wrapper" style="flex:1; display:flex; flex-direction:column; height:1027px;">
+  //           <div class="main-content-area" style="width:100%; height:100%; border:2px dashed transparent; transition:border-color 0.2s ease; overflow:hidden; position:relative;"></div>
+  //         </div>
+  //         <div data-shared-region="footer" class="footer-wrapper" style="width:100%; height:48px; flex-shrink:0;">
+  //           <div class="page-footer-element" style="width:100%; height:100%; display:flex; justify-content:center; align-items:center; border:2px dashed transparent;"></div>
+  //         </div>
+  //       </div>
+  //     </div>`;
+  // }
 
 
   buildPageSkeleton() {
@@ -1007,7 +1026,7 @@ afterBreak.reverse().forEach(cmp => {
 
   //// new pagition v2///
   handleAutoPagination(pageIndex) {
-    
+
     this.handlePageBreak(pageIndex);
     if (this.paginationInProgress) {
       console.log(`⏸️ Pagination already in progress, skipping page ${pageIndex}`);
@@ -1117,7 +1136,7 @@ afterBreak.reverse().forEach(cmp => {
         resetFlag();
       }
 
-      
+
 
     } catch (error) {
       console.error(`❌ Error in handleAutoPagination for page ${pageIndex}:`, error);
@@ -3366,23 +3385,23 @@ afterBreak.reverse().forEach(cmp => {
         footer: null,
       };
 
-      // Preserve header content
-      const headerRegion = firstPageComponent.find('[data-shared-region="header"]')[0];
-      if (headerRegion) {
-        const headerComponents = headerRegion.components();
-        if (headerComponents.length > 0) {
-          this.sharedContent.header = {
-            components: headerComponents.map((comp) => ({
-              html: comp.toHTML(),
-              styles: comp.getStyle(),
-              attributes: comp.getAttributes(),
-              type: comp.get("type"),
-            })),
-            styles: headerRegion.getStyle(),
-            attributes: headerRegion.getAttributes(),
-          };
-        }
-      }
+      // // Preserve header content
+      // const headerRegion = firstPageComponent.find('[data-shared-region="header"]')[0];
+      // if (headerRegion) {
+      //   const headerComponents = headerRegion.components();
+      //   if (headerComponents.length > 0) {
+      //     this.sharedContent.header = {
+      //       components: headerComponents.map((comp) => ({
+      //         html: comp.toHTML(),
+      //         styles: comp.getStyle(),
+      //         attributes: comp.getAttributes(),
+      //         type: comp.get("type"),
+      //       })),
+      //       styles: headerRegion.getStyle(),
+      //       attributes: headerRegion.getAttributes(),
+      //     };
+      //   }
+      // }
 
       // Preserve footer content
       const footerRegion = firstPageComponent.find('[data-shared-region="footer"]')[0];
@@ -3410,71 +3429,71 @@ afterBreak.reverse().forEach(cmp => {
 
   // Restore shared content after operations
   restoreSharedContent() {
-    if (!this.isInitialized) return
+    // if (!this.isInitialized) return
 
-    try {
-      const allPageComponents = this.editor.getWrapper().find(".page-container")
+    // try {
+    //   const allPageComponents = this.editor.getWrapper().find(".page-container")
 
-      allPageComponents.forEach((pageComponent) => {
-        // Restore header content
-        if (this.sharedContent.header && this.pageSettings.headerFooter.headerEnabled) {
-          const headerRegion = pageComponent.find('[data-shared-region="header"]')[0]
-          if (headerRegion && this.sharedContent.header.components.length > 0) {
-            // Clear existing content
-            headerRegion.components().reset()
+    //   allPageComponents.forEach((pageComponent) => {
+    //     // Restore header content
+    //     if (this.sharedContent.header && this.pageSettings.headerFooter.headerEnabled) {
+    //       const headerRegion = pageComponent.find('[data-shared-region="header"]')[0]
+    //       if (headerRegion && this.sharedContent.header.components.length > 0) {
+    //         // Clear existing content
+    //         headerRegion.components().reset()
 
-            // Restore components
-            this.sharedContent.header.components.forEach((compData) => {
-              try {
-                const newComponent = headerRegion.append(compData.html)[0]
-                if (newComponent) {
-                  if (compData.styles) {
-                    newComponent.setStyle(compData.styles)
-                  }
-                  if (compData.attributes) {
-                    Object.keys(compData.attributes).forEach((key) => {
-                      newComponent.addAttributes({ [key]: compData.attributes[key] })
-                    })
-                  }
-                }
-              } catch (error) {
-                console.error("Error restoring shared header component:", error)
-              }
-            })
-          }
-        }
+    //         // Restore components
+    //         this.sharedContent.header.components.forEach((compData) => {
+    //           try {
+    //             const newComponent = headerRegion.append(compData.html)[0]
+    //             if (newComponent) {
+    //               if (compData.styles) {
+    //                 newComponent.setStyle(compData.styles)
+    //               }
+    //               if (compData.attributes) {
+    //                 Object.keys(compData.attributes).forEach((key) => {
+    //                   newComponent.addAttributes({ [key]: compData.attributes[key] })
+    //                 })
+    //               }
+    //             }
+    //           } catch (error) {
+    //             console.error("Error restoring shared header component:", error)
+    //           }
+    //         })
+    //       }
+    //     }
 
-        // Restore footer content
-        if (this.sharedContent.footer && this.pageSettings.headerFooter.footerEnabled) {
-          const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0]
-          if (footerRegion && this.sharedContent.footer.components.length > 0) {
-            // Clear existing content
-            footerRegion.components().reset()
+    //     // Restore footer content
+    //     if (this.sharedContent.footer && this.pageSettings.headerFooter.footerEnabled) {
+    //       const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0]
+    //       if (footerRegion && this.sharedContent.footer.components.length > 0) {
+    //         // Clear existing content
+    //         footerRegion.components().reset()
 
-            // Restore components
-            this.sharedContent.footer.components.forEach((compData) => {
-              try {
-                const newComponent = footerRegion.append(compData.html)[0]
-                if (newComponent) {
-                  if (compData.styles) {
-                    newComponent.setStyle(compData.styles)
-                  }
-                  if (compData.attributes) {
-                    Object.keys(compData.attributes).forEach((key) => {
-                      newComponent.addAttributes({ [key]: compData.attributes[key] })
-                    })
-                  }
-                }
-              } catch (error) {
-                console.error("Error restoring shared footer component:", error)
-              }
-            })
-          }
-        }
-      })
-    } catch (error) {
-      console.error("Error restoring shared content:", error)
-    }
+    //         // Restore components
+    //         this.sharedContent.footer.components.forEach((compData) => {
+    //           try {
+    //             const newComponent = footerRegion.append(compData.html)[0]
+    //             if (newComponent) {
+    //               if (compData.styles) {
+    //                 newComponent.setStyle(compData.styles)
+    //               }
+    //               if (compData.attributes) {
+    //                 Object.keys(compData.attributes).forEach((key) => {
+    //                   newComponent.addAttributes({ [key]: compData.attributes[key] })
+    //                 })
+    //               }
+    //             }
+    //           } catch (error) {
+    //             console.error("Error restoring shared footer component:", error)
+    //           }
+    //         })
+    //       }
+    //     }
+    //   })
+    // } catch (error) {
+    //   console.error("Error restoring shared content:", error)
+    // }
   }
 
   initSharedRegionSync() {
@@ -3584,7 +3603,9 @@ afterBreak.reverse().forEach(cmp => {
         targetRegion.components().reset();
         sourceComponents.forEach((comp) => {
           const clonedComp = comp.clone();
+          console.log("cloned", clonedComp)
           targetRegion.append(clonedComp);
+          console.log("target", targetRegion)
         });
 
         // ✅ Copy attributes (excluding data-shared-region)
@@ -4138,8 +4159,6 @@ afterBreak.reverse().forEach(cmp => {
         
         .page-indicator {
           position: absolute;
-          top: 10px;
-          right: 10px;
           background: rgba(0, 123, 255, 0.9);
           color: white;
           padding: 5px 10px;
@@ -4277,8 +4296,8 @@ afterBreak.reverse().forEach(cmp => {
           border-color: #dc3545 !important;
           background: rgba(220, 53, 69, 0.05) !important;
         }
-        
-        /* FIXED: Page number positioning for print */
+
+         /* FIXED: Page number positioning for print */
         .page-number-element {
           position: absolute !important;
           background: rgba(255, 255, 255, 0.9) !important;
@@ -4297,7 +4316,7 @@ afterBreak.reverse().forEach(cmp => {
           min-height: 20px !important;
           font-family: Arial, sans-serif !important;
         }
-
+          
         /* Content Area Styles */
         .content-wrapper {
           position: relative !important;
@@ -4543,20 +4562,6 @@ afterBreak.reverse().forEach(cmp => {
             print-color-adjust: exact !important;
             font-family: Arial, sans-serif !important;
             z-index: 1000 !important;
-          }
-          
-          /* FIXED: Page number positioning in print - respect actual position */
-          .page-number-element {
-            display: flex !important;
-            position: absolute !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            font-family: Arial, sans-serif !important;
-            z-index: 2000 !important;
           }
 
           /* Ensure header and footer stay within page bounds */
@@ -5223,13 +5228,14 @@ afterBreak.reverse().forEach(cmp => {
           fontSize: Number.parseInt(document.getElementById("watermarkFontSize")?.value) || 48,
           color: document.getElementById("watermarkColor")?.value || "#cccccc",
           opacity: Number.parseInt(document.getElementById("watermarkOpacity")?.value) / 100 || 0.3,
-          rotation: Number.parseInt(document.getElementById("watermarkRotation")?.value) || -45,
+          rotation: Number.parseInt(document.getElementById("watermarkRotation")?.value) || 0,
         },
         image: {
           url: document.getElementById("watermarkImageUrl")?.value || "",
           width: Number.parseInt(document.getElementById("watermarkImageWidth")?.value) || 200,
           height: Number.parseInt(document.getElementById("watermarkImageHeight")?.value) || 200,
-          opacity: 0.3,
+          opacity: Number.parseFloat(document.getElementById("watermarkImageOpacity")?.value) / 100 || 0.3,
+          rotation: Number.parseInt(document.getElementById("watermarkImageRotation")?.value) || 0,
         },
         position: watermarkPosition,
         applyToAllPages: true,
@@ -5480,6 +5486,16 @@ afterBreak.reverse().forEach(cmp => {
         <input type="number" id="settingsWatermarkImageHeight" class="page-setup-control"
                value="${this.pageSettings.watermark.image.height}" min="50" max="500">
       </div>
+   <div>
+  <label>Opacity:</label>
+  <input type="range" id="settingsWatermarkImageOpacity" class="page-setup-control" 
+    value="${Math.round((this.pageSettings.watermark.image.opacity || 0.4) * 100)}" min="10" max="80">
+</div>
+  <div>
+  <label>Rotation:</label>
+  <input type="range" id="settingsWatermarkImageRotation" class="page-setup-control" 
+    value="${this.pageSettings.watermark.image.rotation || 0}" min="-90" max="90">
+</div>
     </div>
 
   </div>
@@ -5936,13 +5952,48 @@ afterBreak.reverse().forEach(cmp => {
     const originalHeaderText = document.getElementById("settingsHeaderText")?.value || "";
     const originalFooterText = document.getElementById("settingsFooterText")?.value || "";
 
+    const pageNumberInputs = ['pageNumberEnabled', 'pageNumberStartFrom', 'pageNumberFormat',
+      'pageNumberFontSize', 'pageNumberColor', 'pageNumberBackgroundColor',
+      'pageNumberShowBorder'];
+
+    pageNumberInputs.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.addEventListener('change', () => {
+          console.log(`Page number setting changed: ${id}`);
+          // Update the setting in pageSettings first
+          this.updatePageNumberSetting(id, element);
+
+          // Re-render page numbers
+          setTimeout(() => this.renderPageNumbers(), 100);
+        });
+      }
+    });
+
+    // Position grid listener
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('position-option')) {
+        const parent = e.target.parentElement;
+        if (parent.classList.contains('position-grid')) {
+          // Update position setting
+          this.pageSettings.pageNumber = this.pageSettings.pageNumber || {};
+          this.pageSettings.pageNumber.position = e.target.getAttribute('data-position');
+
+          // Re-render if enabled
+          if (this.pageSettings.pageNumber.enabled) {
+            setTimeout(() => this.renderPageNumbers(), 100);
+          }
+        }
+      }
+    });
+
     // === Header Text Input Listener ===
     const headerTextInput = document.getElementById("settingsHeaderText");
     if (headerTextInput) {
       headerTextInput.addEventListener("input", (e) => {
         // Always mark as changed when user types
         this._headerTextChanged = true;
-        console.log("🔄 Header text changed by user input");
+        console.log("Header text changed by user input");
 
         // Ensure pageSettings.pages[0].header exists
         if (!this.pageSettings.pages[0].header) {
@@ -5960,7 +6011,7 @@ afterBreak.reverse().forEach(cmp => {
       headerTextInput.addEventListener("blur", () => {
         if (headerTextInput.value !== this._headerTextOriginal) {
           this._headerTextChanged = true;
-          console.log("🔄 Header text changed on blur");
+          console.log("Header text changed on blur");
         }
       });
     }
@@ -5971,7 +6022,7 @@ afterBreak.reverse().forEach(cmp => {
       footerTextInput.addEventListener("input", (e) => {
         // Always mark as changed when user types
         this._footerTextChanged = true;
-        console.log("🔄 Footer text changed by user input");
+        console.log("Footer text changed by user input");
 
         // Ensure pageSettings.pages[0].footer exists
         if (!this.pageSettings.pages[0].footer) {
@@ -5989,7 +6040,7 @@ afterBreak.reverse().forEach(cmp => {
       footerTextInput.addEventListener("blur", () => {
         if (footerTextInput.value !== this._footerTextOriginal) {
           this._footerTextChanged = true;
-          console.log("🔄 Footer text changed on blur");
+          console.log("Footer text changed on blur");
         }
       });
     }
@@ -6006,7 +6057,7 @@ afterBreak.reverse().forEach(cmp => {
         }
         this.pageSettings.pageNumber.enabled = e.target.checked;
         pageNumberControls.style.display = e.target.checked ? "block" : "none";
-        console.log("📝 Page numbers enabled:", e.target.checked);
+        console.log("Page numbers enabled:", e.target.checked);
       });
     }
 
@@ -6019,7 +6070,7 @@ afterBreak.reverse().forEach(cmp => {
             this.pageSettings.pageNumber = {};
           }
           this.pageSettings.pageNumber.startFrom = value;
-          console.log("📝 Page number start from:", value);
+          console.log("Page number start from:", value);
         }
       });
     }
@@ -6031,7 +6082,7 @@ afterBreak.reverse().forEach(cmp => {
           this.pageSettings.pageNumber = {};
         }
         this.pageSettings.pageNumber.format = e.target.value;
-        console.log("📝 Page number format:", e.target.value);
+        console.log("Page number format:", e.target.value);
       });
     }
 
@@ -6051,7 +6102,7 @@ afterBreak.reverse().forEach(cmp => {
             this.pageSettings.pageNumber = {};
           }
           this.pageSettings.pageNumber.position = el.getAttribute("data-position");
-          console.log("📍 Page number position stored:", el.getAttribute("data-position"));
+          console.log("Page number position stored:", el.getAttribute("data-position"));
         }
       });
     });
@@ -6066,7 +6117,7 @@ afterBreak.reverse().forEach(cmp => {
         el.classList.add("selected");
         this.pageSettings.watermark = this.pageSettings.watermark || {};
         this.pageSettings.watermark.position = el.getAttribute("data-position");
-        console.log("💧 Watermark position set to:", el.getAttribute("data-position"));
+        console.log("Watermark position set to:", el.getAttribute("data-position"));
       });
     });
 
@@ -6080,7 +6131,7 @@ afterBreak.reverse().forEach(cmp => {
             this.pageSettings.pageNumber = {};
           }
           this.pageSettings.pageNumber.fontSize = value;
-          console.log("📏 Font size stored:", value);
+          console.log("Font size stored:", value);
         }
       });
     }
@@ -6092,7 +6143,7 @@ afterBreak.reverse().forEach(cmp => {
           this.pageSettings.pageNumber = {};
         }
         this.pageSettings.pageNumber.color = e.target.value;
-        console.log("🎨 Color stored:", e.target.value);
+        console.log("Color stored:", e.target.value);
       });
     }
 
@@ -6103,7 +6154,7 @@ afterBreak.reverse().forEach(cmp => {
           this.pageSettings.pageNumber = {};
         }
         this.pageSettings.pageNumber.backgroundColor = e.target.value;
-        console.log("🎨 Background color stored:", e.target.value);
+        console.log("Background color stored:", e.target.value);
       });
     }
 
@@ -6114,7 +6165,158 @@ afterBreak.reverse().forEach(cmp => {
           this.pageSettings.pageNumber = {};
         }
         this.pageSettings.pageNumber.showBorder = e.target.checked;
-        console.log("🔲 Border stored:", e.target.checked);
+        console.log("Border stored:", e.target.checked);
+      });
+    }
+
+    // === Watermark Text Settings Listeners ===
+    const watermarkTextInput = document.getElementById("settingsWatermarkText");
+    if (watermarkTextInput) {
+      watermarkTextInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.watermark) {
+          this.pageSettings.watermark = {};
+        }
+        if (!this.pageSettings.watermark.text) {
+          this.pageSettings.watermark.text = {};
+        }
+        this.pageSettings.watermark.text.content = e.target.value;
+        console.log("Watermark text stored:", e.target.value);
+      });
+    }
+
+    const watermarkFontSizeInput = document.getElementById("settingsWatermarkFontSize");
+    if (watermarkFontSizeInput) {
+      watermarkFontSizeInput.addEventListener("input", (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value)) {
+          if (!this.pageSettings.watermark) {
+            this.pageSettings.watermark = {};
+          }
+          if (!this.pageSettings.watermark.text) {
+            this.pageSettings.watermark.text = {};
+          }
+          this.pageSettings.watermark.text.fontSize = value;
+          console.log("Font size stored:", value);
+        }
+      });
+    }
+
+    const watermarkColorInput = document.getElementById("settingsWatermarkColor");
+    if (watermarkColorInput) {
+      watermarkColorInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.watermark) {
+          this.pageSettings.watermark = {};
+        }
+        if (!this.pageSettings.watermark.text) {
+          this.pageSettings.watermark.text = {};
+        }
+        this.pageSettings.watermark.text.color = e.target.value;
+        console.log("Text color stored:", e.target.value);
+      });
+    }
+
+    const textOpacityInput = document.getElementById("settingsWatermarkOpacity");
+    if (textOpacityInput) {
+      textOpacityInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.watermark) {
+          this.pageSettings.watermark = {};
+        }
+        if (!this.pageSettings.watermark.text) {
+          this.pageSettings.watermark.text = {};
+        }
+        this.pageSettings.watermark.text.opacity = parseInt(e.target.value) / 100;
+        console.log("Text opacity stored:", this.pageSettings.watermark.text.opacity);
+      });
+    }
+
+    const textRotationInput = document.getElementById("settingsWatermarkRotation");
+    if (textRotationInput) {
+      textRotationInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.watermark) {
+          this.pageSettings.watermark = {};
+        }
+        if (!this.pageSettings.watermark.text) {
+          this.pageSettings.watermark.text = {};
+        }
+        this.pageSettings.watermark.text.rotation = parseInt(e.target.value);
+        console.log("Text rotation stored:", this.pageSettings.watermark.text.rotation);
+      });
+    }
+
+    // === Watermark Image Settings Listeners ===
+    const imageUrlInput = document.getElementById("settingsWatermarkImageUrl");
+    if (imageUrlInput) {
+      imageUrlInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.watermark) {
+          this.pageSettings.watermark = {};
+        }
+        if (!this.pageSettings.watermark.image) {
+          this.pageSettings.watermark.image = {};
+        }
+        this.pageSettings.watermark.image.url = e.target.value;
+        console.log("Image URL stored:", e.target.value);
+      });
+    }
+
+    const imageWidthInput = document.getElementById("settingsWatermarkImageWidth");
+    if (imageWidthInput) {
+      imageWidthInput.addEventListener("input", (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value)) {
+          if (!this.pageSettings.watermark) {
+            this.pageSettings.watermark = {};
+          }
+          if (!this.pageSettings.watermark.image) {
+            this.pageSettings.watermark.image = {};
+          }
+          this.pageSettings.watermark.image.width = value;
+          console.log("Image width stored:", value);
+        }
+      });
+    }
+
+    const imageHeightInput = document.getElementById("settingsWatermarkImageHeight");
+    if (imageHeightInput) {
+      imageHeightInput.addEventListener("input", (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value)) {
+          if (!this.pageSettings.watermark) {
+            this.pageSettings.watermark = {};
+          }
+          if (!this.pageSettings.watermark.image) {
+            this.pageSettings.watermark.image = {};
+          }
+          this.pageSettings.watermark.image.height = value;
+          console.log("Image height stored:", value);
+        }
+      });
+    }
+
+    const imageOpacityInput = document.getElementById("settingsWatermarkImageOpacity");
+    if (imageOpacityInput) {
+      imageOpacityInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.watermark) {
+          this.pageSettings.watermark = {};
+        }
+        if (!this.pageSettings.watermark.image) {
+          this.pageSettings.watermark.image = {};
+        }
+        this.pageSettings.watermark.image.opacity = parseInt(e.target.value) / 100;
+        console.log("Image opacity stored:", this.pageSettings.watermark.image.opacity);
+      });
+    }
+
+    const imageRotationInput = document.getElementById("settingsWatermarkImageRotation");
+    if (imageRotationInput) {
+      imageRotationInput.addEventListener("input", (e) => {
+        if (!this.pageSettings.watermark) {
+          this.pageSettings.watermark = {};
+        }
+        if (!this.pageSettings.watermark.image) {
+          this.pageSettings.watermark.image = {};
+        }
+        this.pageSettings.watermark.image.rotation = parseInt(e.target.value);
+        console.log("Image rotation stored:", this.pageSettings.watermark.image.rotation);
       });
     }
 
@@ -6179,12 +6381,12 @@ afterBreak.reverse().forEach(cmp => {
           parent.querySelectorAll(".position-option").forEach((opt) => opt.classList.remove("selected"));
           e.target.classList.add("selected");
 
-          // 🧠 Persist selected position
+          // Persist selected position
           if (!this.pageSettings.pageNumber) {
             this.pageSettings.pageNumber = {};
           }
           this.pageSettings.pageNumber.position = selectedPosition;
-          console.log("📍 Page number position clicked and stored:", selectedPosition);
+          console.log("Page number position clicked and stored:", selectedPosition);
         }
       }
 
@@ -6273,13 +6475,12 @@ afterBreak.reverse().forEach(cmp => {
               urlInput.value = base64;
             }
 
-            console.log("📸 Local image converted to base64 and stored in settings");
+            console.log("Local image converted to base64 and stored in settings");
           };
           reader.readAsDataURL(file);
         }
       });
     }
-
 
     const deletePagesBtn = document.getElementById("deletePages");
     if (deletePagesBtn) {
@@ -6361,6 +6562,9 @@ afterBreak.reverse().forEach(cmp => {
       const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
       const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
       const watermarkPosition = document.querySelector(".watermark-position-option.selected")?.dataset?.position || "center";
+      const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checked || false;
+      const watermarkImageOpacity = parseInt(document.getElementById("settingsWatermarkImageOpacity")?.value) / 100 || 0.4;
+      const watermarkImageRotation = parseInt(document.getElementById("settingsWatermarkImageRotation")?.value) || 0;
 
       // Parse custom page lists
       const headerCustomPages = this.parsePageList(headerCustomPageList);
@@ -6411,7 +6615,7 @@ afterBreak.reverse().forEach(cmp => {
         showBorder: pageNumberShowBorder,
         visibility: storedPageNumber.visibility || "all",
       };
-const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checked || false;
+
       this.pageSettings.watermark = {
         enabled: watermarkEnabled,
         type: watermarkType,
@@ -6427,7 +6631,9 @@ const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checke
         image: {
           url: watermarkImageUrl,
           width: watermarkImageWidth,
-          height: watermarkImageHeight
+          height: watermarkImageHeight,
+          opacity: watermarkImageOpacity,
+          rotation: watermarkImageRotation
         }
       };
 
@@ -6830,101 +7036,115 @@ const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checke
   }
 
   // FIXED: Enhanced setupEditorPages method that properly creates headers/footers
- setupEditorPages() {
-    try {
-      // Clear any existing observers before creating new pages
-      this.clearAllObservers();
+setupEditorPages() {
+  try {
+    // Clear any existing observers before creating new pages
+    this.clearAllObservers();
 
-      const mmToPx = 96 / 25.4
-      const totalPageWidth = Math.round(this.pageSettings.width * mmToPx)
-      const totalPageHeight = Math.round(this.pageSettings.height * mmToPx)
+    const mmToPx = 96 / 25.4;
+    const totalPageWidth = Math.round(this.pageSettings.width * mmToPx);
+    const totalPageHeight = Math.round(this.pageSettings.height * mmToPx);
 
-      const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx)
-      const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx)
-      const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx)
-      const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx)
+    const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx);
+    const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx);
+    const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx);
+    const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx);
 
-      const contentWidth = totalPageWidth - marginLeftPx - marginRightPx
-      const contentHeight = totalPageHeight - marginTopPx - marginBottomPx
+    const contentWidth = totalPageWidth - marginLeftPx - marginRightPx;
+    const contentHeight = totalPageHeight - marginTopPx - marginBottomPx;
 
-      const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx)
-      const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx)
-      const mainContentAreaHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight
+    const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx);
+    const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx);
+    const mainContentAreaHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
 
-      // Clear existing pages
-      this.editor.getWrapper().components().reset()
+    // Clear existing pages
+    this.editor.getWrapper().components().reset();
 
-      for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-        const pageData = this.pageSettings.pages[i]
-        const pageNumber = i + 1
-        const isEvenPage = pageNumber % 2 === 0
-        const isOddPage = pageNumber % 2 !== 0
-        const isFirstPage = pageNumber === 1
-        const isLastPage = pageNumber === this.pageSettings.numberOfPages
+    for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
+      const pageData = this.pageSettings.pages[i];
+      const pageNumber = i + 1;
+      const isEvenPage = pageNumber % 2 === 0;
+      const isOddPage = pageNumber % 2 !== 0;
+      const isFirstPage = pageNumber === 1;
+      const isLastPage = pageNumber === this.pageSettings.numberOfPages;
 
-        // Determine header/footer regions (keeping your existing logic)
-        const headerApplyMode = this._lastHeaderApplyMode || "all"
-        const footerApplyMode = this._lastFooterApplyMode || "all"
+      // Determine header/footer regions
+      const headerApplyMode = this._lastHeaderApplyMode || "all";
+      const footerApplyMode = this._lastFooterApplyMode || "all";
 
-        let headerRegionType = ""
-        let footerRegionType = ""
-        let headerLabel = ""
-        let footerLabel = ""
+      let headerRegionType = "header";
+      let footerRegionType = "footer";
+      let headerCondition = "all";
+      let footerCondition = "all";
+      let headerLabel = "";
+      let footerLabel = "";
 
-        // Header logic - ALWAYS set a region type for structure
-        if (headerApplyMode === "all") {
-          headerRegionType = "header"
-          headerLabel = "Header (Shared across all pages)"
-        } else if (headerApplyMode === "first") {
-          headerRegionType = isFirstPage ? "header-first" : "header-empty"
-          headerLabel = isFirstPage ? "First Page Header" : "Header (Hidden - First Page Only)"
-        } else if (headerApplyMode === "last") {
-          headerRegionType = isLastPage ? "header-last" : "header-empty"
-          headerLabel = isLastPage ? "Last Page Header" : "Header (Hidden - Last Page Only)"
-        } else if (headerApplyMode === "even") {
-          headerRegionType = isEvenPage ? "header-even" : "header-empty"
-          headerLabel = isEvenPage ? "Even Page Header (Pages 2, 4, 6...)" : "Header (Hidden - Even Pages Only)"
-        } else if (headerApplyMode === "odd") {
-          headerRegionType = isOddPage ? "header-odd" : "header-empty"
-          headerLabel = isOddPage ? "Odd Page Header (Pages 1, 3, 5...)" : "Header (Hidden - Odd Pages Only)"
-        } else if (headerApplyMode === "different") {
-          headerRegionType = isEvenPage ? "header-even" : "header-odd"
-          headerLabel = isEvenPage ? "Even Page Header" : "Odd Page Header"
-        } else if (headerApplyMode === "custom") {
-          const headerCustomPages = this._lastHeaderCustomPages || [];
-          const pageIsInCustomList = headerCustomPages.includes(pageNumber);
-          headerRegionType = pageIsInCustomList ? "header" : "header-empty"
-          headerLabel = pageIsInCustomList ? `Custom Header (Page ${pageNumber})` : "Header (Hidden - Custom Range)"
-        }
+      // ----- HEADER LOGIC -----
+      if (headerApplyMode === "all") {
+        headerCondition = "all";
+        headerLabel = "Header (Shared across all pages)";
+      } else if (headerApplyMode === "first") {
+        headerCondition = isFirstPage ? "first" : "hidden";
+        headerLabel = isFirstPage ? "First Page Header" : "Header (Hidden - First Page Only)";
+      } else if (headerApplyMode === "last") {
+        headerCondition = isLastPage ? "last" : "hidden";
+        headerLabel = isLastPage ? "Last Page Header" : "Header (Hidden - Last Page Only)";
+      } else if (headerApplyMode === "even") {
+        headerCondition = isEvenPage ? "even" : "hidden";
+        headerLabel = isEvenPage
+          ? "Even Page Header (Pages 2, 4, 6...)"
+          : "Header (Hidden - Even Pages Only)";
+      } else if (headerApplyMode === "odd") {
+        headerCondition = isOddPage ? "odd" : "hidden";
+        headerLabel = isOddPage
+          ? "Odd Page Header (Pages 1, 3, 5...)"
+          : "Header (Hidden - Odd Pages Only)";
+      } else if (headerApplyMode === "different") {
+        headerCondition = isEvenPage ? "even" : "odd";
+        headerLabel = isEvenPage ? "Even Page Header" : "Odd Page Header";
+      } else if (headerApplyMode === "custom") {
+        const headerCustomPages = this._lastHeaderCustomPages || [];
+        const pageIsInCustomList = headerCustomPages.includes(pageNumber);
+        headerCondition = pageIsInCustomList ? "custom" : "hidden";
+        headerLabel = pageIsInCustomList
+          ? `Custom Header (Page ${pageNumber})`
+          : "Header (Hidden - Custom Range)";
+      }
 
-        // Footer logic - ALWAYS set a region type for structure  
-        if (footerApplyMode === "all") {
-          footerRegionType = "footer"
-          footerLabel = "Footer (Shared across all pages)"
-        } else if (footerApplyMode === "first") {
-          footerRegionType = isFirstPage ? "footer-first" : "footer-empty"
-          footerLabel = isFirstPage ? "First Page Footer" : "Footer (Hidden - First Page Only)"
-        } else if (footerApplyMode === "last") {
-          footerRegionType = isLastPage ? "footer-last" : "footer-empty"
-          footerLabel = isLastPage ? "Last Page Footer" : "Footer (Hidden - Last Page Only)"
-        } else if (footerApplyMode === "even") {
-          footerRegionType = isEvenPage ? "footer-even" : "footer-empty"
-          footerLabel = isEvenPage ? "Even Page Footer (Pages 2, 4, 6...)" : "Footer (Hidden - Even Pages Only)"
-        } else if (footerApplyMode === "odd") {
-          footerRegionType = isOddPage ? "footer-odd" : "footer-empty"
-          footerLabel = isOddPage ? "Odd Page Footer (Pages 1, 3, 5...)" : "Footer (Hidden - Odd Pages Only)"
-        } else if (footerApplyMode === "different") {
-          footerRegionType = isEvenPage ? "footer-even" : "footer-odd"
-          footerLabel = isEvenPage ? "Even Page Footer" : "Odd Page Footer"
-        } else if (footerApplyMode === "custom") {
-          const footerCustomPages = this._lastFooterCustomPages || [];
-          const pageIsInCustomList = footerCustomPages.includes(pageNumber);
-          footerRegionType = pageIsInCustomList ? "footer" : "footer-empty"
-          footerLabel = pageIsInCustomList ? `Custom Footer (Page ${pageNumber})` : "Footer (Hidden - Custom Range)"
-        }
+      // ----- FOOTER LOGIC -----
+      if (footerApplyMode === "all") {
+        footerCondition = "all";
+        footerLabel = "Footer (Shared across all pages)";
+      } else if (footerApplyMode === "first") {
+        footerCondition = isFirstPage ? "first" : "hidden";
+        footerLabel = isFirstPage ? "First Page Footer" : "Footer (Hidden - First Page Only)";
+      } else if (footerApplyMode === "last") {
+        footerCondition = isLastPage ? "last" : "hidden";
+        footerLabel = isLastPage ? "Last Page Footer" : "Footer (Hidden - Last Page Only)";
+      } else if (footerApplyMode === "even") {
+        footerCondition = isEvenPage ? "even" : "hidden";
+        footerLabel = isEvenPage
+          ? "Even Page Footer (Pages 2, 4, 6...)"
+          : "Footer (Hidden - Even Pages Only)";
+      } else if (footerApplyMode === "odd") {
+        footerCondition = isOddPage ? "odd" : "hidden";
+        footerLabel = isOddPage
+          ? "Odd Page Footer (Pages 1, 3, 5...)"
+          : "Footer (Hidden - Odd Pages Only)";
+      } else if (footerApplyMode === "different") {
+        footerCondition = isEvenPage ? "even" : "odd";
+        footerLabel = isEvenPage ? "Even Page Footer" : "Odd Page Footer";
+      } else if (footerApplyMode === "custom") {
+        const footerCustomPages = this._lastFooterCustomPages || [];
+        const pageIsInCustomList = footerCustomPages.includes(pageNumber);
+        footerCondition = pageIsInCustomList ? "custom" : "hidden";
+        footerLabel = pageIsInCustomList
+          ? `Custom Footer (Page ${pageNumber})`
+          : "Footer (Hidden - Custom Range)";
+      }
 
-        // Create page structure - ALWAYS include header and footer wrappers
-        let pageHTML = `
+      // Create page structure - ALWAYS include header and footer wrappers
+      let pageHTML = `
         <div class="page-container" data-page-id="${pageData.id}" data-page-index="${i}">
           <div class="page-content" style="
             width: ${contentWidth}px; 
@@ -6936,7 +7156,7 @@ const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checke
             display: flex;
             flex-direction: column;
           ">
-            <div class="header-wrapper" data-shared-region="${headerRegionType}" style="
+            <div class="header-wrapper" data-shared-region="${headerRegionType}" data-condition="${headerCondition}" style="
               width: 100%;
               height: ${defaultHeaderHeight}px;
               flex-shrink: 0;
@@ -6966,7 +7186,7 @@ const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checke
                 position: relative;
               "></div>
             </div>
-            <div class="footer-wrapper" data-shared-region="${footerRegionType}" style="
+            <div class="footer-wrapper" data-shared-region="${footerRegionType}" data-condition="${footerCondition}" style="
               width: 100%;
               height: ${defaultFooterHeight}px;
               flex-shrink: 0;
@@ -6982,112 +7202,110 @@ const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checke
               "></div>
             </div>
           </div>
-        </div>`
+        </div>`;
 
-        // Create the page component
-        const pageComponent = this.editor.getWrapper().append(pageHTML)[0]
+      // Create the page component
+      const pageComponent = this.editor.getWrapper().append(pageHTML)[0];
 
-        // Style the page container
-        pageComponent.addStyle({
-          width: `${totalPageWidth}px`,
-          height: `${totalPageHeight}px`,
-          background: pageData.backgroundColor || this.pageSettings.backgroundColor,
-          margin: "20px auto",
-          "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.15)",
-          border: "2px solid transparent",
-          position: "relative",
-          "page-break-after": "always",
+      // Style the page container
+      pageComponent.addStyle({
+        width: `${totalPageWidth}px`,
+        height: `${totalPageHeight}px`,
+        background: pageData.backgroundColor || this.pageSettings.backgroundColor,
+        margin: "20px auto",
+        "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.15)",
+        border: "2px solid transparent",
+        position: "relative",
+        "page-break-after": "always",
+        overflow: "hidden",
+        "box-sizing": "border-box",
+        transition: "border-color 0.2s ease",
+        "-webkit-print-color-adjust": "exact",
+        "color-adjust": "exact",
+        "print-color-adjust": "exact",
+      });
+
+      // Configure components with proper settings
+      const pageContentComponent = pageComponent.find(".page-content")[0];
+      if (pageContentComponent) {
+        pageContentComponent.addStyle({
           overflow: "hidden",
+          position: "relative",
           "box-sizing": "border-box",
-          transition: "border-color 0.2s ease",
+          display: "flex",
+          "flex-direction": "column",
+          height: `${contentHeight}px`,
+          width: `${contentWidth}px`,
+          "background-color": pageData.backgroundColor || this.pageSettings.backgroundColor,
+          border: "1px dashed #dee2e6",
           "-webkit-print-color-adjust": "exact",
           "color-adjust": "exact",
           "print-color-adjust": "exact",
-        })
-
-        // Configure components with proper settings
-        const pageContentComponent = pageComponent.find(".page-content")[0]
-        if (pageContentComponent) {
-          pageContentComponent.addStyle({
-            overflow: "hidden",
-            position: "relative",
-            "box-sizing": "border-box",
-            display: "flex",
-            "flex-direction": "column",
-            height: `${contentHeight}px`,
-            width: `${contentWidth}px`,
-            "background-color": pageData.backgroundColor || this.pageSettings.backgroundColor,
-            border: "1px dashed #dee2e6",
-            "-webkit-print-color-adjust": "exact",
-            "color-adjust": "exact",
-            "print-color-adjust": "exact",
-          })
-        }
-
-        // Configure header component properties
-        const headerElement = pageComponent.find(".page-header-element")[0]
-        if (headerElement) {
-          headerElement.set({
-            droppable: true,
-            editable: true,
-            selectable: true,
-            draggable: false,
-            copyable: false,
-            removable: false,
-            "custom-name": headerLabel
-          })
-        }
-
-        // Configure main content area
-        const mainContentArea = pageComponent.find(".main-content-area")[0]
-        if (mainContentArea) {
-          mainContentArea.set({
-            droppable: true,
-            editable: true,
-            selectable: true,
-            "custom-name": "Content Area"
-          })
-        }
-
-        // Configure footer component properties
-        const footerElement = pageComponent.find(".page-footer-element")[0]
-        if (footerElement) {
-          footerElement.set({
-            droppable: true,
-            editable: true,
-            selectable: true,
-            draggable: false,
-            copyable: false,
-            removable: false,
-            "custom-name": footerLabel
-          })
-        }
-
-        // FIXED: Setup observer with proper debouncing
-        this.setupPageObserver(i);
+        });
       }
 
-      // ADD THIS LINE: Setup the sections container listener
-      this.setupSectionsContainerListener();
+      // Configure header component properties
+      const headerElement = pageComponent.find(".page-header-element")[0];
+      if (headerElement) {
+        headerElement.set({
+          droppable: true,
+          editable: true,
+          selectable: true,
+          draggable: false,
+          copyable: false,
+          removable: false,
+          "custom-name": headerLabel,
+        });
+      }
 
-      this.setupCanvasScrolling()
+      // Configure main content area
+      const mainContentArea = pageComponent.find(".main-content-area")[0];
+      if (mainContentArea) {
+        mainContentArea.set({
+          droppable: true,
+          editable: true,
+          selectable: true,
+          "custom-name": "Content Area",
+        });
+      }
 
-      // Restore content after structure is ready
-      setTimeout(() => {
-        this.restoreAllContent()
-        this.startContentMonitoring();
+      // Configure footer component properties
+      const footerElement = pageComponent.find(".page-footer-element")[0];
+      if (footerElement) {
+        footerElement.set({
+          droppable: true,
+          editable: true,
+          selectable: true,
+          draggable: false,
+          copyable: false,
+          removable: false,
+          "custom-name": footerLabel,
+        });
+      }
 
-        // ADD THIS LINE:
-        this.renderPageNumbers();
-
-        console.log("✅ Word-style page setup complete")
-        console.log("✅ Content monitoring started");
-      }, 100)
-
-    } catch (error) {
-      console.error("❌ Error setting up Word-style editor pages:", error)
+      // Setup observer with proper debouncing
+      this.setupPageObserver(i);
     }
+
+    // Setup the sections container listener
+    this.setupSectionsContainerListener();
+
+    this.setupCanvasScrolling();
+
+    // Restore content after structure is ready
+    setTimeout(() => {
+      this.restoreAllContent();
+      this.startContentMonitoring();
+
+      this.renderPageNumbers();
+
+      console.log("✅ Word-style page setup complete");
+      console.log("✅ Content monitoring started");
+    }, 100);
+  } catch (error) {
+    console.error("❌ Error setting up Word-style editor pages:", error);
   }
+}
 
   setupSectionsContainerListener() {
     // ONLY the "Dynamic Header Footer" block should trigger sections-container
@@ -7560,7 +7778,7 @@ const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checke
   }
 
   // FIXED: Enhanced updateSinglePageVisuals method that properly creates and displays headers/footers
- updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
+  updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
     const allPages = this.editor.getWrapper().find('.page-container');
     const pageComponent = allPages.find(p => p.getAttributes()['data-page-id'] === pageSettings.id);
     if (!pageComponent) return;
@@ -7862,110 +8080,110 @@ const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checke
     this.addWatermarkToPage(pageContentComponent, pageIndex);
   }
 
-calculateTiledGrid(watermark) {
-  // Get page dimensions in pixels (approximate conversion from mm to pixels at 96 DPI)
-  const mmToPx = 3.78; // 1mm ≈ 3.78px at 96 DPI
-  const pageWidthPx = this.pageSettings.width * mmToPx;
-  const pageHeightPx = this.pageSettings.height * mmToPx;
-  
-  console.log(`📏 Page dimensions: ${pageWidthPx.toFixed(0)}px × ${pageHeightPx.toFixed(0)}px`);
-  
-  let tileWidth, tileHeight;
-  
-  if (watermark.type === "text" || watermark.type === "both") {
-    // For text watermark, estimate dimensions based on font size and content
-    const fontSize = watermark.text.fontSize || 48;
-    const textContent = watermark.text.content || "CONFIDENTIAL";
-    const rotation = Math.abs(watermark.text.rotation || 0);
-    
-    // Estimate text width (rough approximation: 0.6 * fontSize * character count)
-    const estimatedTextWidth = fontSize * 0.6 * textContent.length;
-    const estimatedTextHeight = fontSize * 1.2; // Line height factor
-    
-    // Account for rotation - use bounding box
-    if (rotation !== 0) {
-      const radians = (rotation * Math.PI) / 180;
-      const cos = Math.abs(Math.cos(radians));
-      const sin = Math.abs(Math.sin(radians));
-      
-      tileWidth = estimatedTextWidth * cos + estimatedTextHeight * sin;
-      tileHeight = estimatedTextWidth * sin + estimatedTextHeight * cos;
-    } else {
-      tileWidth = estimatedTextWidth;
-      tileHeight = estimatedTextHeight;
-    }
-    
-    console.log(`📝 Text tile dimensions: ${tileWidth.toFixed(0)}px × ${tileHeight.toFixed(0)}px`);
-  }
-  
-  if (watermark.type === "image" || watermark.type === "both") {
-    // For image watermark, use specified dimensions
-    const imageWidth = watermark.image.width || 200;
-    const imageHeight = watermark.image.height || 200;
-    
-    if (watermark.type === "both") {
-      // For both text and image, use the larger dimensions
-      tileWidth = Math.max(tileWidth || 0, imageWidth);
-      tileHeight = Math.max(tileHeight || 0, imageHeight);
-    } else {
-      tileWidth = imageWidth;
-      tileHeight = imageHeight;
-    }
-    
-    console.log(`🖼️ Image tile dimensions: ${imageWidth}px × ${imageHeight}px`);
-  }
-  
-  // Add padding between tiles (20% of tile size)
-  const paddingX = tileWidth * 0.2;
-  const paddingY = tileHeight * 0.2;
-  
-  const effectiveTileWidth = tileWidth + paddingX;
-  const effectiveTileHeight = tileHeight + paddingY;
-  
-  // Calculate grid dimensions
-  const cols = Math.max(1, Math.floor(pageWidthPx / effectiveTileWidth));
-  const rows = Math.max(1, Math.floor(pageHeightPx / effectiveTileHeight));
-  
-  console.log(`🏗️ Calculated grid: ${cols} × ${rows} = ${cols * rows} tiles`);
-  
-  return {
-    cols,
-    rows,
-    totalTiles: cols * rows,
-    tileWidth,
-    tileHeight,
-    effectiveTileWidth,
-    effectiveTileHeight
-  };
-}
+  calculateTiledGrid(watermark) {
+    // Get page dimensions in pixels (approximate conversion from mm to pixels at 96 DPI)
+    const mmToPx = 3.78; // 1mm ≈ 3.78px at 96 DPI
+    const pageWidthPx = this.pageSettings.width * mmToPx;
+    const pageHeightPx = this.pageSettings.height * mmToPx;
 
-// Updated addWatermarkToPage method with dynamic grid calculation
-addWatermarkToPage(pageContentComponent, pageIndex) {
-  console.log("🔧 Calling addWatermarkToPage...");
-  if (!this.pageSettings.watermark?.enabled) {
-    console.warn(`⚠️ Watermark disabled — skipping`);
-    return;
-  }
+    console.log(`📏 Page dimensions: ${pageWidthPx.toFixed(0)}px × ${pageHeightPx.toFixed(0)}px`);
 
-  const watermark = this.pageSettings.watermark;
-  console.log(`🧪 Attempting to add watermark to page ${pageIndex + 1}`);
-  console.log("🔍 Watermark config:", watermark);
+    let tileWidth, tileHeight;
 
-  let watermarkContent = "";
-  let positionStyles = "";
-  
-  // Check if tiled watermark is enabled
-  if (watermark.tiled) {
-    console.log("🔄 Creating dynamic tiled watermark");
-    
-    // Calculate optimal grid size
-    const gridInfo = this.calculateTiledGrid(watermark);
-    
-    // For tiled watermarks, we create a repeating pattern
-    let tileContent = "";
-    
     if (watermark.type === "text" || watermark.type === "both") {
-      tileContent += `
+      // For text watermark, estimate dimensions based on font size and content
+      const fontSize = watermark.text.fontSize || 48;
+      const textContent = watermark.text.content || "CONFIDENTIAL";
+      const rotation = Math.abs(watermark.text.rotation || 0);
+
+      // Estimate text width (rough approximation: 0.6 * fontSize * character count)
+      const estimatedTextWidth = fontSize * 0.6 * textContent.length;
+      const estimatedTextHeight = fontSize * 1.2; // Line height factor
+
+      // Account for rotation - use bounding box
+      if (rotation !== 0) {
+        const radians = (rotation * Math.PI) / 180;
+        const cos = Math.abs(Math.cos(radians));
+        const sin = Math.abs(Math.sin(radians));
+
+        tileWidth = estimatedTextWidth * cos + estimatedTextHeight * sin;
+        tileHeight = estimatedTextWidth * sin + estimatedTextHeight * cos;
+      } else {
+        tileWidth = estimatedTextWidth;
+        tileHeight = estimatedTextHeight;
+      }
+
+      console.log(`📝 Text tile dimensions: ${tileWidth.toFixed(0)}px × ${tileHeight.toFixed(0)}px`);
+    }
+
+    if (watermark.type === "image" || watermark.type === "both") {
+      // For image watermark, use specified dimensions
+      const imageWidth = watermark.image.width || 200;
+      const imageHeight = watermark.image.height || 200;
+
+      if (watermark.type === "both") {
+        // For both text and image, use the larger dimensions
+        tileWidth = Math.max(tileWidth || 0, imageWidth);
+        tileHeight = Math.max(tileHeight || 0, imageHeight);
+      } else {
+        tileWidth = imageWidth;
+        tileHeight = imageHeight;
+      }
+
+      console.log(`🖼️ Image tile dimensions: ${imageWidth}px × ${imageHeight}px`);
+    }
+
+    // Add padding between tiles (20% of tile size)
+    const paddingX = tileWidth * 0.2;
+    const paddingY = tileHeight * 0.2;
+
+    const effectiveTileWidth = tileWidth + paddingX;
+    const effectiveTileHeight = tileHeight + paddingY;
+
+    // Calculate grid dimensions
+    const cols = Math.max(1, Math.floor(pageWidthPx / effectiveTileWidth));
+    const rows = Math.max(1, Math.floor(pageHeightPx / effectiveTileHeight));
+
+    console.log(`🏗️ Calculated grid: ${cols} × ${rows} = ${cols * rows} tiles`);
+
+    return {
+      cols,
+      rows,
+      totalTiles: cols * rows,
+      tileWidth,
+      tileHeight,
+      effectiveTileWidth,
+      effectiveTileHeight
+    };
+  }
+
+  // Updated addWatermarkToPage method with dynamic grid calculation
+  addWatermarkToPage(pageContentComponent, pageIndex) {
+    console.log("🔧 Calling addWatermarkToPage...");
+    if (!this.pageSettings.watermark?.enabled) {
+      console.warn(`⚠️ Watermark disabled — skipping`);
+      return;
+    }
+
+    const watermark = this.pageSettings.watermark;
+    console.log(`🧪 Attempting to add watermark to page ${pageIndex + 1}`);
+    console.log("🔍 Watermark config:", watermark);
+
+    let watermarkContent = "";
+    let positionStyles = "";
+
+    // Check if tiled watermark is enabled
+    if (watermark.tiled) {
+      console.log("🔄 Creating dynamic tiled watermark");
+
+      // Calculate optimal grid size
+      const gridInfo = this.calculateTiledGrid(watermark);
+
+      // For tiled watermarks, we create a repeating pattern
+      let tileContent = "";
+
+      if (watermark.type === "text" || watermark.type === "both") {
+        tileContent += `
         <div class="page-watermark-text-tile" style="
           font-family: ${watermark.text.font || "Arial"}, sans-serif !important;
           font-size: ${watermark.text.fontSize}px !important;
@@ -7981,14 +8199,24 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
           justify-content: center !important;
         ">${watermark.text.content}</div>
       `;
-    }
-    
-    if ((watermark.type === "image" || watermark.type === "both") && watermark.image.url) {
-      tileContent += `
+      }
+
+      if ((watermark.type === "image" || watermark.type === "both") && watermark.image.url) {
+        console.log("Adding image watermark");
+        console.log("Image watermark settings:", {
+          url: watermark.image.url,
+          opacity: watermark.image.opacity,
+          rotation: watermark.image.rotation,
+          width: watermark.image.width,
+          height: watermark.image.height
+        });
+
+        tileContent += `
         <img class="page-watermark-image-tile" src="${watermark.image.url}" style="
           width: ${watermark.image.width}px !important;
           height: ${watermark.image.height}px !important;
-          opacity: ${watermark.image.opacity} !important;
+          opacity: ${watermark.image.opacity || 0.4} !important;
+          transform: rotate(${watermark.image.rotation || 0}deg) !important;
           object-fit: contain !important;
           user-select: none !important;
           pointer-events: none !important;
@@ -7996,12 +8224,12 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
           margin: 0 auto !important;
         " />
       `;
-    }
-    
-    // Create tiles based on calculated grid
-    let tiledContent = "";
-    for (let i = 0; i < gridInfo.totalTiles; i++) {
-      tiledContent += `
+      }
+
+      // Create tiles based on calculated grid
+      let tiledContent = "";
+      for (let i = 0; i < gridInfo.totalTiles; i++) {
+        tiledContent += `
         <div class="watermark-tile" style="
           display: flex !important;
           align-items: center !important;
@@ -8009,10 +8237,10 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
           overflow: hidden !important;
         ">${tileContent}</div>
       `;
-    }
-    
-    watermarkContent = tiledContent;
-    positionStyles = `
+      }
+
+      watermarkContent = tiledContent;
+      positionStyles = `
       display: grid !important;
       grid-template-columns: repeat(${gridInfo.cols}, 1fr) !important;
       grid-template-rows: repeat(${gridInfo.rows}, 1fr) !important;
@@ -8022,46 +8250,46 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
       padding: 20px !important;
       box-sizing: border-box !important;
     `;
-    
-    console.log(`✅ Dynamic grid created: ${gridInfo.cols}×${gridInfo.rows} (${gridInfo.totalTiles} tiles)`);
-    
-  } else {
-    // Original single watermark logic
-    positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;";
 
-    switch (watermark.position) {
-      case "top-left":
-        positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: flex-start !important; padding: 20px !important;";
-        break;
-      case "top-center":
-        positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: center !important; padding: 20px !important;";
-        break;
-      case "top-right":
-        positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: flex-end !important; padding: 20px !important;";
-        break;
-      case "center-left":
-        positionStyles = "display: flex !important; align-items: center !important; justify-content: flex-start !important; padding: 20px !important;";
-        break;
-      case "center":
-        positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;";
-        break;
-      case "center-right":
-        positionStyles = "display: flex !important; align-items: center !important; justify-content: flex-end !important; padding: 20px !important;";
-        break;
-      case "bottom-left":
-        positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: flex-start !important; padding: 20px !important;";
-        break;
-      case "bottom-center":
-        positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: center !important; padding: 20px !important;";
-        break;
-      case "bottom-right":
-        positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: flex-end !important; padding: 20px !important;";
-        break;
-    }
+      console.log(`✅ Dynamic grid created: ${gridInfo.cols}×${gridInfo.rows} (${gridInfo.totalTiles} tiles)`);
 
-    if (watermark.type === "text" || watermark.type === "both") {
-      console.log("✅ Adding text watermark:", watermark.text.content);
-      watermarkContent += `
+    } else {
+      // Original single watermark logic
+      positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;";
+
+      switch (watermark.position) {
+        case "top-left":
+          positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: flex-start !important; padding: 20px !important;";
+          break;
+        case "top-center":
+          positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: center !important; padding: 20px !important;";
+          break;
+        case "top-right":
+          positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: flex-end !important; padding: 20px !important;";
+          break;
+        case "center-left":
+          positionStyles = "display: flex !important; align-items: center !important; justify-content: flex-start !important; padding: 20px !important;";
+          break;
+        case "center":
+          positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;";
+          break;
+        case "center-right":
+          positionStyles = "display: flex !important; align-items: center !important; justify-content: flex-end !important; padding: 20px !important;";
+          break;
+        case "bottom-left":
+          positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: flex-start !important; padding: 20px !important;";
+          break;
+        case "bottom-center":
+          positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: center !important; padding: 20px !important;";
+          break;
+        case "bottom-right":
+          positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: flex-end !important; padding: 20px !important;";
+          break;
+      }
+
+      if (watermark.type === "text" || watermark.type === "both") {
+        console.log("✅ Adding text watermark:", watermark.text.content);
+        watermarkContent += `
         <div class="page-watermark-text" style="
           font-family: ${watermark.text.font || "Arial"}, sans-serif !important;
           font-size: ${watermark.text.fontSize}px !important;
@@ -8074,27 +8302,41 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
           pointer-events: none !important;
         ">${watermark.text.content}</div>
       `;
+      }
+
+      if ((watermark.type === "image" || watermark.type === "both") && watermark.image.url) {
+        console.log("Adding image watermark");
+        console.log("Image watermark settings:", {
+          url: watermark.image.url,
+          opacity: watermark.image.opacity,
+          rotation: watermark.image.rotation,
+          width: watermark.image.width,
+          height: watermark.image.height
+        });
+
+        watermarkContent += `
+      <img class="page-watermark-image" src="${watermark.image.url}" style="
+        width: ${watermark.image.width}px !important;
+        height: ${watermark.image.height}px !important;
+        opacity: ${watermark.image.opacity || 0.4} !important;
+        transform: rotate(${watermark.image.rotation || 0}deg) !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: contain !important;
+        user-select: none !important;
+        pointer-events: none !important;
+        ${watermark.type === "both" ? "margin-top: 10px !important;" : ""}
+      " onerror="console.error('Failed to load watermark image:', this.src); this.style.display='none';" />
+    `;
+      }
     }
 
-    if ((watermark.type === "image" || watermark.type === "both") && watermark.image.url) {
-      watermarkContent += `
-        <img class="page-watermark-image" src="${watermark.image.url}" style="
-          width: ${watermark.image.width}px !important;
-          height: ${watermark.image.height}px !important;
-          opacity: ${watermark.image.opacity} !important;
-          max-width: 100% !important;
-          max-height: 100% !important;
-          object-fit: contain !important;
-          user-select: none !important;
-          pointer-events: none !important;
-        " />
-      `;
-    }
-  }
+    if (watermarkContent) {
+      console.log("🚀 Injecting watermark HTML into page content component");
 
-  if (watermarkContent) {
-    console.log("🚀 Injecting watermark HTML into page content component");
-    const watermarkGjsComponent = pageContentComponent.append(`
+      const existingWatermarks = pageContentComponent.find('.page-watermark');
+      existingWatermarks.forEach(wm => wm.remove());
+      const watermarkGjsComponent = pageContentComponent.append(`
       <div class="page-watermark ${watermark.tiled ? 'tiled' : 'single'}" style="
         position: absolute !important;
         top: 0 !important;
@@ -8105,22 +8347,23 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
         user-select: none !important;
         z-index: 1 !important;
         ${positionStyles}
+        ${watermark.type === "both" ? "flex-direction: column !important;" : ""}
       ">${watermarkContent}</div>
     `)[0];
 
-    watermarkGjsComponent.set({
-      selectable: false,
-      editable: false,
-      removable: false,
-      draggable: false,
-      copyable: false,
-    });
+      watermarkGjsComponent.set({
+        selectable: false,
+        editable: false,
+        removable: false,
+        draggable: false,
+        copyable: false,
+      });
 
-    console.log(`✅ ${watermark.tiled ? 'Dynamic tiled' : 'Single'} watermark component added`);
+      console.log(`✅ ${watermark.tiled ? 'Dynamic tiled' : 'Single'} watermark component added`);
+    }
   }
-}
 
- renderPageNumbers() {
+renderPageNumbers() {
     console.log("Starting page number rendering...");
 
     if (!this.pageSettings.pageNumber?.enabled) {
@@ -8196,23 +8439,31 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
     console.log("Page number rendering complete");
   }
 
+  getPageNumberPositionStyles(position) {
+    const positions = {
+      'top-left': 'top: 10px; left: 10px;',
+      'top-center': 'top: 10px; left: 50%; transform: translateX(-50%);',
+      'top-right': 'top: 10px; right: 10px;',
+      'center-left': 'top: 50%; left: 10px; transform: translateY(-50%);',
+      'center-center': 'top: 50%; left: 50%; transform: translate(-50%, -50%);',
+      'center-right': 'top: 50%; right: 10px; transform: translateY(-50%);',
+      'bottom-left': 'bottom: 10px; left: 10px;',
+      'bottom-center': 'bottom: 10px; left: 50%; transform: translateX(-50%);',
+      'bottom-right': 'bottom: 10px; right: 10px;'
+    };
 
-  shouldShowPageNumber(pageIndex) {
-    const pageNumber = pageIndex + 1
-    return (
-      !this.pageSettings.pageNumbering.excludedPages.includes(pageNumber) && this.pageSettings.pageNumbering.enabled
-    )
+    return positions[position] || positions['bottom-center'];
   }
 
-  getActualPageNumber(pageIndex) {
-    const pageNumber = pageIndex + 1
-    const excludedCount = this.pageSettings.pageNumbering.excludedPages.filter((p) => p < pageNumber).length
-    return pageNumber - excludedCount
-  }
+  removeAllPageNumbers() {
+    const pages = this.editor.getWrapper().find('.page-container');
+    pages.forEach(pageComponent => {
+      const pageNumbers = pageComponent.find('.page-number-element');
+      pageNumbers.forEach(element => element.remove());
+    });
+    console.log("🗑️ All page numbers removed");
+  } 
 
-  getTotalNumberedPages() {
-    return this.pageSettings.numberOfPages - this.pageSettings.pageNumbering.excludedPages.length
-  }
 
   showPageDeleteModal() {
     if (this.pageSettings.numberOfPages <= 1) {
@@ -8493,9 +8744,6 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
           // Inject label if it doesn't exist
           const newLabel = headerRegion.append(`
           <div class="page-number-label" style="
-            position: absolute;
-            top: 4px;
-            right: 10px;
             font-weight: bold;
             font-size: 12px;
             color: #000;
@@ -8683,15 +8931,21 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
         });
       }
 
-      // CRITICAL: Setup observer AFTER page is fully created, with delay
-      setTimeout(() => {
-        // Restore pagination state
-        this.paginationInProgress = originalPaginationState;
+      // ✅ Get page-content for watermark
+      const pageContentComponent = pageComponent.find(".page-content")[0];
 
-        // Setup observer for new page
+      // Add watermark immediately
+      if (pageContentComponent) {
+        this.addWatermarkToPage(pageContentComponent, newPageIndex);
+        this.renderPageNumbers()
+      }
+
+      // Setup observer AFTER page is fully created
+      setTimeout(() => {
+        this.paginationInProgress = originalPaginationState;
         this.setupPageObserver(newPageIndex);
         console.log(`✅ New page ${newPageIndex + 1} created and observer attached`);
-      }, 500); // Longer delay to ensure page is fully ready
+      }, 500);
 
       return newPageSettings;
 
@@ -8951,7 +9205,7 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
   }
 
   checkPageForOverflow(pageIndex) {
-    
+
     this.handlePageBreak(pageIndex);
     const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
     if (!pageComponent) return;
@@ -8993,7 +9247,7 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
     } else {
       console.log(`✅ No overflow on page ${pageIndex}`);
     }
-    
+
   }
 
   contentLooksOverflowing(contentEl) {
@@ -9232,8 +9486,555 @@ addWatermarkToPage(pageContentComponent, pageIndex) {
   }
 
 
+  //////////////////////////////////section header workiing code from here///////////////////////////////////////
+  // 🔹 Register dynamic header/footer
+  registerDynamicHeaderFooter() {
+    this.editor.Components.addType("Dynamic Header Footer", {
+      model: {
+        defaults: {
+          tagName: "div",
+          name: "Dynamic Header Footer",
+          attributes: { class: "sections-container" },
+          selectable: true,
+          highlightable: true,
+          components: [
+            {
+              tagName: "div",
+              name: "Header",
+              attributes: { class: "section-header gjs-editor-header", 'data-gjs-name': 'Header' },
+              style: { padding: "10px", "min-height": "80px", position: "relative" },
+              traits: [
+                {
+                  type: "select",
+                  label: "Apply To",
+                  name: "headerApplyMode",
+                  options: [
+                    { id: "all", label: "All" },
+                    { id: "even", label: "Even" },
+                    { id: "odd", label: "Odd" },
+                    { id: "custom", label: "Custom" }
+                  ],
+                  default: "all",
+                  changeProp: 1
+                },
+                {
+                  type: "text",
+                  label: "Custom Range",
+                  name: "headerCustomRange",
+                  placeholder: "e.g. 2,4-6",
+                  changeProp: 1
+                }
+              ]
+            },
+            {
+              tagName: "div",
+              name: "Content",
+              attributes: { class: "section-content gjs-editor-content", 'data-gjs-name': 'Content' },
+              style: { flex: "1", padding: "10px", position: "relative" }
+            },
+            {
+              tagName: "div",
+              name: "Footer",
+              attributes: { class: "section-footer gjs-editor-footer", 'data-gjs-name': 'Footer' },
+              style: { padding: "10px", "min-height": "60px", position: "relative" },
+              traits: [
+                {
+                  type: "select",
+                  label: "Apply To",
+                  name: "footerApplyMode",
+                  options: [
+                    { id: "all", label: "All" },
+                    { id: "even", label: "Even" },
+                    { id: "odd", label: "Odd" },
+                    { id: "custom", label: "Custom" }
+                  ],
+                  default: "all",
+                  changeProp: 1
+                },
+                {
+                  type: "text",
+                  label: "Custom Range",
+                  name: "footerCustomRange",
+                  placeholder: "e.g. 1,3-5",
+                  changeProp: 1
+                }
+              ]
+            }
+          ],
+          style: {
+            display: "flex",
+            "flex-direction": "column",
+            width: "100%",
+            "min-height": "50vh",
+            margin: "10px 0",
+            padding: "5px"
+          }
+        }
+      }
+    });
+
+    // 🔹 Event binding: whenever traits change, update all pages
+    this.editor.on('trait:update', (eventData) => {
+      const { trait, component } = eventData;
+
+      const traitName = trait.get('name');
+      const traitValue = trait.get('value');
+      const componentName = component.get('name');
+
+      console.log(`🔧 Trait update: ${traitName} = ${traitValue} on component: ${componentName}`);
+
+      // Check if it's a header or footer trait change
+      if (componentName === 'Header' && (traitName === 'headerApplyMode' || traitName === 'headerCustomRange')) {
+        const mode = component.get('headerApplyMode');
+        const range = component.get('headerCustomRange');
+        console.log(`📋 Header trait changed: mode=${mode}, range=${range}`);
+
+        this.syncHeaderTraitsAcrossPages(component, mode, range);
+
+        // Update content after sync
+        setTimeout(() => {
+          this.updateAllSectionHeadersFooters();
+        }, 50);
+      } else if (componentName === 'Footer' && (traitName === 'footerApplyMode' || traitName === 'footerCustomRange')) {
+        const mode = component.get('footerApplyMode');
+        const range = component.get('footerCustomRange');
+        console.log(`📋 Footer trait changed: mode=${mode}, range=${range}`);
+
+        this.syncFooterTraitsAcrossPages(component, mode, range);
+
+        // Update content after sync
+        setTimeout(() => {
+          this.updateAllSectionHeadersFooters();
+        }, 50);
+      }
+    });
+  }
+
+  // 🔹 Sync header traits across all pages
+  syncHeaderTraitsAcrossPages(sourceComponent, newMode, newRange) {
+    const allPages = this.editor.getWrapper().find('.page-container');
+    console.log(`🔄 Syncing header traits: mode=${newMode}, range=${newRange} across ${allPages.length} pages`);
+
+    allPages.forEach((pageComponent, i) => {
+      const sectionContainer = pageComponent.find('.sections-container')[0];
+      if (!sectionContainer) return;
+
+      const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+      if (!headerComp) return;
+
+      // Update both properties on the component
+      headerComp.set('headerApplyMode', newMode);
+      headerComp.set('headerCustomRange', newRange);
+
+      // Update the trait UI
+      const modeTrait = headerComp.getTrait('headerApplyMode');
+      const rangeTrait = headerComp.getTrait('headerCustomRange');
+
+      if (modeTrait) {
+        modeTrait.set('value', newMode);
+        if (modeTrait.view) {
+          modeTrait.view.model.set('value', newMode);
+          modeTrait.view.render();
+        }
+      }
+
+      if (rangeTrait) {
+        rangeTrait.set('value', newRange);
+        if (rangeTrait.view) {
+          rangeTrait.view.model.set('value', newRange);
+          rangeTrait.view.render();
+        }
+      }
+
+      console.log(`   ✅ Page ${i + 1} header synced: mode=${headerComp.get('headerApplyMode')}, range=${headerComp.get('headerCustomRange')}`);
+    });
+  }
+
+  // 🔹 Sync footer traits across all pages
+  syncFooterTraitsAcrossPages(sourceComponent, newMode, newRange) {
+    const allPages = this.editor.getWrapper().find('.page-container');
+    console.log(`🔄 Syncing footer traits: mode=${newMode}, range=${newRange} across ${allPages.length} pages`);
+
+    allPages.forEach((pageComponent, i) => {
+      const sectionContainer = pageComponent.find('.sections-container')[0];
+      if (!sectionContainer) return;
+
+      const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
+      if (!footerComp) return;
+
+      // Update both properties on the component
+      footerComp.set('footerApplyMode', newMode);
+      footerComp.set('footerCustomRange', newRange);
+
+      // Update the trait UI
+      const modeTrait = footerComp.getTrait('footerApplyMode');
+      const rangeTrait = footerComp.getTrait('footerCustomRange');
+
+      if (modeTrait) {
+        modeTrait.set('value', newMode);
+        if (modeTrait.view) {
+          modeTrait.view.model.set('value', newMode);
+          modeTrait.view.render();
+        }
+      }
+
+      if (rangeTrait) {
+        rangeTrait.set('value', newRange);
+        if (rangeTrait.view) {
+          rangeTrait.view.model.set('value', newRange);
+          rangeTrait.view.render();
+        }
+      }
+
+      console.log(`   ✅ Page ${i + 1} footer synced: mode=${footerComp.get('footerApplyMode')}, range=${footerComp.get('footerCustomRange')}`);
+    });
+  }
+
+  // 🔹 Check if a page should show a section
+  checkSectionApplyMode(mode, range, pageIndex) {
+    const pageNum = pageIndex + 1;
+    console.log(`🔍 Checking page ${pageNum}: mode=${mode}, range="${range}"`);
+
+    if (mode === "all") return true;
+    if (mode === "even") return pageNum % 2 === 0;
+    if (mode === "odd") return pageNum % 2 !== 0;
+    if (mode === "custom") {
+      if (!range || range.trim() === '') {
+        console.log(`❌ Page ${pageNum}: No range specified for custom mode`);
+        return false;
+      }
+
+      const shouldShow = range.split(',').some(part => {
+        const trimmedPart = part.trim();
+        if (trimmedPart.includes('-')) {
+          const [start, end] = trimmedPart.split('-').map(n => parseInt(n.trim(), 10));
+          console.log(`🔍 Page ${pageNum}: Checking range ${start}-${end}`);
+          const inRange = pageNum >= start && pageNum <= end;
+          console.log(`🔍 Page ${pageNum}: ${pageNum} >= ${start} && ${pageNum} <= ${end} = ${inRange}`);
+          return inRange;
+        } else {
+          const targetPage = parseInt(trimmedPart, 10);
+          console.log(`🔍 Page ${pageNum}: Checking single page ${targetPage}`);
+          const matches = targetPage === pageNum;
+          console.log(`🔍 Page ${pageNum}: ${targetPage} === ${pageNum} = ${matches}`);
+          return matches;
+        }
+      });
+
+      console.log(`${shouldShow ? '✅' : '❌'} Page ${pageNum}: Custom range result = ${shouldShow}`);
+      return shouldShow;
+    }
+    return true;
+  }
+
+  // 🔹 Update header per page
+  updateSectionHeader(pageComponent, pageIndex) {
+    const sectionContainer = pageComponent.find('.sections-container')[0];
+    if (!sectionContainer) return;
+
+    const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+    if (!headerComp) return;
+
+    const mode = headerComp.get('headerApplyMode') || 'all';
+    const range = headerComp.get('headerCustomRange') || '';
+    const show = this.checkSectionApplyMode(mode, range, pageIndex);
+
+    const rteComp = headerComp.components().find(c => c.get('attributes')['data-gjs-type'] === 'formatted-rich-text');
+    if (!rteComp) return;
+
+    if (show) {
+      console.log(`✅ Showing header text (page ${pageIndex + 1})`);
+      rteComp.set('content', `Header for page ${pageIndex + 1}`);
+    } else {
+      console.log(`❌ Clearing header text (page ${pageIndex + 1})`);
+      rteComp.set('content', '');
+    }
+
+    if (rteComp.view) rteComp.view.render();
+  }
+
+  // 🔹 Update footer per page
+  updateSectionFooter(pageComponent, pageIndex) {
+    const sectionContainer = pageComponent.find('.sections-container')[0];
+    if (!sectionContainer) return;
+
+    const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
+    if (!footerComp) return;
+
+    const mode = footerComp.get('footerApplyMode') || 'all';
+    const range = footerComp.get('footerCustomRange') || '';
+    const show = this.checkSectionApplyMode(mode, range, pageIndex);
+
+    footerComp.getEl().style.display = 'block';
+
+    const rteComp = footerComp.components().at(0);
+    if (rteComp) {
+      if (show) {
+        console.log(`✅ Showing footer text (page ${pageIndex + 1})`);
+        const sourceContent = this._lastSectionFooterContent || `Footer for page ${pageIndex + 1}`;
+        rteComp.set('content', sourceContent);
+      } else {
+        console.log(`❌ Clearing footer text (page ${pageIndex + 1})`);
+        rteComp.set('content', '');
+      }
+      if (rteComp.view) rteComp.view.render();
+    }
+
+    if (show) {
+      this._lastSectionFooterContent = footerComp.components().at(0)?.get('content') || '';
+    }
+  }
+
+  // 🔹 Update all pages
+  updateAllSectionHeadersFooters() {
+    const allPages = this.editor.getWrapper().find('.page-container');
+    console.log(`🔄 Updating all section headers and footers (${allPages.length} pages)`);
+
+    allPages.forEach((pageComponent, i) => {
+      console.log(`\n📄 Processing Page ${i + 1}`);
+
+      const sectionContainer = pageComponent.find('.sections-container')[0];
+      if (!sectionContainer) return;
+
+      const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+      const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
+
+      // 🔹 For header: get mode/range from the component
+      if (headerComp) {
+        const mode = headerComp.get('headerApplyMode') || 'all';
+        const range = headerComp.get('headerCustomRange') || '';
+        const show = this.checkSectionApplyMode(mode, range, i);
+
+        const rteComp = headerComp.components().find(c => c.get('attributes')['data-gjs-type'] === 'formatted-rich-text');
+        if (rteComp) {
+          if (show) {
+            console.log(`✅ Showing header text (page ${i + 1})`);
+            rteComp.set('content', `Header for page ${i + 1}`);
+          } else {
+            console.log(`❌ Clearing header text (page ${i + 1})`);
+            rteComp.set('content', '');
+          }
+          if (rteComp.view) rteComp.view.render();
+        }
+
+        console.log(`   Header trait synced: mode=${mode}, range=${range}`);
+      }
+
+      // 🔹 For footer: similar logic
+      if (footerComp) {
+        const mode = footerComp.get('footerApplyMode') || 'all';
+        const range = footerComp.get('footerCustomRange') || '';
+        const show = this.checkSectionApplyMode(mode, range, i);
+
+        const rteComp = footerComp.components().at(0);
+        if (rteComp) {
+          if (show) {
+            console.log(`✅ Showing footer text (page ${i + 1})`);
+            rteComp.set('content', `Footer for page ${i + 1}`);
+          } else {
+            console.log(`❌ Clearing footer text (page ${i + 1})`);
+            rteComp.set('content', '');
+          }
+          if (rteComp.view) rteComp.view.render();
+        }
+
+        console.log(`   Footer trait synced: mode=${mode}, range=${range}`);
+      }
+    });
+
+    console.log('✅ All section headers and footers updated.\n');
+  }
+  /////////////////////////////////////////section header footer code end here////////////////////////////////////////////
+
+  // //////////////////////////////////////////////daynamic header footer from json//////////////////////
+
+  setupJsonSuggestionButton() {
+    const jsonSector = document.querySelector('.i_designer-sm-sector__JSON');
+    if (!jsonSector) return;
+
+    const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
+    if (!jsonPathInput) return;
+
+    const button = document.createElement('button');
+    button.innerHTML = 'Json Suggestion';
+    button.id = 'json-suggestion-btn';
+    button.style.marginLeft = '0px';
+    jsonPathInput.parentNode.appendChild(button);
+
+    button.addEventListener('click', () => this.openSuggestionJsonModal());
+  }
+
+  openSuggestionJsonModal() {
+    const commonJson = JSON.parse(localStorage.getItem('common_json'));
+    const customLanguage = localStorage.getItem('custom_language') || 'english';
+    const metaDataKeys = this.extractMetaDataKeys(commonJson[customLanguage]);
+
+    let modalContent = `
+            <div class="new-table-form">
+                <div style="padding-bottom:10px">
+                    <input type="text" id="searchInput" placeholder="Search json">
+                </div>
+                <div class="suggestion-results" style="height: 200px; overflow: auto;">
+        `;
+    metaDataKeys.forEach(key => {
+      modalContent += `<div class="suggestion" data-value="${key}">${key}</div>`;
+    });
+    modalContent += `</div></div>`;
+
+    this.editor.Modal.setTitle('Json Suggestion');
+    this.editor.Modal.setContent(modalContent);
+    this.editor.Modal.open();
+
+    document.getElementById("searchInput").addEventListener("input", function () {
+      filterSuggestions(this.value);
+    });
+
+    document.querySelectorAll('.suggestion').forEach(item => {
+      item.addEventListener('click', () => {
+        const selectedValue = item.getAttribute('data-value');
+        const selectedData = this.getNestedValue(commonJson[customLanguage], selectedValue); // <-- use 'this.'
+
+        if (Array.isArray(selectedData)) {
+          const arrayEvent = new CustomEvent('arrayDataSelected', {
+            detail: { data: selectedData, jsonPath: selectedValue }
+          });
+          document.dispatchEvent(arrayEvent);
+        } else {
+          const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
+          if (inputField) {
+            inputField.value = selectedValue;
+            inputField.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+          }
+        }
+
+        this.editor.Modal.close();
+      });
+    });
+  }
 
 
+  initializeArrayDataListener() {
+    document.addEventListener('arrayDataSelected', event => {
+      const { data, jsonPath } = event.detail;
+      if (typeof this.handleArrayDataDistribution === 'function') {
+        this.handleArrayDataDistribution(data, jsonPath);
+      } else {
+        console.error('handleArrayDataDistribution function not found');
+      }
+    });
+  }
+
+  handleArrayDataDistribution(arrayData, jsonPath) {
+    const currentPageCount = this.pageSettings.numberOfPages || 1;
+    const requiredPages = arrayData.length;
+
+    if (requiredPages > currentPageCount) {
+      this.createAdditionalPages(requiredPages - currentPageCount);
+    }
+
+    arrayData.forEach((item, index) => {
+      this.insertDataIntoPageHeader(item, index, jsonPath);
+    });
+
+    this.updateAllPagesAfterDataInsertion(requiredPages);
+  }
+
+  insertDataIntoPageHeader(data, pageIndex, jsonPath) {
+    const allPages = this.editor.getWrapper().find('.page-container');
+    const targetPage = allPages[pageIndex];
+    if (!targetPage) return;
+
+    const headerSection = targetPage.find('.section-header[data-gjs-name="Header"]')[0];
+    if (!headerSection) return;
+
+    const richTextComponent = headerSection.find('[data-gjs-type="formatted-rich-text"]')[0];
+    if (!richTextComponent) return;
+
+    let contentToInsert = '';
+
+    // Handle arrays
+    if (Array.isArray(data)) {
+      const item = data[pageIndex]; // Get per-page item
+      if (typeof item === 'object') {
+        // Convert object to HTML string
+        contentToInsert = Object.entries(item)
+          .map(([key, value]) => `<strong>${key}:</strong> ${value}`)
+          .join('<br>');
+      } else {
+        contentToInsert = String(item);
+      }
+    }
+    // Handle objects (like analytics_pie)
+    else if (typeof data === 'object') {
+      if (jsonPath === 'analytics_pie') {
+        const pieData = data.series?.[0]?.data || [];
+        const pieItem = pieData[pageIndex];
+        if (pieItem) {
+          contentToInsert = `<strong>${pieItem.name}:</strong> ${pieItem.y}`;
+        }
+      } else {
+        contentToInsert = JSON.stringify(data, null, 2);
+      }
+    }
+    // Handle strings
+    else {
+      contentToInsert = String(data);
+    }
+
+    richTextComponent.components(contentToInsert);
+    console.log(`Inserted into page ${pageIndex + 1}:`, contentToInsert);
+  }
+
+  createAdditionalPages(additionalPagesCount) {
+    const allPages = this.editor.getWrapper().find('.page-container');
+    const firstPage = allPages[0];
+    if (!firstPage) return;
+
+    for (let i = 0; i < additionalPagesCount; i++) {
+      const newPageIndex = this.pageSettings.numberOfPages + i;
+      const newPageId = `page-${Date.now()}-${newPageIndex}`;
+
+      const newPageSettings = { ...this.pageSettings.pages[0], id: newPageId, name: `Page ${newPageIndex + 1}` };
+      this.pageSettings.pages.push(newPageSettings);
+      this.pageSettings.numberOfPages += 1;
+
+      const newPageClone = firstPage.clone();
+      newPageClone.setAttributes({ 'data-page-id': newPageId });
+
+      const lastPage = allPages.at(-1);
+      lastPage.parent().append(newPageClone);
+    }
+  }
+
+
+  updateAllPagesAfterDataInsertion(pageCount) {
+    const allPages = this.editor.getWrapper().find('.page-container');
+
+    for (let i = 0; i < pageCount; i++) {
+      const pageElement = allPages[i];
+      const pageSettings = this.pageSettings.pages[i];
+      if (pageElement && pageSettings && typeof this.updateSinglePageVisuals === 'function') {
+        this.updateSinglePageVisuals(pageElement.getEl(), pageSettings, i);
+      }
+    }
+  }
+
+  extractMetaDataKeys(jsonObj) {
+    if (!jsonObj || typeof jsonObj !== 'object') return [];
+    return Object.keys(jsonObj); // Return all keys at top level
+  }
+
+  getNestedValue(obj, path) {
+    if (!obj || !path) return null;
+    const keys = path.split('.');
+    let result = obj;
+    for (let key of keys) {
+      if (result[key] === undefined) return undefined;
+      result = result[key];
+    }
+    return result;
+  }
+  //////////////////////////////////////////////////////daynamic header footer from json///////////////////////////
 
 
 

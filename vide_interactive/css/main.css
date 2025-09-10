@@ -72,6 +72,7 @@ html {
   font-size: 1.1rem;
   border: none;
   float: right;
+  cursor: pointer;
 }
 .popupaddbtn{
   padding: 8px;
@@ -91,17 +92,20 @@ html {
 
 #nColumns {
   padding: 8px;
+  margin-bottom: 5px;
   border-radius: 8px;
   border: none;
 }
 #nRows {
   padding: 8px;
+  margin-bottom: 5px;
   border-radius: 8px;
   border: none;
 }
 
 #nColumnsScroll{
   padding: 8px;
+  margin-bottom: 7px;
   border-radius: 8px;
   border: none;
 }

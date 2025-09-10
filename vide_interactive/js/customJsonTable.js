@@ -1,7110 +1,2599 @@
-// daynamic header and footer from blocks
+function jsontablecustom(editor) {
+    let HotFormulaParser = null;
+    function loadFormulaParser(callback) {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+        script.onload = function () {
+            console.log('HotFormulaParser loaded successfully');
+            HotFormulaParser = new formulaParser.Parser();
 
+            // ✅ Add custom formulas after parser is initialized
+            registerCustomFormulas();
 
-class PageSetupManager {
-  constructor(editor) {
-    this._lastAppliedHeaderText = "";
-    this._lastAppliedFooterText = "";
-    this._overflowAttempts = new Map();
-    this._maxOverflowAttempts = 3;
-    this.pageObservers = new Map();
-    this.paginationInProgress = false;
-    this.debounceTimers = new Map();
-    this.lastContentSnapshot = new Map();
-    this.contentCheckInterval = null;
-    this._isProcessingOverflow = false;
-    this._overflowCheckTimeout = null;
-    this._componentAddHandler = null;
-    this._componentUpdateHandler = null;
-    this._pasteHandler = null;
-    this.editor = editor;
-    this.pageSettings = {
-      autoFlow: true,
-      preserveFormatting: true,
-      wordWrap: true,
-      lineHeight: 1.2,
-      fontSize: 12
-    };
-    this.pageSettings = {
-      format: "a4",
-      orientation: "portrait",
-      numberOfPages: 1,
-      pages: [],
-      width: 210,
-      height: 297,
-      margins: {
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-      },
-      backgroundColor: "#ffffff",
-      pageNumbering: {
-        enabled: false,
-        startFromPage: 1,
-        excludedPages: [],
-      },
-      // Header/footer settings with default enabled state
-      headerFooter: {
-        headerEnabled: true,
-        footerEnabled: true,
-        headerHeight: 12.7, // 1.27cm in mm
-        footerHeight: 12.7, // 1.27cm in mm
-      },
-    }
-    this.isInitialized = false
-    this.currentPageIndex = 0
-    this.selectedSection = null
-    this.pageBreaks = [] // Track page breaks for print/PDF
-
-    // Store shared content to preserve during operations
-    this.sharedContent = {
-      header: null,
-      footer: null,
+            console.log("parser", HotFormulaParser);
+            if (callback) callback();
+        };
+        script.onerror = function () {
+            console.warn('Failed to load HotFormulaParser');
+            if (callback) callback(); // fallback so UI doesn’t hang
+        };
+        document.head.appendChild(script);
     }
 
-    // Store all page content to preserve during operations
-    this.pageContents = new Map()
+    // ✅ Register custom formulas
+    function registerCustomFormulas() {
+        // --- PERCENT(base, percent) ---
+        HotFormulaParser.setFunction('PERCENT', function (params) {
+            if (params.length !== 2) return '#N/A';
+            const base = parseFloat(params[0]);
+            const percent = parseFloat(params[1]);
+            if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+            return base * (percent / 100);
+        });
 
-    // Page format dimensions in mm
-    this.pageFormats = {
-      a4: { width: 210, height: 297 },
-      a3: { width: 297, height: 420 },
-      a2: { width: 420, height: 594 },
-      a1: { width: 594, height: 841 },
-      a0: { width: 841, height: 1189 },
-      letter: { width: 215.9, height: 279.4 },
-      legal: { width: 215.9, height: 355.6 },
-      a5: { width: 148, height: 210 },
-      custom: { width: 210, height: 297 },
-    }
+        // --- Load number-to-words library ---
+        const numScript = document.createElement('script');
+        numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
+        numScript.onload = function () {
+            // --- NUMTOWORDS(number [, mode]) ---
+            // mode = "currency" will format as "rupees and paise"
+            HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+                if (params.length < 1) return '#N/A';
 
-    // Default header/footer sizes (1.27cm = 12.7mm)
-    this.defaultSizes = {
-      header: { height: 12.7, padding: 10 },
-      footer: { height: 12.7, padding: 10 },
-    }
+                const raw = params[0];
+                const num = parseFloat(raw);
+                if (isNaN(num)) return '#VALUE!';
 
-    // Sections functionality
-    this.sectionsSettings = {
-      enabled: false,
-      sections: [],
-    }
+                const mode = (params[1] || "").toString().toLowerCase();
 
-    this.pageSettings.watermark = {
-      // ...other config
-      watermark: {
-        enabled: true, // ✅ Make sure this is true on init
-        type: "text",
-        position: "center",
-        text: {
-          content: "CONFIDENTIAL",
-          font: "Arial",
-          fontSize: 60,
-          color: "red",
-          opacity: 0.2,
-          rotation: -30,
-        },
-        image: {
-          url: "",
-          width: 100,
-          height: 100,
-          opacity: 0.3,
-        },
-        applyToAllPages: true,
-      }
+                let words = "";
+                if (Number.isInteger(num)) {
+                    // Integer only
+                    words = numberToWords.toWords(num);
+                } else {
+                    // Decimal handling
+                    const [intPart, decPart] = raw.toString().split(".");
+                    const intWords = numberToWords.toWords(parseInt(intPart));
+                    if (mode === "currency") {
+                        // Convert decimals as paise (up to 2 digits)
+                        const paise = parseInt(decPart.substring(0, 2).padEnd(2, "0"));
+                        const paiseWords = paise > 0 ? numberToWords.toWords(paise) + " paise" : "";
+                        words = intWords + " rupees" + (paiseWords ? " and " + paiseWords : "");
+                    } else {
+                        // Default: spell out each decimal digit
+                        const decWords = decPart.split("").map(d => numberToWords.toWords(parseInt(d))).join(" ");
+                        words = intWords + " point " + decWords;
+                    }
+                }
+
+                return words;
+            });
+
+            console.log("NUMTOWORDS formula registered");
+        };
+        document.head.appendChild(numScript);
     }
 
 
-    this.init()
+    // ✅ Formula evaluation function
+    function evaluateFormula(formula, tableData, currentRow, currentCol) {
+        try {
+            if (!HotFormulaParser) {
+                return '#ERROR: Parser not loaded';
+            }
+
+            // Clear and rebuild the cell map with current table data
+            window.globalCellMap = {};
+            const headers = Object.keys(tableData[0] || {});
+
+            tableData.forEach((row, rowIdx) => {
+                headers.forEach((columnKey, colIdx) => {
+                    const colLetter = indexToColumnLetter(colIdx);
+                    const cellLabel = colLetter + (rowIdx + 1); // Excel-style A1, B2 etc.
+                    let value = row[columnKey];
+                    if (value === null || value === undefined) value = '';
+                    window.globalCellMap[cellLabel] = value;
+                });
+            });
+
+            // Handle cell references
+            HotFormulaParser.on('callCellValue', function (cellCoord, done) {
+                let cellValue = window.globalCellMap[cellCoord.label];
+                if (cellValue === null || cellValue === undefined) {
+                    cellValue = '';
+                }
+                done(cellValue);
+            });
+
+            // Parse and evaluate
+            const { result, error } = HotFormulaParser.parse(formula);
+            if (error) {
+                return `#ERROR: ${error}`;
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Formula evaluation error:', error);
+            return `#ERROR: ${error.message}`;
+        }
+    }
+
+
+    // Add highlighting function from custom table
+    function applyHighlighting(tableId, conditions, highlightColor) {
+        try {
+            const canvasBody = editor.Canvas.getBody();
+            const table = canvasBody.querySelector(`#${tableId}`);
+            if (!table) return;
+
+            const wrapper = editor.DomComponents.getWrapper();
+
+            // Always clear previous highlights
+            const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
+            prev.forEach(td => {
+                td.style.backgroundColor = '';
+                td.style.color = '';
+                td.style.fontFamily = '';
+                td.removeAttribute('data-highlighted');
+
+                const id = td.id;
+                if (id) {
+                    const comp = wrapper.find(`#${id}`)[0];
+                    if (comp) {
+                        comp.removeStyle('background-color');
+                        comp.removeStyle('color');
+                        comp.removeStyle('font-family');
+                    }
+                }
+            });
+
+            // Only apply new highlights if conditions exist
+            if (conditions && conditions.length > 0) {
+                const bodyCells = table.querySelectorAll('tbody td');
+                bodyCells.forEach(td => {
+                    const div = td.querySelector('div');
+                    const val = div ? div.textContent.trim() : td.textContent.trim();
+
+                    // Check if any condition matches
+                    const shouldHighlight = conditions.some(condition =>
+                        evaluateCondition(val, condition)
+                    );
+
+                    if (shouldHighlight) {
+                        // Apply all highlight styles
+                        const bgColor = highlightColor || '#ffff99';
+                        const textColor = conditions[0].textColor || '';
+                        const fontFamily = conditions[0].fontFamily || '';
+
+                        td.style.backgroundColor = bgColor;
+                        if (textColor) td.style.color = textColor;
+                        if (fontFamily) td.style.fontFamily = fontFamily;
+                        td.setAttribute('data-highlighted', 'true');
+
+                        const id = td.id;
+                        if (id) {
+                            const comp = wrapper.find(`#${id}`)[0];
+                            if (comp) {
+                                const styles = {
+                                    'background-color': bgColor,
+                                    '-webkit-print-color-adjust': 'exact',
+                                    'color-adjust': 'exact',
+                                    'print-color-adjust': 'exact'
+                                };
+                                if (textColor) styles.color = textColor;
+                                if (fontFamily) styles['font-family'] = fontFamily;
+
+                                comp.addStyle(styles);
+                            }
+                        }
+                    }
+                });
+            }
+
+        } catch (err) {
+            console.warn('Error applying highlighting:', err);
+        }
+    }
+    function evaluateCondition(cellValue, condition) {
+        const value = String(cellValue || '').trim();
+
+        switch (condition.type) {
+            case 'contains':
+                return condition.caseSensitive ?
+                    value.includes(condition.value) :
+                    value.toLowerCase().includes(condition.value.toLowerCase());
+
+            case 'starts-with':
+                return condition.caseSensitive ?
+                    value.startsWith(condition.value) :
+                    value.toLowerCase().startsWith(condition.value.toLowerCase());
+
+            case 'ends-with':
+                return condition.caseSensitive ?
+                    value.endsWith(condition.value) :
+                    value.toLowerCase().endsWith(condition.value.toLowerCase());
+
+            case 'exact':
+                return condition.caseSensitive ?
+                    value === condition.value :
+                    value.toLowerCase() === condition.value.toLowerCase();
+
+            case 'once-if':
+                const chars = condition.value.split('');
+                return chars.some(char => condition.caseSensitive ?
+                    value.includes(char) :
+                    value.toLowerCase().includes(char.toLowerCase()));
+
+            case '>':
+                return parseFloat(value) > parseFloat(condition.value);
+            case '>=':
+                return parseFloat(value) >= parseFloat(condition.value);
+            case '<':
+                return parseFloat(value) < parseFloat(condition.value);
+            case '<=':
+                return parseFloat(value) <= parseFloat(condition.value);
+            case '=':
+                return parseFloat(value) === parseFloat(condition.value);
+            case '!=':
+                return parseFloat(value) !== parseFloat(condition.value);
+            case 'between':
+                const numValue = parseFloat(value);
+                return numValue >= parseFloat(condition.minValue) && numValue <= parseFloat(condition.maxValue);
+            case 'null':
+                return !value || value === '';
+
+            default:
+                return false;
+        }
+    }
+    // Helper function to convert column letters to index (A=0, B=1, etc.)
+    function columnLetterToIndex(letters) {
+        let result = 0;
+        for (let i = 0; i < letters.length; i++) {
+            result = result * 26 + (letters.charCodeAt(i) - 65 + 1);
+        }
+        return result - 1;
+    }
+
+    // Helper function to convert index to column letters
+    function indexToColumnLetter(index) {
+        let result = '';
+        while (index >= 0) {
+            result = String.fromCharCode(65 + (index % 26)) + result;
+            index = Math.floor(index / 26) - 1;
+        }
+        return result;
+    }
+
+    editor.DomComponents.addType('json-table', {
+        model: {
+            defaults: {
+                tagName: 'div',
+                attributes: { class: 'json-table-container' },
+                traits: [
+                    {
+                        type: 'text',
+                        name: 'id',
+                        label: 'Id'
+                    },
+                    {
+                        type: 'text',
+                        name: 'title',
+                        label: 'Title'
+                    },
+                    {
+                        type: 'text',
+                        name: 'name',
+                        label: 'Name',
+                        changeProp: 1
+                    },
+                    {
+                        type: 'select',
+                        name: 'footer',
+                        label: 'Footer',
+                        options: [
+                            { value: 'yes', name: 'Yes' },
+                            { value: 'no', name: 'No' }
+                        ],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'text',
+                        name: 'file-download',
+                        label: 'File Download',
+                        placeholder: '"copy", "csv", "excel", "pdf", "print"'
+                    },
+                    {
+                        type: 'select',
+                        name: 'pagination',
+                        label: 'Pagination',
+                        options: [
+                            { value: 'yes', name: 'Yes' },
+                            { value: 'no', name: 'No' }
+                        ],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'number',
+                        name: 'page-length',
+                        label: 'Page Length',
+                        min: 1,
+                        changeProp: 1
+                    },
+                    {
+                        type: 'select',
+                        name: 'search',
+                        label: 'Search',
+                        options: [
+                            { value: 'yes', name: 'Yes' },
+                            { value: 'no', name: 'No' }
+                        ],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'select',
+                        name: 'caption',
+                        label: 'Caption',
+                        options: [
+                            { value: 'yes', name: 'Yes' },
+                            { value: 'no', name: 'No' }
+                        ],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'select',
+                        name: 'caption-align',
+                        label: 'Caption Align',
+                        options: [
+                            { value: 'left', name: 'Left' },
+                            { value: 'center', name: 'Center' },
+                            { value: 'right', name: 'Right' }
+                        ],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'text',
+                        name: 'json-path',
+                        label: 'Json Path',
+                        placeholder: 'Enter Json Path'
+                    },
+                    {
+                        type: 'button',
+                        name: 'json-suggestion-btn',
+                        label: 'Json Suggestion',
+                        text: 'Suggestion',
+                        full: true,
+                        command: 'open-json-table-suggestion'
+                    },
+                    {
+                        type: 'select',
+                        name: 'filter-column',
+                        label: 'Filter Column',
+                        options: [{ value: "", name: "First enter JSON path" }],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'text',
+                        name: 'filter-value',
+                        label: 'Filter Value',
+                        placeholder: 'Enter filter value or "=" for all data',
+                        changeProp: 1
+                    },
+                    // Add highlighting traits from custom table
+                    {
+                        type: 'button',
+                        name: 'manage-highlight-conditions',
+                        label: 'Manage Highlight Conditions',
+                        text: 'Add/Edit Conditions',
+                        full: true,
+                        command: 'open-table-condition-manager-json-table'
+                    },
+                    {
+                        type: 'button',
+                        name: 'manage-running-totals-btn',
+                        label: 'Manage Running Totals',
+                        text: 'Configure Running Totals',
+                        full: true,
+                        command: 'open-running-total-manager'
+                    },
+                    {
+                        type: 'button',
+                        name: 'add-row-btn',
+                        label: 'Add Row',
+                        text: 'Add Row',
+                        full: true,
+                        command: 'add-table-row'
+                    },
+                    {
+                        type: 'button',
+                        name: 'add-column-btn',
+                        label: 'Add Column',
+                        text: 'Add Column',
+                        full: true,
+                        command: 'add-table-column'
+                    },
+                    {
+                        type: 'button',
+                        name: 'remove-row-btn',
+                        label: 'Remove Row',
+                        text: 'Remove Last Row',
+                        full: true,
+                        command: 'remove-table-row'
+                    },
+                    {
+                        type: 'button',
+                        name: 'remove-column-btn',
+                        label: 'Remove Column',
+                        text: 'Remove Last Column',
+                        full: true,
+                        command: 'remove-table-column'
+                    }
+                ],
+                'json-path': '',
+                'table-data': null,
+                'table-headers': null,
+                'custom-data': null,
+                'custom-headers': null,
+                'cell-styles': {},
+                'selected-cell': null,
+                // Add highlighting properties
+                'highlight-conditions': [],
+                'highlight-condition-type': '',
+                'highlight-words': '',
+                'highlight-color': '#ffff99',
+                'highlight-text-color': '',
+                'highlight-font-family': '',
+                'show-placeholder': true,
+                'cell-formulas': {},
+                'cell-map': {},
+                'formula-parser': null
+            },
+
+            init() {
+                // Clear any existing formula data to prevent cross-table contamination
+                window.globalCellMap = {};
+                if (window.globalFormulaParser) {
+                    window.globalFormulaParser = null;
+                }
+
+                this.on('change:json-path', () => {
+                    this.updateTableFromJson();
+                    this.updateFilterColumnOptions();
+                    this.updateRunningTotalColumnOptions();
+                    this.set('filter-column', '');
+                    this.set('filter-value', '');
+                    this.set('running-total-column', '');
+                    this.set('enable-running-total', false);
+                });
+                this.on('change:selected-running-total-columns', () => {
+                    this.updateRunningTotals();
+                });
+
+                this.on('change:filter-column change:filter-value', () => {
+                    if (this.get('filter-value') && this.get('filter-value').trim() !== '') {
+                        this.updateTableHTML();
+                    }
+                });
+
+                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateTableHTML);
+                this.on('change:highlight-conditions change:highlight-color', this.handleHighlightChange);
+
+                this.set('show-placeholder', true);
+                this.updateTableHTML();
+
+            },
+            updateFilterColumnOptions() {
+                try {
+                    const jsonPath = this.get('json-path');
+                    if (!jsonPath || jsonPath.trim() === "") {
+                        return;
+                    }
+
+                    let custom_language = localStorage.getItem('language') || 'english';
+                    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+
+                    if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+                        return;
+                    }
+
+                    const str = jsonDataN[custom_language][jsonPath];
+                    const tableData = eval(str);
+
+                    if (!tableData || !tableData.heading) {
+                        return;
+                    }
+
+                    const objectKeys = Object.keys(tableData.heading);
+
+                    // Update the filter column trait options
+                    const filterTrait = this.getTrait('filter-column');
+                    if (filterTrait) {
+                        const options = [
+                            { value: "", name: "Select Column to Filter" },
+                            ...objectKeys.map(key => ({
+                                value: key,
+                                name: tableData.heading[key]
+                            }))
+                        ];
+                        filterTrait.set('options', options);
+                    }
+                } catch (error) {
+                    console.log('Error updating filter options:', error);
+                }
+            },
+            updateRunningTotalColumnOptions() {
+                try {
+                    const jsonPath = this.get('json-path');
+                    if (!jsonPath || jsonPath.trim() === "") {
+                        return;
+                    }
+
+                    let custom_language = localStorage.getItem('language') || 'english';
+                    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+
+                    if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+                        return;
+                    }
+
+                    const str = jsonDataN[custom_language][jsonPath];
+                    const tableData = eval(str);
+
+                    if (!tableData || !tableData.heading) {
+                        return;
+                    }
+
+                    const objectKeys = Object.keys(tableData.heading);
+
+                    // Update the running total column trait options
+                    const runningTotalTrait = this.getTrait('running-total-column');
+                    if (runningTotalTrait) {
+                        const options = [
+                            { value: "", name: "Select Column for Running Total" },
+                            ...objectKeys.map(key => ({
+                                value: key,
+                                name: tableData.heading[key]
+                            }))
+                        ];
+                        runningTotalTrait.set('options', options);
+                    }
+                } catch (error) {
+                    console.log('Error updating running total options:', error);
+                }
+            },
+            updateRunningTotals() {
+                const selectedColumns = this.get('selected-running-total-columns') || [];
+
+                // Remove all existing running total columns
+                this.removeAllRunningTotalColumns();
+
+                // Add running totals for selected columns
+                selectedColumns.forEach(column => {
+                    this.addSingleRunningTotalColumn(column);
+                });
+
+                this.updateTableHTML();
+            },
+
+            removeAllRunningTotalColumns() {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+
+                // Remove running total columns from headers
+                const updatedHeaders = {};
+                Object.keys(headers).forEach(key => {
+                    if (!key.endsWith('_running_total')) {
+                        updatedHeaders[key] = headers[key];
+                    }
+                });
+
+                // Remove running total columns from data
+                const updatedData = data.map(row => {
+                    const newRow = {};
+                    Object.keys(row).forEach(key => {
+                        if (!key.endsWith('_running_total')) {
+                            newRow[key] = row[key];
+                        }
+                    });
+                    return newRow;
+                });
+
+                this.set('custom-headers', updatedHeaders);
+                this.set('custom-data', updatedData);
+            },
+
+            addSingleRunningTotalColumn(selectedColumn) {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+
+                // Check if the selected column contains numeric data
+                const isNumericColumn = data.every(row => {
+                    const value = row[selectedColumn];
+                    return value === '' || value === null || value === undefined || !isNaN(parseFloat(value));
+                });
+
+                if (!isNumericColumn) {
+                    console.warn(`Cannot create running total for column "${headers[selectedColumn]}". Column contains non-numeric data.`);
+                    return;
+                }
+
+                // Add running total column to headers
+                const newColumnKey = `${selectedColumn}_running_total`;
+                const newColumnName = `${headers[selectedColumn]} (Running Total)`;
+
+                // Insert running total column right after the original column
+                const headerKeys = Object.keys(headers);
+                const originalIndex = headerKeys.indexOf(selectedColumn);
+                const newHeaders = {};
+
+                headerKeys.forEach((key, index) => {
+                    newHeaders[key] = headers[key];
+                    if (index === originalIndex) {
+                        newHeaders[newColumnKey] = newColumnName;
+                    }
+                });
+
+                // Calculate running totals and add to data
+                let runningTotal = 0;
+                const updatedData = data.map(row => {
+                    const value = parseFloat(row[selectedColumn]) || 0;
+                    runningTotal += value;
+
+                    const newRow = {};
+                    Object.keys(newHeaders).forEach(key => {
+                        if (key === newColumnKey) {
+                            newRow[key] = runningTotal.toFixed(2);
+                        } else {
+                            newRow[key] = row[key];
+                        }
+                    });
+
+                    return newRow;
+                });
+
+                this.set('custom-headers', newHeaders);
+                this.set('custom-data', updatedData);
+            },
+            addRunningTotalColumn() {
+                const selectedColumn = this.get('running-total-column');
+                const enableRunningTotal = this.get('enable-running-total');
+
+                if (!selectedColumn || !enableRunningTotal) return;
+
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+
+                // Check if the selected column contains numeric data
+                const isNumericColumn = data.every(row => {
+                    const value = row[selectedColumn];
+                    return value === '' || value === null || value === undefined || !isNaN(parseFloat(value));
+                });
+
+                if (!isNumericColumn) {
+                    alert(`Cannot create running total for column "${headers[selectedColumn]}". Column contains non-numeric data.`);
+                    this.set('enable-running-total', false);
+                    return;
+                }
+
+                const runningTotalColumns = this.get('running-total-columns') || [];
+
+                // Check if running total already exists for this column
+                if (runningTotalColumns.includes(selectedColumn)) {
+                    return; // Already exists
+                }
+
+                // Add to running total columns list
+                runningTotalColumns.push(selectedColumn);
+                this.set('running-total-columns', runningTotalColumns);
+
+                // Add running total column to headers
+                const newColumnKey = `${selectedColumn}_running_total`;
+                const newColumnName = `${headers[selectedColumn]} (Running Total)`;
+                const updatedHeaders = { ...headers };
+
+                // Insert running total column right after the original column
+                const headerKeys = Object.keys(headers);
+                const originalIndex = headerKeys.indexOf(selectedColumn);
+                const newHeaders = {};
+
+                headerKeys.forEach((key, index) => {
+                    newHeaders[key] = headers[key];
+                    if (index === originalIndex) {
+                        newHeaders[newColumnKey] = newColumnName;
+                    }
+                });
+
+                // Calculate running totals and add to data
+                let runningTotal = 0;
+                const updatedData = data.map(row => {
+                    const value = parseFloat(row[selectedColumn]) || 0;
+                    runningTotal += value;
+
+                    const newRow = { ...row };
+                    // Insert running total column in the correct position
+                    const newRowOrdered = {};
+                    Object.keys(newHeaders).forEach(key => {
+                        if (key === newColumnKey) {
+                            newRowOrdered[key] = runningTotal.toFixed(2);
+                        } else {
+                            newRowOrdered[key] = newRow[key];
+                        }
+                    });
+
+                    return newRowOrdered;
+                });
+
+                this.set('custom-headers', newHeaders);
+                this.set('custom-data', updatedData);
+                this.updateTableHTML();
+            },
+            removeRunningTotalColumns() {
+                const runningTotalColumns = this.get('running-total-columns') || [];
+                if (runningTotalColumns.length === 0) return;
+
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                // Remove running total columns from headers
+                const updatedHeaders = { ...headers };
+                runningTotalColumns.forEach(originalColumn => {
+                    const runningTotalKey = `${originalColumn}_running_total`;
+                    delete updatedHeaders[runningTotalKey];
+                });
+
+                // Remove running total columns from data
+                const updatedData = data.map(row => {
+                    const newRow = { ...row };
+                    runningTotalColumns.forEach(originalColumn => {
+                        const runningTotalKey = `${originalColumn}_running_total`;
+                        delete newRow[runningTotalKey];
+                    });
+                    return newRow;
+                });
+
+                this.set('custom-headers', updatedHeaders);
+                this.set('custom-data', updatedData);
+                this.set('running-total-columns', []);
+                this.updateTableHTML();
+            },
+
+            getHighlightConditions() {
+                return this.get('highlight-conditions') || [];
+            },
+
+            setHighlightConditions(conditions) {
+                this.set('highlight-conditions', conditions);
+                this.updateTableHTML();
+            },
+
+            addHighlightCondition(condition) {
+                const conditions = this.getHighlightConditions();
+                conditions.push(condition);
+                this.setHighlightConditions(conditions);
+            },
+
+            removeHighlightCondition(index) {
+                const conditions = this.getHighlightConditions();
+                conditions.splice(index, 1);
+                this.setHighlightConditions(conditions);
+            },
+
+            // Add highlighting change handler
+            handleHighlightChange() {
+                const tableElement = this.view.el.querySelector('.json-data-table');
+                if (!tableElement || !tableElement.id) return;
+
+                const tableId = tableElement.id;
+                const conditions = this.getHighlightConditions();
+                const color = this.get('highlight-color');
+
+                applyHighlighting(tableId, conditions, color);
+                editor.trigger('component:update', this);
+            },
+
+            initializeDefaultTable() {
+                // Don't set default data, just show placeholder
+                this.set('custom-headers', null);
+                this.set('custom-data', null);
+                this.set('show-placeholder', true);
+            },
+            initializeFormulaParser() {
+                const self = this;
+                loadFormulaParser(function () { });
+
+                const cellMap = window.globalCellMap;
+                HotFormulaParser.on('callCellValue', function (cellCoord, done) {
+                    const label = cellCoord.label;
+                    done(cellMap[label] || 0);
+                });
+                console.log("cell map", cellMap);
+                console.log("hotformulaparcer", HotFormulaParser)
+                self.set('formula-parser', HotFormulaParser);
+                self.set('cell-map', cellMap);
+
+            },
+            updateTableFromJson() {
+                const jsonPath = this.get('json-path');
+                if (!jsonPath) return;
+
+                try {
+                    let custom_language = localStorage.getItem('language');
+                    if (custom_language === null) {
+                        custom_language = 'english';
+                    }
+                    const commonJson = JSON.parse(localStorage.getItem('common_json'));
+                    if (!commonJson || !commonJson[custom_language]) {
+                        console.error('Common JSON or language data not found');
+                        return;
+                    }
+
+                    const fullPath = `commonJson.${custom_language}.${jsonPath}`;
+                    const tableData = eval(fullPath);
+
+                    if (tableData && tableData.heading && tableData.data) {
+                        this.set('table-headers', tableData.heading);
+                        this.set('table-data', tableData.data);
+                        this.set('custom-headers', tableData.heading);
+                        this.set('custom-data', [...tableData.data]);
+                        this.set('show-placeholder', false);
+
+                        // Initialize formula parser
+                        this.initializeFormulaParser();
+
+                        this.updateTableHTML();
+                        this.updateRunningTotalColumnOptions();
+                        setTimeout(() => {
+                            this.trigger('change:content');
+                            this.view.render();
+                            this.registerTableCellComponents();
+                        }, 50);
+                    } else {
+                        console.error('Invalid table data structure');
+                    }
+                } catch (error) {
+                    console.error('Error parsing JSON path:', error);
+                }
+            },
+
+            registerTableCellComponents() {
+                const tableElement = this.view.el.querySelector('.json-data-table');
+                if (!tableElement) return;
+
+                setTimeout(() => {
+                    const wrapper = editor.DomComponents.getWrapper();
+
+                    // Register both th and td elements
+                    const allCells = tableElement.querySelectorAll('th, td');
+                    allCells.forEach((cell) => {
+                        // Ensure proper component attributes
+                        cell.setAttribute('data-gjs-type', 'json-table-cell');
+                        cell.setAttribute('data-gjs-selectable', 'true');
+                        cell.setAttribute('data-gjs-hoverable', 'true');
+                        cell.setAttribute('data-gjs-editable', 'false');
+
+                        // Add a unique ID if missing
+                        if (!cell.id) {
+                            cell.id = `cell-${Math.random().toString(36).substr(2, 9)}`;
+                        }
+
+                        // Force component recognition
+                        const existingComp = wrapper.find(`#${cell.id}`)[0];
+                        // if (!existingComp) {
+                        //     // Just register the existing DOM element without adding new component
+                        //     const existingComp = wrapper.find(`#${cell.id}`)[0];
+                        //     if (!existingComp) {
+                        //         // Force component recognition for existing DOM element
+                        //         editor.getModelForEl(cell);
+                        //     }
+                        // }
+                    });
+
+                    // Refresh component recognition
+                    editor.trigger('component:update');
+                }, 200);
+            },
+            addRow() {
+                const headers = this.get('custom-headers') || this.get('table-headers');
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                if (!headers) return;
+
+                const newRow = {};
+                Object.keys(headers).forEach(key => {
+                    newRow[key] = 'New Data';
+                });
+
+                const updatedData = [...data, newRow];
+                this.set('custom-data', updatedData);
+                this.updateTableHTML();
+            },
+
+            addColumn() {
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                const columnCount = Object.keys(headers).length;
+                const newColumnKey = `col${columnCount + 1}`;
+                const newColumnName = `New Column ${columnCount + 1}`;
+
+                // Add new header
+                const updatedHeaders = { ...headers, [newColumnKey]: newColumnName };
+
+                // Add new column to all rows
+                const updatedData = data.map(row => ({
+                    ...row,
+                    [newColumnKey]: 'New Data'
+                }));
+
+                this.set('custom-headers', updatedHeaders);
+                this.set('custom-data', updatedData);
+                this.updateTableHTML();
+            },
+
+            removeRow() {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                if (data.length <= 1) return; // Don't remove if only one row
+
+                const updatedData = data.slice(0, -1);
+                this.set('custom-data', updatedData);
+                this.updateTableHTML();
+            },
+
+            removeColumn() {
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                const headerKeys = Object.keys(headers);
+                if (headerKeys.length <= 1) return; // Don't remove if only one column
+
+                const lastKey = headerKeys[headerKeys.length - 1];
+
+                // Remove from headers
+                const updatedHeaders = { ...headers };
+                delete updatedHeaders[lastKey];
+
+                // Remove from data
+                const updatedData = data.map(row => {
+                    const newRow = { ...row };
+                    delete newRow[lastKey];
+                    return newRow;
+                });
+
+                this.set('custom-headers', updatedHeaders);
+                this.set('custom-data', updatedData);
+                this.updateTableHTML();
+            },
+
+            updateCellData(rowIndex, columnKey, newValue) {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                const updatedData = [...data];
+                const cellFormulas = this.get('cell-formulas') || {};
+                const selectedRunningTotalColumns = this.get('selected-running-total-columns') || [];
+
+                if (updatedData[rowIndex]) {
+                    const cellId = `cell-${rowIndex}-${columnKey}`;
+
+                    if (typeof newValue === 'string' && newValue.trim().startsWith('=')) {
+                        // Store formula
+                        const formula = newValue.trim();
+                        cellFormulas[cellId] = formula;
+
+                        // Evaluate formula
+                        try {
+                            const formulaExpression = formula.substring(1); // Remove '='
+                            const evaluatedValue = evaluateFormula(formulaExpression, updatedData, rowIndex, columnKey);
+                            updatedData[rowIndex][columnKey] = evaluatedValue;
+                        } catch (error) {
+                            updatedData[rowIndex][columnKey] = '#ERROR';
+                        }
+                    } else {
+                        // Regular value
+                        updatedData[rowIndex][columnKey] = newValue;
+                        delete cellFormulas[cellId];
+                    }
+
+                    this.set('custom-data', updatedData);
+                    this.set('cell-formulas', cellFormulas);
+                    this.set(`cell-content-${cellId}`, newValue);
+
+                    // Check if this column has a running total and recalculate
+                    if (selectedRunningTotalColumns.includes(columnKey)) {
+                        this.recalculateRunningTotalsForColumn(columnKey);
+                    }
+
+                    this.updateTableHTML();
+                }
+            },
+
+            recalculateRunningTotalsForColumn(columnKey) {
+                const data = this.get('custom-data') || [];
+                const runningTotalKey = `${columnKey}_running_total`;
+
+                // Recalculate running total for this column
+                let runningTotal = 0;
+                const updatedData = data.map(row => {
+                    const value = parseFloat(row[columnKey]) || 0;
+                    runningTotal += value;
+
+                    return {
+                        ...row,
+                        [runningTotalKey]: runningTotal.toFixed(2)
+                    };
+                });
+
+                this.set('custom-data', updatedData);
+            },
+
+
+            recalculateFormulas() {
+                const data = this.get('custom-data') || this.get('table-data') || [];
+                let hasFormulas = false;
+
+                // Check if any cells have formulas and re-evaluate them
+                const updatedData = data.map((row, rowIndex) => {
+                    const updatedRow = { ...row };
+                    Object.keys(row).forEach(columnKey => {
+                        const cellId = `cell-${rowIndex}-${columnKey}`;
+                        const formula = this.get(`cell-formula-${cellId}`);
+
+                        if (formula && formula.startsWith('=')) {
+                            hasFormulas = true;
+                            const evaluatedValue = evaluateFormula(formula.substring(1), data, rowIndex, columnKey);
+                            updatedRow[columnKey] = evaluatedValue;
+                        }
+                    });
+                    return updatedRow;
+                });
+
+                if (hasFormulas) {
+                    this.set('custom-data', updatedData);
+                    this.updateTableHTML();
+                }
+            },
+
+            updateHeaderData(columnKey, newValue) {
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const updatedHeaders = { ...headers, [columnKey]: newValue };
+                this.set('custom-headers', updatedHeaders);
+
+                // Store the change in the component for export
+                this.set(`header-content-${columnKey}`, newValue);
+
+                this.updateTableHTML();
+            },
+
+            setCellStyle(rowIndex, columnKey, styles) {
+                const cellStyles = this.get('cell-styles') || {};
+                const cellKey = `${rowIndex}-${columnKey}`;
+
+                cellStyles[cellKey] = { ...cellStyles[cellKey], ...styles };
+                this.set('cell-styles', cellStyles);
+                this.updateTableHTML();
+            },
+
+            getCellStyle(rowIndex, columnKey) {
+                const cellStyles = this.get('cell-styles') || {};
+                const cellKey = `${rowIndex}-${columnKey}`;
+                return cellStyles[cellKey] || {};
+            },
+
+            updateTableHTML() {
+                const headers = this.get('custom-headers') || this.get('table-headers');
+                const data = this.get('custom-data') || this.get('table-data');
+                const name = this.get('name') || 'Table';
+                const title = this.get('title') || '';
+                const footer = this.get('footer') || 'no';
+                const pagination = this.get('pagination') || 'no';
+                const pageLength = this.get('page-length') || 10;
+                const search = this.get('search') || 'no';
+                const caption = this.get('caption') || 'no';
+                const captionAlign = this.get('caption-align') || 'left';
+                const fileDownload = this.get('file-download') || '';
+                const showPlaceholder = this.get('show-placeholder');
+
+                // Generate unique table ID
+                const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
+
+                // --- PLACEHOLDER HANDLING ---
+                if ((!headers || !data) && showPlaceholder) {
+                    const placeholderHTML = `
+        <div class="json-table-placeholder" style="
+            width: 100%; 
+            min-height: 200px; 
+            border: 2px dashed #007bff; 
+            border-radius: 8px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            background-color: #f8f9fa;
+            color: #6c757d;
+            text-align: center;
+            padding: 40px 20px;
+            font-family: Arial, sans-serif;
+        ">
+            <div style="font-size: 48px; margin-bottom: 20px; color: #007bff;">📊</div>
+            <h3 style="margin: 0 0 10px 0; color: #495057;">JSON Table Data</h3>
+            <p style="margin: 0; font-size: 14px;">Add JSON path from the properties panel to display table data</p>
+        </div>`;
+
+                    this.set('content', placeholderHTML);
+                    return;
+                }
+
+                // Clear placeholder flag when data is available
+                if (headers && data) {
+                    this.set('show-placeholder', false);
+                }
+
+                // --- START TABLE GENERATION ---
+                let tableHTML = `<div class="json-table-wrapper" style="width: 100%; overflow-x: auto;">`;
+
+                if (title) {
+                    tableHTML += `<h3 style="margin-bottom: 15px;">${title}</h3>`;
+                }
+
+                // Controls (Search & File Download)
+                if (search === 'yes' || fileDownload) {
+                    tableHTML += `<div class="table-controls" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">`;
+                    if (search === 'yes') {
+                        tableHTML += `<input type="text" placeholder="Search..." class="table-search" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px;">`;
+                    }
+                    if (fileDownload) {
+                        const downloadOptions = fileDownload.replace(/"/g, '').split(',').map(opt => opt.trim());
+                        tableHTML += `<div class="download-buttons">`;
+                        downloadOptions.forEach(option => {
+                            tableHTML += `<button class="download-btn" data-type="${option}" style="margin-left: 5px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">${option.charAt(0).toUpperCase() + option.slice(1)}</button>`;
+                        });
+                        tableHTML += `</div>`;
+                    }
+                    tableHTML += `</div>`;
+                }
+
+                tableHTML += `<table class="json-data-table" id="${tableId}" style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; font-family: Arial, sans-serif;">`;
+
+                // Caption
+                if (caption === 'yes' && name) {
+                    tableHTML += `<caption style="text-align: ${captionAlign}; padding: 10px; font-weight: bold; background-color: #f8f9fa;">${name}</caption>`;
+                }
+
+                if (headers && data) {
+                    // Table Header with div wrappers
+                    tableHTML += `<thead style="background-color: #f8f9fa; border: 1px solid #000;"><tr>`;
+                    Object.entries(headers).forEach(([key, header]) => {
+                        const headerId = `${tableId}-header-${key}`;
+                        const storedHeader = this.get(`header-content-${key}`) || header;
+                        tableHTML += `<th id="${headerId}" class="editable-header json-table-cell" data-column-key="${key}" data-gjs-type="json-table-cell" data-gjs-selectable="true" data-gjs-hoverable="true" style="padding: 0; text-align: left; border: 1px solid #000000ff; font-weight: bold; cursor: pointer; position: relative;">
+                <div class="cell-content" style="padding: 12px; width: 100%; height: 100%; box-sizing: border-box;">${storedHeader}</div>
+            </th>`;
+                    });
+                    tableHTML += `</tr></thead>`;
+
+                    // Table Body with div wrappers and filtering
+                    tableHTML += `<tbody>`;
+                    if (headers && data) {
+                        const filterColumn = this.get('filter-column');
+                        const filterValue = this.get('filter-value');
+
+                        let filteredData = data;
+                        if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
+                            if (filterValue === "=") {
+                                filteredData = data;
+                            } else {
+                                filteredData = data.filter(row => {
+                                    const cellValue = String(row[filterColumn] || "").toLowerCase();
+                                    const searchValue = String(filterValue).toLowerCase();
+                                    return cellValue.includes(searchValue);
+                                });
+                            }
+                        }
+
+                        if (filteredData.length === 0) {
+                            const columnCount = Object.keys(headers).length;
+                            tableHTML += `<tr><td colspan="${columnCount}" style="text-align: center; padding: 20px; color: #666;">No data found</td></tr>`;
+                        } else {
+                            filteredData.forEach((row, rowIndex) => {
+                                const actualRowIndex = data.indexOf(row); // Get original row index
+                                const rowClass = actualRowIndex % 2 === 0 ? 'even-row' : 'odd-row';
+                                tableHTML += `<tr class="${rowClass}" style="background-color: ${actualRowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'};">`;
+                                Object.keys(headers).forEach(key => {
+                                    const cellId = `${tableId}-cell-${actualRowIndex}-${key}`;
+                                    const cellStyles = this.getCellStyle(actualRowIndex, key);
+                                    const formulaCellId = `cell-${actualRowIndex}-${key}`;
+                                    const cellFormulas = this.get('cell-formulas') || {};
+                                    const hasFormula = cellFormulas[formulaCellId];
+                                    const cellStyleString = Object.entries(cellStyles).map(([prop, value]) => `${prop}: ${value}`).join('; ');
+                                    const formulaClass = hasFormula ? ' formula-cell' : '';
+
+                                    // Use clean border styling with no padding on td, padding on div
+                                    const combinedStyle = `padding: 0; border: 1px solid #000; cursor: pointer; position: relative; ${cellStyleString}`;
+                                    const storedContent = this.get(`cell-content-${formulaCellId}`) || row[key] || '';
+                                    const displayValue = row[key] || ''; // Always show the evaluated value
+
+                                    tableHTML += `<td id="${cellId}" class="editable-cell json-table-cell${formulaClass}" data-row="${actualRowIndex}" data-column-key="${key}" data-gjs-type="json-table-cell" data-gjs-selectable="true" data-gjs-hoverable="true" style="${combinedStyle}" title="${hasFormula ? hasFormula : ''}" data-formula="${hasFormula || ''}">
+                            <div class="cell-content" style="padding: 8px; width: 100%; height: 100%; box-sizing: border-box;">${displayValue}</div>
+                        </td>`;
+                                });
+                                tableHTML += `</tr>`;
+                            });
+                        }
+                    }
+                    tableHTML += `</tbody>`;
+
+                    // Footer
+                    if (footer === 'yes') {
+                        tableHTML += `<tfoot style="background-color: #e9ecef;"><tr>`;
+                        Object.values(headers).forEach(header => {
+                            tableHTML += `<th style="padding: 12px; text-align: left; border-top: 2px solid #dee2e6; font-weight: bold;">${header}</th>`;
+                        });
+                        tableHTML += `</tr></tfoot>`;
+                    }
+                } else {
+                    // Fallback sample data if no headers/data and placeholder is off
+                    tableHTML += `<thead style="background-color: #f8f9fa;"><tr>
+            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
+                <div class="cell-content" style="padding: 12px;">Sample Header 1</div>
+            </th>
+            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
+                <div class="cell-content" style="padding: 12px;">Sample Header 2</div>
+            </th>
+            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
+                <div class="cell-content" style="padding: 12px;">Sample Header 3</div>
+            </th>
+        </tr></thead>
+        <tbody>
+            <tr style="background-color: #ffffff;">
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 1</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 2</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 3</div>
+                </td>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 4</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 5</div>
+                </td>
+                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
+                    <div class="cell-content" style="padding: 12px;">Sample Data 6</div>
+                </td>
+            </tr>
+        </tbody>`;
+                }
+
+                tableHTML += `</table>`;
+
+                // Pagination
+                if (pagination === 'yes') {
+                    tableHTML += `<div class="table-pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div>Show <select class="page-length-select" style="padding: 4px;">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select> entries</div>
+            <div class="pagination-controls">
+                <button class="page-btn" data-page="prev" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Previous</button>
+                <span class="page-info" style="padding: 0 10px;">Page 1 of 1</span>
+                <button class="page-btn" data-page="next" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Next</button>
+            </div>
+        </div>`;
+                }
+
+                tableHTML += `</div>`;
+
+                // Updated styles with proper print handling
+
+                tableHTML += `<style>
+/* Regular styles */
+.json-table-container {
+    min-height: 200px;
+    padding: 10px 0 10px 0;
+    width: 100%;
+    margin: 10px 0;
+}
+
+.json-table-wrapper {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    width: 100%;
+    overflow-x: auto;
+}
+
+.json-data-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 2px solid #000;
+}
+
+.json-data-table th,
+.json-data-table td {
+    border: 1px solid #000;
+    padding: 3px;
+    text-align: left;
+    background-color: #fff;
+    word-wrap: break-word;
+    overflow: hidden;
+    position: relative;
+}
+
+.json-data-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.json-table-cell {
+    position: relative;
+    min-height: 40px; /* Ensure minimum height */
+    overflow: hidden;
+}
+
+.cell-content {
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    display: block;
+    word-wrap: break-word;
+}
+
+.json-table-cell.editing .cell-content {
+    background-color: #e3f2fd !important;
+    outline: 2px solid #007bff !important;
+    min-height: inherit;
+    overflow: hidden;
+}
+
+
+td[data-highlighted="true"], th[data-highlighted="true"] {
+    position: relative;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+    content: "★";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    color: #ff6b35;
+    font-weight: bold;
+    z-index: 1;
+}
+
+.running-total-column {
+    background-color: #f0f8ff !important;
+    font-weight: bold;
+    border-left: 3px solid #007bff !important;
+}
+
+.running-total-column .cell-content {
+    color: #1976d2 !important;
+    font-family: 'Courier New', monospace !important;
+}
+   @media print {
+  .json-data-table {
+    border: 1px solid #000 !important;
+    border-collapse: separate !important;   
+    border-spacing: 0 !important;          
+    width: 100% !important;
   }
 
+  .json-data-table th,
+  .json-data-table td {
+    border: 1px solid #000 !important;
+    background: #fff !important;
+    padding: 4px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .json-data-table th,
+  .json-data-table td {
+    position: relative;
+  }
 
-  init() {
-    this.createInitialSetupModal()
-    this.setupEventListeners()
-    this.injectPageSetupStyles()
-    this.addToGrapesJSSettings()
-    this.setupCanvasObserver()
-    this.setupContentBoundaryEnforcement()
-    this.initSharedRegionSync()
-    this.setupSectionSelection()
-    this.addPageBreakComponent()
-    const MAX_HEIGHT = 1027;
+  .json-data-table th::after,
+  .json-data-table td::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border: 1px solid #000 !important;
+    pointer-events: none;
+  }
+    .cell-content{
+    padding: 2px !important}
+    .running-total-column {
+        background-color: #f0f8ff !important;
+        border-left: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+</style>`;
 
-    console.log("🆕 Page break component initialized");
+                this.set('content', tableHTML);
 
-    // Trigger processing when component is added to parent
-    this.on("change:parent", () => {
-      if (this.parent()) {
-        console.log("📍 Page break added to parent, scheduling processing...");
+                // Apply highlighting
+                setTimeout(() => {
+                    const conditions = this.getHighlightConditions();
+                    const color = this.get('highlight-color');
+                    if (conditions && conditions.length > 0) {
+                        applyHighlighting(tableId, conditions, color);
+                    }
 
-        // Get the PageSetupManager
-        const editor = this.em;
-        const pageSetupManager = editor?.get?.("PageSetupManager");
+                    // Register components after table is rendered
+                    this.registerTableCellComponents();
+                }, 100);
+            }
 
-        if (pageSetupManager && pageSetupManager.splitPagesByBreaks) {
-          // Schedule processing after a delay to ensure DOM is ready
-          setTimeout(() => {
-            console.log("🔄 Auto-triggering page break processing...");
-            pageSetupManager.processPendingPageBreaks();
-          }, 300);
-        } else {
-          console.warn("⚠️ PageSetupManager not found or doesn't have splitPagesByBreaks method");
+
+        },
+
+        view: {
+            events: {
+                'input .table-search': 'handleSearch',
+                'click .download-btn': 'handleDownload',
+                'click .page-btn': 'handlePagination',
+                'change .page-length-select': 'handlePageLengthChange',
+                'click .json-table-cell': 'handleCellClick',
+                'blur .cell-input': 'handleCellEdit',
+                'blur .header-input': 'handleHeaderEdit',
+                'keydown .cell-input': 'handleCellKeydown',
+                'keydown .header-input': 'handleHeaderKeydown',
+                'dblclick .json-table-cell': 'preventDoubleClick',
+            },
+            preventDoubleClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Just trigger single click behavior instead
+                this.handleCellClick(e);
+            },
+            handleSearch(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const table = this.el.querySelector('.json-data-table tbody');
+                const rows = table.querySelectorAll('tr');
+
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            },
+
+            handleDownload(e) {
+                const type = e.target.getAttribute('data-type');
+                const table = this.el.querySelector('.json-data-table');
+
+                switch (type) {
+                    case 'copy':
+                        this.copyTableToClipboard(table);
+                        break;
+                    case 'csv':
+                        this.downloadTableAsCSV(table);
+                        break;
+                    case 'excel':
+                        this.downloadTableAsExcel(table);
+                        break;
+                    case 'pdf':
+                        this.downloadTableAsPDF(table);
+                        break;
+                    case 'print':
+                        window.print();
+                        break;
+                }
+            },
+
+            copyTableToClipboard(table) {
+                const range = document.createRange();
+                range.selectNode(table);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+                alert('Table copied to clipboard!');
+            },
+
+            downloadTableAsCSV(table) {
+                let csv = [];
+                const rows = table.querySelectorAll('tr');
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = [];
+                    const cols = rows[i].querySelectorAll('td, th');
+
+                    for (let j = 0; j < cols.length; j++) {
+                        row.push(cols[j].innerText);
+                    }
+                    csv.push(row.join(','));
+                }
+
+                const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+                const downloadLink = document.createElement('a');
+                downloadLink.download = 'table-data.csv';
+                downloadLink.href = window.URL.createObjectURL(csvFile);
+                downloadLink.style.display = 'none';
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            },
+
+            downloadTableAsExcel(table) {
+                // Basic Excel export (would need a library like SheetJS for full Excel support)
+                this.downloadTableAsCSV(table); // Fallback to CSV
+            },
+
+            downloadTableAsPDF(table) {
+                // Basic PDF export using print functionality
+                const printWindow = window.open('', '', 'height=600,width=800');
+                printWindow.document.write('<html><head><title>Table Data</title>');
+                printWindow.document.write('<style>table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}</style>');
+                printWindow.document.write('</head><body>');
+                printWindow.document.write(table.outerHTML);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                printWindow.print();
+            },
+
+            handlePagination(e) {
+                // Basic pagination logic (would need more sophisticated implementation)
+                const pageType = e.target.getAttribute('data-page');
+                console.log('Pagination:', pageType);
+            },
+
+            handlePageLengthChange(e) {
+                const pageLength = e.target.value;
+                console.log('Page length changed to:', pageLength);
+            },
+
+            // Modified cell click handler for Style Manager integration
+            handleCellClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const clickedElement = e.target;
+                let cell, cellContent;
+
+                // Determine if we clicked on cell or div content
+                if (clickedElement.classList.contains('cell-content')) {
+                    cellContent = clickedElement;
+                    cell = clickedElement.parentElement;
+                } else if (clickedElement.classList.contains('json-table-cell')) {
+                    cell = clickedElement;
+                    cellContent = cell.querySelector('.cell-content');
+                } else {
+                    return;
+                }
+
+                // If clicked on div content, start editing
+                if (clickedElement.classList.contains('cell-content')) {
+                    // Stop editing mode for any currently editing cell
+                    const currentlyEditing = this.el.querySelector('.json-table-cell.editing');
+                    if (currentlyEditing && currentlyEditing !== cell) {
+                        this.stopCellEditing(currentlyEditing);
+                    }
+
+                    // If this cell is already in editing mode, stop editing
+                    if (cell.classList.contains('editing')) {
+                        this.stopCellEditing(cell);
+                        return;
+                    }
+
+                    // Check if cell is already being edited with input
+                    if (cell.querySelector('.cell-input, .header-input')) return;
+
+                    // For formula cells, show the original formula for editing
+                    const rowIndex = cell.getAttribute('data-row');
+                    const columnKey = cell.getAttribute('data-column-key');
+                    const isHeader = cell.classList.contains('editable-header');
+
+                    if (!isHeader && rowIndex !== null && columnKey) {
+                        const cellId = `cell-${rowIndex}-${columnKey}`;
+                        const cellFormulas = this.model.get('cell-formulas') || {};
+                        const storedFormula = cellFormulas[cellId];
+
+                        if (storedFormula) {
+                            // Start editing with the original formula
+                            this.startCellEditingWithValue(cell, cellContent, storedFormula);
+                            return;
+                        }
+                    }
+
+                    // Start normal editing mode
+                    this.startCellEditing(cell, cellContent);
+                } else if (clickedElement.classList.contains('json-table-cell')) {
+                    // If clicked on cell area but not div content, select the cell component
+                    const cellComponent = editor.DomComponents.getComponentFromElement(cell);
+                    if (cellComponent) {
+                        editor.select(cellComponent);
+                    }
+                }
+            },
+
+            // Add this new method
+            startCellEditingWithValue(cell, cellContent, value) {
+                const rowIndex = cell.getAttribute('data-row');
+                const columnKey = cell.getAttribute('data-column-key');
+                const isHeader = cell.classList.contains('editable-header');
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = value; // Use the provided value (like formula)
+                input.className = isHeader ? 'header-input' : 'cell-input';
+                input.style.cssText = 'width: 100%; height: 100%; border: 2px solid #007bff; padding: 8px; box-sizing: border-box; background: white; font-family: inherit; font-size: inherit; margin: 0; min-height: inherit; resize: none;';
+
+                if (isHeader) {
+                    input.style.fontWeight = 'bold';
+                }
+
+                cell.classList.add('editing');
+                cellContent.innerHTML = '';
+                cellContent.appendChild(input);
+                input.focus();
+                input.select();
+            },
+
+            startCellEditing(cell, cellContent) {
+                const rowIndex = cell.getAttribute('data-row');
+                const columnKey = cell.getAttribute('data-column-key');
+                const isHeader = cell.classList.contains('editable-header');
+
+                const currentValue = cellContent.textContent;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentValue;
+                input.className = isHeader ? 'header-input' : 'cell-input';
+                input.style.cssText = 'width: 100%; height: 100%; border: 2px solid #007bff; padding: 8px; box-sizing: border-box; background: white; font-family: inherit; font-size: inherit; margin: 0; min-height: inherit; resize: none;';
+
+                if (isHeader) {
+                    input.style.fontWeight = 'bold';
+                }
+
+                cell.classList.add('editing');
+                cellContent.innerHTML = '';
+                cellContent.appendChild(input);
+                input.focus();
+                input.select();
+            },
+
+            stopCellEditing(cell) {
+                const cellContent = cell.querySelector('.cell-content');
+                const input = cellContent?.querySelector('.cell-input, .header-input');
+                if (!input || !cellContent) return;
+
+                const rowIndex = cell.getAttribute('data-row');
+                const columnKey = cell.getAttribute('data-column-key');
+                const isHeader = cell.classList.contains('editable-header');
+                const newValue = input.value;
+
+                cell.classList.remove('editing');
+
+                // Update model
+                if (isHeader) {
+                    this.model.updateHeaderData(columnKey, newValue);
+                } else {
+                    this.model.updateCellData(parseInt(rowIndex), columnKey, newValue);
+
+                    // Handle formula display logic
+                    if (newValue.startsWith('=')) {
+                        const cellId = `cell-${rowIndex}-${columnKey}`;
+                        const cellFormulas = this.model.get('cell-formulas') || {};
+                        const evaluatedValue = cellFormulas[cellId] ? this.model.get('custom-data')[rowIndex][columnKey] : newValue;
+                        cellContent.innerHTML = evaluatedValue;
+                    } else {
+                        cellContent.innerHTML = newValue;
+                    }
+                    return;
+                }
+
+                // Update cell display for non-formula cells
+                cellContent.innerHTML = newValue;
+            },
+
+            // createCellComponent(cell) {
+            //     try {
+            //         const rowIndex = cell.getAttribute('data-row');
+            //         const columnKey = cell.getAttribute('data-column-key');
+            //         const isHeader = cell.classList.contains('editable-header');
+            //         const cellId = cell.id;
+
+            //         // Create a temporary component for style editing
+            //         const cellComponent = editor.DomComponents.addComponent({
+            //             tagName: isHeader ? 'th' : 'td',
+            //             content: cell.innerHTML,
+            //             attributes: {
+            //                 id: cellId,
+            //                 'data-row': rowIndex,
+            //                 'data-column-key': columnKey,
+            //                 class: cell.className
+            //             },
+            //             style: {
+            //                 padding: '12px',
+            //                 border: '1px solid #dee2e6',
+            //                 'text-align': 'left'
+            //             },
+            //             traits: [
+            //                 {
+            //                     type: 'color',
+            //                     name: 'background-color',
+            //                     label: 'Background Color'
+            //                 },
+            //                 {
+            //                     type: 'color',
+            //                     name: 'color',
+            //                     label: 'Text Color'
+            //                 },
+            //                 {
+            //                     type: 'select',
+            //                     name: 'font-weight',
+            //                     label: 'Font Weight',
+            //                     options: [
+            //                         { value: 'normal', name: 'Normal' },
+            //                         { value: 'bold', name: 'Bold' }
+            //                     ]
+            //                 },
+            //                 {
+            //                     type: 'select',
+            //                     name: 'text-align',
+            //                     label: 'Text Align',
+            //                     options: [
+            //                         { value: 'left', name: 'Left' },
+            //                         { value: 'center', name: 'Center' },
+            //                         { value: 'right', name: 'Right' }
+            //                     ]
+            //                 }
+            //             ]
+            //         });
+
+            //         // Listen for style changes and apply them to the actual cell
+            //         cellComponent.on('change:style', () => {
+            //             const styles = cellComponent.getStyle();
+            //             Object.keys(styles).forEach(prop => {
+            //                 cell.style[prop] = styles[prop];
+            //             });
+
+            //             // Store styles in the model
+            //             if (!isHeader && rowIndex !== null && columnKey) {
+            //                 this.model.setCellStyle(parseInt(rowIndex), columnKey, styles);
+            //             }
+            //         });
+
+            //         return cellComponent;
+
+            //     } catch (error) {
+            //         console.warn('Error creating cell component:', error);
+            //         return null;
+            //     }
+            // },
+
+            handleCellEdit(e) {
+                const input = e.target;
+                const cell = input.parentElement;
+                const rowIndex = parseInt(cell.getAttribute('data-row'));
+                const columnKey = cell.getAttribute('data-column-key');
+                const newValue = input.value;
+
+                // Handle formula input
+                if (newValue.startsWith('=')) {
+                    cell.classList.add('formula-cell');
+                    cell.title = newValue; // Show formula in tooltip
+                } else {
+                    cell.classList.remove('formula-cell', 'formula-error');
+                    cell.title = '';
+                }
+
+                this.stopCellEditing(cell);
+
+                // Update the model with the new value
+                if (rowIndex !== null && columnKey) {
+                    this.model.updateCellData(rowIndex, columnKey, newValue);
+                }
+            },
+
+
+            handleHeaderEdit(e) {
+                const input = e.target;
+                const header = input.parentElement;
+                this.stopCellEditing(header);
+            },
+
+            handleCellKeydown(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.target.blur();
+                }
+                if (e.key === 'Escape') {
+                    const cell = e.target.parentElement;
+                    const rowIndex = parseInt(cell.getAttribute('data-row'));
+                    const columnKey = cell.getAttribute('data-column-key');
+                    const data = this.model.get('custom-data') || this.model.get('table-data') || [];
+                    const originalValue = data[rowIndex] ? data[rowIndex][columnKey] || '' : '';
+
+                    cell.classList.remove('editing');
+                    cell.innerHTML = originalValue;
+                }
+            },
+
+            handleHeaderKeydown(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.target.blur();
+                }
+                if (e.key === 'Escape') {
+                    const header = e.target.parentElement;
+                    const columnKey = header.getAttribute('data-column-key');
+                    const headers = this.model.get('custom-headers') || this.model.get('table-headers') || {};
+                    const originalValue = headers[columnKey] || '';
+
+                    header.classList.remove('editing');
+                    header.innerHTML = originalValue;
+                }
+            },
+            onRender() {
+                // Register components immediately after render
+                setTimeout(() => {
+                    this.model.registerTableCellComponents();
+
+                    // Force component scanner to run
+                    const canvasBody = editor.Canvas.getBody();
+                    const cells = this.el.querySelectorAll('.json-table-cell');
+
+                    cells.forEach(cell => {
+                        // Try to get the existing component model from the DOM element
+                        let comp = editor.getModelForEl(cell);
+
+                        // If it doesn't exist, create a new component
+                        if (!comp) {
+                            comp = editor.DomComponents.addComponent({
+                                type: 'json-table-cell',
+                                selectable: true,
+                                hoverable: true,
+                                // You can pass attributes/content if needed
+                            }, { at: undefined, avoidUpdateStyle: true, el: cell });
+                        }
+                    });
+
+
+                    // Refresh the canvas
+                    editor.refresh();
+                }, 100);
+            }
         }
-      }
     });
 
+    // Add enhanced table cell component type for style manager integration
+    // editor.DomComponents.addType('json-table-cell', {
+    //     isComponent: el => el.classList && el.classList.contains('json-table-cell'),
+    //     model: {
+    //         defaults: {
+    //             selectable: true,
+    //             hoverable: true,
+    //             editable: false,
+    //             droppable: false,
+    //             draggable: false,
+    //             removable: false,
+    //             copyable: false,
+    //             resizable: false,
+    //             propagate: [],
+    //             void: true,
+    //             traits: [
+    //                 {
+    //                     type: 'color',
+    //                     name: 'background-color',
+    //                     label: 'Background Color'
+    //                 },
+    //                 {
+    //                     type: 'color',
+    //                     name: 'color',
+    //                     label: 'Text Color'
+    //                 },
+    //                 {
+    //                     type: 'select',
+    //                     name: 'font-weight',
+    //                     label: 'Font Weight',
+    //                     options: [
+    //                         { value: 'normal', name: 'Normal' },
+    //                         { value: 'bold', name: 'Bold' }
+    //                     ]
+    //                 },
+    //                 {
+    //                     type: 'select',
+    //                     name: 'text-align',
+    //                     label: 'Text Align',
+    //                     options: [
+    //                         { value: 'left', name: 'Left' },
+    //                         { value: 'center', name: 'Center' },
+    //                         { value: 'right', name: 'Right' }
+    //                     ]
+    //                 }
+    //             ],
+    //             'custom-name': 'Table Cell'
+    //         },
 
+    //         init() {
+    //             this.on('change:style', this.handleStyleChange);
+    //         },
 
-  }
+    //         handleStyleChange() {
+    //             const element = this.getEl();
+    //             if (element) {
+    //                 const styles = this.getStyle();
+    //                 Object.keys(styles).forEach(prop => {
+    //                     element.style[prop] = styles[prop];
+    //                 });
 
-  // Add page break component to GrapesJS
-  // Replace your existing addPageBreakComponent method with this improved version
+    //                 // Store styles for export
+    //                 const rowIndex = element.getAttribute('data-row');
+    //                 const columnKey = element.getAttribute('data-column-key');
+    //                 const tableContainer = element.closest('.json-table-container');
 
-  addPageBreakComponent() {
-    // Add the block to the Extra category
-    // this.editor.BlockManager.add("page-break", {
-    //   category: "Extra",
-    //   label: `
-    //   <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px;">
-    //     <div style="font-size: 20px; color: #ff6b6b;">✂️</div>
-    //     <span style="font-size: 10px; font-weight: bold; color: #333;">Page Break</span>
-    //   </div>
-    // `,
-    //   content: {
-    //     type: "page-break",
-    //   },
+    //                 if (tableContainer && rowIndex !== null && columnKey) {
+    //                     const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
+    //                     if (tableComponent) {
+    //                         tableComponent.setCellStyle(parseInt(rowIndex), columnKey, styles);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
     // });
 
-    /////=======================
-    editor.BlockManager.add('page-breaks', {
-      label: 'Page Break 1',
-      category: 'Extra',
-      content: `<div data-page-break="true" 
-                    class="page-break-element" 
-                    contenteditable="false">
-                  <span style="font-size: 10px; letter-spacing: 1px;">📄 PAGE BREAK</span>
-                </div>`,
+    // Enhanced component selection handler
+    // editor.on('component:selected', function (component) {
+    //     if (component && component.getEl()) {
+    //         const element = component.getEl();
+
+    //         // Handle JSON table cell selection
+    //         if (element.classList.contains('json-table-cell')) {
+    //             if (component.get('type') !== 'json-table-cell') {
+    //                 component.set('type', 'json-table-cell');
+    //             }
+    //         }
+    //     }
+    // });
+
+    // Add the component to blocks panel
+    editor.BlockManager.add('json-table', {
+        label: 'JSON Table',
+        category: 'Extra',
+        content: {
+            type: 'json-table'
+        },
+        media: `<svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"/>
+    </svg>`
     });
 
-    editor.on('component:add', (model) => {
-      console.log('page break 1');
-      if (model.getAttributes()['data-page-break']) {
-        console.log('page break 2');
-        handlePageBreak(model);
-      }
-    });
+    // Enhanced export handling for proper content preservation
+    editor.Commands.add('open-table-condition-manager-json-table', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
 
-    // function handlePageBreak(breakComponent) {
-    //   const currentPage = breakComponent.closest('.page-container');
-    //   if (!currentPage) return;
+            const conditions = selected.getHighlightConditions();
 
-    //   const contentWrapper = currentPage.find('.main-content-area')[0];
-    //   if (!contentWrapper) return;
-
-    //   // Page break ke baad ke saare components nikal lo
-    //   const allComponents = contentWrapper.components();
-    //   const breakIndex = allComponents.indexOf(breakComponent);
-    //   const afterBreak = allComponents.slice(breakIndex + 1);
-
-    //   if (afterBreak.length > 0) {
-    //     // Naya page banao
-    //     const newPage = editor.addComponents(`
-    //       <div data-page-id="page-${Date.now()}" class="page-container">
-    //         <div class="page-content">
-    //           <div class="header-wrapper"><div class="page-header-element"></div></div>
-    //           <div class="content-wrapper">
-    //             <div class="main-content-area"></div>
-    //           </div>
-    //           <div class="footer-wrapper"><div class="page-footer-element"></div></div>
-    //         </div>
-    //       </div>
-    //     `);
-
-    //     const newContentArea = newPage[0].find('.main-content-area')[0];
-
-    //     // Break ke baad ke components nayi page me move karo
-    //     afterBreak.forEach(cmp => {
-    //       newContentArea.append(cmp);
-    //     });
-    //   }
-    // }
-
-    function handlePageBreak(breakComponent) {
-      const currentPage = breakComponent.closest('.page-container');
-      if (!currentPage) return;
-
-      const contentWrapper = currentPage.find('.main-content-area')[0];
-      if (!contentWrapper) return;
-
-      // Saare components nikal lo
-      const allComponents = contentWrapper.components();
-      const breakIndex = allComponents.indexOf(breakComponent);
-
-      // Break ke baad ke components
-      const afterBreak = allComponents.slice(breakIndex + 1);
-      if (!afterBreak.length) return;
-
-      // 🔹 Check next page-container
-      const allPages = editor.getWrapper().find('.page-container');
-      const currentIndex = allPages.indexOf(currentPage);
-      const nextPage = allPages[currentIndex + 1];
-
-      let targetContentArea;
-
-      if (nextPage) {
-        // Agar next page exist karta hai toh uske andar daal do
-        targetContentArea = nextPage.find('.main-content-area')[0];
-      } else {
-        // Otherwise ek naya page create karo
-        const newPage = editor.addComponents(`
-      <div data-page-id="page-${Date.now()}" class="page-container">
-        <div class="page-content">
-          <div class="header-wrapper"><div class="page-header-element"></div></div>
-          <div class="content-wrapper">
-            <div class="main-content-area"></div>
-          </div>
-          <div class="footer-wrapper"><div class="page-footer-element"></div></div>
+            const modalContent = `
+<div class="condition-manager" style="padding: 20px; max-width: 700px;">
+    <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Table Highlight Conditions</h3>
+    
+    <!-- Highlight Style Settings -->
+    <div class="highlight-styles" style=" padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h4 style="margin-top: 0;">Highlight Styles</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
+                <input type="color" id="highlight-bg-color" value="#ffff99" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
+                <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
+            <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="">Default</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="Tahoma, sans-serif">Tahoma</option>
+                <option value="'Lucida Sans Unicode', sans-serif">Lucida Sans Unicode</option>
+                <option value="Impact, sans-serif">Impact</option>
+                <option value="Helvetica, sans-serif">Helvetica</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                <option value="'Brush Script MT', cursive">Brush Script MT</option>
+                <option value="'Arial Black', sans-serif">Arial Black</option>
+                <option value="Arial, sans-serif">Arial</option>
+            </select>
+            </div>
         </div>
-      </div>
-    `);
-        targetContentArea = newPage[0].find('.main-content-area')[0];
-      }
+    </div>
+    
+    <div class="add-condition-form" style="padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h4 style="margin-top: 0;">Add New Condition</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; margin-bottom: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
+                <select id="condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="">Select Condition Type</option>
+                    <option value="contains">Text: Contains</option>
+                    <option value="starts-with">Text: Starts With</option>
+                    <option value="ends-with">Text: Ends With</option>
+                    <option value="exact">Text: Exact Match</option>
+                    <option value="once-if">Once If: Highlight individual letters/numbers</option>
+                    <option value=">">Number: > (Greater than)</option>
+                    <option value=">=">Number: >= (Greater than or equal)</option>
+                    <option value="<">Number: < (Less than)</option>
+                    <option value="<=">Number: <= (Less than or equal)</option>
+                    <option value="=">Number: = (Equal to)</option>
+                    <option value="!=">Number: != (Not equal to)</option>
+                    <option value="between">Number: Between (range)</option>
+                    <option value="null">Null/Empty (No value)</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Case Sensitive:</label>
+                <input type="checkbox" id="case-sensitive" style="width: 20px; height: 20px; margin-top: 8px;">
+            </div>
+        </div>
+        
+        <div id="condition-inputs">
+            <div id="single-value-input" style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
+                <input type="text" id="condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
+            </div>
+            
+            <div id="range-inputs" style="display: none; margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
+                        <input type="number" id="min-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
+                        <input type="number" id="max-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
+    </div>
+    
+    <div class="existing-conditions">
+        <h4>Existing Conditions</h4>
+        <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
+            ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
+        </div>
+    </div>
+    
+    <div style="text-align: right; margin-top: 20px;">
+        <button id="close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
+        <button id="apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
+    </div>
+</div>`;
 
-      // Break ke baad ke components ko next page me move karo
-      afterBreak.forEach(cmp => {
-        targetContentArea.append(cmp);
-      });
-    }
+            const modal = editor.Modal;
+            modal.setTitle('Table Condition Manager');
+            modal.setContent(modalContent);
+            modal.open();
 
-    //////////=================
-
-    // Add CSS rules for page breaks first
-    this.addPageBreakCSS();
-
-    // Define the page break component
-    this.editor.DomComponents.addType("page-break", {
-      model: {
-        defaults: {
-          tagName: "div",
-          classes: ["page-break-element"],
-          droppable: false,
-          editable: false,
-          selectable: true,
-          removable: true,
-          copyable: true,
-          draggable: true,
-          attributes: {
-            "data-page-break": "true",
-            contenteditable: "false",
-          },
-          traits: [
-            {
-              type: "checkbox",
-              name: "force-new-page",
-              label: "Force New Page",
-              changeProp: 1,
-            },
-          ],
-          style: {
-            width: "100%",
-            height: "30px",
-            margin: "20px 0",
-            position: "relative",
-            cursor: "move",
-          },
-          content: '<span class="page-break-label">✂️ PAGE BREAK</span>',
-        },
-
-
-
-        handlePageBreakInsertion() {
-          console.log("🔄 Page break insertion detected");
-
-          // Get the editor instance
-          const editor = this.em?.get?.("Editor") || this.em || this.collection?.editor;
-          if (!editor) {
-            console.error("❌ Editor not found in page break component");
-            return;
-          }
-
-          // Get the PageSetupManager
-          const pageSetupManager = editor.get?.("PageSetupManager");
-          if (!pageSetupManager) {
-            console.warn("⚠️ PageSetupManager not found - page break functionality may be limited");
-            this.addPrintPageBreakCSS();
-            return;
-          }
-
-          // Check if PageSetupManager is initialized
-          if (!pageSetupManager.isInitialized) {
-            console.warn("⚠️ PageSetupManager not initialized yet, retrying in 1 second...");
             setTimeout(() => {
-              this.handlePageBreakInsertion();
-            }, 1000);
-            return;
-          }
+                initializeTableConditionManager(selected, conditions);
+            }, 100);
+        }
+    });
+    editor.Commands.add('open-running-total-manager', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
 
-          try {
-            // Create insertion context
-            const insertionContext = {
-              component: this,
-              parent: this.parent(),
-              index: this.index(),
-              previousSibling: this.parent()?.components().at(this.index() - 1),
-              nextSibling: this.parent()?.components().at(this.index() + 1)
-            };
+            const headers = selected.get('custom-headers') || selected.get('table-headers') || {};
+            const data = selected.get('custom-data') || selected.get('table-data') || [];
+            const selectedColumns = selected.get('selected-running-total-columns') || [];
 
-            // Call the page setup manager to handle the break
-            pageSetupManager.handlePageBreakInsertion(this, insertionContext);
-            console.log("✅ Page break processed successfully");
+            // Filter headers to only show columns that have at least some numeric data
+            const numericHeaders = {};
+            Object.entries(headers).forEach(([key, name]) => {
+                // Check if column has at least some numeric values (not all empty/null/text)
+                const hasNumericData = data.some(row => {
+                    const value = row[key];
+                    return value !== '' && value !== null && value !== undefined && !isNaN(parseFloat(value));
+                });
 
-          } catch (error) {
-            console.error("❌ Error processing page break:", error);
-            // Fallback: at least add CSS for print
-            this.addPrintPageBreakCSS();
-          }
-        },
-
-        addPrintPageBreakCSS() {
-          const view = this.view;
-          if (view && view.el) {
-            view.el.classList.add('print-page-break');
-
-            // Ensure CSS is added
-            const css = `
-            @media print {
-              .print-page-break {
-                page-break-before: always !important;
-                break-before: page !important;
-                display: none !important;
-              }
-            }
-          `;
-
-            const editor = this.em || this.collection?.editor;
-            if (editor) {
-              try {
-                const cssManager = editor.Css || editor.CssComposer;
-                if (cssManager && cssManager.add) {
-                  cssManager.add(css);
+                if (hasNumericData) {
+                    numericHeaders[key] = name;
                 }
-              } catch (error) {
-                console.warn("Could not add CSS through editor");
-              }
+            });
+
+            // Check if there are any columns with numeric data
+            if (Object.keys(numericHeaders).length === 0) {
+                alert('No columns with numeric data available for running totals.');
+                return;
             }
-          }
-        },
-      },
 
-      view: {
-        onRender() {
-          const el = this.el;
-          if (!el) {
-            console.error("Page break element not found during render");
-            return;
-          }
+            const modalContent = `
+<div class="running-total-manager" style="padding: 20px; max-width: 500px;">
+    <h3 style="margin-top: 0; margin-bottom: 20px;">Configure Running Total Columns</h3>
+    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Only columns containing numeric data are shown below:</p>
+    
+    <div class="column-checkboxes" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+        ${Object.entries(numericHeaders).map(([key, name]) => `
+            <div style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" value="${key}" ${selectedColumns.includes(key) ? 'checked' : ''} 
+                           style="margin-right: 10px; width: 16px; height: 16px;">
+                    <span>${name}</span>
+                </label>
+            </div>
+        `).join('')}
+    </div>
+    
+    <div style="text-align: right; margin-top: 20px;">
+        <button id="cancel-running-totals" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
+        <button id="apply-running-totals" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply</button>
+    </div>
+</div>`;
 
-          try {
-            // Set the content
-            el.innerHTML = '<span class="page-break-label">✂️ PAGE BREAK</span>';
+            const modal = editor.Modal;
+            modal.setTitle('Running Total Configuration');
+            modal.setContent(modalContent);
+            modal.open();
 
-            // Add CSS classes
-            el.classList.add('page-break-element', 'rendered-page-break');
+            setTimeout(() => {
+                document.getElementById('cancel-running-totals').addEventListener('click', () => {
+                    editor.Modal.close();
+                });
 
-            // Add data attributes for better identification
-            el.setAttribute('data-gjs-type', 'page-break');
-            el.setAttribute('title', 'Page Break - Content after this will start on a new page');
+                document.getElementById('apply-running-totals').addEventListener('click', () => {
+                    const checkboxes = document.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked');
+                    const selectedColumns = Array.from(checkboxes).map(cb => cb.value);
 
-            // Add hover effects
-            this.addInteractionEffects();
-
-            console.log("Page break component rendered successfully");
-          } catch (error) {
-            console.error("Error rendering page break component:", error);
-          }
-        },
-
-        addInteractionEffects() {
-          const el = this.el;
-          if (!el) return;
-
-          // Hover effects
-          el.addEventListener('mouseenter', () => {
-            el.style.transform = 'scale(1.02)';
-            el.style.boxShadow = '0 2px 10px rgba(255, 75, 87, 0.4)';
-          });
-
-          el.addEventListener('mouseleave', () => {
-            el.style.transform = 'scale(1)';
-            el.style.boxShadow = 'none';
-          });
-
-          // Click handling
-          el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            console.log("Page break clicked");
-            this.model.trigger('active');
-          });
-        },
-
-        onRemove() {
-          // Clean up event listeners if needed
-          console.log("Page break component removed");
-        },
-      },
-    });
-  }
-
-  startPageBreakMonitoring() {
-    console.log("👁️ Starting page break monitoring...");
-
-    // Monitor for new page break components
-    this.editor.on('component:add', (component) => {
-      if (component.getAttributes()['data-page-break'] === 'true') {
-        console.log("🆕 New page break detected, scheduling processing...");
-
-        setTimeout(() => {
-          this.processPendingPageBreaks();
-        }, 500);
-      }
-    });
-  }
-
-  // Also update your CSS method
-  addPageBreakCSS() {
-    const css = `
-    /* Page Break Element Styles */
-    .page-break-element {
-      width: 100% !important;
-      height: 30px !important;
-      background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%) !important;
-      border: 2px dashed #ff4757 !important;
-      border-radius: 6px !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      margin: 20px 0 !important;
-      position: relative !important;
-      cursor: move !important;
-      transition: all 0.2s ease !important;
-      user-select: none !important;
-      z-index: 100 !important;
-      box-sizing: border-box !important;
-    }
-
-    .page-break-element .page-break-label {
-      color: white !important;
-      font-size: 12px !important;
-      font-weight: bold !important;
-      letter-spacing: 1px !important;
-      pointer-events: none !important;
-    }
-
-    /* Hover effects */
-    .page-break-element:hover {
-      background: linear-gradient(90deg, #ff5252 0%, #ff7979 50%, #ff5252 100%) !important;
-      transform: scale(1.02) !important;
-      box-shadow: 0 2px 10px rgba(255, 75, 87, 0.4) !important;
-    }
-
-    /* Selection state */
-    .page-break-element.gjs-selected {
-      outline: 3px solid #ff4757 !important;
-      outline-offset: 3px !important;
-    }
-
-    /* Print styles for actual page breaks */
-    @media print {
-      .page-break-element {
-        display: none !important;
-      }
-      
-      .page-break-element + * {
-        page-break-before: always !important;
-        break-before: page !important;
-      }
-      
-      .print-page-break {
-        page-break-before: always !important;
-        break-before: page !important;
-        display: none !important;
-      }
-    }
-
-    /* Editor-specific improvements */
-    .gjs-cv-canvas .page-break-element {
-      min-height: 30px !important;
-    }
-
-    /* Ensure page break is visible in editor */
-    .gjs-frame .page-break-element {
-      display: flex !important;
-      visibility: visible !important;
-    }
-  `;
-
-    // Try to add CSS through the editor's CSS manager
-    try {
-      if (this.editor && this.editor.Css) {
-        this.editor.Css.add(css);
-      } else if (this.editor && this.editor.CssComposer) {
-        this.editor.CssComposer.add(css);
-      } else {
-        // Fallback: add directly to document head
-        this.addCSSToHead(css);
-      }
-    } catch (error) {
-      console.warn("Could not add CSS through editor, using fallback method");
-      this.addCSSToHead(css);
-    }
-  }
-
-  // Handle page break insertion and content movement
-  handlePageBreakInsertion(breakComponent) {
-    const breakEl = breakComponent.getEl();
-    const pageContainer = breakEl.closest(".page-container");
-    if (!pageContainer) return;
-
-    const editor = breakComponent.em.get("Editor");
-    const domComponents = editor.DomComponents;
-
-    // Find main content area of current page
-    const currentMain = pageContainer.querySelector(".main-content-area");
-    if (!currentMain) return;
-
-    // Gather all siblings after the break
-    const nodesToMove = [];
-    let next = breakEl.nextSibling;
-    while (next) {
-      nodesToMove.push(next);
-      next = next.nextSibling;
-    }
-
-    if (!nodesToMove.length) return; // nothing to move
-
-    // Create new page container via GrapesJS
-    const newPage = domComponents.addComponent({
-      tagName: "div",
-      classes: ["page-container"],
-      attributes: {
-        "data-page-id": `page-${Date.now()}`,
-        "data-page-index": "x", // you can update indices later
-      },
-      components: [
-        {
-          tagName: "div",
-          classes: ["page-content"],
-          components: [
-            { tagName: "div", classes: ["header-wrapper"], components: [] },
-            {
-              tagName: "div",
-              classes: ["content-wrapper"],
-              components: [{ tagName: "div", classes: ["main-content-area"], components: [] }]
-            },
-            { tagName: "div", classes: ["footer-wrapper"], components: [] }
-          ]
+                    selected.set('selected-running-total-columns', selectedColumns);
+                    editor.Modal.close();
+                });
+            }, 100);
         }
-      ]
     });
+    function initializeTableConditionManager(component, conditions) {
+        const conditionTypeSelect = document.getElementById('condition-type');
+        const conditionValueInput = document.getElementById('condition-value');
+        const caseSensitiveCheckbox = document.getElementById('case-sensitive');
+        const singleValueInput = document.getElementById('single-value-input');
+        const rangeInputs = document.getElementById('range-inputs');
+        const minValueInput = document.getElementById('min-value');
+        const maxValueInput = document.getElementById('max-value');
+        const addConditionBtn = document.getElementById('add-condition-btn');
+        const conditionsList = document.getElementById('conditions-list');
+        const closeBtn = document.getElementById('close-manager-btn');
+        const applyBtn = document.getElementById('apply-conditions-btn');
 
-    // Find new main content
-    const newMain = newPage.find(".main-content-area")[0];
-    if (!newMain) return;
+        // Style controls
+        const bgColorInput = document.getElementById('highlight-bg-color');
+        const textColorInput = document.getElementById('highlight-text-color');
+        const fontFamilySelect = document.getElementById('highlight-font-family');
 
-    // Move components after break into new page
-    nodesToMove.forEach(node => {
-      const comp = domComponents.getWrapper().find(`#${node.id}`)[0];
-      if (comp) {
-        newMain.append(comp);
-      }
-    });
+        // Load current values
+        bgColorInput.value = component.get('highlight-color') || '#ffff99';
+        textColorInput.value = component.get('highlight-text-color') || '#000000';
+        fontFamilySelect.value = component.get('highlight-font-family') || '';
 
-    // Optional: remove break element after split
-    breakComponent.remove();
-  }
+        // Handle condition type change
+        conditionTypeSelect.addEventListener('change', function () {
+            const selectedType = this.value;
+            const isTextCondition = ['contains', 'starts-with', 'ends-with', 'exact', 'once-if'].includes(selectedType);
 
+            caseSensitiveCheckbox.style.display = isTextCondition ? 'block' : 'none';
+            caseSensitiveCheckbox.parentElement.style.display = isTextCondition ? 'block' : 'none';
 
-  splitPagesByBreaks() {
-    const wrapper = this.editor.getWrapper();
-    const pageContainers = wrapper.find('.page-container');
-
-    pageContainers.forEach((page, pageIndex) => {
-      const mainContent = page.find('.main-content-area')[0];
-      if (!mainContent) return;
-
-      const breakComps = mainContent.find('[data-page-break="true"]');
-      if (!breakComps.length) return;
-
-      breakComps.forEach(breakComp => {
-        const breakEl = breakComp.getEl();
-        let nextNodes = [];
-        let sibling = breakEl.nextSibling;
-
-        while (sibling) {
-          nextNodes.push(sibling);
-          sibling = sibling.nextSibling;
-        }
-
-        if (!nextNodes.length) return;
-
-        // Create new page container with same skeleton
-        const newPage = wrapper.append(this.buildPageSkeleton())[0];
-        const newMain = newPage.find('.main-content-area')[0];
-
-        // Move components after break into new page
-        nextNodes.forEach(node => {
-          const comp = wrapper.find(`#${node.id}`)[0];
-          if (comp) newMain.append(comp);
+            if (selectedType === 'between') {
+                singleValueInput.style.display = 'none';
+                rangeInputs.style.display = 'block';
+            } else if (selectedType === 'null') {
+                singleValueInput.style.display = 'none';
+                rangeInputs.style.display = 'none';
+            } else {
+                singleValueInput.style.display = 'block';
+                rangeInputs.style.display = 'none';
+            }
         });
 
-        // Optionally remove the break itself
-        breakComp.remove();
+        // Add condition
+        addConditionBtn.addEventListener('click', function () {
+            const type = conditionTypeSelect.value;
+            if (!type) {
+                alert('Please select a condition type');
+                return;
+            }
 
-        // Update settings so your visual update runs correctly
-        this.pageSettings.numberOfPages++;
-      });
-    });
+            let condition = {
+                type,
+                caseSensitive: caseSensitiveCheckbox.checked,
+                textColor: textColorInput.value,
+                fontFamily: fontFamilySelect.value
+            };
 
-    console.log("✅ Pages split by manual breaks");
-  }
+            if (type === 'between') {
+                const minVal = minValueInput.value;
+                const maxVal = maxValueInput.value;
+                if (!minVal || !maxVal) {
+                    alert('Please enter both min and max values');
+                    return;
+                }
+                condition.minValue = minVal;
+                condition.maxValue = maxVal;
+            } else if (type !== 'null') {
+                const value = conditionValueInput.value;
+                if (!value) {
+                    alert('Please enter a value');
+                    return;
+                }
+                condition.value = value;
+            }
 
-  buildPageSkeleton() {
-    const mmToPx = 96 / 25.4;
-    const totalPageWidth = Math.round(this.pageSettings.width * mmToPx);
-    const totalPageHeight = Math.round(this.pageSettings.height * mmToPx);
-    const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx);
-    const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx);
-    const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx);
-    const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx);
+            component.addHighlightCondition(condition);
+            component.set('highlight-color', bgColorInput.value);
+            component.set('highlight-text-color', textColorInput.value);
+            component.set('highlight-font-family', fontFamilySelect.value);
+            refreshConditionsList(component);
 
-    const contentWidth = totalPageWidth - marginLeftPx - marginRightPx;
-    const contentHeight = totalPageHeight - marginTopPx - marginBottomPx;
+            // Reset form
+            conditionTypeSelect.value = '';
+            conditionValueInput.value = '';
+            minValueInput.value = '';
+            maxValueInput.value = '';
+            caseSensitiveCheckbox.checked = false;
+            singleValueInput.style.display = 'block';
+            rangeInputs.style.display = 'none';
+            caseSensitiveCheckbox.parentElement.style.display = 'none';
+        });
 
-    return `
-    <div class="page-container" data-page-id="page-${Date.now()}">
-      <div class="page-content" style="width:${contentWidth}px; height:${contentHeight}px; margin:${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px; display:flex; flex-direction:column;">
-        <div class="header-wrapper"><div class="page-header-element"></div></div>
-        <div class="content-wrapper" style="flex:1; display:flex; flex-direction:column;">
-          <div class="main-content-area"></div>
-        </div>
-        <div class="footer-wrapper"><div class="page-footer-element"></div></div>
-      </div>
-    </div>`;
-  }
+        // Close modal
+        closeBtn.addEventListener('click', function () {
+            editor.Modal.close();
+        });
 
-  moveComponentsToPage(components, targetPageIndex) {
-    try {
-      const targetPageComponent = this.editor.getWrapper().find(`[data-page-index="${targetPageIndex}"]`)[0];
-      if (!targetPageComponent) {
-        console.error(`❌ Target page ${targetPageIndex} not found`);
-        return;
-      }
+        // Apply changes and close
+        applyBtn.addEventListener('click', function () {
+            component.set('highlight-color', bgColorInput.value);
+            component.set('highlight-text-color', textColorInput.value);
+            component.set('highlight-font-family', fontFamilySelect.value);
+            component.handleHighlightChange();
+            editor.Modal.close();
+        });
 
-      const targetContentArea = targetPageComponent.find(".main-content-area")[0];
-      if (!targetContentArea) {
-        console.error(`❌ Target content area not found for page ${targetPageIndex}`);
-        return;
-      }
+        // Refresh conditions list
+        function refreshConditionsList(component) {
+            const conditions = component.getHighlightConditions();
 
-      console.log(`📦 Moving ${components.length} components to page ${targetPageIndex}`);
+            if (conditions.length === 0) {
+                conditionsList.innerHTML = '<p style="color: #666;">No conditions added yet.</p>';
+                return;
+            }
 
-      // Temporarily disconnect the target page observer to prevent cascading mutations
-      if (this.pageObservers.has(targetPageIndex)) {
-        this.pageObservers.get(targetPageIndex).disconnect();
-        console.log(`⏸️ Temporarily disconnected observer for target page ${targetPageIndex}`);
-      }
+            let html = '';
+            conditions.forEach((condition, index) => {
+                let conditionText = '';
+                const caseSensitive = condition.caseSensitive ? ' (Case Sensitive)' : '';
 
-      components.forEach((component, index) => {
-        try {
-          // Prevent circular references
-          if (targetContentArea === component || component.components().includes(targetContentArea)) {
-            console.warn(`🚫 Skipping component ${index} to avoid circular reference`);
-            return;
-          }
+                if (condition.type === 'between') {
+                    conditionText = `Between ${condition.minValue} and ${condition.maxValue}`;
+                } else if (condition.type === 'null') {
+                    conditionText = 'Null/Empty cells';
+                } else {
+                    conditionText = `${condition.type}: ${condition.value}${caseSensitive}`;
+                }
 
-          // Clone and move
-          const clonedComponent = component.clone({ deep: true });
-          if (!clonedComponent || clonedComponent === component) {
-            console.warn(`⚠️ Invalid clone for component ${index}, skipping`);
-            return;
-          }
+                html += `
+        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>${conditionText}</span>
+            <button onclick="removeCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
+        </div>`;
+            });
 
-          component.remove();
-          targetContentArea.append(clonedComponent);
-          console.log(`✅ Moved component ${index} to page ${targetPageIndex}`);
-
-        } catch (compError) {
-          console.error(`❌ Error moving component ${index}:`, compError);
+            conditionsList.innerHTML = html;
         }
-      });
 
-      // Reconnect observer after a delay
-      setTimeout(() => {
-        this.setupPageObserver(targetPageIndex);
-        console.log(`🔄 Reconnected observer for page ${targetPageIndex}`);
-      }, 200);
-
-    } catch (error) {
-      console.error("❌ Error moving components to page:", error);
-    }
-  }
-
-
-  // Check if page content overflows and handle it
-  checkPageOverflow(pageIndex) {
-    try {
-      debugger
-      const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0]
-      if (!pageComponent) return
-
-      const contentArea = pageComponent.find(".main-content-area")[0]
-      if (!contentArea) return
-
-      // Get the actual DOM element to check dimensions
-      const contentEl = contentArea.getEl()
-      if (!contentEl) return
-
-      const contentHeight = contentEl.scrollHeight
-      const availableHeight = contentEl.clientHeight
-
-      // If content overflows, we could implement auto-pagination here
-      if (contentHeight > availableHeight) {
-        console.log(`Page ${pageIndex + 1} content overflows - auto-pagination could be implemented here`)
-        // Future enhancement: automatically move overflow content to next page
-      }
-    } catch (error) {
-      console.error("Error checking page overflow:", error)
-    }
-  }
-
-  setupPageObserver(pageIndex) {
-    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-    if (!pageComponent) {
-      console.warn(`❌ Page component not found for index ${pageIndex}`);
-      return;
-    }
-
-    const contentArea = pageComponent.find(".main-content-area")[0];
-    if (!contentArea) {
-      console.warn(`❌ .main-content-area not found in page ${pageIndex}`);
-      return;
-    }
-
-    const contentEl = contentArea.getEl();
-    if (!contentEl) {
-      console.warn(`❌ contentEl (DOM) not available for page ${pageIndex}`);
-      return;
-    }
-
-    // Disconnect existing observer if any
-    if (this.pageObservers.has(pageIndex)) {
-      this.pageObservers.get(pageIndex).disconnect();
-    }
-
-    console.log(`🔍 Setting up enhanced observer for page ${pageIndex}`);
-
-    const observer = new MutationObserver((mutations) => {
-      // FIXED: More selective mutation filtering
-      let hasSignificantChange = false;
-
-      for (const mutation of mutations) {
-        // Only care about actual content additions/removals or substantial text changes
-        if (mutation.type === 'childList') {
-          const addedNodes = Array.from(mutation.addedNodes);
-          const removedNodes = Array.from(mutation.removedNodes);
-
-          // Filter out insignificant changes (like empty text nodes)
-          const significantAdded = addedNodes.filter(node =>
-            node.nodeType === Node.ELEMENT_NODE ||
-            (node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 5)
-          );
-
-          const significantRemoved = removedNodes.filter(node =>
-            node.nodeType === Node.ELEMENT_NODE ||
-            (node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 5)
-          );
-
-          if (significantAdded.length > 0 || significantRemoved.length > 0) {
-            hasSignificantChange = true;
-            break;
-          }
-        } else if (mutation.type === 'characterData') {
-          // Only trigger on substantial text changes
-          if (mutation.target.textContent && mutation.target.textContent.trim().length > 20) {
-            hasSignificantChange = true;
-            break;
-          }
-        }
-      }
-
-      if (!hasSignificantChange) {
-        return; // Skip insignificant mutations
-      }
-
-      // Clear existing debounce timer
-      if (this.debounceTimers.has(pageIndex)) {
-        clearTimeout(this.debounceTimers.get(pageIndex));
-      }
-
-      // FIXED: Longer debounce time for stability
-      const timer = setTimeout(() => {
-        // Double-check pagination flag before proceeding
-        if (!this.paginationInProgress) {
-          console.log(`🔁 Processing significant content change on page ${pageIndex}`);
-          this.handleAutoPagination(pageIndex);
-        } else {
-          console.log(`⏸️ Skipping pagination check - operation in progress`);
-        }
-      }, 750); // Increased to 750ms for better stability
-
-      this.debounceTimers.set(pageIndex, timer);
-    });
-
-    // FIXED: Observe only meaningful changes
-    observer.observe(contentEl, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: false, // Ignore attribute changes
-      attributeOldValue: false,
-      characterDataOldValue: false
-    });
-
-    this.pageObservers.set(pageIndex, observer);
-  }
-
-  // FIXED: Enhanced content preservation methods
-  preserveAllContent() {
-    if (!this.isInitialized) return;
-
-    try {
-      this.pageContents.clear();
-      const allPageComponents = this.editor.getWrapper().find(".page-container");
-
-      allPageComponents.forEach((pageComponent, index) => {
-        const pageContent = {
-          header: null,
-          footer: null,
-          mainContent: [],
+        // Global function for removing conditions
+        window.removeCondition = function (index) {
+            component.removeHighlightCondition(index);
+            refreshConditionsList(component);
         };
 
-        const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
-        if (headerRegion) {
-          const headerComponents = headerRegion.components();
-          if (headerComponents.length > 0) {
-            pageContent.header = {
-              components: headerComponents.map((comp) => ({
-                html: comp.toHTML(),
-                styles: comp.getStyle(),
-                attributes: comp.getAttributes(),
-              })),
-              attributes: headerRegion.getAttributes(),
-            };
-          }
-        }
-
-        const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0];
-        if (footerRegion) {
-          const footerComponents = footerRegion.components();
-          if (footerComponents.length > 0) {
-            pageContent.footer = {
-              components: footerComponents.map((comp) => ({
-                html: comp.toHTML(),
-                styles: comp.getStyle(),
-                attributes: comp.getAttributes(),
-              })),
-              attributes: footerRegion.getAttributes(),
-            };
-          }
-        }
-
-        const mainContentArea = pageComponent.find(".main-content-area")[0];
-        if (mainContentArea) {
-          const mainComponents = mainContentArea.components();
-          if (mainComponents.length > 0) {
-            pageContent.mainContent = mainComponents.map((comp) => ({
-              html: comp.toHTML(),
-              styles: comp.getStyle(),
-              attributes: comp.getAttributes(),
-            }));
-          }
-        }
-
-        this.pageContents.set(index, pageContent);
-      });
-
-      this.preserveSharedContent();
-      console.log("✅ Content preserved for", this.pageContents.size, "pages");
-    } catch (error) {
-      console.error("❌ Error preserving all content:", error);
+        // Initial load
+        refreshConditionsList(component);
     }
-  }
+    // Override HTML export for proper content preservation
+    // const originalGetHtml = editor.getHtml;
+    // editor.getHtml = function () {
+    //     try {
+    //         // Ensure all cell data is stored before export
+    //         const canvasBody = editor.Canvas.getBody();
+    //         const jsonTables = canvasBody.querySelectorAll('.json-table-container');
 
-  preserveContentForModeSwitch() {
-    try {
-      console.log("🔄 Preserving GrapesJS components for mode switch...");
+    //         jsonTables.forEach(tableContainer => {
+    //             const tableComponent =editor.getModelByEl(tableContainer);
 
-      const contentBackup = {
-        headers: {},
-        footers: {}
-      };
+    //             if (tableComponent) {
+    //                 const table = tableContainer.querySelector('.json-data-table');
+    //                 if (table) {
+    //                     // Update the component's HTML with current cell contents
+    //                     const cells = table.querySelectorAll('.json-table-cell');
+    //                     cells.forEach(cell => {
+    //                         const rowIndex = cell.getAttribute('data-row');
+    //                         const columnKey = cell.getAttribute('data-column-key');
+    //                         const isHeader = cell.tagName === 'TH';
+    //                         const content = cell.textContent;
 
-      // Get all pages and extract their header/footer COMPONENTS
-      const allPages = this.editor.getWrapper().find('.page-container');
+    //                         if (isHeader && columnKey) {
+    //                             tableComponent.updateHeaderData(columnKey, content);
+    //                         } else if (rowIndex !== null && columnKey) {
+    //                             tableComponent.updateCellData(parseInt(rowIndex), columnKey, content);
+    //                         }
+    //                     });
 
-      allPages.forEach((page, index) => {
-        const pageNumber = index + 1;
+    //                     // Force table re-render to capture changes
+    //                     tableComponent.updateTableHTML();
+    //                 }
+    //             }
+    //         });
 
-        // Find all header regions on this page
-        const headerRegions = page.find('[data-shared-region^="header"]');
-        headerRegions.forEach(headerRegion => {
-          const regionType = headerRegion.getAttributes()['data-shared-region'];
-          const headerElement = headerRegion.find('.page-header-element')[0];
+    //         return originalGetHtml.call(this);
 
-          if (headerElement && headerElement.components().length > 0) {
-            // Store actual GrapesJS component data, not HTML
-            contentBackup.headers[regionType] = {
-              components: headerElement.components().map(comp => ({
-                html: comp.toHTML(),
-                styles: comp.getStyle(),
-                attributes: comp.getAttributes(),
-                type: comp.get('type'),
-                content: comp.get('content')
-              })),
-              elementStyles: headerElement.getStyle(),
-              elementAttributes: headerElement.getAttributes()
-            };
-            console.log(`📦 Preserved header components from ${regionType} on page ${pageNumber}`);
-          }
-        });
+    //     } catch (error) {
+    //         console.warn('Error in JSON table HTML export:', error);
+    //         return originalGetHtml.call(this);
+    //     }
+    // };
 
-        // Find all footer regions on this page  
-        const footerRegions = page.find('[data-shared-region^="footer"]');
-        footerRegions.forEach(footerRegion => {
-          const regionType = footerRegion.getAttributes()['data-shared-region'];
-          const footerElement = footerRegion.find('.page-footer-element')[0];
+    // Add remaining commands and functions from original code
+    editor.Commands.add('open-json-table-suggestion', {
+        run: function (editor, sender) {
+            openJsonTableSuggestionModal();
+        }
+    });
 
-          if (footerElement && footerElement.components().length > 0) {
-            // Store actual GrapesJS component data, not HTML
-            contentBackup.footers[regionType] = {
-              components: footerElement.components().map(comp => ({
-                html: comp.toHTML(),
-                styles: comp.getStyle(),
-                attributes: comp.getAttributes(),
-                type: comp.get('type'),
-                content: comp.get('content')
-              })),
-              elementStyles: footerElement.getStyle(),
-              elementAttributes: footerElement.getAttributes()
-            };
-            console.log(`📦 Preserved footer components from ${regionType} on page ${pageNumber}`);
-          }
-        });
-      });
+    editor.Commands.add('add-table-row', {
+        run: function (editor, sender) {
+            const selected = editor.getSelected();
+            if (selected && selected.get('type') === 'json-table') {
+                selected.addRow();
+            }
+        }
+    });
 
-      // Store the backup for later restoration
-      this._modeSwitchContentBackup = contentBackup;
+    editor.Commands.add('add-table-column', {
+        run: function (editor, sender) {
+            const selected = editor.getSelected();
+            if (selected && selected.get('type') === 'json-table') {
+                selected.addColumn();
+            }
+        }
+    });
 
-      console.log("✅ GrapesJS component backup created:", contentBackup);
+    editor.Commands.add('remove-table-row', {
+        run: function (editor, sender) {
+            const selected = editor.getSelected();
+            if (selected && selected.get('type') === 'json-table') {
+                selected.removeRow();
+            }
+        }
+    });
 
-    } catch (error) {
-      console.error("❌ Error preserving components for mode switch:", error);
-    }
-  }
+    editor.Commands.add('remove-table-column', {
+        run: function (editor, sender) {
+            const selected = editor.getSelected();
+            if (selected && selected.get('type') === 'json-table') {
+                selected.removeColumn();
+            }
+        }
+    });
 
-  restoreContentAfterModeSwitch() {
-    try {
-      if (!this._modeSwitchContentBackup) {
-        console.log("ℹ️ No component backup found for restoration");
-        return;
-      }
-
-      console.log("🔄 Restoring GrapesJS components after mode switch...");
-
-      const backup = this._modeSwitchContentBackup;
-
-      // Get all pages after recreation
-      const allPages = this.editor.getWrapper().find('.page-container');
-
-      allPages.forEach((page, index) => {
-        const pageNumber = index + 1;
-
-        // RESTORE HEADER COMPONENTS
-        const headerRegions = page.find('[data-shared-region^="header"]');
-        headerRegions.forEach(headerRegion => {
-          const newRegionType = headerRegion.getAttributes()['data-shared-region'];
-          const headerElement = headerRegion.find('.page-header-element')[0];
-
-          if (!headerElement) return;
-
-          let contentToRestore = null;
-
-          // Map old content to new regions based on mode transition
-          if (newRegionType === 'header') {
-            // For "all" regions, prefer any existing content
-            contentToRestore = backup.headers['header'] ||
-              backup.headers['header-even'] ||
-              backup.headers['header-odd'];
-          } else if (newRegionType === 'header-even') {
-            // For even regions, prefer even content, fallback to all
-            contentToRestore = backup.headers['header-even'] ||
-              backup.headers['header'];
-          } else if (newRegionType === 'header-odd') {
-            // For odd regions, prefer odd content, fallback to all
-            contentToRestore = backup.headers['header-odd'] ||
-              backup.headers['header'];
-          }
-
-          // Restore the GrapesJS components if found
-          if (contentToRestore && contentToRestore.components) {
-            headerElement.components().reset();
-
-            contentToRestore.components.forEach(compData => {
-              try {
-                const newComp = headerElement.append(compData.html)[0];
-                if (newComp) {
-                  newComp.setStyle(compData.styles || {});
-                  newComp.addAttributes(compData.attributes || {});
-                  if (compData.content) {
-                    newComp.set('content', compData.content);
-                  }
+    // Keep remaining helper functions from original code
+    function extractMetaDataKeys(obj, prefix = '') {
+        let keys = [];
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                let newKey;
+                if (Array.isArray(obj)) {
+                    newKey = `${prefix}[${key}]`;
+                } else {
+                    newKey = prefix ? `${prefix}.${key}` : key;
                 }
-              } catch (error) {
-                console.warn("Warning: Could not restore component:", error);
-              }
-            });
-
-            // Restore header element styles and attributes
-            if (contentToRestore.elementStyles) {
-              headerElement.setStyle(contentToRestore.elementStyles);
-            }
-            if (contentToRestore.elementAttributes) {
-              headerElement.addAttributes(contentToRestore.elementAttributes);
-            }
-
-            console.log(`✅ Restored header components to page ${pageNumber} (${newRegionType})`);
-          }
-        });
-
-        // RESTORE FOOTER COMPONENTS (same logic)
-        const footerRegions = page.find('[data-shared-region^="footer"]');
-        footerRegions.forEach(footerRegion => {
-          const newRegionType = footerRegion.getAttributes()['data-shared-region'];
-          const footerElement = footerRegion.find('.page-footer-element')[0];
-
-          if (!footerElement) return;
-
-          let contentToRestore = null;
-
-          if (newRegionType === 'footer') {
-            contentToRestore = backup.footers['footer'] ||
-              backup.footers['footer-even'] ||
-              backup.footers['footer-odd'];
-          } else if (newRegionType === 'footer-even') {
-            contentToRestore = backup.footers['footer-even'] ||
-              backup.footers['footer'];
-          } else if (newRegionType === 'footer-odd') {
-            contentToRestore = backup.footers['footer-odd'] ||
-              backup.footers['footer'];
-          }
-
-          // Restore the GrapesJS components if found
-          if (contentToRestore && contentToRestore.components) {
-            footerElement.components().reset();
-
-            contentToRestore.components.forEach(compData => {
-              try {
-                const newComp = footerElement.append(compData.html)[0];
-                if (newComp) {
-                  newComp.setStyle(compData.styles || {});
-                  newComp.addAttributes(compData.attributes || {});
-                  if (compData.content) {
-                    newComp.set('content', compData.content);
-                  }
+                keys.push(newKey);
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    keys = keys.concat(extractMetaDataKeys(obj[key], newKey));
                 }
-              } catch (error) {
-                console.warn("Warning: Could not restore component:", error);
-              }
-            });
-
-            // Restore footer element styles and attributes
-            if (contentToRestore.elementStyles) {
-              footerElement.setStyle(contentToRestore.elementStyles);
             }
-            if (contentToRestore.elementAttributes) {
-              footerElement.addAttributes(contentToRestore.elementAttributes);
-            }
-
-            console.log(`✅ Restored footer components to page ${pageNumber} (${newRegionType})`);
-          }
-        });
-      });
-
-      // Clean up the backup
-      delete this._modeSwitchContentBackup;
-
-      console.log("✅ GrapesJS component restoration complete");
-
-    } catch (error) {
-      console.error("❌ Error restoring components after mode switch:", error);
-    }
-  }
-
-  restoreAllContent() {
-    if (!this.isInitialized || this.pageContents.size === 0) return;
-    try {
-      const allPages = this.editor.getWrapper().find(".page-container");
-      console.log("Restoring content for", allPages.length, "pages");
-
-      allPages.forEach((pageComponent, index) => {
-        const preserved = this.pageContents.get(index);
-        if (!preserved) return;
-
-        // Get current page settings to check for new text
-        const currentPageSettings = this.pageSettings.pages[index];
-        const hasNewHeaderText = currentPageSettings?.header?.enabled && currentPageSettings?.header?.text;
-        const hasNewFooterText = currentPageSettings?.footer?.enabled && currentPageSettings?.footer?.text;
-
-        // 🔁 Restore Main Content
-        const mainContentArea = pageComponent.find(".main-content-area")[0];
-        if (mainContentArea && preserved.mainContent?.length > 0) {
-          mainContentArea.components().reset();
-          preserved.mainContent.forEach((compData) => {
-            const newComp = mainContentArea.append(compData.html)[0];
-            if (newComp) {
-              newComp.setStyle(compData.styles || {});
-              newComp.addAttributes(compData.attributes || {});
-            }
-          });
-        }
-
-        // 🔁 Restore Header
-        const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
-        if (headerRegion) {
-          const isHeaderEnabled = currentPageSettings?.header?.enabled;
-
-          if (isHeaderEnabled) {
-            // Check if user changed the header text input OR if there's new text and no preserved content
-            const shouldUseInputText = this._headerTextChanged ||
-              (hasNewHeaderText && (!preserved.header?.components?.length));
-
-            if (shouldUseInputText && hasNewHeaderText) {
-              console.log(`🔄 Using input field header text for page ${index + 1}: "${currentPageSettings.header.text}"`);
-              headerRegion.components().reset();
-
-              const textComp = headerRegion.append(`
-              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
-                ${currentPageSettings.header.text}
-              </div>
-            `)[0];
-
-              if (textComp) {
-                textComp.set({
-                  droppable: false,
-                  editable: true,
-                  selectable: true,
-                  draggable: false,
-                  copyable: false,
-                  removable: true,
-                  "custom-name": "Header Text"
-                });
-              }
-            } else if (preserved.header?.components?.length > 0) {
-              // Restore preserved content
-              console.log(`Restoring preserved header content for page ${index + 1}`);
-              headerRegion.components().reset();
-              headerRegion.addAttributes(preserved.header.attributes || {});
-              preserved.header.components.forEach((compData) => {
-                const newComp = headerRegion.append(compData.html)[0];
-                if (newComp) {
-                  newComp.setStyle(compData.styles || {});
-                  newComp.addAttributes(compData.attributes || {});
-                }
-              });
-            } else {
-              // Header enabled but no content
-              console.log(`Header enabled but no content for page ${index + 1} - leaving empty`);
-              headerRegion.components().reset();
-            }
-          } else {
-            // Header disabled, clear content
-            console.log(`Header disabled for page ${index + 1} - clearing content`);
-            headerRegion.components().reset();
-          }
-        }
-
-        // 🔁 Restore Footer (same logic as header)
-        const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0];
-        if (footerRegion) {
-          const isFooterEnabled = currentPageSettings?.footer?.enabled;
-
-          if (isFooterEnabled) {
-            // Check if user changed the footer text input OR if there's new text and no preserved content
-            const shouldUseInputText = this._footerTextChanged ||
-              (hasNewFooterText && (!preserved.footer?.components?.length));
-
-            if (shouldUseInputText && hasNewFooterText) {
-              console.log(`🔄 Using input field footer text for page ${index + 1}: "${currentPageSettings.footer.text}"`);
-              footerRegion.components().reset();
-
-              const textComp = footerRegion.append(`
-              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #333;">
-                ${currentPageSettings.footer.text}
-              </div>
-            `)[0];
-
-              if (textComp) {
-                textComp.set({
-                  droppable: false,
-                  editable: true,
-                  selectable: true,
-                  draggable: false,
-                  copyable: false,
-                  removable: true,
-                  "custom-name": "Footer Text"
-                });
-              }
-            } else if (preserved.footer?.components?.length > 0) {
-              // Restore preserved content
-              console.log(`Restoring preserved footer content for page ${index + 1}`);
-              footerRegion.components().reset();
-              footerRegion.addAttributes(preserved.footer.attributes || {});
-              preserved.footer.components.forEach((compData) => {
-                const newComp = footerRegion.append(compData.html)[0];
-                if (newComp) {
-                  newComp.setStyle(compData.styles || {});
-                  newComp.addAttributes(compData.attributes || {});
-                }
-              });
-            } else {
-              // Footer enabled but no content
-              console.log(`Footer enabled but no content for page ${index + 1} - leaving empty`);
-              footerRegion.components().reset();
-            }
-          } else {
-            // Footer disabled, clear content
-            console.log(`Footer disabled for page ${index + 1} - clearing content`);
-            footerRegion.components().reset();
-          }
-        }
-      });
-
-      // Track what was applied this time
-      const currentPageSettings = this.pageSettings.pages[0];
-      this._lastAppliedHeaderText = currentPageSettings?.header?.text || "";
-      this._lastAppliedFooterText = currentPageSettings?.footer?.text || "";
-
-      // Reset change flags after restoration
-      this._headerTextChanged = false;
-      this._footerTextChanged = false;
-
-      console.log("✅ Finished restoring content");
-    } catch (error) {
-      console.error("❌ Error restoring all content:", error);
-    }
-  }
-
-  hasRichHeaderFooterContent(components) {
-    if (!components || components.length === 0) return false;
-
-    // Check if there are multiple components or non-basic components
-    if (components.length > 1) return true;
-
-    // Check if the single component is something other than basic text
-    const component = components[0];
-    if (!component.html) return false;
-
-    // Check for specific component types that indicate rich content
-    const html = component.html.toLowerCase();
-    const hasTextArea = html.includes('contenteditable') || html.includes('textarea');
-    const hasImage = html.includes('<img') || html.includes('image');
-    const hasCustomComponent = html.includes('data-gjs-type') && !html.includes('text');
-    const hasCustomClasses = component.attributes && Object.keys(component.attributes).length > 1;
-    const hasComplexStyles = component.styles && Object.keys(component.styles).length > 3;
-
-    // If it's a dragged component (not just the basic text we add), preserve it
-    return hasTextArea || hasImage || hasCustomComponent || hasCustomClasses || hasComplexStyles;
-  }
-
-  // Store shared content to preserve during operations
-  preserveSharedContent() {
-    if (!this.isInitialized) return;
-
-    try {
-      const firstPageComponent = this.editor.getWrapper().find(".page-container")[0];
-      if (!firstPageComponent) return;
-
-      this.sharedContent = {
-        header: null,
-        footer: null,
-      };
-
-      // Preserve header content
-      const headerRegion = firstPageComponent.find('[data-shared-region="header"]')[0];
-      if (headerRegion) {
-        const headerComponents = headerRegion.components();
-        if (headerComponents.length > 0) {
-          this.sharedContent.header = {
-            components: headerComponents.map((comp) => ({
-              html: comp.toHTML(),
-              styles: comp.getStyle(),
-              attributes: comp.getAttributes(),
-              type: comp.get("type"),
-            })),
-            styles: headerRegion.getStyle(),
-            attributes: headerRegion.getAttributes(),
-          };
-        }
-      }
-
-      // Preserve footer content
-      const footerRegion = firstPageComponent.find('[data-shared-region="footer"]')[0];
-      if (footerRegion) {
-        const footerComponents = footerRegion.components();
-        if (footerComponents.length > 0) {
-          this.sharedContent.footer = {
-            components: footerComponents.map((comp) => ({
-              html: comp.toHTML(),
-              styles: comp.getStyle(),
-              attributes: comp.getAttributes(),
-              type: comp.get("type"),
-            })),
-            styles: footerRegion.getStyle(),
-            attributes: footerRegion.getAttributes(),
-          };
-        }
-      }
-
-      console.log("✅ Shared content preserved.");
-    } catch (error) {
-      console.error("❌ Error preserving shared content:", error);
-    }
-  }
-
-  // Restore shared content after operations
-  restoreSharedContent() {
-    if (!this.isInitialized) return
-
-    try {
-      const allPageComponents = this.editor.getWrapper().find(".page-container")
-
-      allPageComponents.forEach((pageComponent) => {
-        // Restore header content
-        if (this.sharedContent.header && this.pageSettings.headerFooter.headerEnabled) {
-          const headerRegion = pageComponent.find('[data-shared-region="header"]')[0]
-          if (headerRegion && this.sharedContent.header.components.length > 0) {
-            // Clear existing content
-            headerRegion.components().reset()
-
-            // Restore components
-            this.sharedContent.header.components.forEach((compData) => {
-              try {
-                const newComponent = headerRegion.append(compData.html)[0]
-                if (newComponent) {
-                  if (compData.styles) {
-                    newComponent.setStyle(compData.styles)
-                  }
-                  if (compData.attributes) {
-                    Object.keys(compData.attributes).forEach((key) => {
-                      newComponent.addAttributes({ [key]: compData.attributes[key] })
-                    })
-                  }
-                }
-              } catch (error) {
-                console.error("Error restoring shared header component:", error)
-              }
-            })
-          }
-        }
-
-        // Restore footer content
-        if (this.sharedContent.footer && this.pageSettings.headerFooter.footerEnabled) {
-          const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0]
-          if (footerRegion && this.sharedContent.footer.components.length > 0) {
-            // Clear existing content
-            footerRegion.components().reset()
-
-            // Restore components
-            this.sharedContent.footer.components.forEach((compData) => {
-              try {
-                const newComponent = footerRegion.append(compData.html)[0]
-                if (newComponent) {
-                  if (compData.styles) {
-                    newComponent.setStyle(compData.styles)
-                  }
-                  if (compData.attributes) {
-                    Object.keys(compData.attributes).forEach((key) => {
-                      newComponent.addAttributes({ [key]: compData.attributes[key] })
-                    })
-                  }
-                }
-              } catch (error) {
-                console.error("Error restoring shared footer component:", error)
-              }
-            })
-          }
-        }
-      })
-    } catch (error) {
-      console.error("Error restoring shared content:", error)
-    }
-  }
-
-  initSharedRegionSync() {
-    const editor = this.editor
-    if (!editor) return
-
-    // Track sync operations to prevent infinite loops
-    this._syncInProgress = false
-
-    // Listen for component additions
-    // editor.on("component:add", (model) => {
-    //   if (this._syncInProgress) return
-
-    //   const sharedRegion = model.closest("[data-shared-region]")
-    //   if (sharedRegion) {
-    //     const regionType = sharedRegion.getAttributes()["data-shared-region"]
-    //     setTimeout(() => {
-    //       this.syncSharedRegion(regionType, sharedRegion)
-    //     }, 50)
-    //   }
-    // })
-
-    // Listen for component updates (style, content, attributes)
-    editor.on("component:update", (model) => {
-      if (this._syncInProgress) return
-
-      const sharedRegion = model.closest("[data-shared-region]")
-      if (sharedRegion) {
-        const regionType = sharedRegion.getAttributes()["data-shared-region"]
-        setTimeout(() => {
-          this.syncSharedRegion(regionType, sharedRegion)
-        }, 50)
-      }
-    })
-
-    // Listen for component removals
-    // editor.on("component:remove", (model) => {
-    //   if (this._syncInProgress) return
-
-    //   const sharedRegion = model.closest("[data-shared-region]")
-    //   if (sharedRegion) {
-    //     const regionType = sharedRegion.getAttributes()["data-shared-region"]
-    //     setTimeout(() => {
-    //       this.syncSharedRegion(regionType, sharedRegion)
-    //     }, 50)
-    //   }
-    // })
-
-    // Listen for style changes
-    editor.on("component:styleUpdate", (model) => {
-      if (this._syncInProgress) return
-
-      const sharedRegion = model.closest("[data-shared-region]")
-      if (sharedRegion) {
-        const regionType = sharedRegion.getAttributes()["data-shared-region"]
-        setTimeout(() => {
-          this.syncSharedRegion(regionType, sharedRegion)
-        }, 50)
-      }
-    })
-
-    // Listen for drag and drop operations
-    editor.on("component:drag:end", (model) => {
-      if (this._syncInProgress) return
-
-      const el = model.view?.el
-      const sharedRegion = el?.closest("[data-shared-region]")
-
-      if (sharedRegion) {
-        const regionType = sharedRegion.getAttributes()["data-shared-region"]
-        setTimeout(() => {
-          this.syncSharedRegion(regionType, sharedRegion)
-        }, 100)
-      }
-    })
-  }
-
-  syncSharedRegion(regionType, sourceRegion) {
-    // 🚫 Prevent syncing when text was explicitly changed via input field
-    if ((regionType.includes("header") && this._headerTextChanged) ||
-      (regionType.includes("footer") && this._footerTextChanged)) {
-      console.log(`🚫 GLOBAL BLOCK: Skipping ${regionType} sync - user changed text via input field`);
-      return;
-    }
-
-    if (this._syncInProgress) return;
-    this._syncInProgress = true;
-
-    try {
-      // Find all regions of the SAME type (e.g., all "header-even" regions)
-      const allRegions = this.editor.getWrapper().find(`[data-shared-region="${regionType}"]`);
-      if (allRegions.length <= 1) {
-        this._syncInProgress = false;
-        return;
-      }
-
-      const sourceComponents = sourceRegion.components();
-      const sourceAttributes = sourceRegion.getAttributes();
-
-      console.log(`✅ WORD-STYLE SYNC: Syncing ${regionType} to ${allRegions.length} matching pages`);
-
-      // Sync to ALL regions of the same type
-      allRegions.forEach((targetRegion) => {
-        if (targetRegion === sourceRegion) return;
-
-        // 🔄 Reset and copy components to all matching regions
-        targetRegion.components().reset();
-        sourceComponents.forEach((comp) => {
-          const clonedComp = comp.clone();
-          targetRegion.append(clonedComp);
-        });
-
-        // ✅ Copy attributes (excluding data-shared-region)
-        const filteredAttributes = { ...sourceAttributes };
-        delete filteredAttributes["data-shared-region"];
-        Object.keys(filteredAttributes).forEach((key) => {
-          targetRegion.addAttributes({ [key]: filteredAttributes[key] });
-        });
-      });
-
-      console.log(`✅ Synced ${regionType} across ${allRegions.length} pages of the same type`);
-    } catch (error) {
-      console.error(`❌ Error syncing shared region ${regionType}:`, error);
-    } finally {
-      this._syncInProgress = false;
-    }
-  }
-
-  resetTextChangeFlags() {
-    this._headerTextChanged = false;
-    this._footerTextChanged = false;
-    console.log("🔄 Reset header/footer text change flags");
-  }
-
-  setupSectionSelection() {
-    this.editor.on("component:selected", (model) => {
-      this.clearSectionBorders()
-
-      const sharedRegion = model.closest("[data-shared-region]")
-      if (sharedRegion) {
-        const regionType = sharedRegion.getAttributes()["data-shared-region"]
-        this.highlightSection(regionType)
-        this.selectedSection = regionType
-      } else if (model.getEl()?.closest(".main-content-area")) {
-        this.highlightSection("content")
-        this.selectedSection = "content"
-      }
-    })
-
-    this.editor.on("component:deselected", () => {
-      this.clearSectionBorders()
-      this.selectedSection = null
-    })
-  }
-
-  highlightSection(sectionType) {
-    const canvasBody = this.editor.Canvas.getBody()
-    const pages = canvasBody.querySelectorAll(".page-container")
-
-    pages.forEach((page) => {
-      let selector = ""
-      switch (sectionType) {
-        case "header":
-          selector = '[data-shared-region="header"]'
-          break
-        case "footer":
-          selector = '[data-shared-region="footer"]'
-          break
-        case "content":
-          selector = ".main-content-area"
-          break
-      }
-
-      if (selector) {
-        const section = page.querySelector(selector)
-        if (section) {
-          section.style.border = "2px solid #007bff"
-          section.style.boxShadow = "0 0 10px rgba(0, 123, 255, 0.3)"
-        }
-      }
-    })
-  }
-
-  clearSectionBorders() {
-    const canvasBody = this.editor.Canvas.getBody()
-    const sections = canvasBody.querySelectorAll("[data-shared-region], .main-content-area")
-
-    sections.forEach((section) => {
-      section.style.border = ""
-      section.style.boxShadow = ""
-    })
-  }
-
-  setupCanvasObserver() {
-    // Observer to watch for canvas changes
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList" && this.isInitialized) {
-          setTimeout(() => {
-            this.updateAllPageVisuals()
-            this.enforceContentBoundaries()
-            if (this.sectionsSettings.enabled) {
-              this.updateSectionsDisplay()
-            }
-          }, 100)
-        }
-      })
-    })
-
-    // Start observing when editor is ready
-    this.editor.on("load", () => {
-      const canvas = this.editor.Canvas.getBody()
-      if (canvas) {
-        observer.observe(canvas, {
-          childList: true,
-          subtree: true,
-        })
-      }
-    })
-  }
-
-  setupContentBoundaryEnforcement() {
-    const pages = document.querySelectorAll('.page-wrapper');
-
-    pages.forEach((page, index) => {
-      const contentArea = page.querySelector('.content-area');
-      if (!contentArea) return;
-
-      // Calculate available height accounting for headers/footers
-      const availableHeight = this.calculateAvailableContentHeight(page);
-      contentArea.style.maxHeight = `${availableHeight}mm`;
-      contentArea.style.overflow = 'hidden';
-
-      // Monitor content changes
-      const observer = new MutationObserver(() => {
-        this.checkContentOverflow(contentArea, index);
-      });
-
-      observer.observe(contentArea, {
-        childList: true,
-        subtree: true,
-        characterData: true
-      });
-    });
-  }
-
-  calculateAvailableContentHeight(page) {
-    const { headerHeight, footerHeight } = this.pageSettings.headerFooter;
-    const { top, bottom } = this.pageSettings.margins;
-
-    return this.pageSettings.height - headerHeight - footerHeight - top - bottom;
-  }
-
-  handleJSONPaste(jsonData) {
-    // Format JSON with proper line breaks
-    const formattedJSON = JSON.stringify(jsonData, null, 2);
-    const lines = formattedJSON.split('\n');
-
-    // Insert content with proper pagination
-    this.insertContentWithPagination(lines);
-  }
-
-  checkContentOverflow(contentArea, pageIndex) {
-    const maxHeight = this.calculateAvailableContentHeight();
-    const actualHeight = contentArea.scrollHeight;
-
-    if (actualHeight > maxHeight) {
-      // Content overflows - need to split
-      this.handleContentOverflow(contentArea, pageIndex);
-    }
-  }
-
-  handleContentOverflow(contentArea, pageIndex) {
-    const overflowContent = this.extractOverflowContent(contentArea);
-
-    // Create next page if it doesn't exist
-    this.ensurePageExists(pageIndex + 1);
-
-    // Move overflow content to next page
-    const nextPageContent = document.querySelector(`#page-${pageIndex + 1} .content-area`);
-    if (nextPageContent) {
-      nextPageContent.insertAdjacentHTML('afterbegin', overflowContent);
-    }
-  }
-
-  insertContentWithPagination(lines) {
-    let currentPage = 0;
-    let currentHeight = 0;
-    const lineHeight = 20; // Adjust based on your font size
-    const maxHeight = this.calculateAvailableContentHeight();
-
-    lines.forEach(line => {
-      if (currentHeight + lineHeight > maxHeight) {
-        // Create new page or move to next page
-        currentPage++;
-        currentHeight = 0;
-        this.ensurePageExists(currentPage);
-      }
-
-      this.insertLineToPage(line, currentPage);
-      currentHeight += lineHeight;
-    });
-  }
-
-  enforceContentBoundaries() {
-    if (!this.isInitialized) return
-
-    const canvasBody = this.editor.Canvas.getBody()
-    const pageElements = canvasBody.querySelectorAll(".page-container")
-
-    // Check for content outside all pages
-    const allComponents = this.editor.getWrapper().components()
-
-    allComponents.forEach((component) => {
-      const componentEl = component.getEl()
-      if (!componentEl || componentEl.classList.contains("page-container")) return
-
-      let isInsidePage = false
-      pageElements.forEach((pageElement) => {
-        const pageRect = pageElement.getBoundingClientRect()
-        const componentRect = componentEl.getBoundingClientRect()
-
-        if (
-          componentRect.left >= pageRect.left &&
-          componentRect.right <= pageRect.right &&
-          componentRect.top >= pageRect.top &&
-          componentRect.bottom <= pageRect.bottom
-        ) {
-          isInsidePage = true
-        }
-      })
-
-      if (!isInsidePage) {
-        // Show error and remove component
-        this.showBoundaryError()
-        component.remove()
-        return
-      }
-    })
-
-    pageElements.forEach((pageElement, pageIndex) => {
-      const pageContent = pageElement.querySelector(".main-content-area")
-      if (pageContent) {
-        // Get all child elements in the main content area
-        const children = pageContent.querySelectorAll("*")
-        children.forEach((child) => {
-          const rect = child.getBoundingClientRect()
-          const pageRect = pageContent.getBoundingClientRect()
-
-          // Check if element is outside page boundaries
-          if (
-            rect.right > pageRect.right ||
-            rect.bottom > pageRect.bottom ||
-            rect.left < pageRect.left ||
-            rect.top < pageRect.top
-          ) {
-            // Show error and adjust element position to stay within boundaries
-            this.showBoundaryError()
-
-            const style = window.getComputedStyle(child)
-            const left = Number.parseInt(style.left) || 0
-            const top = Number.parseInt(style.top) || 0
-
-            if (rect.right > pageRect.right) {
-              child.style.left = Math.max(0, left - (rect.right - pageRect.right)) + "px"
-            }
-            if (rect.bottom > pageRect.bottom) {
-              child.style.top = Math.max(0, top - (rect.bottom - pageRect.bottom)) + "px"
-            }
-            if (rect.left < pageRect.left) {
-              child.style.left = Math.max(0, left + (pageRect.left - rect.left)) + "px"
-            }
-            if (rect.top < pageRect.top) {
-              child.style.top = Math.max(0, top + (pageRect.top - rect.top)) + "px"
-            }
-          }
-        })
-      }
-    })
-  }
-
-  showBoundaryError() {
-    // Show error message for boundary violation - COMMENTED OUT
-    /*
-    const errorMsg = document.createElement("div")
-    errorMsg.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 6px;
-      z-index: 10000;
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-      animation: slideIn 0.3s ease-out;
-    `
-    errorMsg.innerHTML = ""
-
-    // Add animation
-    const style = document.createElement("style")
-    style.textContent = `
-      @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-    `
-    document.head.appendChild(style)
-
-    document.body.appendChild(errorMsg)
-
-    setTimeout(() => {
-      errorMsg.remove()
-      style.remove()
-    }, 3000)
-    */
-  }
-
-  setupDragBoundaries() {
-    // Enhanced drag boundary setup
-    const canvasBody = this.editor.Canvas.getBody()
-    const pageElements = canvasBody.querySelectorAll(".page-container .main-content-area")
-
-    // Set droppable areas only to main content areas
-    pageElements.forEach((pageContent) => {
-      pageContent.style.position = "relative"
-      pageContent.setAttribute("data-droppable", "true")
-    })
-  }
-
-  injectPageSetupStyles() {
-    const styles = `
-      <style id="enhanced-page-setup-styles">
-        .page-setup-modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.8);
-          z-index: 10001;
-          display: none;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .watermark-position-option {
-  /* Same styles as .position-option */
-  cursor: pointer;
-  padding: 8px;
-  border: 1px solid #ccc;
-  text-align: center;
-  border-radius: 4px;
-}
-
-.watermark-position-option.selected {
-  background-color: #007cba;
-  color: white;
-}
-        
-        .page-setup-content {
-          background: white;
-          border-radius: 12px;
-          padding: 30px;
-          max-width: 800px;
-          width: 90%;
-          max-height: 90vh;
-          overflow-y: auto;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-          color: #000 !important;
-        }
-        
-        .page-setup-content * {
-          color: #000 !important;
-        }
-        
-        .page-setup-header {
-          text-align: center;
-          margin-bottom: 30px;
-        }
-        
-        .page-setup-header h2 {
-          color: #333 !important;
-          margin: 0 0 10px 0;
-          font-size: 24px;
-          font-weight: bold;
-        }
-        
-        .page-setup-section {
-          margin-bottom: 20px;
-          padding: 15px;
-          background: #f8f9fa;
-          border-radius: 8px;
-          border: 1px solid #e9ecef;
-        }
-        
-        .page-setup-section h3 {
-          margin: 0 0 15px 0;
-          color: #333 !important;
-          font-size: 16px;
-          font-weight: 600;
-        }
-        
-        .page-setup-row {
-          display: flex;
-          align-items: center;
-          margin-bottom: 15px;
-          gap: 15px;
-        }
-        
-        .page-setup-label {
-          min-width: 120px;
-          font-weight: 500;
-          color: #555 !important;
-        }
-        
-        .page-setup-control {
-          flex: 1;
-          padding: 8px 10px;
-          border: 2px solid #e9ecef;
-          border-radius: 6px;
-          font-size: 14px;
-          transition: border-color 0.2s;
-          color: #000 !important;
-        }
-        
-        .page-setup-control:focus {
-          outline: none;
-          border-color: #007bff;
-          box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-        }
-        
-        .page-setup-custom-size {
-          display: none;
-          margin-top: 15px;
-          padding: 15px;
-          background: white;
-          border-radius: 6px;
-          border: 1px solid #dee2e6;
-        }
-        
-        .page-setup-custom-size.active {
-          display: block;
-        }
-        
-        .page-setup-custom-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 15px;
-          margin-bottom: 10px;
-        }
-
-        .margins-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr 1fr;
-          gap: 10px;
-          margin-top: 10px;
-        }
-
-        .watermark-controls {
-          display: none;
-          margin-top: 15px;
-          padding: 15px;
-          background: white;
-          border-radius: 6px;
-          border: 1px solid #dee2e6;
-        }
-
-        .watermark-controls.active {
-          display: block;
-        }
-
-        .watermark-type-controls {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 10px;
-          margin: 10px 0;
-        }
-
-        .watermark-type-btn {
-          padding: 8px 12px;
-          border: 2px solid #e9ecef;
-          border-radius: 6px;
-          background: white;
-          cursor: pointer;
-          text-align: center;
-          transition: all 0.2s;
-        }
-
-        .watermark-type-btn.active {
-          border-color: #007bff;
-          background: #007bff;
-          color: white !important;
-        }
-        
-        .page-setup-actions {
-          display: flex;
-          gap: 15px;
-          justify-content: center;
-          margin-top: 30px;
-        }
-        
-        .page-setup-btn {
-          padding: 10px 20px;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          min-width: 100px;
-        }
-        
-        .page-setup-btn-primary {
-          background: #007bff;
-          color: white !important;
-        }
-        
-        .page-setup-btn-primary:hover {
-          background: #0056b3;
-        }
-        
-        .page-setup-btn-secondary {
-          background: #6c757d;
-          color: white !important;
-        }
-        
-        .page-setup-btn-secondary:hover {
-          background: #545b62;
-        }
-        
-        .page-canvas-container {
-          position: relative;
-          background: #f0f0f0;
-          border: 2px solid #ddd;
-          margin: 20px;
-          overflow: visible;
-        }
-        
-        .page-canvas {
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          margin: 20px auto;
-          position: relative;
-          border: 2px solid transparent !important;
-          overflow: hidden !important;
-          transition: border-color 0.2s ease;
-        }
-        
-        .page-canvas:hover {
-          border-color: #007bff !important;
-        }
-        
-        .page-canvas.selected,
-        .page-canvas:focus {
-          border-color: #007bff !important;
-          box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3) !important;
-        }
-        
-        .page-indicator {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: rgba(0, 123, 255, 0.9);
-          color: white;
-          padding: 5px 10px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: bold;
-          z-index: 1000;
-          pointer-events: none;
-        }
-        
-        .page-delete-btn {
-          background: #dc3545;
-          color: white;
-          border: none;
-          padding: 5px 10px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-          margin-left: 10px;
-        }
-        
-        .page-delete-btn:hover {
-          background: #c82333;
-        }
-
-        .page-watermark {
-          position: absolute !important;
-          pointer-events: none !important;
-          user-select: none !important;
-          z-index: 1 !important;
-          top: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          bottom: 0 !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-        }
-
-        .page-watermark-text {
-          font-family: Arial, sans-serif !important;
-          font-weight: bold !important;
-          white-space: nowrap !important;
-        }
-
-        .page-watermark-image {
-          max-width: 100% !important;
-          max-height: 100% !important;
-          object-fit: contain !important;
-        }
-
-        /* FIXED: Enhanced Header/Footer Styles with proper display */
-        .header-wrapper {
-          position: relative !important;
-          width: 100% !important;
-          box-sizing: border-box !important;
-          flex-shrink: 0 !important;
-          display: block !important;
-        }
-
-        .footer-wrapper {
-          position: relative !important;
-          width: 100% !important;
-          box-sizing: border-box !important;
-          flex-shrink: 0 !important;
-          display: block !important;
-        }
-
-        .header-wrapper::after {
-          content: '';
-          position: absolute;
-          bottom: -1px;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: #007bff;
-          z-index: 1000;
-          pointer-events: none;
-        }
-
-        .footer-wrapper::before {
-          content: '';
-          position: absolute;
-          top: -1px;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: #007bff;
-          z-index: 1000;
-          pointer-events: none;
-        }
-
-        .page-header-element {
-          position: relative !important;
-          width: 100% !important;
-          padding: 10px !important;
-          text-align: center !important;
-          font-size: 12px !important;
-          color: #333 !important;
-          z-index: 1000 !important;
-          min-height: 48px !important;
-          box-sizing: border-box !important;
-          display: flex !important;
-          align-items: center !important;
-          font-family: Arial, sans-serif !important;
-          flex-shrink: 0 !important;
-          border: 2px dashed transparent !important;
-          transition: border-color 0.2s ease !important;
-        }
-
-        .page-header-element:hover {
-          border-color: #28a745 !important;
-          background: rgba(40, 167, 69, 0.05) !important;
-        }
-        
-        .page-footer-element {
-          position: relative !important;
-          width: 100% !important;
-          padding: 10px !important;
-          text-align: center !important;
-          font-size: 12px !important;
-          color: #333 !important;
-          z-index: 1000 !important;
-          min-height: 48px !important;
-          box-sizing: border-box !important;
-          display: flex !important;
-          align-items: center !important;
-          font-family: Arial, sans-serif !important;
-          flex-shrink: 0 !important;
-          border: 2px dashed transparent !important;
-          transition: border-color 0.2s ease !important;
-        }
-
-        .page-footer-element:hover {
-          border-color: #dc3545 !important;
-          background: rgba(220, 53, 69, 0.05) !important;
-        }
-        
-        /* FIXED: Page number positioning for print */
-        .page-number-element {
-          position: absolute !important;
-          background: rgba(255, 255, 255, 0.9) !important;
-          padding: 4px 8px !important;
-          border-radius: 3px !important;
-          font-size: 11px !important;
-          color: #333 !important;
-          z-index: 2000 !important;
-          border: 1px solid #dee2e6 !important;
-          pointer-events: none !important;
-          user-select: none !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          min-width: 20px !important;
-          min-height: 20px !important;
-          font-family: Arial, sans-serif !important;
-        }
-
-        /* Content Area Styles */
-        .content-wrapper {
-          position: relative !important;
-          width: 100% !important;
-          box-sizing: border-box !important;
-          flex: 1 !important;
-          display: flex !important;
-          flex-direction: column !important;
-        }
-
-        .main-content-area {
-          position: relative !important;
-          width: 100% !important;
-          box-sizing: border-box !important;
-          overflow: hidden !important;
-          background: transparent !important;
-          flex: 1 !important;
-          border: 2px dashed transparent !important;
-          transition: border-color 0.2s ease !important;
-        }
-
-        .main-content-area:hover {
-          border-color: #007bff !important;
-          background: rgba(0, 123, 255, 0.02) !important;
-        }
-
-        /* Position Grid */
-        .position-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
-          margin-top: 10px;
-        }
-        
-        .position-option {
-          padding: 8px;
-          border: 2px solid #e9ecef;
-          border-radius: 4px;
-          text-align: center;
-          cursor: pointer;
-          font-size: 11px;
-          transition: all 0.2s;
-          color: #000 !important;
-        }
-        
-        .position-option:hover {
-          border-color: #007bff;
-          background: #f8f9ff;
-        }
-        
-        .position-option.selected {
-          border-color: #007bff;
-          background: #007bff;
-          color: white !important;
-        }
-
-        .size-controls {
-          display: block;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          margin-top: 10px;
-        }
-
-        /* Enhanced Page Break Styles */
-        .page-break-element {
-          width: 100% !important;
-          height: 20px !important;
-          background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%) !important;
-          border: 2px dashed #ff4757 !important;
-          border-radius: 4px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          color: white !important;
-          font-size: 12px !important;
-          font-weight: bold !important;
-          margin: 10px 0 !important;
-          position: relative !important;
-          cursor: pointer !important;
-          transition: all 0.2s ease !important;
-          user-select: none !important;
-          box-sizing: border-box !important;
-        }
-
-        .page-break-element:hover {
-          background: linear-gradient(90deg, #ff5252 0%, #ff7979 50%, #ff5252 100%) !important;
-          transform: scale(1.02) !important;
-          box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3) !important;
-        }
-
-        .page-break-element::after {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: rgba(255, 255, 255, 0.5);
-          z-index: 1;
-        }
-
-        /* Content boundary enforcement */
-        .page-content {
-          overflow: hidden !important;
-          position: relative !important;
-        }
-
-        .main-content-area > * {
-          max-width: 100% !important;
-          word-wrap: break-word !important;
-          box-sizing: border-box !important;
-        }
-        
-        @media (max-width: 768px) {
-          .page-setup-content {
-            padding: 20px;
-            margin: 10px;
-          }
-          
-          .page-setup-row {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
-          }
-          
-          .page-setup-label {
-            min-width: auto;
-          }
-        }
-        
-        /* FIXED: Enhanced Print styles for exact positioning and proper page breaks */
-        @media print {
-          * {
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          
-          body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-
-          .page-container {
-            page-break-after: always !important;
-            page-break-inside: avoid !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            border: none !important;
-            width: 100% !important;
-            height: 100vh !important;
-            display: flex !important;
-            flex-direction: column !important;
-            position: relative !important;
-            overflow: hidden !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          .page-container:last-child {
-            page-break-after: avoid !important;
-          }
-          
-          .page-content {
-            width: 100% !important;
-            height: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            position: relative !important;
-            overflow: hidden !important;
-            display: flex !important;
-            flex-direction: column !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          .main-content-area {
-            width: 100% !important;
-            height: auto !important;
-            overflow: visible !important;
-            position: relative !important;
-            flex: 1 !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          /* Hide editor-only elements */
-          .page-indicator,
-          .header-wrapper::after,
-          .footer-wrapper::before {
-            display: none !important;
-          }
-
-          /* FIXED: Page breaks should trigger actual page breaks in print */
-          .page-break-element {
-            display: block !important;
-            page-break-before: always !important;
-            height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            background: none !important;
-            visibility: hidden !important;
-          }
-
-          .page-watermark {
-            display: flex !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            pointer-events: none !important;
-            z-index: 1 !important;
-          }
-
-          .page-header-element {
-            display: flex !important;
-            position: static !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            font-family: Arial, sans-serif !important;
-            z-index: 1000 !important;
-          }
-          
-          .page-footer-element {
-            display: flex !important;
-            position: static !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            font-family: Arial, sans-serif !important;
-            z-index: 1000 !important;
-          }
-          
-          /* FIXED: Page number positioning in print - respect actual position */
-          .page-number-element {
-            display: flex !important;
-            position: absolute !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            -webkit-print-color-adjust: exact !important;
-            color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            font-family: Arial, sans-serif !important;
-            z-index: 2000 !important;
-          }
-
-          /* Ensure header and footer stay within page bounds */
-          .header-wrapper {
-            flex-shrink: 0 !important;
-            position: relative !important;
-          }
-
-          .footer-wrapper {
-            flex-shrink: 0 !important;
-            position: relative !important;
-          }
-
-          .content-wrapper {
-            flex: 1 !important;
-            overflow: hidden !important;
-          }
-        }
-
-        .page-info-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 15px;
-          background: #e3f2fd;
-          padding: 15px;
-          border-radius: 6px;
-          border: 1px solid #bbdefb;
-        }
-        .page-info-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .page-info-item label {
-          font-weight: 500;
-          color: #1976d2 !important;
-          font-size: 12px;
-        }
-        .page-info-value {
-          font-weight: 600;
-          color: #0d47a1 !important;
-          font-size: 12px;
-          background: white;
-          padding: 4px 8px;
-          border-radius: 4px;
-          border: 1px solid #90caf9;
-        }
-
-        .page-numbering-controls {
-          display: none;
-          margin-top: 15px;
-          padding: 15px;
-          background: white;
-          border-radius: 6px;
-          border: 1px solid #dee2e6;
-        }
-
-        .page-numbering-controls.active {
-          display: block;
-        }
-
-        /* Background color controls */
-        .background-color-controls {
-          display: grid;
-          grid-template-columns: 1fr auto;
-          gap: 10px;
-          align-items: center;
-          margin-top: 10px;
-        }
-
-        .color-preview {
-          width: 40px;
-          height: 40px;
-          border: 2px solid #dee2e6;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .color-preview:hover {
-          border-color: #007bff;
-          transform: scale(1.05);
-        }
-
-        /* Header/Footer Controls */
-        .header-footer-controls {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 15px;
-          margin-top: 15px;
-        }
-
-        .header-footer-section {
-          padding: 15px;
-          background: white;
-          border-radius: 6px;
-          border: 1px solid #dee2e6;
-        }
-
-        .header-footer-section h4 {
-          margin: 0 0 10px 0;
-          color: #333 !important;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .size-input-group {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-top: 10px;
-        }
-
-        .size-input-group label {
-          min-width: 80px;
-          font-size: 12px;
-          color: #666 !important;
-        }
-
-        .size-input-group input {
-          flex: 1;
-          padding: 6px 8px;
-          border: 1px solid #dee2e6;
-          border-radius: 4px;
-          font-size: 12px;
-        }
-
-        /* Format and Orientation Change Section */
-        .format-change-section {
-          background: #fff3cd;
-          border: 1px solid #ffeaa7;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 20px;
-        }
-
-        .format-change-section h3 {
-          color: #856404 !important;
-          margin-bottom: 15px;
-        }
-
-        .format-change-warning {
-          background: #f8d7da;
-          border: 1px solid #f5c6cb;
-          border-radius: 6px;
-          padding: 10px;
-          margin-bottom: 15px;
-          font-size: 12px;
-          color: #721c24 !important;
-        }
-
-        .format-change-controls {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 15px;
-        }
-      </style>
-    `
-
-    if (!document.getElementById("enhanced-page-setup-styles")) {
-      document.head.insertAdjacentHTML("beforeend", styles)
-    }
-  }
-
-  createInitialSetupModal() {
-    const modalHTML = `
-      <div id="pageSetupModal" class="page-setup-modal">
-        <div class="page-setup-content">
-          <div class="page-setup-header">
-            <h2>📄 Enhanced Page Setup</h2>
-            <p>Configure your document pages with advanced features</p>
-          </div>
-          
-          <div class="page-setup-section">
-            <h3>📐 Page Format & Orientation</h3>
-            <div class="page-setup-row">
-              <label class="page-setup-label">Format:</label>
-              <select id="pageFormat" class="page-setup-control">
-                <option value="a4" selected>A4 (210 × 297 mm)</option>
-                <option value="a3">A3 (297 × 420 mm)</option>
-                <option value="a2">A2 (420 × 594 mm)</option>
-                <option value="a1">A1 (594 × 841 mm)</option>
-                <option value="a0">A0 (841 × 1189 mm)</option>
-                <option value="letter">Letter (8.5 × 11 in)</option>
-                <option value="legal">Legal (8.5 × 14 in)</option>
-                <option value="a5">A5 (148 × 210 mm)</option>
-                <option value="custom">Custom Size</option>
-              </select>
-            </div>
-            
-            <div class="page-setup-row">
-              <label class="page-setup-label">Orientation:</label>
-              <select id="pageOrientation" class="page-setup-control">
-                <option value="portrait" selected>Portrait</option>
-                <option value="landscape">Landscape</option>
-              </select>
-            </div>
-            
-            <div id="customSizeSection" class="page-setup-custom-size">
-              <h4>Custom Dimensions</h4>
-              <div class="page-setup-custom-row">
-                <div>
-                  <label>Width:</label>
-                  <input type="number" id="customWidth" class="page-setup-control" value="210" min="50" max="2000">
-                </div>
-                <div>
-                  <label>Height:</label>
-                  <input type="number" id="customHeight" class="page-setup-control" value="297" min="50" max="2000">
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="page-setup-section">
-            <h3>📄 Header & Footer (Default: Enabled)</h3>
-            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Headers and footers are enabled by default with 1.27cm height. You can drag components into them and they will appear on all pages.</p>
-            <div class="header-footer-controls">
-              <div class="header-footer-section">
-                <h4>📋 Header Settings</h4>
-                <div class="page-setup-row">
-                  <label>
-                    <input type="checkbox" id="headerEnabled" checked style="border: 2px solid #000 !important;"> Enable Header
-                  </label>
-                </div>
-                <div class="size-input-group">
-                  <label>Height:</label>
-                  <input type="number" id="headerHeight" value="12.7" min="5" max="50" step="0.1">
-                  <span style="font-size: 12px; color: #666;">mm</span>
-                </div>
-              </div>
-              <div class="header-footer-section">
-                <h4>📋 Footer Settings</h4>
-                <div class="page-setup-row">
-                  <label>
-                    <input type="checkbox" id="footerEnabled" checked style="border: 2px solid #000 !important;"> Enable Footer
-                  </label>
-                </div>
-                <div class="size-input-group">
-                  <label>Height:</label>
-                  <input type="number" id="footerHeight" value="12.7" min="5" max="50" step="0.1">
-                  <span style="font-size: 12px; color: #666;">mm</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="page-setup-section">
-            <h3>🎨 Page Background</h3>
-            <div class="page-setup-row">
-              <label class="page-setup-label">Background Color:</label>
-              <div class="background-color-controls">
-                <input type="color" id="pageBackgroundColor" class="page-setup-control" value="#ffffff">
-                <div class="color-preview" id="backgroundColorPreview" style="background-color: #ffffff;"></div>
-              </div>
-            </div>
-            <p style="font-size: 12px; color: #666; margin-top: 5px;">Background color will be preserved in headers, footers, and print/PDF output</p>
-          </div>
-
-          <div class="page-setup-section">
-            <h3>📏 Page Margins (mm)</h3>
-            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Margins will reduce the available content area</p>
-            <div class="margins-grid">
-              <div>
-                <label>Top:</label>
-                <input type="number" id="marginTop" class="page-setup-control" value="0" min="0" max="50">
-              </div>
-              <div>
-                <label>Bottom:</label>
-                <input type="number" id="marginBottom" class="page-setup-control" value="0" min="0" max="50">
-              </div>
-              <div>
-                <label>Left:</label>
-                <input type="number" id="marginLeft" class="page-setup-control" value="0" min="0" max="50">
-              </div>
-              <div>
-                <label>Right:</label>
-                <input type="number" id="marginRight" class="page-setup-control" value="0" min="0" max="50">
-              </div>
-            </div>
-          </div>
-          
-          <div class="page-setup-section">
-            <h3>📊 Pages</h3>
-            <div class="page-setup-row">
-              <label class="page-setup-label">Number of Pages:</label>
-              <input type="number" id="numberOfPages" class="page-setup-control" value="1" min="1" max="100">
-            </div>
-          </div>
-          
-          <div class="page-setup-actions">
-            <button id="pageSetupCancel" class="page-setup-btn page-setup-btn-secondary">Cancel</button>
-            <button id="pageSetupApply" class="page-setup-btn page-setup-btn-primary">Create Pages</button>
-          </div>
-        </div>
-      </div>
-    `
-
-    if (!document.getElementById("pageSetupModal")) {
-      document.body.insertAdjacentHTML("beforeend", modalHTML)
-    }
-  }
-
-  addToGrapesJSSettings() {
-    const settingsPanel = this.editor.Panels.getPanel("options")
-
-    if (settingsPanel) {
-      this.updateNavbarButton()
-      this.updateAddPageButton()
-    }
-
-    this.editor.Commands.add("open-page-setup", {
-      run: () => this.showInitialSetup(),
-    })
-
-    this.editor.Commands.add("open-page-elements-settings", {
-      run: () => this.showPageElementsSettings(),
-    })
-
-    this.editor.Commands.add("add-new-page", {
-      run: () => this.addNewPage(),
-    })
-
-    this.editor.Commands.add("delete-pages", {
-      run: () => this.showPageDeleteModal(),
-    })
-  }
-
-  createPagesFromContent() {
-    const container = document.getElementById("iemb");
-    const content = document.getElementById("ibpc").innerHTML;
-
-    // Convert JSON/text into HTML blocks (example: mock data rows)
-    let data;
-    try {
-      data = JSON.parse(content); // If valid JSON
-    } catch (e) {
-      data = content.split(/\n+/).map(line => ({ text: line }));
-    }
-
-    // Calculate usable page height (A4 portrait minus header/footer/margins)
-    const pageHeight = 1123; // px for A4 portrait @ 96dpi approx
-    const headerHeight = 60; // px
-    const footerHeight = 60; // px
-    const marginTop = 20, marginBottom = 20;
-    const usableHeight = pageHeight - (headerHeight + footerHeight + marginTop + marginBottom);
-
-    // Clear current content
-    container.innerHTML = "";
-
-    let currentPage = createPage();
-    let currentHeight = 0;
-    container.appendChild(currentPage);
-
-    data.forEach((item, index) => {
-      const block = document.createElement("div");
-      block.className = "content-block";
-      block.innerText = item.first_name ?
-        `${item.id}. ${item.first_name} ${item.last_name} - ${item.email}` :
-        item.text;
-
-      currentPage.querySelector(".section-content").appendChild(block);
-
-      if (block.offsetHeight + currentHeight > usableHeight) {
-        // Move block to next page
-        currentPage = createPage();
-        container.appendChild(currentPage);
-        currentPage.querySelector(".section-content").appendChild(block);
-        currentHeight = block.offsetHeight;
-      } else {
-        currentHeight += block.offsetHeight;
-      }
-    });
-  }
-
-  createPage() {
-    const page = document.createElement("div");
-    page.className = "sections-container";
-    page.innerHTML = `
-    <div class="section-header gjs-editor-header" data-gjs-name="Header"></div>
-    <div class="section-content gjs-editor-content" data-gjs-name="Content"></div>
-    <div class="section-footer gjs-editor-footer" data-gjs-name="Footer"></div>
-  `;
-    return page;
-  }
-
-
-  updateNavbarButton() {
-    const settingsPanel = this.editor.Panels.getPanel("options")
-    if (!settingsPanel) return
-
-    const existingSetupBtn = settingsPanel.get("buttons").get("page-setup")
-    const existingSettingsBtn = settingsPanel.get("buttons").get("page-elements-settings")
-
-    if (existingSetupBtn) {
-      settingsPanel.get("buttons").remove(existingSetupBtn)
-    }
-    if (existingSettingsBtn) {
-      settingsPanel.get("buttons").remove(existingSettingsBtn)
-    }
-
-    if (!this.isInitialized) {
-      settingsPanel.get("buttons").add({
-        id: "page-setup",
-        className: "fa fa-file-o",
-        command: "open-page-setup",
-        attributes: { title: "Setup Pages" },
-      })
-    } else {
-      settingsPanel.get("buttons").add({
-        id: "page-elements-settings",
-        className: "fa fa-cogs",
-        command: "open-page-elements-settings",
-        attributes: { title: "Page Elements Settings" },
-      })
-    }
-  }
-
-  updateAddPageButton() {
-    const settingsPanel = this.editor.Panels.getPanel("options")
-    if (!settingsPanel) return
-
-    const existingAddBtn = settingsPanel.get("buttons").get("add-page")
-
-    if (this.isInitialized && !existingAddBtn) {
-      settingsPanel.get("buttons").add({
-        id: "add-page",
-        className: "fa fa-plus",
-        command: "add-new-page",
-        attributes: { title: "Add New Page" },
-      })
-    } else if (!this.isInitialized && existingAddBtn) {
-      settingsPanel.get("buttons").remove(existingAddBtn)
-    }
-  }
-
-  setupEventListeners() {
-    document.addEventListener("change", (e) => {
-      if (e.target.id === "pageFormat") {
-        const customSection = document.getElementById("customSizeSection")
-        if (customSection) {
-          if (e.target.value === "custom") {
-            customSection.classList.add("active")
-          } else {
-            customSection.classList.remove("active")
-          }
-        }
-      }
-
-      if (e.target.id === "enablePageNumbering") {
-        const controls = document.getElementById("pageNumberingControls")
-        if (controls) {
-          if (e.target.checked) {
-            controls.classList.add("active")
-            this.updateStartFromPageOptions()
-          } else {
-            controls.classList.remove("active")
-          }
-        }
-      }
-
-      if (e.target.id === "enableWatermark") {
-        const controls = document.getElementById("watermarkControls")
-        if (controls) {
-          if (e.target.checked) {
-            controls.classList.add("active")
-          } else {
-            controls.classList.remove("active")
-          }
-        }
-      }
-
-      if (e.target.id === "numberOfPages") {
-        this.updateStartFromPageOptions()
-      }
-
-      if (e.target.id === "pageBackgroundColor") {
-        const preview = document.getElementById("backgroundColorPreview")
-        if (preview) {
-          preview.style.backgroundColor = e.target.value
-        }
-      }
-
-      // Settings modal event handlers
-      if (e.target.id === "settingsPageFormat" || e.target.id === "settingsPageOrientation") {
-        this.updateFormatPreview()
-      }
-    })
-
-    document.addEventListener("click", (e) => {
-      if (e.target.classList.contains("watermark-type-btn")) {
-        document.querySelectorAll(".watermark-type-btn").forEach((btn) => btn.classList.remove("active"))
-        e.target.classList.add("active")
-
-        const type = e.target.dataset.type
-        const textControls = document.getElementById("watermarkTextControls")
-        const imageControls = document.getElementById("watermarkImageControls")
-
-        if (type === "text") {
-          textControls.style.display = "block"
-          imageControls.style.display = "none"
-        } else if (type === "image") {
-          textControls.style.display = "none"
-          imageControls.style.display = "block"
-        } else if (type === "both") {
-          textControls.style.display = "block"
-          imageControls.style.display = "block"
-        }
-      }
-
-      if (e.target.classList.contains("position-option")) {
-        const parent = e.target.parentElement
-        parent.querySelectorAll(".position-option").forEach((opt) => opt.classList.remove("selected"))
-        e.target.classList.add("selected")
-      }
-
-      if (e.target.id === "pageSetupApply") {
-        this.applyPageSetup()
-      } else if (e.target.id === "pageSetupCancel") {
-        this.cancelPageSetup()
-      }
-
-      if (e.target.id === "backgroundColorPreview") {
-        const colorInput = document.getElementById("pageBackgroundColor")
-        if (colorInput) {
-          colorInput.click()
-        }
-      }
-
-      // Format change button
-      if (e.target.id === "applyFormatChange") {
-        this.applyFormatAndOrientationChange()
-      }
-    })
-  }
-
-  updateStartFromPageOptions() {
-    const numberOfPages = Number.parseInt(document.getElementById("numberOfPages")?.value) || 1
-    const startFromPageSelect = document.getElementById("startFromPage")
-
-    if (startFromPageSelect) {
-      startFromPageSelect.innerHTML = ""
-      for (let i = 1; i <= numberOfPages; i++) {
-        const option = document.createElement("option")
-        option.value = i
-        option.textContent = `Page ${i}`
-        startFromPageSelect.appendChild(option)
-      }
-    }
-  }
-
-  updateFormatPreview() {
-    const format = document.getElementById("settingsPageFormat")?.value || this.pageSettings.format
-    const orientation = document.getElementById("settingsPageOrientation")?.value || this.pageSettings.orientation
-
-    let dimensions
-    if (format === "custom") {
-      const width = Number.parseFloat(document.getElementById("settingsCustomWidth")?.value) || this.pageSettings.width
-      const height =
-        Number.parseFloat(document.getElementById("settingsCustomHeight")?.value) || this.pageSettings.height
-      dimensions = { width, height }
-    } else {
-      dimensions = this.pageFormats[format] || this.pageFormats.a4
-    }
-
-    const finalWidth = orientation === "landscape" ? dimensions.height : dimensions.width
-    const finalHeight = orientation === "landscape" ? dimensions.width : dimensions.height
-
-    const previewElement = document.getElementById("formatPreviewDimensions")
-    if (previewElement) {
-      previewElement.textContent = `${finalWidth} × ${finalHeight} mm`
-    }
-  }
-
-  showInitialSetup() {
-    const modal = document.getElementById("pageSetupModal")
-    if (modal) {
-      modal.style.display = "flex"
-      this.updateStartFromPageOptions()
-
-      if (this.isInitialized) {
-        const bgColorInput = document.getElementById("pageBackgroundColor")
-        const bgColorPreview = document.getElementById("backgroundColorPreview")
-        if (bgColorInput && bgColorPreview) {
-          bgColorInput.value = this.pageSettings.backgroundColor
-          bgColorPreview.style.backgroundColor = this.pageSettings.backgroundColor
-        }
-      }
-    } else {
-      console.error("Page setup modal not found")
-      this.createInitialSetupModal()
-      setTimeout(() => {
-        const newModal = document.getElementById("pageSetupModal")
-        if (newModal) {
-          newModal.style.display = "flex"
-          this.updateStartFromPageOptions()
-        }
-      }, 100)
-    }
-  }
-
-  applyPageSetup() {
-    const format = document.getElementById("pageFormat").value
-    const orientation = document.getElementById("pageOrientation").value
-    const numberOfPages = Number.parseInt(document.getElementById("numberOfPages").value) || 1
-    const backgroundColor = document.getElementById("pageBackgroundColor")?.value || "#ffffff"
-
-    // Get header/footer settings
-    const headerEnabled = document.getElementById("headerEnabled")?.checked !== false
-    const footerEnabled = document.getElementById("footerEnabled")?.checked !== false
-    const headerHeight = Number.parseFloat(document.getElementById("headerHeight")?.value) || 12.7
-    const footerHeight = Number.parseFloat(document.getElementById("footerHeight")?.value) || 12.7
-
-    const margins = {
-      top: Number.parseFloat(document.getElementById("marginTop").value) || 0,
-      bottom: Number.parseFloat(document.getElementById("marginBottom").value) || 0,
-      left: Number.parseFloat(document.getElementById("marginLeft").value) || 0,
-      right: Number.parseFloat(document.getElementById("marginRight").value) || 0,
-    }
-
-    const pageNumberingEnabled = document.getElementById("enablePageNumbering")?.checked || false
-    const startFromPage = Number.parseInt(document.getElementById("startFromPage")?.value) || 1
-
-    const watermarkEnabled = document.getElementById("enableWatermark")?.checked || false
-    const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset.type || "text"
-    const watermarkPosition =
-      document.querySelector(".watermark-controls .position-option.selected")?.dataset.position || "center"
-
-    let width, height
-    if (format === "custom") {
-      width = Number.parseFloat(document.getElementById("customWidth").value) || 210
-      height = Number.parseFloat(document.getElementById("customHeight").value) || 297
-    } else {
-      const dimensions = this.pageFormats[format] || this.pageFormats.a4
-      width = orientation === "landscape" ? dimensions.height : dimensions.width
-      height = orientation === "landscape" ? dimensions.width : dimensions.height
-    }
-
-    // Update settings with new header/footer configuration
-    this.pageSettings = {
-      format,
-      orientation,
-      numberOfPages,
-      width,
-      height,
-      margins,
-      backgroundColor,
-      pages: [],
-      headerFooter: {
-        headerEnabled,
-        footerEnabled,
-        headerHeight,
-        footerHeight,
-      },
-      pageNumbering: {
-        enabled: pageNumberingEnabled,
-        startFromPage: startFromPage,
-        excludedPages: Array.from({ length: startFromPage - 1 }, (_, i) => i + 1),
-      },
-      watermark: {
-        enabled: watermarkEnabled,
-        type: watermarkType,
-        text: {
-          content: document.getElementById("watermarkText")?.value || "CONFIDENTIAL",
-          fontSize: Number.parseInt(document.getElementById("watermarkFontSize")?.value) || 48,
-          color: document.getElementById("watermarkColor")?.value || "#cccccc",
-          opacity: Number.parseInt(document.getElementById("watermarkOpacity")?.value) / 100 || 0.3,
-          rotation: Number.parseInt(document.getElementById("watermarkRotation")?.value) || -45,
-        },
-        image: {
-          url: document.getElementById("watermarkImageUrl")?.value || "",
-          width: Number.parseInt(document.getElementById("watermarkImageWidth")?.value) || 200,
-          height: Number.parseInt(document.getElementById("watermarkImageHeight")?.value) || 200,
-          opacity: 0.3,
-        },
-        position: watermarkPosition,
-        applyToAllPages: true,
-        tiled: document.getElementById("watermarkTiled")?.checked || false,
-      },
-    }
-
-    // Initialize pages with individual settings
-    for (let i = 0; i < numberOfPages; i++) {
-      this.pageSettings.pages.push({
-        id: `page-${i + 1}`,
-        name: `Page ${i + 1}`,
-        pageNumber: i + 1,
-        backgroundColor: backgroundColor,
-        header: {
-          enabled: headerEnabled,
-          content: "",
-          height: headerHeight,
-          padding: 10,
-          fontSize: 12,
-          color: "#333333",
-          backgroundColor: backgroundColor,
-          position: "center",
-        },
-        footer: {
-          enabled: footerEnabled,
-          content: "",
-          height: footerHeight,
-          padding: 10,
-          fontSize: 12,
-          color: "#333333",
-          backgroundColor: backgroundColor,
-          position: "center",
-        },
-        pageNumber: {
-          enabled: false,
-          format: "Page {n}",
-          position: "bottom-right",
-          fontSize: 11,
-          color: "#333333",
-          backgroundColor: "#ffffff",
-          showBorder: true,
-        },
-      })
-    }
-
-    this.setupEditorPages()
-    this.setupCanvasScrolling()
-
-    const modal = document.getElementById("pageSetupModal")
-    if (modal) {
-      modal.style.display = "none"
-    }
-
-    this.isInitialized = true
-    this.updateNavbarButton()
-    this.updateAddPageButton()
-
-    console.log("Enhanced page setup applied:", this.pageSettings)
-  }
-
-  cancelPageSetup() {
-    const modal = document.getElementById("pageSetupModal")
-    if (modal) {
-      modal.style.display = "none"
-    }
-  }
-
-  showPageElementsSettings() {
-    if (!this.isInitialized || this.pageSettings.pages.length === 0) {
-      alert("Please set up pages first")
-      return
-    }
-
-    const firstPage = this.pageSettings.pages[0]
-    const globalHeader = firstPage.header || {}
-    const globalFooter = firstPage.footer || {}
-    const globalPageNumber = firstPage.pageNumber || {}
-
-    const headerHeight = this._lastHeaderHeight ?? this.pageSettings.headerFooter.headerHeight ?? 12.7;
-    const footerHeight = this._lastFooterHeight ?? this.pageSettings.headerFooter.footerHeight ?? 12.7;
-    const headerApplyMode = this._lastHeaderApplyMode ?? "all";
-    const footerApplyMode = this._lastFooterApplyMode ?? "all"
-
-    let pageOptions = ""
-    for (let i = 1; i <= this.pageSettings.numberOfPages; i++) {
-      const selected = this.pageSettings.pageNumbering.startFromPage === i ? "selected" : ""
-      pageOptions += `<option value="${i}" ${selected}>Page ${i}</option>`
-    }
-
-    this.editor.Modal.setTitle("Word-Style Page Elements Settings")
-    this.editor.Modal.setContent(`
-    <div class="page-settings-content" style="color: #000 !important;">
-      <div class="page-setup-section">
-        <h3>📋 Page Information</h3>
-        <div class="page-info-grid">
-          <div class="page-info-item">
-            <label>Format:</label>
-            <span class="page-info-value">${this.pageSettings.format.toUpperCase()}</span>
-          </div>
-          <div class="page-info-item">
-            <label>Orientation:</label>
-            <span class="page-info-value">${this.pageSettings.orientation.charAt(0).toUpperCase() + this.pageSettings.orientation.slice(1)}</span>
-          </div>
-          <div class="page-info-item">
-            <label>Total Pages:</label>
-            <span class="page-info-value">${this.pageSettings.numberOfPages}</span>
-          </div>
-          <div class="page-info-item">
-            <label>Dimensions:</label>
-            <span class="page-info-value">${this.pageSettings.width} × ${this.pageSettings.height} mm</span>
-          </div>
-          <div class="page-info-item">
-            <label>Margins:</label>
-            <span class="page-info-value">${this.pageSettings.margins.top}/${this.pageSettings.margins.bottom}/${this.pageSettings.margins.left}/${this.pageSettings.margins.right} mm</span>
-          </div>
-          <div class="page-info-item">
-            <label>Content Area:</label>
-            <span class="page-info-value">${(this.pageSettings.width - this.pageSettings.margins.left - this.pageSettings.margins.right).toFixed(1)} × ${(this.pageSettings.height - this.pageSettings.margins.top - this.pageSettings.margins.bottom).toFixed(1)} mm</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="page-setup-section format-change-section">
-        <h3>📐 Change Page Format & Orientation</h3>
-        <div class="format-change-warning">
-          <strong>⚠️ Warning:</strong> Changing format or orientation will automatically adjust content positions to maintain relative positioning. Content at center will remain centered, content at edges will be repositioned proportionally.
-        </div>
-        <div class="format-change-controls">
-          <div>
-            <label class="page-setup-label">New Format:</label>
-            <select id="settingsPageFormat" class="page-setup-control">
-              <option value="a4" ${this.pageSettings.format === "a4" ? "selected" : ""}>A4 (210 × 297 mm)</option>
-              <option value="a3" ${this.pageSettings.format === "a3" ? "selected" : ""}>A3 (297 × 420 mm)</option>
-              <option value="a2" ${this.pageSettings.format === "a2" ? "selected" : ""}>A2 (420 × 594 mm)</option>
-              <option value="a1" ${this.pageSettings.format === "a1" ? "selected" : ""}>A1 (594 × 841 mm)</option>
-              <option value="a0" ${this.pageSettings.format === "a0" ? "selected" : ""}>A0 (841 × 1189 mm)</option>
-              <option value="letter" ${this.pageSettings.format === "letter" ? "selected" : ""}>Letter (8.5 × 11 in)</option>
-              <option value="legal" ${this.pageSettings.format === "legal" ? "selected" : ""}>Legal (8.5 × 14 in)</option>
-              <option value="a5" ${this.pageSettings.format === "a5" ? "selected" : ""}>A5 (148 × 210 mm)</option>
-              <option value="custom" ${this.pageSettings.format === "custom" ? "selected" : ""}>Custom Size</option>
-            </select>
-          </div>
-          <div>
-            <label class="page-setup-label">New Orientation:</label>
-            <select id="settingsPageOrientation" class="page-setup-control">
-              <option value="portrait" ${this.pageSettings.orientation === "portrait" ? "selected" : ""}>Portrait</option>
-              <option value="landscape" ${this.pageSettings.orientation === "landscape" ? "selected" : ""}>Landscape</option>
-            </select>
-          </div>
-        </div>
-        <div id="settingsCustomSizeSection" class="page-setup-custom-size ${this.pageSettings.format === "custom" ? "active" : ""}">
-          <h4>Custom Dimensions</h4>
-          <div class="page-setup-custom-row">
-            <div>
-              <label>Width:</label>
-              <input type="number" id="settingsCustomWidth" class="page-setup-control" value="${this.pageSettings.width}" min="50" max="2000">
-            </div>
-            <div>
-              <label>Height:</label>
-              <input type="number" id="settingsCustomHeight" class="page-setup-control" value="${this.pageSettings.height}" min="50" max="2000">
-            </div>
-          </div>
-        </div>
-        <div style="margin-top: 15px;">
-          <strong>Preview:</strong> <span id="formatPreviewDimensions">${this.pageSettings.width} × ${this.pageSettings.height} mm</span>
-        </div>
-        <div style="margin-top: 15px;">
-          <button id="applyFormatChange" class="page-setup-btn page-setup-btn-primary">Apply Format Change</button>
-        </div>
-      </div>
-
-      <div class="page-setup-section">
-        <h3>🎨 Page Background</h3>
-        <div class="page-setup-row">
-          <label class="page-setup-label">Background Color:</label>
-          <div class="background-color-controls">
-            <input type="color" id="settingsPageBackgroundColor" class="page-setup-control" value="${this.pageSettings.backgroundColor || "#ffffff"}">
-            <div class="color-preview" id="settingsBackgroundColorPreview" style="background-color: ${this.pageSettings.backgroundColor || "#ffffff"};"></div>
-          </div>
-        </div>
-        <p style="font-size: 12px; color: #666; margin-top: 5px;">Background color will be preserved in headers, footers, and print/PDF output</p>
-      </div>
-
-      <div class="page-setup-section">
-        <h3>💧 Page Watermark Settings</h3>
-        <div class="page-setup-row">
-          <label>
-            <input type="checkbox" id="settingsWatermarkEnabled" ${this.pageSettings.watermark.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Watermark
-          </label>
-        </div>
-        <div id="settingsWatermarkControls" class="watermark-controls ${this.pageSettings.watermark.enabled ? "active" : ""}">
-          <div class="page-setup-row">
-            <label class="page-setup-label">Type:</label>
-            <div class="watermark-type-controls">
-              <div class="watermark-type-btn ${this.pageSettings.watermark.type === "text" ? "active" : ""}" data-type="text">Text</div>
-              <div class="watermark-type-btn ${this.pageSettings.watermark.type === "image" ? "active" : ""}" data-type="image">Image</div>
-              <div class="watermark-type-btn ${this.pageSettings.watermark.type === "both" ? "active" : ""}" data-type="both">Both</div>
-            </div>
-          </div>
-          
-          <div id="settingsWatermarkTextControls" style="display: ${this.pageSettings.watermark.type === "text" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
-            <div class="page-setup-row">
-              <label class="page-setup-label">Text:</label>
-              <input type="text" id="settingsWatermarkText" class="page-setup-control" value="${this.pageSettings.watermark.text.content}" placeholder="Enter watermark text">
-            </div>
-            <div class="size-controls">
-              <div>
-                <label>Font Size:</label>
-                <input type="number" id="settingsWatermarkFontSize" class="page-setup-control" value="${this.pageSettings.watermark.text.fontSize}" min="12" max="100">
-              </div>
-              <div>
-                <label>Color:</label>
-                <input type="color" id="settingsWatermarkColor" class="page-setup-control" value="${this.pageSettings.watermark.text.color}">
-              </div>
-              <div>
-                <label>Opacity:</label>
-                <input type="range" id="settingsWatermarkOpacity" class="page-setup-control" value="${Math.round(this.pageSettings.watermark.text.opacity * 100)}" min="10" max="80">
-              </div>
-              <div>
-                <label>Rotation:</label>
-                <input type="range" id="settingsWatermarkRotation" class="page-setup-control" value="${this.pageSettings.watermark.text.rotation}" min="-90" max="90">
-              </div>
-            </div>
-          </div>
-
-          <div id="settingsWatermarkImageControls" style="display: ${this.pageSettings.watermark.type === "image" || this.pageSettings.watermark.type === "both" ? "block" : "none"};">
-
-    <div class="page-setup-row">
-      <label class="page-setup-label">Image URL:</label>
-      <input type="url" id="settingsWatermarkImageUrl" class="page-setup-control"
-             value="${this.pageSettings.watermark.image.url}" placeholder="Enter image URL">
-    </div>
-
-    <div class="page-setup-row">
-      <label class="page-setup-label">Or Upload Image:</label>
-      <input type="file" id="settingsWatermarkImageFile" accept="image/*" class="page-setup-control">
-    </div>
-
-    <div class="size-controls">
-      <div>
-        <label>Width (px):</label>
-        <input type="number" id="settingsWatermarkImageWidth" class="page-setup-control"
-               value="${this.pageSettings.watermark.image.width}" min="50" max="500">
-      </div>
-      <div>
-        <label>Height (px):</label>
-        <input type="number" id="settingsWatermarkImageHeight" class="page-setup-control"
-               value="${this.pageSettings.watermark.image.height}" min="50" max="500">
-      </div>
-    </div>
-
-  </div>
-
-<!-- Also add the same for settings modal -->
-<div class="page-setup-row">
-  <label>
-    <input type="checkbox" id="settingsWatermarkTiled" ${this.pageSettings.watermark.tiled ? "checked" : ""}> 
-    Tiled Watermark (Repeat across page)
-  </label>
-</div>
-          <div class="page-setup-row">
-            <label class="page-setup-label">Position:</label>
-            <div class="position-grid">
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "center" ? "selected" : ""}" data-position="center">Center</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
-              <div class="watermark-position-option ${this.pageSettings.watermark.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="page-setup-section">
-        <h3>📏 Page Margins (mm)</h3>
-        <div class="margins-grid">
-          <div>
-            <label>Top:</label>
-            <input type="number" id="settingsMarginTop" class="page-setup-control" value="${this.pageSettings.margins.top}" min="0" max="50">
-          </div>
-          <div>
-            <label>Bottom:</label>
-            <input type="number" id="settingsMarginBottom" class="page-setup-control" value="${this.pageSettings.margins.bottom}" min="0" max="50">
-          </div>
-          <div>
-            <label>Left:</label>
-            <input type="number" id="settingsMarginLeft" class="page-setup-control" value="${this.pageSettings.margins.left}" min="0" max="50">
-          </div>
-          <div>
-            <label>Right:</label>
-            <input type="number" id="settingsMarginRight" class="page-setup-control" value="${this.pageSettings.margins.right}" min="0" max="50">
-          </div>
-        </div>
-      </div>
-
-      <div class="page-setup-section">
-        <div class="word-style-notice" style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
-          <h4 style="margin: 0 0 10px 0; color: #1976d2 !important;">📝 Word-Style Headers & Footers</h4>
-          <p style="margin: 0; font-size: 12px; color: #1565c0 !important;">
-            <strong>All Pages:</strong> Same content on every page<br>
-            <strong>Even Pages Only:</strong> Headers/footers appear only on pages 2, 4, 6...<br>
-            <strong>Odd Pages Only:</strong> Headers/footers appear only on pages 1, 3, 5...<br>
-            <strong>Different Odd & Even:</strong> Separate header/footer content for odd and even pages<br>
-            <strong>Custom Range:</strong> Headers/footers appear only on specified pages
-          </p>
-        </div>
-        
-        <!-- Header Controls -->
-        <div class="header-footer-section">
-          <h4>📋 Header Settings</h4>
-          <div class="page-setup-row">
-            <label><input type="checkbox" id="settingsHeaderEnabled" ${this.pageSettings.headerFooter.headerEnabled ? "checked" : ""}> Enable Header</label>
-          </div>
-        
-          <div class="size-input-group">
-            <label>Height:</label>
-            <input type="number" id="settingsHeaderHeight" value="${headerHeight}" min="5" max="50" step="0.1">
-            <span style="font-size: 12px; color: #666;">mm</span>
-          </div>
-          
-          <div class="page-setup-row">
-            <label class="page-setup-label">Apply Header To:</label>
-            <select id="headerApplyMode" class="page-setup-control">
-        <option value="all" ${headerApplyMode === "all" ? "selected" : ""}>All Pages</option>
-        <option value="first" ${headerApplyMode === "first" ? "selected" : ""}>First Page Only</option>
-        <option value="last" ${headerApplyMode === "last" ? "selected" : ""}>Last Page Only</option>
-        <option value="even" ${headerApplyMode === "even" ? "selected" : ""}>Even Pages Only (2, 4, 6...)</option>
-        <option value="odd" ${headerApplyMode === "odd" ? "selected" : ""}>Odd Pages Only (1, 3, 5...)</option>
-        <option value="different" ${headerApplyMode === "different" ? "selected" : ""}>Different Odd & Even Pages</option>
-        <option value="custom" ${headerApplyMode === "custom" ? "selected" : ""}>Custom Range</option>
-      </select>
-          </div>
-          
-          <div class="page-setup-row custom-range" id="headerCustomRangeInputs" style="display: ${headerApplyMode === "custom" ? "block" : "none"};">
-            <input type="text" id="headerCustomPageList" placeholder="e.g. 1,3,5-7" value="${this._lastHeaderCustomPageList || ''}" style="width: 100%;">
-          </div>
-        </div>
-
-        <!-- Footer Controls -->
-        <div class="header-footer-section">
-          <h4>📋 Footer Settings</h4>
-          <div class="page-setup-row">
-            <label><input type="checkbox" id="settingsFooterEnabled" ${this.pageSettings.headerFooter.footerEnabled ? "checked" : ""}> Enable Footer</label>
-          </div>
-          
-          <div class="size-input-group">
-            <label>Height:</label>
-            <input type="number" id="settingsFooterHeight" value="${footerHeight}" min="5" max="50" step="0.1">
-            <span style="font-size: 12px; color: #666;">mm</span>
-          </div>
-          
-          <div class="page-setup-row">
-            <label class="page-setup-label">Apply Footer To:</label>
-            <select id="footerApplyMode" class="page-setup-control">
-        <option value="all" ${footerApplyMode === "all" ? "selected" : ""}>All Pages</option>
-        <option value="first" ${footerApplyMode === "first" ? "selected" : ""}>First Page Only</option>
-        <option value="last" ${footerApplyMode === "last" ? "selected" : ""}>Last Page Only</option>
-        <option value="even" ${footerApplyMode === "even" ? "selected" : ""}>Even Pages Only (2, 4, 6...)</option>
-        <option value="odd" ${footerApplyMode === "odd" ? "selected" : ""}>Odd Pages Only (1, 3, 5...)</option>
-        <option value="different" ${footerApplyMode === "different" ? "selected" : ""}>Different Odd & Even Pages</option>
-        <option value="custom" ${footerApplyMode === "custom" ? "selected" : ""}>Custom Range</option>
-      </select>
-          </div>
-          
-          <div class="page-setup-row custom-range" id="footerCustomRangeInputs" style="display: ${footerApplyMode === "custom" ? "block" : "none"};">
-            <input type="text" id="footerCustomPageList" placeholder="e.g. 2,4-6,9" value="${this._lastFooterCustomPageList || ''}" style="width: 100%;">
-          </div>
-        </div>
-      </div>
-
-      <div class="page-setup-section">
-        <h3>🔢 Enhanced Page Number Settings</h3>
-        <div class="page-setup-row">
-          <label>
-            <input type="checkbox" id="pageNumberEnabled" ${globalPageNumber.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Page Numbers
-          </label>
-        </div>
-        <div class="page-setup-row">
-          <label class="page-setup-label">Start From Page:</label>
-          <select id="pageNumberStartFrom" class="page-setup-control">
-            ${pageOptions}
-          </select>
-        </div>
-        <p style="font-size: 12px; color: #666; margin: 10px 0;">Pages before the selected page will be excluded from numbering</p>
-        <div class="page-setup-row">
-          <label class="page-setup-label">Format:</label>
-          <select id="pageNumberFormat" class="page-setup-control">
-            <option value="Page {n}" ${globalPageNumber.format === "Page {n}" ? "selected" : ""}>Page {n}</option>
-            <option value="{n}" ${globalPageNumber.format === "{n}" ? "selected" : ""}>{n}</option>
-            <option value="{n} of {total}" ${globalPageNumber.format === "{n} of {total}" ? "selected" : ""}>{n} of {total}</option>
-            <option value="- {n} -" ${globalPageNumber.format === "- {n} -" ? "selected" : ""}>- {n} -</option>
-            <option value="[{n}]" ${globalPageNumber.format === "[{n}]" ? "selected" : ""}>[{n}]</option>
-          </select>
-        </div>
-        <div class="page-setup-row">
-          <label class="page-setup-label">Position:</label>
-          <div class="position-grid">
-            <div class="position-option ${globalPageNumber.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
-            <div class="position-option ${globalPageNumber.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
-            <div class="position-option ${globalPageNumber.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
-            <div class="position-option ${globalPageNumber.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
-            <div class="position-option ${globalPageNumber.position === "center-center" ? "selected" : ""}" data-position="center-center">Center</div>
-            <div class="position-option ${globalPageNumber.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div>
-            <div class="position-option ${globalPageNumber.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
-            <div class="position-option ${globalPageNumber.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
-            <div class="position-option ${globalPageNumber.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
-          </div>
-        </div>
-        <div class="size-controls">
-          <div>
-            <label>Font Size:</label>
-            <input type="number" id="pageNumberFontSize" class="page-setup-control" value="${globalPageNumber.fontSize || 11}" min="8" max="20">
-          </div>
-          <div>
-            <label>Text Color:</label>
-            <input type="color" id="pageNumberColor" class="page-setup-control" value="${globalPageNumber.color || "#333333"}">
-          </div>
-          <div>
-            <label>Background:</label>
-            <input type="color" id="pageNumberBackgroundColor" class="page-setup-control" value="${globalPageNumber.backgroundColor || "#ffffff"}">
-          </div>
-          <div>
-            <label>
-              <input type="checkbox" id="pageNumberShowBorder" ${globalPageNumber.showBorder ? "checked" : ""} style="border: 2px solid #000 !important;"> Show Border
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="page-setup-section">
-        <h3>🗑️ Page Management</h3>
-        <div class="page-setup-row">
-          <button id="deletePages" class="page-setup-btn page-setup-btn-secondary">Delete Pages</button>
-        </div>
-      </div>
-      
-      <div class="page-setup-actions">
-        <button id="applyPageElementsSettings" class="page-setup-btn page-setup-btn-primary">Apply Word-Style Settings</button>
-        <button id="resetPageElementsSettings" class="page-setup-btn page-setup-btn-secondary">Reset</button>
-      </div>
-    </div>
-  `)
-
-    this.editor.Modal.open()
-    this.populatePageSettingsForm();
-
-    setTimeout(() => {
-      this.setupPageElementsListeners();
-      this.updateFormatPreview();
-
-      // ENHANCED: Properly restore all page number settings
-      const pageNumberSettings = this.pageSettings.pageNumber || {};
-
-      // 1. Enable/Disable checkbox
-      const enabledCheckbox = document.getElementById("pageNumberEnabled");
-      if (enabledCheckbox) {
-        enabledCheckbox.checked = !!pageNumberSettings.enabled;
-      }
-
-      // 2. Start From dropdown
-      const startFromSelect = document.getElementById("pageNumberStartFrom");
-      if (startFromSelect) {
-        startFromSelect.value = pageNumberSettings.startFrom || 1;
-      }
-
-      // 3. Format dropdown
-      const formatSelect = document.getElementById("pageNumberFormat");
-      if (formatSelect) {
-        formatSelect.value = pageNumberSettings.format || "Page {n}";
-      }
-
-      // 4. Font Size input
-      const fontSizeInput = document.getElementById("pageNumberFontSize");
-      if (fontSizeInput) {
-        const storedSize = pageNumberSettings.fontSize;
-        // Handle both number and string values
-        let fontSize = 11; // default
-        if (typeof storedSize === 'number') {
-          fontSize = storedSize;
-        } else if (typeof storedSize === 'string') {
-          fontSize = parseInt(storedSize.replace("px", "")) || 11;
-        }
-        fontSizeInput.value = fontSize;
-        console.log("📏 Font size restored:", fontSize);
-      }
-
-      // 5. Text Color input
-      const colorInput = document.getElementById("pageNumberColor");
-      if (colorInput) {
-        colorInput.value = pageNumberSettings.color || "#333333";
-      }
-
-      // 6. Background Color input
-      const bgColorInput = document.getElementById("pageNumberBackgroundColor");
-      if (bgColorInput) {
-        bgColorInput.value = pageNumberSettings.backgroundColor || "#ffffff";
-      }
-
-      // 7. Border checkbox
-      const borderCheckbox = document.getElementById("pageNumberShowBorder");
-      if (borderCheckbox) {
-        borderCheckbox.checked = !!pageNumberSettings.showBorder;
-        console.log("🔲 Border restored:", !!pageNumberSettings.showBorder);
-      }
-
-      // 8. Position grid - restore selected position
-      const savedPosition = pageNumberSettings.position || "bottom-center";
-      setTimeout(() => {
-        const allPositionOptions = document.querySelectorAll(".position-option");
-        allPositionOptions.forEach(opt => {
-          opt.classList.remove("selected");
-          if (opt.getAttribute("data-position") === savedPosition) {
-            opt.classList.add("selected");
-            console.log("🎯 Position element found and selected visually:", savedPosition);
-          }
-        });
-      }, 50);
-
-    }, 100)
-  }
-
-  applyFormatAndOrientationChange() {
-    if (!this.isInitialized) return
-
-    // Preserve all content before making changes
-    this.preserveAllContent()
-
-    const newFormat = document.getElementById("settingsPageFormat")?.value || this.pageSettings.format
-    const newOrientation = document.getElementById("settingsPageOrientation")?.value || this.pageSettings.orientation
-
-    let newWidth, newHeight
-    if (newFormat === "custom") {
-      newWidth = Number.parseFloat(document.getElementById("settingsCustomWidth")?.value) || this.pageSettings.width
-      newHeight = Number.parseFloat(document.getElementById("settingsCustomHeight")?.value) || this.pageSettings.height
-    } else {
-      const dimensions = this.pageFormats[newFormat] || this.pageFormats.a4
-      newWidth = newOrientation === "landscape" ? dimensions.height : dimensions.width
-      newHeight = newOrientation === "landscape" ? dimensions.width : dimensions.height
-    }
-
-    // Calculate scaling factors for content adjustment
-    const scaleX = newWidth / this.pageSettings.width
-    const scaleY = newHeight / this.pageSettings.height
-
-    // Store old dimensions for content adjustment
-    const oldWidth = this.pageSettings.width
-    const oldHeight = this.pageSettings.height
-
-    // Update page settings
-    this.pageSettings.format = newFormat
-    this.pageSettings.orientation = newOrientation
-    this.pageSettings.width = newWidth
-    this.pageSettings.height = newHeight
-
-    // Update all page settings
-    this.pageSettings.pages.forEach((page) => {
-      page.backgroundColor = page.backgroundColor || this.pageSettings.backgroundColor
-    })
-
-    try {
-      // Adjust content positions in all pages
-      this.adjustContentForNewFormat(scaleX, scaleY, oldWidth, oldHeight, newWidth, newHeight)
-
-      // Recreate pages with new dimensions
-      this.setupEditorPages()
-
-      // Restore all content after recreation
-      setTimeout(() => {
-        this.restoreAllContent()
-        this.updateAllPageVisuals()
-      }, 200)
-
-      alert(
-        `✅ Page format changed to ${newFormat.toUpperCase()} ${newOrientation}!\n\nContent has been automatically adjusted to maintain relative positioning.`,
-      )
-    } catch (error) {
-      console.error("Error applying format change:", error)
-      alert("Error applying format change. Please try again.")
-    }
-  }
-
-  adjustContentForNewFormat(scaleX, scaleY, oldWidth, oldHeight, newWidth, newHeight) {
-    try {
-      const allPageComponents = this.editor.getWrapper().find(".page-container")
-
-      allPageComponents.forEach((pageComponent) => {
-        const mainContentArea = pageComponent.find(".main-content-area")[0]
-        if (!mainContentArea) return
-
-        // Adjust all content components
-        mainContentArea.components().forEach((component) => {
-          this.adjustComponentPosition(component, scaleX, scaleY, oldWidth, oldHeight, newWidth, newHeight)
-        })
-      })
-    } catch (error) {
-      console.error("Error adjusting content for new format:", error)
-    }
-  }
-
-  adjustComponentPosition(component, scaleX, scaleY, oldWidth, oldHeight, newWidth, newHeight) {
-    try {
-      const currentStyles = component.getStyle()
-
-      // Adjust position properties
-      if (currentStyles.left) {
-        const leftValue = Number.parseFloat(currentStyles.left)
-        if (!isNaN(leftValue)) {
-          const unit = currentStyles.left.replace(leftValue.toString(), "")
-          let newLeft
-
-          if (unit === "px" || unit === "") {
-            // Convert px to relative position and scale
-            const relativeLeft = (leftValue / ((oldWidth * 96) / 25.4)) * 100 // Convert to percentage
-            newLeft = relativeLeft * scaleX + "%"
-          } else if (unit === "%") {
-            // Keep percentage but adjust for content area changes
-            newLeft = leftValue * scaleX + "%"
-          } else {
-            newLeft = leftValue * scaleX + unit
-          }
-
-          component.addStyle({ left: newLeft })
-        }
-      }
-
-      if (currentStyles.top) {
-        const topValue = Number.parseFloat(currentStyles.top)
-        if (!isNaN(topValue)) {
-          const unit = currentStyles.top.replace(topValue.toString(), "")
-          let newTop
-
-          if (unit === "px" || unit === "") {
-            // Convert px to relative position and scale
-            const relativeTop = (topValue / ((oldHeight * 96) / 25.4)) * 100 // Convert to percentage
-            newTop = relativeTop * scaleY + "%"
-          } else if (unit === "%") {
-            // Keep percentage but adjust for content area changes
-            newTop = topValue * scaleY + "%"
-          } else {
-            newTop = topValue * scaleY + unit
-          }
-
-          component.addStyle({ top: newTop })
-        }
-      }
-
-      // Adjust width and height if they are set
-      if (currentStyles.width) {
-        const widthValue = Number.parseFloat(currentStyles.width)
-        if (!isNaN(widthValue)) {
-          const unit = currentStyles.width.replace(widthValue.toString(), "")
-          if (unit === "px" || unit === "") {
-            const relativeWidth = (widthValue / ((oldWidth * 96) / 25.4)) * 100
-            const newWidth = relativeWidth * scaleX + "%"
-            component.addStyle({ width: newWidth })
-          } else if (unit === "%") {
-            component.addStyle({ width: widthValue * scaleX + "%" })
-          }
-        }
-      }
-
-      if (currentStyles.height) {
-        const heightValue = Number.parseFloat(currentStyles.height)
-        if (!isNaN(heightValue)) {
-          const unit = currentStyles.height.replace(heightValue.toString(), "")
-          if (unit === "px" || unit === "") {
-            const relativeHeight = (heightValue / ((oldHeight * 96) / 25.4)) * 100
-            const newHeight = relativeHeight * scaleY + "%"
-            component.addStyle({ height: newHeight })
-          } else if (unit === "%") {
-            component.addStyle({ height: heightValue * scaleY + "%" })
-          }
-        }
-      }
-
-      // Handle transform properties for centered content
-      if (currentStyles.transform && currentStyles.transform.includes("translate")) {
-        // Preserve transform-based centering
-        const transform = currentStyles.transform
-        component.addStyle({ transform: transform })
-      }
-
-      // Recursively adjust child components
-      component.components().forEach((childComponent) => {
-        this.adjustComponentPosition(childComponent, scaleX, scaleY, oldWidth, oldHeight, newWidth, newHeight)
-      })
-    } catch (error) {
-      console.error("Error adjusting component position:", error)
-    }
-  }
-
-
-  setupPageElementsListeners() {
-    const headerModeSelect = document.getElementById("headerApplyMode");
-    const footerModeSelect = document.getElementById("footerApplyMode");
-    const headerCustom = document.getElementById("headerCustomRangeInputs");
-    const footerCustom = document.getElementById("footerCustomRangeInputs");
-
-    // Store original values to detect changes
-    const originalHeaderText = document.getElementById("settingsHeaderText")?.value || "";
-    const originalFooterText = document.getElementById("settingsFooterText")?.value || "";
-
-    // === Header Text Input Listener ===
-    const headerTextInput = document.getElementById("settingsHeaderText");
-    if (headerTextInput) {
-      headerTextInput.addEventListener("input", (e) => {
-        // Always mark as changed when user types
-        this._headerTextChanged = true;
-        console.log("🔄 Header text changed by user input");
-
-        // Ensure pageSettings.pages[0].header exists
-        if (!this.pageSettings.pages[0].header) {
-          this.pageSettings.pages[0].header = {};
-        }
-        this.pageSettings.pages[0].header.text = e.target.value;
-        console.log("Header text updated:", e.target.value);
-      });
-
-      // Also detect when user focuses and changes the field
-      headerTextInput.addEventListener("focus", () => {
-        this._headerTextOriginal = headerTextInput.value;
-      });
-
-      headerTextInput.addEventListener("blur", () => {
-        if (headerTextInput.value !== this._headerTextOriginal) {
-          this._headerTextChanged = true;
-          console.log("🔄 Header text changed on blur");
-        }
-      });
-    }
-
-    // === Footer Text Input Listener ===
-    const footerTextInput = document.getElementById("settingsFooterText");
-    if (footerTextInput) {
-      footerTextInput.addEventListener("input", (e) => {
-        // Always mark as changed when user types
-        this._footerTextChanged = true;
-        console.log("🔄 Footer text changed by user input");
-
-        // Ensure pageSettings.pages[0].footer exists
-        if (!this.pageSettings.pages[0].footer) {
-          this.pageSettings.pages[0].footer = {};
-        }
-        this.pageSettings.pages[0].footer.text = e.target.value;
-        console.log("Footer text updated:", e.target.value);
-      });
-
-      // Also detect when user focuses and changes the field
-      footerTextInput.addEventListener("focus", () => {
-        this._footerTextOriginal = footerTextInput.value;
-      });
-
-      footerTextInput.addEventListener("blur", () => {
-        if (footerTextInput.value !== this._footerTextOriginal) {
-          this._footerTextChanged = true;
-          console.log("🔄 Footer text changed on blur");
-        }
-      });
-    }
-
-    // === Page Number Settings Listeners ===
-    const pageNumberEnabled = document.getElementById("pageNumberEnabled");
-    const pageNumberControls = document.getElementById("pageNumberControls");
-
-    if (pageNumberEnabled && pageNumberControls) {
-      pageNumberEnabled.addEventListener("change", (e) => {
-        // Initialize if doesn't exist
-        if (!this.pageSettings.pageNumber) {
-          this.pageSettings.pageNumber = {};
-        }
-        this.pageSettings.pageNumber.enabled = e.target.checked;
-        pageNumberControls.style.display = e.target.checked ? "block" : "none";
-        console.log("📝 Page numbers enabled:", e.target.checked);
-      });
-    }
-
-    const pageNumberStartFrom = document.getElementById("pageNumberStartFrom");
-    if (pageNumberStartFrom) {
-      pageNumberStartFrom.addEventListener("change", (e) => {
-        const value = parseInt(e.target.value, 10);
-        if (!isNaN(value)) {
-          if (!this.pageSettings.pageNumber) {
-            this.pageSettings.pageNumber = {};
-          }
-          this.pageSettings.pageNumber.startFrom = value;
-          console.log("📝 Page number start from:", value);
-        }
-      });
-    }
-
-    const pageNumberFormat = document.getElementById("pageNumberFormat");
-    if (pageNumberFormat) {
-      pageNumberFormat.addEventListener("change", (e) => {
-        if (!this.pageSettings.pageNumber) {
-          this.pageSettings.pageNumber = {};
-        }
-        this.pageSettings.pageNumber.format = e.target.value;
-        console.log("📝 Page number format:", e.target.value);
-      });
-    }
-
-    // Page Number Position Listener
-    document.querySelectorAll(".position-option").forEach((el) => {
-      el.addEventListener("click", () => {
-        // Only affect page number position options (not watermark)
-        const parent = el.parentElement;
-        if (parent.classList.contains("position-grid")) {
-          parent.querySelectorAll(".position-option").forEach((opt) =>
-            opt.classList.remove("selected")
-          );
-          el.classList.add("selected");
-
-          // Initialize if doesn't exist
-          if (!this.pageSettings.pageNumber) {
-            this.pageSettings.pageNumber = {};
-          }
-          this.pageSettings.pageNumber.position = el.getAttribute("data-position");
-          console.log("📍 Page number position stored:", el.getAttribute("data-position"));
-        }
-      });
-    });
-
-    // Watermark Position Listener
-    document.querySelectorAll(".watermark-position-option").forEach((el) => {
-      el.addEventListener("click", () => {
-        // Only affect watermark position options
-        document.querySelectorAll(".watermark-position-option").forEach((opt) =>
-          opt.classList.remove("selected")
-        );
-        el.classList.add("selected");
-        this.pageSettings.watermark = this.pageSettings.watermark || {};
-        this.pageSettings.watermark.position = el.getAttribute("data-position");
-        console.log("💧 Watermark position set to:", el.getAttribute("data-position"));
-      });
-    });
-
-    const fontSizeInput = document.getElementById("pageNumberFontSize");
-    if (fontSizeInput) {
-      fontSizeInput.addEventListener("input", (e) => {
-        const value = parseInt(e.target.value, 10);
-        if (!isNaN(value)) {
-          // Initialize if doesn't exist
-          if (!this.pageSettings.pageNumber) {
-            this.pageSettings.pageNumber = {};
-          }
-          this.pageSettings.pageNumber.fontSize = value;
-          console.log("📏 Font size stored:", value);
-        }
-      });
-    }
-
-    const colorInput = document.getElementById("pageNumberColor");
-    if (colorInput) {
-      colorInput.addEventListener("input", (e) => {
-        if (!this.pageSettings.pageNumber) {
-          this.pageSettings.pageNumber = {};
-        }
-        this.pageSettings.pageNumber.color = e.target.value;
-        console.log("🎨 Color stored:", e.target.value);
-      });
-    }
-
-    const bgColorInput = document.getElementById("pageNumberBackgroundColor");
-    if (bgColorInput) {
-      bgColorInput.addEventListener("input", (e) => {
-        if (!this.pageSettings.pageNumber) {
-          this.pageSettings.pageNumber = {};
-        }
-        this.pageSettings.pageNumber.backgroundColor = e.target.value;
-        console.log("🎨 Background color stored:", e.target.value);
-      });
-    }
-
-    const borderToggle = document.getElementById("pageNumberShowBorder");
-    if (borderToggle) {
-      borderToggle.addEventListener("change", (e) => {
-        if (!this.pageSettings.pageNumber) {
-          this.pageSettings.pageNumber = {};
-        }
-        this.pageSettings.pageNumber.showBorder = e.target.checked;
-        console.log("🔲 Border stored:", e.target.checked);
-      });
-    }
-
-    // === Header/Footer Apply Mode Listeners ===
-    if (headerModeSelect && headerCustom) {
-      headerModeSelect.addEventListener("change", () => {
-        headerCustom.style.display = headerModeSelect.value === "custom" ? "block" : "none";
-      });
-    }
-
-    if (footerModeSelect && footerCustom) {
-      footerModeSelect.addEventListener("change", () => {
-        footerCustom.style.display = footerModeSelect.value === "custom" ? "block" : "none";
-      });
-    }
-
-    // === Header/Footer Height Listeners ===
-    const headerHeightInput = document.getElementById("settingsHeaderHeight");
-    if (headerHeightInput) {
-      headerHeightInput.addEventListener("input", (e) => {
-        const value = parseFloat(e.target.value);
-        if (!isNaN(value)) {
-          this._lastHeaderHeight = value;
-          this.pageSettings.headerFooter.headerHeight = value;
-        }
-      });
-    }
-
-    const footerHeightInput = document.getElementById("settingsFooterHeight");
-    if (footerHeightInput) {
-      footerHeightInput.addEventListener("input", (e) => {
-        const value = parseFloat(e.target.value);
-        if (!isNaN(value)) {
-          this._lastFooterHeight = value;
-          this.pageSettings.headerFooter.footerHeight = value;
-        }
-      });
-    }
-
-    // === Header/Footer Enable/Disable Listeners ===
-    const headerEnabledInput = document.getElementById("settingsHeaderEnabled");
-    if (headerEnabledInput) {
-      headerEnabledInput.addEventListener("change", (e) => {
-        this.pageSettings.headerFooter.headerEnabled = e.target.checked;
-      });
-    }
-
-    const footerEnabledInput = document.getElementById("settingsFooterEnabled");
-    if (footerEnabledInput) {
-      footerEnabledInput.addEventListener("change", (e) => {
-        this.pageSettings.headerFooter.footerEnabled = e.target.checked;
-      });
-    }
-
-    document.addEventListener("click", (e) => {
-      if (e.target.classList.contains("position-option")) {
-        const selectedPosition = e.target.getAttribute("data-position");
-        const parent = e.target.parentElement;
-
-        // Update visuals - only for position grids (page numbers)
-        if (parent.classList.contains("position-grid")) {
-          parent.querySelectorAll(".position-option").forEach((opt) => opt.classList.remove("selected"));
-          e.target.classList.add("selected");
-
-          // 🧠 Persist selected position
-          if (!this.pageSettings.pageNumber) {
-            this.pageSettings.pageNumber = {};
-          }
-          this.pageSettings.pageNumber.position = selectedPosition;
-          console.log("📍 Page number position clicked and stored:", selectedPosition);
-        }
-      }
-
-      if (e.target.classList.contains("watermark-type-btn")) {
-        const selectedType = e.target.getAttribute("data-type");
-        document.querySelectorAll(".watermark-type-btn").forEach((btn) => btn.classList.remove("active"));
-        e.target.classList.add("active");
-
-        // Toggle type-specific controls
-        const textControls = document.getElementById("settingsWatermarkTextControls");
-        const imageControls = document.getElementById("settingsWatermarkImageControls");
-
-        if (textControls) textControls.style.display = selectedType === "text" || selectedType === "both" ? "block" : "none";
-        if (imageControls) imageControls.style.display = selectedType === "image" || selectedType === "both" ? "block" : "none";
-      }
-
-      if (e.target.id === "settingsBackgroundColorPreview") {
-        const colorInput = document.getElementById("settingsPageBackgroundColor");
-        if (colorInput) {
-          colorInput.click();
-        }
-      }
-    });
-
-    document.addEventListener("change", (e) => {
-      if (e.target.id === "settingsPageBackgroundColor") {
-        const preview = document.getElementById("settingsBackgroundColorPreview");
-        if (preview) {
-          preview.style.backgroundColor = e.target.value;
-        }
-      }
-
-      if (e.target.id === "settingsWatermarkEnabled") {
-        const controls = document.getElementById("settingsWatermarkControls");
-        if (controls) {
-          if (e.target.checked) {
-            controls.classList.add("active");
-          } else {
-            controls.classList.remove("active");
-          }
-        }
-      }
-
-      if (e.target.id === "settingsPageFormat") {
-        const customSection = document.getElementById("settingsCustomSizeSection");
-        if (customSection) {
-          if (e.target.value === "custom") {
-            customSection.classList.add("active");
-          } else {
-            customSection.classList.remove("active");
-          }
-        }
-        this.updateFormatPreview();
-      }
-
-      if (
-        e.target.id === "settingsPageOrientation" ||
-        e.target.id === "settingsCustomWidth" ||
-        e.target.id === "settingsCustomHeight"
-      ) {
-        this.updateFormatPreview();
-      }
-    });
-
-    // === Watermark Image File Upload ===
-    const watermarkFileInput = document.getElementById("settingsWatermarkImageFile");
-    if (watermarkFileInput) {
-      watermarkFileInput.addEventListener("change", (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const base64 = reader.result;
-            if (!this.pageSettings.watermark) {
-              this.pageSettings.watermark = {};
-            }
-            if (!this.pageSettings.watermark.image) {
-              this.pageSettings.watermark.image = {};
-            }
-
-            this.pageSettings.watermark.image.url = base64;
-
-            // Optionally reflect the value in the URL input
-            const urlInput = document.getElementById("settingsWatermarkImageUrl");
-            if (urlInput) {
-              urlInput.value = base64;
-            }
-
-            console.log("📸 Local image converted to base64 and stored in settings");
-          };
-          reader.readAsDataURL(file);
-        }
-      });
-    }
-
-
-    const deletePagesBtn = document.getElementById("deletePages");
-    if (deletePagesBtn) {
-      deletePagesBtn.addEventListener("click", () => {
-        this.editor.Modal.close();
-        setTimeout(() => {
-          this.showPageDeleteModal();
-        }, 100);
-      });
-    }
-
-    const applyBtn = document.getElementById("applyPageElementsSettings");
-    if (applyBtn) {
-      applyBtn.addEventListener("click", () => {
-        this.applyPageElementsSettings();
-      });
-    }
-
-    const resetBtn = document.getElementById("resetPageElementsSettings");
-    if (resetBtn) {
-      resetBtn.addEventListener("click", () => {
-        this.resetPageElementsSettings();
-      });
-    }
-
-    const formatChangeBtn = document.getElementById("applyFormatChange");
-    if (formatChangeBtn) {
-      formatChangeBtn.addEventListener("click", () => {
-        this.applyFormatAndOrientationChange();
-      });
-    }
-  }
-
-
-  applyPageElementsSettings() {
-    try {
-      this.preserveAllContent();
-
-      // Get all form values
-      const marginTop = Math.max(0, parseFloat(document.getElementById("settingsMarginTop")?.value) || 0);
-      const marginBottom = Math.max(0, parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0);
-      const marginLeft = Math.max(0, parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0);
-      const marginRight = Math.max(0, parseFloat(document.getElementById("settingsMarginRight")?.value) || 0);
-      const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff";
-
-      // Header settings
-      const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked !== false;
-      const headerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7));
-      const headerApplyMode = document.getElementById("headerApplyMode")?.value || "all";
-      const headerCustomPageList = document.getElementById("headerCustomPageList")?.value || "";
-      const headerText = document.getElementById("settingsHeaderText")?.value || "";
-
-      // Footer settings
-      const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked !== false;
-      const footerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7));
-      const footerApplyMode = document.getElementById("footerApplyMode")?.value || "all";
-      const footerCustomPageList = document.getElementById("footerCustomPageList")?.value || "";
-      const footerText = document.getElementById("settingsFooterText")?.value || "";
-
-      // Page Number and Watermark settings
-      const pageNumberEnabled = document.getElementById("pageNumberEnabled")?.checked || false;
-      const pageNumberStartFrom = parseInt(document.getElementById("pageNumberStartFrom")?.value || "1", 10);
-      const pageNumberFormat = document.getElementById("pageNumberFormat")?.value || "Page {n}";
-      const pageNumberPosition = document.querySelector(".position-option.selected")?.dataset?.position || "bottom-center";
-      const storedPageNumber = this.pageSettings.pageNumber || {};
-      const pageNumberFontSize = storedPageNumber.fontSize || parseInt(document.getElementById("pageNumberFontSize")?.value || "11", 10);
-      const pageNumberColor = storedPageNumber.color || document.getElementById("pageNumberColor")?.value || "#333333";
-      const pageNumberBackgroundColor = storedPageNumber.backgroundColor || document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff";
-      const pageNumberShowBorder = storedPageNumber.showBorder !== undefined ? storedPageNumber.showBorder : (document.getElementById("pageNumberShowBorder")?.checked || false);
-
-      const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false;
-      const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset?.type || "text";
-      const watermarkTextContent = document.getElementById("settingsWatermarkText")?.value || "CONFIDENTIAL";
-      const watermarkFontSize = parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
-      const watermarkColor = document.getElementById("settingsWatermarkColor")?.value || "#000000";
-      const watermarkOpacity = parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.4;
-      const watermarkRotation = parseInt(document.getElementById("settingsWatermarkRotation")?.value) || 0;
-      const watermarkImageUrl = document.getElementById("settingsWatermarkImageUrl")?.value || "";
-      const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
-      const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
-      const watermarkPosition = document.querySelector(".watermark-position-option.selected")?.dataset?.position || "center";
-
-      // Parse custom page lists
-      const headerCustomPages = this.parsePageList(headerCustomPageList);
-      const footerCustomPages = this.parsePageList(footerCustomPageList);
-
-      console.log("📋 Custom page lists parsed:", {
-        headerPages: headerCustomPages,
-        footerPages: footerCustomPages,
-        headerMode: headerApplyMode,
-        footerMode: footerApplyMode
-      });
-
-      // Store settings for persistence
-      this._lastHeaderApplyMode = headerApplyMode;
-      this._lastFooterApplyMode = footerApplyMode;
-      this._lastHeaderCustomPageList = headerCustomPageList;
-      this._lastFooterCustomPageList = footerCustomPageList;
-      this._lastHeaderCustomPages = headerCustomPages;
-      this._lastFooterCustomPages = footerCustomPages;
-
-      // Update global page settings
-      this.pageSettings.headerFooter = {
-        headerEnabled: headerEnabled,
-        footerEnabled: footerEnabled,
-        headerHeight,
-        footerHeight,
-        headerText,
-        footerText,
-        headerApplyMode,
-        footerApplyMode,
-        headerCustomPages,
-        footerCustomPages
-      };
-
-      this.pageSettings.margins = { top: marginTop, bottom: marginBottom, left: marginLeft, right: marginRight };
-      this.pageSettings.backgroundColor = newBackgroundColor;
-
-      // Store Page Number and Watermark Settings
-      this.pageSettings.pageNumber = {
-        enabled: pageNumberEnabled,
-        startFrom: pageNumberStartFrom,
-        format: pageNumberFormat,
-        position: pageNumberPosition,
-        fontSize: pageNumberFontSize,
-        fontFamily: storedPageNumber.fontFamily || "Arial",
-        color: pageNumberColor,
-        backgroundColor: pageNumberBackgroundColor,
-        showBorder: pageNumberShowBorder,
-        visibility: storedPageNumber.visibility || "all",
-      };
-
-const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checked || false;
-      this.pageSettings.watermark = {
-        enabled: watermarkEnabled,
-        type: watermarkType,
-        position: watermarkPosition,
-        tiled: watermarkTiled,
-        text: {
-          content: watermarkTextContent,
-          fontSize: watermarkFontSize,
-          color: watermarkColor,
-          opacity: watermarkOpacity,
-          rotation: watermarkRotation
-        },
-        image: {
-          url: watermarkImageUrl,
-          width: watermarkImageWidth,
-          height: watermarkImageHeight
-        }
-      };
-
-      // ✅ UPDATE INDIVIDUAL PAGE SETTINGS BEFORE SETUP
-      this.updateIndividualPageSettings();
-
-      console.log("✅ Custom mode settings applied:", {
-        headerMode: headerApplyMode,
-        footerMode: footerApplyMode,
-        headerCustomPages,
-        footerCustomPages,
-        pageNumbers: pageNumberEnabled,
-        watermark: watermarkEnabled
-      });
-
-      // Apply background color and recreate pages
-      this.applyBackgroundColorToPages(newBackgroundColor);
-      this.preserveContentForModeSwitch();
-      this.setupEditorPages();
-
-      // Restore content and update visuals
-      setTimeout(() => {
-        this.restoreAllContent();
-        this.restoreContentAfterModeSwitch();
-        this.updateAllPageVisuals();
-
-        // Apply conditional content clearing based on custom settings
-        setTimeout(() => {
-          this.applyConditionalHeaderFooterContent();
-          this.resetTextChangeFlags();
-          console.log("🗑️ Custom mode setup complete");
-        }, 300);
-      }, 250);
-
-      this.editor.Modal.close();
-      console.log("✅ Custom header/footer settings applied successfully");
-
-    } catch (err) {
-      console.error("❌ Error in applyPageElementsSettings:", err);
-      alert("Failed to apply settings.");
-    }
-  }
-
-  populatePageSettingsForm() {
-    const watermark = this.pageSettings?.watermark || {};
-    const watermarkImage = watermark.image || {};
-    const watermarkText = watermark.text || {};
-
-    // Restore watermark toggle
-    document.getElementById("settingsWatermarkEnabled").checked = watermark.enabled || false;
-    document.getElementById("settingsWatermarkTiled").checked = watermark.tiled || false;
-    // Restore watermark type buttons (image / text)
-    document.querySelectorAll(".watermark-type-btn").forEach(btn => {
-      btn.classList.remove("active");
-      if (btn.dataset.type === watermark.type) {
-        btn.classList.add("active");
-      }
-    });
-
-    // Restore image URL and dimensions
-    document.getElementById("settingsWatermarkImageUrl").value = watermarkImage.url || "";
-    document.getElementById("settingsWatermarkImageWidth").value = watermarkImage.width || 200;
-    document.getElementById("settingsWatermarkImageHeight").value = watermarkImage.height || 200;
-
-    // Restore watermark text
-    document.getElementById("settingsWatermarkText").value = watermarkText.content || "CONFIDENTIAL";
-    document.getElementById("settingsWatermarkFontSize").value = watermarkText.fontSize || 36;
-    document.getElementById("settingsWatermarkColor").value = watermarkText.color || "#000000";
-    document.getElementById("settingsWatermarkOpacity").value = Math.round((watermarkText.opacity || 0.4) * 100);
-    document.getElementById("settingsWatermarkRotation").value = watermarkText.rotation || 0;
-
-    // Restore watermark position
-    document.querySelectorAll(".watermark-position-option").forEach(btn => {
-      btn.classList.remove("selected");
-      if (btn.dataset.position === watermark.position) {
-        btn.classList.add("selected");
-      }
-    });
-
-    // Optionally update image preview (if you added one)
-    const preview = document.getElementById("settingsWatermarkPreview");
-    if (preview && watermarkImage.url) {
-      preview.src = watermarkImage.url;
-      preview.style.display = "block";
-    }
-  }
-
-
-  applyConditionalHeaderFooterContent() {
-    try {
-      console.log("🧹 Applying conditional header/footer content based on page settings...");
-      const allPageComponents = this.editor.getWrapper().find(".page-container");
-
-      allPageComponents.forEach((pageComponent, index) => {
-        const pageSettings = this.pageSettings.pages[index];
-        if (!pageSettings) {
-          console.warn(`⚠️ No settings found for page ${index + 1}`);
-          return;
-        }
-
-        const pageNumber = index + 1;
-
-        // Handle header content
-        const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
-        if (headerRegion) {
-          const headerElement = headerRegion.find('.page-header-element')[0];
-          if (headerElement) {
-            const shouldShowHeaderContent = pageSettings.header?.shouldShowContent !== false;
-
-            if (!shouldShowHeaderContent) {
-              // Clear only the content inside the header element, keep the header structure
-              headerElement.components().reset();
-              console.log(`🧹 Cleared header content from page ${pageNumber} (structure remains)`);
-            } else {
-              console.log(`✅ Header content preserved on page ${pageNumber}`);
-            }
-          }
-        }
-
-        // Handle footer content
-        const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0];
-        if (footerRegion) {
-          const footerElement = footerRegion.find('.page-footer-element')[0];
-          if (footerElement) {
-            const shouldShowFooterContent = pageSettings.footer?.shouldShowContent !== false;
-
-            if (!shouldShowFooterContent) {
-              // Clear only the content inside the footer element, keep the footer structure
-              footerElement.components().reset();
-              console.log(`🧹 Cleared footer content from page ${pageNumber} (structure remains)`);
-            } else {
-              console.log(`✅ Footer content preserved on page ${pageNumber}`);
-            }
-          }
-        }
-      });
-
-      console.log("✅ Conditional header/footer content clearing complete");
-    } catch (error) {
-      console.error("❌ Error applying conditional header/footer content:", error);
-    }
-  }
-
-  parsePageList(pageListString) {
-    if (!pageListString || pageListString.trim() === "") {
-      return [];
-    }
-
-    const pages = [];
-    const parts = pageListString.split(',');
-
-    for (const part of parts) {
-      const trimmedPart = part.trim();
-      if (trimmedPart.includes('-')) {
-        // Handle ranges like "5-7"
-        const [start, end] = trimmedPart.split('-').map(num => parseInt(num.trim(), 10));
-        if (!isNaN(start) && !isNaN(end) && start <= end) {
-          for (let i = start; i <= end; i++) {
-            if (!pages.includes(i)) {
-              pages.push(i);
-            }
-          }
-        }
-      } else {
-        // Handle single numbers
-        const pageNum = parseInt(trimmedPart, 10);
-        if (!isNaN(pageNum) && !pages.includes(pageNum)) {
-          pages.push(pageNum);
-        }
-      }
-    }
-
-    return pages.sort((a, b) => a - b);
-  }
-
-
-  updateIndividualPageSettings() {
-    try {
-      const totalPages = this.pageSettings.pages.length;
-      const headerApplyMode = this._lastHeaderApplyMode || "all";
-      const footerApplyMode = this._lastFooterApplyMode || "all";
-      const headerCustomPages = this._lastHeaderCustomPages || [];
-      const footerCustomPages = this._lastFooterCustomPages || [];
-
-      console.log("🔧 Updating individual page settings for", totalPages, "pages");
-      console.log("Header mode:", headerApplyMode, "Custom pages:", headerCustomPages);
-      console.log("Footer mode:", footerApplyMode, "Custom pages:", footerCustomPages);
-
-      for (let i = 0; i < this.pageSettings.pages.length; i++) {
-        const pageSettings = this.pageSettings.pages[i];
-        const pageNumber = i + 1;
-        const isFirstPage = pageNumber === 1;
-        const isLastPage = pageNumber === this.pageSettings.numberOfPages;
-
-        // Initialize if needed
-        if (!pageSettings.header) pageSettings.header = {};
-        if (!pageSettings.footer) pageSettings.footer = {};
-
-        // Determine if this page should show header content
-        let shouldShowHeaderContent = false;
-        if (headerApplyMode === "all") {
-          shouldShowHeaderContent = true;
-        } else if (headerApplyMode === "first" && isFirstPage) {
-          shouldShowHeaderContent = true;
-        } else if (headerApplyMode === "last" && isLastPage) {
-          shouldShowHeaderContent = true;
-        } else if (headerApplyMode === "even" && pageNumber % 2 === 0) {
-          shouldShowHeaderContent = true;
-        } else if (headerApplyMode === "odd" && pageNumber % 2 !== 0) {
-          shouldShowHeaderContent = true;
-        } else if (headerApplyMode === "different") {
-          shouldShowHeaderContent = true;
-        } else if (headerApplyMode === "custom" && headerCustomPages.includes(pageNumber)) {
-          shouldShowHeaderContent = true;
-        }
-
-        // Determine if this page should show footer content
-        let shouldShowFooterContent = false;
-        if (footerApplyMode === "all") {
-          shouldShowFooterContent = true;
-        } else if (footerApplyMode === "first" && isFirstPage) {
-          shouldShowFooterContent = true;
-        } else if (footerApplyMode === "last" && isLastPage) {
-          shouldShowFooterContent = true;
-        } else if (footerApplyMode === "even" && pageNumber % 2 === 0) {
-          shouldShowFooterContent = true;
-        } else if (footerApplyMode === "odd" && pageNumber % 2 !== 0) {
-          shouldShowFooterContent = true;
-        } else if (footerApplyMode === "different") {
-          shouldShowFooterContent = true;
-        } else if (footerApplyMode === "custom" && footerCustomPages.includes(pageNumber)) {
-          shouldShowFooterContent = true;
-        }
-
-        // Store the decision
-        pageSettings.header.shouldShowContent = shouldShowHeaderContent;
-        pageSettings.footer.shouldShowContent = shouldShowFooterContent;
-
-        console.log(`📄 Page ${pageNumber} settings:`, {
-          headerMode: headerApplyMode,
-          footerMode: footerApplyMode,
-          showHeader: shouldShowHeaderContent,
-          showFooter: shouldShowFooterContent,
-          isFirst: isFirstPage,
-          isLast: isLastPage
-        });
-      }
-
-      console.log("✅ Individual page settings updated successfully");
-    } catch (error) {
-      console.error("❌ Error updating individual page settings:", error);
-    }
-  }
-
-  applyBackgroundColorToPages(backgroundColor) {
-    // Apply background color to all existing page components and their content areas
-    const allPageComponents = this.editor.getWrapper().find(".page-container")
-
-    allPageComponents.forEach((pageComponent) => {
-      // Update page container background
-      pageComponent.addStyle({
-        background: backgroundColor,
-        "background-color": backgroundColor,
-      })
-
-      // Update page content background
-      const pageContentComponent = pageComponent.find(".page-content")[0]
-      if (pageContentComponent) {
-        pageContentComponent.addStyle({
-          "background-color": backgroundColor,
-        })
-      }
-
-      // Update header background if exists
-      const headerComponent = pageComponent.find(".header-wrapper")[0]
-      if (headerComponent) {
-        headerComponent.addStyle({
-          "background-color": backgroundColor,
-        })
-
-        const headerElement = headerComponent.find(".page-header-element")[0]
-        if (headerElement) {
-          headerElement.addStyle({
-            background: backgroundColor,
-            "background-color": backgroundColor,
-          })
-        }
-      }
-
-      // Update footer background if exists
-      const footerComponent = pageComponent.find(".footer-wrapper")[0]
-      if (footerComponent) {
-        footerComponent.addStyle({
-          "background-color": backgroundColor,
-        })
-
-        const footerElement = footerComponent.find(".page-footer-element")[0]
-        if (footerElement) {
-          footerElement.addStyle({
-            background: backgroundColor,
-            "background-color": backgroundColor,
-          })
-        }
-      }
-    })
-  }
-
-  resetPageElementsSettings() {
-    // Preserve all content before reset
-    this.preserveAllContent()
-
-    this.pageSettings.margins = {
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-    }
-
-    this.pageSettings.backgroundColor = "#ffffff"
-    this.pageSettings.headerFooter = {
-      headerEnabled: true,
-      footerEnabled: true,
-      headerHeight: 12.7,
-      footerHeight: 12.7,
-    }
-
-    this.pageSettings.pageNumbering = {
-      enabled: false,
-      startFromPage: 1,
-      excludedPages: [],
-    }
-
-    this.pageSettings.watermark = {
-      enabled: true,
-      type: "text",
-      text: {
-        content: "CONFIDENTIAL",
-        font: "Arial",
-        fontSize: 60,
-        color: "red",
-        opacity: 0.2,
-        rotation: -30,
-      },
-      image: {
-        url: "",
-        width: 100,
-        height: 100,
-        opacity: 0.3,
-      },
-      position: "center",
-      applyToAllPages: true,
-      tiled: false,
-    }
-
-
-    this.pageSettings.pages.forEach((page) => {
-      page.backgroundColor = "#ffffff"
-      page.header = {
-        enabled: true,
-        content: "",
-        height: 12.7,
-        padding: 10,
-        fontSize: 12,
-        color: "#333333",
-        backgroundColor: "#ffffff",
-        position: "center",
-      }
-      page.footer = {
-        enabled: true,
-        content: "",
-        height: 12.7,
-        padding: 10,
-        fontSize: 12,
-        color: "#333333",
-        backgroundColor: "#ffffff",
-        position: "center",
-      }
-      page.pageNumber = {
-        enabled: false,
-        format: "Page {n}",
-        position: "bottom-right",
-        fontSize: 11,
-        color: "#333333",
-        backgroundColor: "#ffffff",
-        showBorder: true,
-      }
-    })
-
-    this.setupEditorPages()
-
-    setTimeout(() => {
-      this.restoreAllContent()
-      this.updateAllPageVisuals()
-    }, 300)
-
-    this.editor.Modal.close()
-
-    console.log("Page elements settings reset")
-  }
-
-  // FIXED: Enhanced setupEditorPages method that properly creates headers/footers
-  setupEditorPages() {
-    try {
-      // Clear any existing observers before creating new pages
-      this.clearAllObservers();
-
-      const mmToPx = 96 / 25.4
-      const totalPageWidth = Math.round(this.pageSettings.width * mmToPx)
-      const totalPageHeight = Math.round(this.pageSettings.height * mmToPx)
-
-      const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx)
-      const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx)
-      const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx)
-      const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx)
-
-      const contentWidth = totalPageWidth - marginLeftPx - marginRightPx
-      const contentHeight = totalPageHeight - marginTopPx - marginBottomPx
-
-      const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx)
-      const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx)
-      const mainContentAreaHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight
-
-      // Clear existing pages
-      this.editor.getWrapper().components().reset()
-
-      for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-        const pageData = this.pageSettings.pages[i]
-        const pageNumber = i + 1
-        const isEvenPage = pageNumber % 2 === 0
-        const isOddPage = pageNumber % 2 !== 0
-        const isFirstPage = pageNumber === 1
-        const isLastPage = pageNumber === this.pageSettings.numberOfPages
-
-        // Determine header/footer regions (keeping your existing logic)
-        const headerApplyMode = this._lastHeaderApplyMode || "all"
-        const footerApplyMode = this._lastFooterApplyMode || "all"
-
-        let headerRegionType = ""
-        let footerRegionType = ""
-        let headerLabel = ""
-        let footerLabel = ""
-
-        // Header logic
-        if (headerApplyMode === "all") {
-          headerRegionType = "header"
-          headerLabel = "Header (Shared across all pages)"
-        } else if (headerApplyMode === "first" && isFirstPage) {
-          headerRegionType = "header-first"
-          headerLabel = "First Page Header"
-        } else if (headerApplyMode === "last" && isLastPage) {
-          headerRegionType = "header-last"
-          headerLabel = "Last Page Header"
-        } else if (headerApplyMode === "even" && isEvenPage) {
-          headerRegionType = "header-even"
-          headerLabel = "Even Page Header (Pages 2, 4, 6...)"
-        } else if (headerApplyMode === "odd" && isOddPage) {
-          headerRegionType = "header-odd"
-          headerLabel = "Odd Page Header (Pages 1, 3, 5...)"
-        } else if (headerApplyMode === "different") {
-          headerRegionType = isEvenPage ? "header-even" : "header-odd"
-          headerLabel = isEvenPage ? "Even Page Header" : "Odd Page Header"
-        } else if (headerApplyMode === "custom") {
-          const headerCustomPages = this._lastHeaderCustomPages || [];
-          const pageIsInCustomList = headerCustomPages.includes(pageNumber);
-          if (pageIsInCustomList) {
-            headerRegionType = "header";
-            headerLabel = `Custom Header (Page ${pageNumber})`;
-          }
-        }
-
-        // Footer logic
-        if (footerApplyMode === "all") {
-          footerRegionType = "footer"
-          footerLabel = "Footer (Shared across all pages)"
-        } else if (footerApplyMode === "first" && isFirstPage) {
-          footerRegionType = "footer-first"
-          footerLabel = "First Page Footer"
-        } else if (footerApplyMode === "last" && isLastPage) {
-          footerRegionType = "footer-last"
-          footerLabel = "Last Page Footer"
-        } else if (footerApplyMode === "even" && isEvenPage) {
-          footerRegionType = "footer-even"
-          footerLabel = "Even Page Footer (Pages 2, 4, 6...)"
-        } else if (footerApplyMode === "odd" && isOddPage) {
-          footerRegionType = "footer-odd"
-          footerLabel = "Odd Page Footer (Pages 1, 3, 5...)"
-        } else if (footerApplyMode === "different") {
-          footerRegionType = isEvenPage ? "footer-even" : "footer-odd"
-          footerLabel = isEvenPage ? "Even Page Footer" : "Odd Page Footer"
-        } else if (footerApplyMode === "custom") {
-          const footerCustomPages = this._lastFooterCustomPages || [];
-          const pageIsInCustomList = footerCustomPages.includes(pageNumber);
-          if (pageIsInCustomList) {
-            footerRegionType = "footer";
-            footerLabel = `Custom Footer (Page ${pageNumber})`;
-          }
-        }
-
-        // Create page structure
-        let pageHTML = `
-        <div class="page-container" data-page-id="${pageData.id}" data-page-index="${i}">
-          <div class="page-content" style="
-            width: ${contentWidth}px; 
-            height: ${contentHeight}px; 
-            margin: ${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px;
-            position: relative;
-            overflow: hidden;
-            background-color: ${pageData.backgroundColor || this.pageSettings.backgroundColor};
-            display: flex;
-            flex-direction: column;
-          ">`
-
-        // Add header if needed
-        if (headerRegionType) {
-          pageHTML += `
-            <div class="header-wrapper" data-shared-region="${headerRegionType}" style="
-              width: 100%;
-              height: ${defaultHeaderHeight}px;
-              flex-shrink: 0;
-            ">
-              <div class="page-header-element" style="
-                width: 100%;
-                height: 100%;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                border: 2px dashed transparent;
-                transition: border-color 0.2s ease;
-              "></div>
-            </div>`
-        }
-
-        // Add main content
-        pageHTML += `
-            <div class="content-wrapper" style="
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              height: ${mainContentAreaHeight}px;
-            ">
-              <div class="main-content-area" style="
-                width: 100%;
-                height: 100%;
-                border: 2px dashed transparent;
-                transition: border-color 0.2s ease;
-                overflow: hidden;
-                position: relative;
-              "></div>
-            </div>`
-
-        // Add footer if needed
-        if (footerRegionType) {
-          pageHTML += `
-            <div class="footer-wrapper" data-shared-region="${footerRegionType}" style="
-              width: 100%;
-              height: ${defaultFooterHeight}px;
-              flex-shrink: 0;
-            ">
-              <div class="page-footer-element" style="
-                width: 100%;
-                height: 100%;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                border: 2px dashed transparent;
-                transition: border-color 0.2s ease;
-              "></div>
-            </div>`
-        }
-
-        pageHTML += `</div></div>`
-
-        // Create the page component
-        const pageComponent = this.editor.getWrapper().append(pageHTML)[0]
-
-        // Style the page container
-        pageComponent.addStyle({
-          width: `${totalPageWidth}px`,
-          height: `${totalPageHeight}px`,
-          background: pageData.backgroundColor || this.pageSettings.backgroundColor,
-          margin: "20px auto",
-          "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.15)",
-          border: "2px solid transparent",
-          position: "relative",
-          "page-break-after": "always",
-          overflow: "hidden",
-          "box-sizing": "border-box",
-          transition: "border-color 0.2s ease",
-          "-webkit-print-color-adjust": "exact",
-          "color-adjust": "exact",
-          "print-color-adjust": "exact",
-        })
-
-        // Configure components with proper settings
-        const pageContentComponent = pageComponent.find(".page-content")[0]
-        if (pageContentComponent) {
-          pageContentComponent.addStyle({
-            overflow: "hidden",
-            position: "relative",
-            "box-sizing": "border-box",
-            display: "flex",
-            "flex-direction": "column",
-            height: `${contentHeight}px`,
-            width: `${contentWidth}px`,
-            "background-color": pageData.backgroundColor || this.pageSettings.backgroundColor,
-            border: "1px dashed #dee2e6",
-            "-webkit-print-color-adjust": "exact",
-            "color-adjust": "exact",
-            "print-color-adjust": "exact",
-          })
-        }
-
-        // Configure component properties
-        if (headerRegionType) {
-          const headerElement = pageComponent.find(".page-header-element")[0]
-          if (headerElement) {
-            headerElement.set({
-              droppable: true,
-              editable: true,
-              selectable: true,
-              draggable: false,
-              copyable: false,
-              removable: false,
-              "custom-name": headerLabel
-            })
-          }
-        }
-
-        const mainContentArea = pageComponent.find(".main-content-area")[0]
-        if (mainContentArea) {
-          mainContentArea.set({
-            droppable: true,
-            editable: true,
-            selectable: true,
-            "custom-name": "Content Area"
-          })
-        }
-
-        if (footerRegionType) {
-          const footerElement = pageComponent.find(".page-footer-element")[0]
-          if (footerElement) {
-            footerElement.set({
-              droppable: true,
-              editable: true,
-              selectable: true,
-              draggable: false,
-              copyable: false,
-              removable: false,
-              "custom-name": footerLabel
-            })
-          }
-        }
-
-        // FIXED: Setup observer with proper debouncing
-        this.setupPageObserver(i);
-      }
-
-      // ADD THIS LINE: Setup the sections container listener
-      this.setupSectionsContainerListener();
-
-      this.setupCanvasScrolling()
-
-      // Restore content after structure is ready
-      setTimeout(() => {
-        this.restoreAllContent()
-        this.startContentMonitoring(); // Start periodic monitoring
-        console.log("✅ Word-style page setup complete")
-        console.log("✅ Content monitoring started");
-      }, 100)
-
-    } catch (error) {
-      console.error("❌ Error setting up Word-style editor pages:", error)
-    }
-  }
-
-  setupSectionsContainerListener() {
-    // ONLY the "Dynamic Header Footer" block should trigger sections-container
-    const sectionsRequiredBlocks = [
-      "Dynamic Header Footer"
-    ];
-
-    // These are regular content blocks that should NOT trigger sections
-    const regularContentBlocks = [
-      "column1",
-      "column2",
-      "column3",
-      "column3-7",
-      "text",
-      "separator",
-      "link",
-      "image",
-      "video",
-      "videoIn",
-      "map"
-    ];
-
-    console.log("🎧 Setting up sections container listeners...");
-    console.log("📝 Sections will only be added for: Dynamic Header Footer");
-    console.log("📝 Regular content blocks (text, image, etc.) will NOT trigger sections");
-
-    // Clear any existing listeners to prevent duplicates
-    this.editor.off('component:add.sections');
-    this.editor.off('component:create.sections');
-    this.editor.off('block:drag:start.sections');
-    this.editor.off('block:drag:stop.sections');
-
-    // Method to check if a component or block needs sections (ONLY Dynamic Header Footer)
-    const requiresSections = (component) => {
-      if (!component) return false;
-
-      // Check various properties that might contain the block identifier
-      const blockType = component.get ? component.get('type') : component.type;
-      const customName = component.get ? component.get('custom-name') : component['custom-name'];
-      const tagName = component.get ? component.get('tagName') : component.tagName;
-      const className = component.get ? component.get('attributes')?.class : component.attributes?.class;
-      const blockId = component.getId ? component.getId() : component.id;
-
-      console.log(`🔍 Checking component:`, {
-        blockType,
-        customName,
-        tagName,
-        className,
-        blockId
-      });
-
-      // ONLY check for "Dynamic Header Footer" - ignore all other blocks
-      const matches = sectionsRequiredBlocks.some(block => {
-        return (
-          blockType === block ||
-          customName === block ||
-          tagName === block ||
-          (className && className.includes(block)) ||
-          (blockId && blockId.includes(block)) ||
-          // Check for partial matches (case insensitive)
-          (blockType && blockType.toLowerCase().includes(block.toLowerCase())) ||
-          (customName && customName.toLowerCase().includes(block.toLowerCase()))
-        );
-      });
-
-      console.log(`🎯 Component matches "Dynamic Header Footer": ${matches}`);
-      return matches;
-    };
-
-    // Listen to BlockManager events (when blocks are dragged from the panel)
-    this.editor.BlockManager.getAll().models.forEach(block => {
-      const blockId = block.get('id');
-      if (sectionsRequiredBlocks.includes(blockId)) {
-        console.log(`📦 Monitoring block for sections: ${blockId}`);
-      } else if (regularContentBlocks.includes(blockId)) {
-        console.log(`📄 Regular content block (no sections): ${blockId}`);
-      }
-    });
-
-    // Listen for block drag start
-    this.editor.on('block:drag:start.sections', (block) => {
-      const blockId = block.get('id');
-      console.log(`🎪 Block drag started: ${blockId}`);
-
-      if (sectionsRequiredBlocks.includes(blockId)) {
-        console.log(`🎯 Dragging "Dynamic Header Footer" block: ${blockId}`);
-        // Set a flag that we're dragging a required block
-        this._isDraggingRequiredBlock = true;
-        this._draggedBlockId = blockId;
-      } else {
-        console.log(`📄 Dragging regular content block: ${blockId} (no sections needed)`);
-        this._isDraggingRequiredBlock = false;
-      }
-    });
-
-    // Listen for block drag stop
-    this.editor.on('block:drag:stop.sections', (block) => {
-      const blockId = block.get('id');
-      console.log(`🎪 Block drag stopped: ${blockId}`);
-
-      if (this._isDraggingRequiredBlock && sectionsRequiredBlocks.includes(blockId)) {
-        console.log(`🎯 "Dynamic Header Footer" block dropped: ${blockId} - adding sections to all pages`);
-        setTimeout(() => {
-          this.addSectionsContainerToAllPages();
-          this._isDraggingRequiredBlock = false;
-          this._draggedBlockId = null;
-        }, 300);
-      } else {
-        console.log(`📄 Regular content block dropped: ${blockId} - no sections added`);
-        this._isDraggingRequiredBlock = false;
-        this._draggedBlockId = null;
-      }
-    });
-
-    // Listen for component additions (backup detection)
-    this.editor.on('component:add.sections', (component) => {
-      console.log("➕ Component add event triggered");
-
-      // Additional check for components that might be created from blocks
-      const parent = component.parent();
-      const isInMainContent = parent && (
-        parent.getEl().classList.contains('main-content-area') ||
-        parent.find('.main-content-area').length > 0
-      );
-
-      if (isInMainContent && requiresSections(component)) {
-        console.log(`🎯 Added component in main content requires sections`);
-        setTimeout(() => {
-          this.addSectionsContainerToAllPages();
-        }, 200);
-      }
-    });
-
-    // Listen for canvas changes (alternative detection method)
-    this.editor.on('canvas:drop.sections', (dataTransfer, component) => {
-      console.log("🎨 Canvas drop event triggered");
-
-      if (requiresSections(component)) {
-        console.log(`🎯 Canvas drop requires sections`);
-        setTimeout(() => {
-          this.addSectionsContainerToAllPages();
-        }, 200);
-      }
-    });
-
-    // Periodically check for required blocks (fallback method)
-    this._sectionsCheckInterval = setInterval(() => {
-      this.checkForRequiredBlocks();
-    }, 3000);
-
-    console.log("✅ All sections container listeners setup complete");
-  }
-
-  // Alternative method to periodically check and add sections if needed
-  checkAndAddSections() {
-    const sectionsRequiredBlocks = [
-      "column1", "column2", "column3", "column3-7", "text",
-      "separator", "Dynamic Header Footer", "link", "image",
-      "video", "videoIn", "map"
-    ];
-
-    // Check all components in all pages
-    const allPages = this.editor.getWrapper().find('.page-container');
-    let foundRequiredBlock = false;
-
-    allPages.forEach((pageComponent, pageIndex) => {
-      const allComponents = pageComponent.find('*');
-
-      allComponents.forEach((component) => {
-        const blockType = component.get('type') || '';
-        const customName = component.get('custom-name') || '';
-        const tagName = component.get('tagName') || '';
-
-        if (sectionsRequiredBlocks.some(block =>
-          blockType.toLowerCase().includes(block.toLowerCase()) ||
-          customName.toLowerCase().includes(block.toLowerCase()) ||
-          tagName.toLowerCase().includes(block.toLowerCase())
-        )) {
-          foundRequiredBlock = true;
-          console.log(`✅ Found required block "${blockType || customName || tagName}" on page ${pageIndex + 1}`);
         }
-      });
-    });
-
-    if (foundRequiredBlock) {
-      console.log("🎯 Required blocks found - ensuring all pages have sections");
-      this.addSectionsContainerToAllPages();
+        return keys;
     }
-  }
-
-  
-
-  addSectionsContainerToAllPages() {
-    try {
-      console.log("🚀 Starting to add sections-container to all pages...");
-
-      const wrapper = this.editor.getWrapper();
-      const allPageComponents = wrapper.find('.page-container');
-
-      console.log(`📊 Found ${allPageComponents.length} pages to process`);
-
-      if (!allPageComponents || allPageComponents.length === 0) {
-        console.error("❌ No page containers found!");
-        return;
-      }
-
-      let pagesProcessed = 0;
-      let pagesSkipped = 0;
-
-      // Process each page
-      for (let i = 0; i < allPageComponents.length; i++) {
-        const pageComponent = allPageComponents[i];
 
+    function openJsonTableSuggestionModal() {
         try {
-          const pageIndex = pageComponent.getAttributes()['data-page-index'] || i;
-          console.log(`🔄 Processing page ${parseInt(pageIndex) + 1}...`);
-
-          const mainContentArea = pageComponent.find('.main-content-area')[0];
-
-          if (!mainContentArea) {
-            console.warn(`⚠️ No main-content-area found on page ${parseInt(pageIndex) + 1}`);
-            continue;
-          }
-
-          // Check if sections-container already exists
-          const existingSections = mainContentArea.find('.sections-container');
-
-          if (existingSections && existingSections.length > 0) {
-            console.log(`✅ Sections-container already exists on page ${parseInt(pageIndex) + 1}`);
-            pagesSkipped++;
-            continue;
-          }
-
-          console.log(`➕ Adding sections-container to page ${parseInt(pageIndex) + 1}`);
-
-          // Create sections-container using GrapesJS components
-          const sectionsComponent = mainContentArea.append([{
-            tagName: 'div',
-            classes: ['sections-container'],
-            components: [
-              {
-                tagName: 'div',
-                classes: ['section-header', 'gjs-editor-header'],
-                attributes: { 'data-gjs-name': 'Header' }
-              },
-              {
-                tagName: 'div',
-                classes: ['section-content', 'gjs-editor-content'],
-                attributes: { 'data-gjs-name': 'Content' }
-              },
-              {
-                tagName: 'div',
-                classes: ['section-footer', 'gjs-editor-footer'],
-                attributes: { 'data-gjs-name': 'Footer' }
-              }
-            ],
-            styles: {
-              'width': '100%',
-              'height': '100%',
-              'display': 'flex',
-              'flex-direction': 'column',
-              'position': 'relative'
+            let custom_language = localStorage.getItem('language');
+            if (custom_language === null) {
+                custom_language = 'english';
             }
-          }])[0];
+            const commonJson = JSON.parse(localStorage.getItem('common_json'));
+            if (!commonJson || !commonJson[custom_language]) {
+                alert('No JSON data found. Please import a JSON file first.');
+                return;
+            }
 
-          if (sectionsComponent) {
-            // Configure sections components
-            sectionsComponent.set({
-              droppable: true,
-              editable: false,
-              selectable: true,
-              removable: false,
-              "custom-name": "Sections Container"
+            const metaDataKeys = extractMetaDataKeys(commonJson[custom_language]);
+
+            let modalContent = `
+        <div class="new-table-form">
+            <div style="padding-bottom:10px">
+                <input type="text" id="searchInput" placeholder="Search json paths...">
+            </div>
+            <div class="suggestion-results" style="height: 300px; overflow: hidden; overflow-y: scroll; border: 1px solid #ddd; border-radius: 4px;">
+        `;
+
+            metaDataKeys.forEach(key => {
+                modalContent += `<div class="suggestion" data-value="${key}" style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; ">${key}</div>`;
             });
 
-            // Configure individual sections
-            setTimeout(() => {
-              const sectionHeader = sectionsComponent.find(".section-header")[0];
-              if (sectionHeader) {
-                sectionHeader.setStyle({
-                  'flex-shrink': '0',
-                  'min-height': '50px',
-                  'border': '1px dashed #dee2e6',
-                  'margin-bottom': '10px',
-                  'box-sizing': 'border-box'
-                });
-                sectionHeader.set({
-                  droppable: true,
-                  editable: true,
-                  selectable: true,
-                  "custom-name": "Section Header"
-                });
-              }
+            modalContent += `
+            </div>
+            <div style="margin-top: 15px; padding: 10px; border-radius: 4px;">
+                <strong>Note:</strong> Select a JSON path that contains table data with 'heading' and 'data' properties.
+            </div>
+        </div>`;
 
-              const sectionContent = sectionsComponent.find(".section-content")[0];
-              if (sectionContent) {
-                sectionContent.setStyle({
-                  'flex': '1',
-                  'border': '1px dashed #dee2e6',
-                  'margin-bottom': '10px',
-                  'box-sizing': 'border-box',
-                  'min-height': '100px'
-                });
-                sectionContent.set({
-                  droppable: true,
-                  editable: true,
-                  selectable: true,
-                  "custom-name": "Section Content"
-                });
-              }
+            editor.Modal.setTitle('Select JSON Table Data');
+            editor.Modal.setContent(modalContent);
+            editor.Modal.open();
 
-              const sectionFooter = sectionsComponent.find(".section-footer")[0];
-              if (sectionFooter) {
-                sectionFooter.setStyle({
-                  'flex-shrink': '0',
-                  'min-height': '50px',
-                  'border': '1px dashed #dee2e6',
-                  'box-sizing': 'border-box'
-                });
-                sectionFooter.set({
-                  droppable: true,
-                  editable: true,
-                  selectable: true,
-                  "custom-name": "Section Footer"
-                });
-              }
-            }, 100);
+            document.getElementById("searchInput").addEventListener("input", function () {
+                filterTableSuggestions(this.value);
+            });
 
-            pagesProcessed++;
-            console.log(`✅ Successfully added sections-container to page ${parseInt(pageIndex) + 1}`);
-          } else {
-            console.error(`❌ Failed to create sections-container on page ${parseInt(pageIndex) + 1}`);
-          }
+            const suggestionItems = document.querySelectorAll('.suggestion');
+            suggestionItems.forEach(item => {
+                item.addEventListener('mouseover', function () {
+                    this.style.backgroundColor = '#f5f5f5';
+                });
 
-        } catch (pageError) {
-          console.error(`❌ Error processing page ${i + 1}:`, pageError);
+                item.addEventListener('mouseout', function () {
+                    this.style.backgroundColor = '';
+                });
+
+                item.addEventListener('click', function () {
+                    const selectedValue = this.getAttribute('data-value');
+                    const selectedComponent = editor.getSelected();
+
+                    if (selectedComponent && selectedComponent.get('type') === 'json-table') {
+                        selectedComponent.set('json-path', selectedValue);
+
+                        setTimeout(() => {
+                            const inputField = document.querySelector('.gjs-trt-trait__wrp-json-path input');
+                            if (inputField) {
+                                inputField.value = selectedValue;
+                            }
+                            editor.TraitManager.render();
+                        }, 100);
+                    }
+
+                    editor.Modal.close();
+                });
+            });
+
+        } catch (error) {
+            console.error('Error opening JSON suggestion modal:', error);
+            alert('Error loading JSON data. Please check your JSON file.');
         }
-      }
-
-      console.log(`🎉 Sections-container processing complete! ${pagesProcessed} added, ${pagesSkipped} skipped, ${allPageComponents.length} total pages`);
-
-      // Trigger editor refresh
-      this.editor.trigger('change:canvasOffset');
-
-    } catch (error) {
-      console.error("❌ Error in addSectionsContainerToAllPages:", error);
-    }
-  }
-
-  checkForRequiredBlocks() {
-    const sectionsRequiredBlocks = [
-      "Dynamic Header Footer"
-    ];
-
-    const wrapper = this.editor.getWrapper();
-    const allComponents = wrapper.find('*');
-
-    let foundRequiredBlock = false;
-    let hasAllPagesWithSections = true;
-
-    // Check if we have "Dynamic Header Footer" blocks ONLY
-    allComponents.forEach(component => {
-      const blockType = component.get('type') || '';
-      const customName = component.get('custom-name') || '';
-      const tagName = component.get('tagName') || '';
-
-      if (sectionsRequiredBlocks.some(block =>
-        blockType === block ||
-        customName === block ||
-        tagName === block ||
-        blockType.toLowerCase().includes(block.toLowerCase()) ||
-        customName.toLowerCase().includes(block.toLowerCase())
-      )) {
-        foundRequiredBlock = true;
-      }
-    });
-
-    // Check if all pages have sections-container
-    const allPages = wrapper.find('.page-container');
-    allPages.forEach(pageComponent => {
-      const mainContentArea = pageComponent.find('.main-content-area')[0];
-      if (mainContentArea) {
-        const existingSections = mainContentArea.find('.sections-container');
-        if (!existingSections || existingSections.length === 0) {
-          hasAllPagesWithSections = false;
-        }
-      }
-    });
-
-    // If we have "Dynamic Header Footer" blocks but not all pages have sections, add them
-    if (foundRequiredBlock && !hasAllPagesWithSections) {
-      console.log("🔄 Periodic check: Dynamic Header Footer found but missing sections on some pages");
-      this.addSectionsContainerToAllPages();
-    }
-  }
-
-  cleanupSectionsListener() {
-    if (this._sectionsCheckInterval) {
-      clearInterval(this._sectionsCheckInterval);
-      this._sectionsCheckInterval = null;
     }
 
-    this.editor.off('component:add.sections');
-    this.editor.off('component:create.sections');
-    this.editor.off('block:drag:start.sections');
-    this.editor.off('block:drag:stop.sections');
-    this.editor.off('canvas:drop.sections');
-  }
+    function filterTableSuggestions(query) {
+        const suggestionResults = document.querySelector('.suggestion-results');
+        if (!suggestionResults) return;
 
-  forceSectionsToAllPages() {
-    console.log("🔧 Manually forcing sections to all pages...");
-    this.addSectionsContainerToAllPages();
-  }
-
-  shouldHaveSectionsContainer() {
-    const sectionsRequiredBlocks = [
-      "column1", "column2", "column3", "column3-7", "text",
-      "separator", "Dynamic Header Footer", "link", "image",
-      "video", "videoIn", "map"
-    ];
-
-    // Check all components in all pages
-    const allPages = this.editor.getWrapper().find('.page-container');
-
-    for (let pageComponent of allPages) {
-      const allComponents = pageComponent.find('*');
-
-      for (let component of allComponents) {
-        const blockType = component.get('type') || component.get('custom-name') || '';
-
-        if (sectionsRequiredBlocks.includes(blockType) ||
-          sectionsRequiredBlocks.some(block => blockType.toLowerCase().includes(block.toLowerCase()))) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  setupCanvasScrolling() {
-    const canvasContainer = this.editor.Canvas.getElement()
-    if (canvasContainer) {
-      canvasContainer.style.height = "calc(100vh - 120px)"
-      canvasContainer.style.background = "#f0f0f0"
-    }
-
-    const rightPanel = document.querySelector(".gjs-pn-panels-right")
-    if (rightPanel) {
-      rightPanel.style.position = "fixed"
-      rightPanel.style.right = "0"
-      rightPanel.style.top = "0"
-      rightPanel.style.height = "100vh"
-      rightPanel.style.overflow = "auto"
-      rightPanel.style.zIndex = "1000"
-    }
-  }
-
-  // FIXED: Enhanced updateAllPageVisuals method that properly shows headers/footers
-  updateAllPageVisuals() {
-    this.pageSettings.pages.forEach((page, index) => {
-      const canvasBody = this.editor.Canvas.getBody()
-      const pageElement = canvasBody.querySelector(`[data-page-index="${index}"]`)
-      if (pageElement) {
-        this.updateSinglePageVisuals(pageElement, page, index)
-        // FIXED: Use 'index' instead of 'i'
-        this.setupPageObserver(index);
-      }
-    })
-  }
-
-  // FIXED: Enhanced updateSinglePageVisuals method that properly creates and displays headers/footers
-  updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
-    const allPages = this.editor.getWrapper().find('.page-container');
-    const pageComponent = allPages.find(p => p.getAttributes()['data-page-id'] === pageSettings.id);
-    if (!pageComponent) return;
-
-    const pageContentComponent = pageComponent.find(".page-content")[0];
-    if (!pageContentComponent) return;
-
-    // Remove existing page indicator
-    const existingIndicator = pageElement.querySelector(".page-indicator");
-    if (existingIndicator) existingIndicator.remove();
-
-    // Add page indicator
-    const indicator = document.createElement("div");
-    indicator.className = "page-indicator";
-    indicator.textContent = `${pageSettings.name}`;
-    pageElement.appendChild(indicator);
-
-    // Calculate dimensions
-    const mmToPx = 96 / 25.4;
-    const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx);
-    const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx);
-    const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx);
-    const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx);
-
-    const totalPageWidth = Math.round(this.pageSettings.width * mmToPx);
-    const totalPageHeight = Math.round(this.pageSettings.height * mmToPx);
-    const contentWidth = totalPageWidth - marginLeftPx - marginRightPx;
-    const contentHeight = totalPageHeight - marginTopPx - marginBottomPx;
-
-    // Headers and footers are ALWAYS present structurally
-    const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx);
-    const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx);
-    const mainContentHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
-
-    // Set page content styles
-    pageContentComponent.addStyle({
-      display: "flex",
-      "flex-direction": "column",
-      height: `${contentHeight}px`,
-      width: `${contentWidth}px`,
-      position: "relative",
-      "background-color": pageSettings.backgroundColor || this.pageSettings.backgroundColor,
-      overflow: "hidden",
-      "box-sizing": "border-box",
-      "-webkit-print-color-adjust": "exact",
-      "print-color-adjust": "exact",
-      "color-adjust": "exact"
-    });
-
-    console.log(`📏 Page ${pageIndex + 1} - Headers/Footers structure always present:`);
-    console.log(`    Header height: ${defaultHeaderHeight}px, Footer height: ${defaultFooterHeight}px`);
-
-    // Update existing header styles
-    const existingHeaderWrapper = pageComponent.find(".header-wrapper")[0];
-    if (existingHeaderWrapper) {
-      existingHeaderWrapper.addStyle({
-        width: "100%",
-        height: `${defaultHeaderHeight}px`,
-        "flex-shrink": "0",
-        direction: "ltr",
-      });
-      console.log(`✅ Updated header styles for page ${pageIndex + 1}`);
-    } else {
-
-    }
-
-    // Update existing main content area styles
-    const existingContentWrapper = pageComponent.find(".content-wrapper")[0];
-    if (existingContentWrapper) {
-      existingContentWrapper.addStyle({
-        "flex": "1",
-        "display": "flex",
-        "flex-direction": "column",
-        "height": `${mainContentHeight}px`
-      });
-
-      const existingMainContentArea = existingContentWrapper.find(".main-content-area")[0];
-      if (existingMainContentArea) {
-        existingMainContentArea.addStyle({
-          "width": "100%",
-          "height": "100%",
-          "overflow": "hidden",
-          "position": "relative"
+        const suggestions = suggestionResults.querySelectorAll('.suggestion');
+        suggestions.forEach(suggestion => {
+            if (suggestion.textContent.toLowerCase().includes(query.toLowerCase())) {
+                suggestion.style.display = "block";
+            } else {
+                suggestion.style.display = "none";
+            }
         });
-      }
-      console.log(`✅ Updated content area styles for page ${pageIndex + 1}`);
     }
 
-    // Update existing footer styles
-    const existingFooterWrapper = pageComponent.find(".footer-wrapper")[0];
-    if (existingFooterWrapper) {
-      existingFooterWrapper.addStyle({
-        width: "100%",
-        height: `${defaultFooterHeight}px`,
-        "flex-shrink": "0"
-      });
-      console.log(`✅ Updated footer styles for page ${pageIndex + 1}`);
-    }
-
-    // Handle synchronization with proper timing and individual page settings
-    setTimeout(() => {
-      const headerApplyMode = this._lastHeaderApplyMode || "all";
-      const footerApplyMode = this._lastFooterApplyMode || "all";
-      const pageNumber = pageIndex + 1
-      const isFirstPage = pageNumber === 1
-      const isLastPage = pageNumber === this.pageSettings.numberOfPages
-
-      if (headerApplyMode === "all") {
-        shouldSyncHeaders = true;
-      } else if (headerApplyMode === "first" && isFirstPage) {
-        shouldSyncHeaders = true;
-      } else if (headerApplyMode === "last" && isLastPage) {
-        shouldSyncHeaders = true;
-      } else if (headerApplyMode === "even" && pageNumber % 2 === 0) {
-        shouldSyncHeaders = true;
-      } else if (headerApplyMode === "odd" && pageNumber % 2 !== 0) {
-        shouldSyncHeaders = true;
-      } else if (headerApplyMode === "different") {
-        shouldSyncHeaders = true;
-      } else if (headerApplyMode === "custom") {
-        const headerCustomPages = this._lastHeaderCustomPages || [];
-        shouldSyncHeaders = headerCustomPages.includes(pageNumber);
-      }
-
-      if (footerApplyMode === "all") {
-        shouldSyncFooters = true;
-      } else if (footerApplyMode === "first" && isFirstPage) {
-        shouldSyncFooters = true;
-      } else if (footerApplyMode === "last" && isLastPage) {
-        shouldSyncFooters = true;
-      } else if (footerApplyMode === "even" && pageNumber % 2 === 0) {
-        shouldSyncFooters = true;
-      } else if (footerApplyMode === "odd" && pageNumber % 2 !== 0) {
-        shouldSyncFooters = true;
-      } else if (footerApplyMode === "different") {
-        shouldSyncFooters = true;
-      } else if (footerApplyMode === "custom") {
-        const footerCustomPages = this._lastFooterCustomPages || [];
-        shouldSyncFooters = footerCustomPages.includes(pageNumber);
-      }
-
-      // Check individual page settings for this specific page
-      const shouldSyncHeaders = pageSettings.header?.shouldShowContent !== false;
-      const shouldSyncFooters = pageSettings.footer?.shouldShowContent !== false;
-
-      console.log(`🔄 Sync check for page ${pageIndex + 1}:`);
-      console.log(`    Header apply mode: ${headerApplyMode}, should sync: ${shouldSyncHeaders}`);
-      console.log(`    Footer apply mode: ${footerApplyMode}, should sync: ${shouldSyncFooters}`);
-
-      // Only sync headers if this page should show header content
-      if (shouldSyncHeaders) {
-        const header = pageComponent.find('[data-shared-region="header"]')[0];
-        if (header) {
-          console.log(`🔄 Syncing header for page ${pageIndex + 1}`);
-          this.syncSharedRegion("header", header);
-        }
-      } else {
-        console.log(`🚫 Skipping header sync for page ${pageIndex + 1} - not in custom page list`);
-      }
-
-      // Only sync footers if this page should show footer content
-      if (shouldSyncFooters) {
-        const footer = pageComponent.find('[data-shared-region="footer"]')[0];
-        if (footer) {
-          console.log(`🔄 Syncing footer for page ${pageIndex + 1}`);
-          this.syncSharedRegion("footer", footer);
-        }
-      } else {
-        console.log(`🚫 Skipping footer sync for page ${pageIndex + 1} - not in custom page list`);
-      }
-
-      // Add Enhanced Page Numbers
-      if (this.pageSettings.pageNumber?.enabled) {
-        const visibility = this.pageSettings.pageNumber.visibility || "all";
-        const startFromIndex = (this.pageSettings.pageNumber.startFrom || 1) - 1;
-
-        const shouldShowPageNumber =
-          visibility === "all" ||
-          (visibility === "even" && (pageIndex + 1) % 2 === 0) ||
-          (visibility === "odd" && (pageIndex + 1) % 2 !== 0);
-
-        if (pageIndex >= startFromIndex && shouldShowPageNumber) {
-          const totalPagesWithNumbers = this.editor
-            .getWrapper()
-            .find('.page-container')
-            .filter((_, i) => {
-              return (
-                i >= startFromIndex &&
-                (visibility === "all" ||
-                  (visibility === "even" && (i + 1) % 2 === 0) ||
-                  (visibility === "odd" && (i + 1) % 2 !== 0))
-              );
-            }).length;
-
-          const currentNumber = pageIndex - startFromIndex + 1;
-          const numberText = this.pageSettings.pageNumber.format
-            .replace("{n}", String(currentNumber))
-            .replace("{total}", String(totalPagesWithNumbers));
-
-          const pageNumberDiv = document.createElement("div");
-          pageNumberDiv.className = "page-number";
-          pageNumberDiv.textContent = numberText;
-
-          // Style and position based on selected option
-          const styleMap = {
-            position: "absolute",
-            fontSize: `${this.pageSettings.pageNumber.fontSize || 12}px`,
-            color: this.pageSettings.pageNumber.color || "#000",
-            backgroundColor: this.pageSettings.pageNumber.backgroundColor || "#fff",
-            padding: "4px 8px",
-            borderRadius: "3px",
-            border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
-            zIndex: "99",
-            fontFamily: this.pageSettings.pageNumber.fontFamily || "Arial"
-          };
-
-          const position = this.pageSettings.pageNumber.position || "bottom-center";
-
-          if (position.includes("top")) {
-            styleMap.top = "5px";
-          } else {
-            styleMap.bottom = "5px";
-          }
-
-          if (position.includes("left")) {
-            styleMap.left = "10px";
-          } else if (position.includes("right")) {
-            styleMap.right = "10px";
-          } else {
-            styleMap.left = "50%";
-            styleMap.transform = "translateX(-50%)";
-          }
-
-          Object.assign(pageNumberDiv.style, styleMap);
-          pageElement.appendChild(pageNumberDiv);
-          console.log(`🧾 Added page number on page ${pageIndex + 1}: ${numberText}`);
-        }
-      }
-    }, 200);
-
-    // Add watermark
-    this.addWatermarkToPage(pageContentComponent, pageIndex);
-  }
-
-// Add this helper method to calculate grid dimensions
-calculateTiledGrid(watermark) {
-  // Get page dimensions in pixels (approximate conversion from mm to pixels at 96 DPI)
-  const mmToPx = 3.78; // 1mm ≈ 3.78px at 96 DPI
-  const pageWidthPx = this.pageSettings.width * mmToPx;
-  const pageHeightPx = this.pageSettings.height * mmToPx;
-  
-  console.log(`📏 Page dimensions: ${pageWidthPx.toFixed(0)}px × ${pageHeightPx.toFixed(0)}px`);
-  
-  let tileWidth, tileHeight;
-  
-  if (watermark.type === "text" || watermark.type === "both") {
-    // For text watermark, estimate dimensions based on font size and content
-    const fontSize = watermark.text.fontSize || 48;
-    const textContent = watermark.text.content || "CONFIDENTIAL";
-    const rotation = Math.abs(watermark.text.rotation || 0);
-    
-    // Estimate text width (rough approximation: 0.6 * fontSize * character count)
-    const estimatedTextWidth = fontSize * 0.6 * textContent.length;
-    const estimatedTextHeight = fontSize * 1.2; // Line height factor
-    
-    // Account for rotation - use bounding box
-    if (rotation !== 0) {
-      const radians = (rotation * Math.PI) / 180;
-      const cos = Math.abs(Math.cos(radians));
-      const sin = Math.abs(Math.sin(radians));
-      
-      tileWidth = estimatedTextWidth * cos + estimatedTextHeight * sin;
-      tileHeight = estimatedTextWidth * sin + estimatedTextHeight * cos;
-    } else {
-      tileWidth = estimatedTextWidth;
-      tileHeight = estimatedTextHeight;
-    }
-    
-    console.log(`📝 Text tile dimensions: ${tileWidth.toFixed(0)}px × ${tileHeight.toFixed(0)}px`);
-  }
-  
-  if (watermark.type === "image" || watermark.type === "both") {
-    // For image watermark, use specified dimensions
-    const imageWidth = watermark.image.width || 200;
-    const imageHeight = watermark.image.height || 200;
-    
-    if (watermark.type === "both") {
-      // For both text and image, use the larger dimensions
-      tileWidth = Math.max(tileWidth || 0, imageWidth);
-      tileHeight = Math.max(tileHeight || 0, imageHeight);
-    } else {
-      tileWidth = imageWidth;
-      tileHeight = imageHeight;
-    }
-    
-    console.log(`🖼️ Image tile dimensions: ${imageWidth}px × ${imageHeight}px`);
-  }
-  
-  // Add padding between tiles (20% of tile size)
-  const paddingX = tileWidth * 0.2;
-  const paddingY = tileHeight * 0.2;
-  
-  const effectiveTileWidth = tileWidth + paddingX;
-  const effectiveTileHeight = tileHeight + paddingY;
-  
-  // Calculate grid dimensions
-  const cols = Math.max(1, Math.floor(pageWidthPx / effectiveTileWidth));
-  const rows = Math.max(1, Math.floor(pageHeightPx / effectiveTileHeight));
-  
-  console.log(`🏗️ Calculated grid: ${cols} × ${rows} = ${cols * rows} tiles`);
-  
-  return {
-    cols,
-    rows,
-    totalTiles: cols * rows,
-    tileWidth,
-    tileHeight,
-    effectiveTileWidth,
-    effectiveTileHeight
-  };
+    // Add CSS for better styling
+    const tableCSS = `
+<style>
+.json-table-container {
+    min-height: 200px;
+    padding: 10px;
+    width: 100%;
+    margin: 10px 0;
 }
 
-// Updated addWatermarkToPage method with dynamic grid calculation
-addWatermarkToPage(pageContentComponent, pageIndex) {
-  console.log("🔧 Calling addWatermarkToPage...");
-  if (!this.pageSettings.watermark?.enabled) {
-    console.warn(`⚠️ Watermark disabled — skipping`);
-    return;
-  }
-
-  const watermark = this.pageSettings.watermark;
-  console.log(`🧪 Attempting to add watermark to page ${pageIndex + 1}`);
-  console.log("🔍 Watermark config:", watermark);
-
-  let watermarkContent = "";
-  let positionStyles = "";
-  
-  // Check if tiled watermark is enabled
-  if (watermark.tiled) {
-    console.log("🔄 Creating dynamic tiled watermark");
-    
-    // Calculate optimal grid size
-    const gridInfo = this.calculateTiledGrid(watermark);
-    
-    // For tiled watermarks, we create a repeating pattern
-    let tileContent = "";
-    
-    if (watermark.type === "text" || watermark.type === "both") {
-      tileContent += `
-        <div class="page-watermark-text-tile" style="
-          font-family: ${watermark.text.font || "Arial"}, sans-serif !important;
-          font-size: ${watermark.text.fontSize}px !important;
-          color: ${watermark.text.color} !important;
-          opacity: ${watermark.text.opacity} !important;
-          transform: rotate(${watermark.text.rotation}deg) !important;
-          font-weight: bold !important;
-          white-space: nowrap !important;
-          user-select: none !important;
-          pointer-events: none !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-        ">${watermark.text.content}</div>
-      `;
-    }
-    
-    if ((watermark.type === "image" || watermark.type === "both") && watermark.image.url) {
-      tileContent += `
-        <img class="page-watermark-image-tile" src="${watermark.image.url}" style="
-          width: ${watermark.image.width}px !important;
-          height: ${watermark.image.height}px !important;
-          opacity: ${watermark.image.opacity} !important;
-          object-fit: contain !important;
-          user-select: none !important;
-          pointer-events: none !important;
-          display: block !important;
-          margin: 0 auto !important;
-        " />
-      `;
-    }
-    
-    // Create tiles based on calculated grid
-    let tiledContent = "";
-    for (let i = 0; i < gridInfo.totalTiles; i++) {
-      tiledContent += `
-        <div class="watermark-tile" style="
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          overflow: hidden !important;
-        ">${tileContent}</div>
-      `;
-    }
-    
-    watermarkContent = tiledContent;
-    positionStyles = `
-      display: grid !important;
-      grid-template-columns: repeat(${gridInfo.cols}, 1fr) !important;
-      grid-template-rows: repeat(${gridInfo.rows}, 1fr) !important;
-      gap: 10px !important;
-      width: 100% !important;
-      height: 100% !important;
-      padding: 20px !important;
-      box-sizing: border-box !important;
-    `;
-    
-    console.log(`✅ Dynamic grid created: ${gridInfo.cols}×${gridInfo.rows} (${gridInfo.totalTiles} tiles)`);
-    
-  } else {
-    // Original single watermark logic
-    positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;";
-
-    switch (watermark.position) {
-      case "top-left":
-        positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: flex-start !important; padding: 20px !important;";
-        break;
-      case "top-center":
-        positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: center !important; padding: 20px !important;";
-        break;
-      case "top-right":
-        positionStyles = "display: flex !important; align-items: flex-start !important; justify-content: flex-end !important; padding: 20px !important;";
-        break;
-      case "center-left":
-        positionStyles = "display: flex !important; align-items: center !important; justify-content: flex-start !important; padding: 20px !important;";
-        break;
-      case "center":
-        positionStyles = "display: flex !important; align-items: center !important; justify-content: center !important;";
-        break;
-      case "center-right":
-        positionStyles = "display: flex !important; align-items: center !important; justify-content: flex-end !important; padding: 20px !important;";
-        break;
-      case "bottom-left":
-        positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: flex-start !important; padding: 20px !important;";
-        break;
-      case "bottom-center":
-        positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: center !important; padding: 20px !important;";
-        break;
-      case "bottom-right":
-        positionStyles = "display: flex !important; align-items: flex-end !important; justify-content: flex-end !important; padding: 20px !important;";
-        break;
-    }
-
-    if (watermark.type === "text" || watermark.type === "both") {
-      console.log("✅ Adding text watermark:", watermark.text.content);
-      watermarkContent += `
-        <div class="page-watermark-text" style="
-          font-family: ${watermark.text.font || "Arial"}, sans-serif !important;
-          font-size: ${watermark.text.fontSize}px !important;
-          color: ${watermark.text.color} !important;
-          opacity: ${watermark.text.opacity} !important;
-          transform: rotate(${watermark.text.rotation}deg) !important;
-          font-weight: bold !important;
-          white-space: nowrap !important;
-          user-select: none !important;
-          pointer-events: none !important;
-        ">${watermark.text.content}</div>
-      `;
-    }
-
-    if ((watermark.type === "image" || watermark.type === "both") && watermark.image.url) {
-      watermarkContent += `
-        <img class="page-watermark-image" src="${watermark.image.url}" style="
-          width: ${watermark.image.width}px !important;
-          height: ${watermark.image.height}px !important;
-          opacity: ${watermark.image.opacity} !important;
-          max-width: 100% !important;
-          max-height: 100% !important;
-          object-fit: contain !important;
-          user-select: none !important;
-          pointer-events: none !important;
-        " />
-      `;
-    }
-  }
-
-  if (watermarkContent) {
-    console.log("🚀 Injecting watermark HTML into page content component");
-    const watermarkGjsComponent = pageContentComponent.append(`
-      <div class="page-watermark ${watermark.tiled ? 'tiled' : 'single'}" style="
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        pointer-events: none !important;
-        user-select: none !important;
-        z-index: 1 !important;
-        ${positionStyles}
-      ">${watermarkContent}</div>
-    `)[0];
-
-    watermarkGjsComponent.set({
-      selectable: false,
-      editable: false,
-      removable: false,
-      draggable: false,
-      copyable: false,
-    });
-
-    console.log(`✅ ${watermark.tiled ? 'Dynamic tiled' : 'Single'} watermark component added`);
-  }
+.json-table-wrapper {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    width: 100%;
+    overflow-x: auto;
 }
 
+.json-data-table {
+    width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+    border: 2px solid #000;
+}
 
-  shouldShowPageNumber(pageIndex) {
-    const pageNumber = pageIndex + 1
-    return (
-      !this.pageSettings.pageNumbering.excludedPages.includes(pageNumber) && this.pageSettings.pageNumbering.enabled
-    )
-  }
+.json-data-table th,
+.json-data-table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+    background-color: #fff;
+}
 
-  getActualPageNumber(pageIndex) {
-    const pageNumber = pageIndex + 1
-    const excludedCount = this.pageSettings.pageNumbering.excludedPages.filter((p) => p < pageNumber).length
-    return pageNumber - excludedCount
-  }
+.json-data-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
 
-  getTotalNumberedPages() {
-    return this.pageSettings.numberOfPages - this.pageSettings.pageNumbering.excludedPages.length
-  }
+.json-table-cell.editing {
+    background-color: #e3f2fd !important;
+    outline: 2px solid #007bff !important;
+}
 
-  showPageDeleteModal() {
-    if (this.pageSettings.numberOfPages <= 1) {
-      alert("Cannot delete the last page")
-      return
+/* Formula cell styles */
+.formula-cell {
+    font-family: 'Courier New', monospace !important;
+    font-weight: bold;
+    background-color: #f0f8ff !important;
+}
+
+.formula-cell::before {
+    content: "f(x)";
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 8px;
+    color: #1976d2;
+    font-weight: bold;
+}
+
+/* Enhanced highlighted cell styles */
+td[data-highlighted="true"], th[data-highlighted="true"] {
+    position: relative;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+    content: "★";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    color: #ff6b35;
+    font-weight: bold;
+    z-index: 1;
+}
+
+/* Print-specific styles */
+
+    </style>`;
+
+    // Inject CSS
+    if (!document.querySelector('#json-table-styles')) {
+        const styleElement = document.createElement('style');
+        styleElement.id = 'json-table-styles';
+        styleElement.innerHTML = tableCSS;
+        document.head.appendChild(styleElement);
     }
-
-    let pageListHTML = ""
-    this.pageSettings.pages.forEach((page, index) => {
-      const isExcluded = this.pageSettings.pageNumbering.excludedPages.includes(index + 1)
-      const pageNumberInfo = this.shouldShowPageNumber(index)
-        ? `Page # ${this.getActualPageNumber(index)}`
-        : "Excluded from numbering"
-
-      pageListHTML += `
-        <div class="page-delete-item" data-page-index="${index}">
-          <div class="page-delete-info">
-            <div class="page-delete-icon">
-              <i class="fa fa-file-text-o"></i>
-            </div>
-            <div class="page-delete-details">
-              <div class="page-delete-name">${page.name}</div>
-              <div class="page-delete-meta">
-                ${page.header.enabled ? '<span class="feature-tag">Header</span>' : ""}
-                ${page.footer.enabled ? '<span class="feature-tag">Footer</span>' : ""}
-                ${page.pageNumber.enabled ? '<span class="feature-tag">Page #</span>' : ""}
-                ${this.pageSettings.watermark.enabled ? '<span class="feature-tag">Watermark</span>' : ""}
-                <span class="feature-tag ${isExcluded ? "excluded" : "numbered"}">${pageNumberInfo}</span>
-              </div>
-            </div>
-          </div>
-          <button class="page-delete-btn-item" data-page-index="${index}">
-            <i class="fa fa-trash"></i>
-          </button>
-        </div>
-      `
-    })
-
-    this.editor.Modal.setTitle("🗑️ Delete Pages")
-    this.editor.Modal.setContent(`
-      <div class="page-delete-modal-content" style="color: #000 !important;">
-        <div class="delete-warning">
-          <i class="fa fa-exclamation-triangle"></i>
-          <p>Select a page to delete. Page numbering will be automatically adjusted.</p>
-        </div>
-        <div class="page-delete-list">
-          ${pageListHTML}
-        </div>
-        <div class="page-setup-actions" style="margin-top: 20px;">
-          <button id="cancelPageDelete" class="page-setup-btn page-setup-btn-secondary">
-            <i class="fa fa-times"></i> Cancel
-          </button>
-        </div>
-      </div>
-      <style>
-        .delete-warning {
-          background: #fff3cd;
-          border: 1px solid #ffeaa7;
-          border-radius: 6px;
-          padding: 15px;
-          margin-bottom: 20px;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .delete-warning i {
-          color: #856404;
-          font-size: 18px;
-        }
-        .delete-warning p {
-          margin: 0;
-          color: #856404 !important;
-          font-weight: 500;
-        }
-        .page-delete-list {
-          max-height: 400px;
-          overflow-y: auto;
-          border: 1px solid #e9ecef;
-          border-radius: 8px;
-          padding: 15px;
-          background: #f8f9fa;
-        }
-        .page-delete-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 15px;
-          margin-bottom: 10px;
-          background: white;
-          border-radius: 8px;
-          border: 2px solid #e9ecef;
-          transition: all 0.2s ease;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .page-delete-item:hover {
-          border-color: #dc3545;
-          box-shadow: 0 4px 8px rgba(220,53,69,0.15);
-        }
-        .page-delete-item:last-child {
-          margin-bottom: 0;
-        }
-        .page-delete-info {
-          display: flex;
-          align-items: center;
-          gap: 15px;
-          flex: 1;
-        }
-        .page-delete-icon {
-          width: 40px;
-          height: 40px;
-          background: #007bff;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 16px;
-        }
-        .page-delete-details {
-          flex: 1;
-        }
-        .page-delete-name {
-          font-weight: 600;
-          color: #333 !important;
-          font-size: 14px;
-          margin-bottom: 5px;
-        }
-        .page-delete-meta {
-          display: flex;
-          gap: 5px;
-          flex-wrap: wrap;
-        }
-        .feature-tag {
-          background: #e3f2fd;
-          color: #1976d2 !important;
-          padding: 2px 8px;
-          border-radius: 12px;
-          font-size: 10px;
-          font-weight: 500;
-          border: 1px solid #bbdefb;
-        }
-        .feature-tag.excluded {
-          background: #ffcdd2;
-          color: #d32f2f !important;
-          border-color: #ef9a9a;
-        }
-        .feature-tag.numbered {
-          background: #c8e6c9;
-          color: #388e3c !important;
-          border-color: #a5d6a7;
-        }
-        .page-delete-btn-item {
-          background: #f8d7da;
-          color: #721c24;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-size: 12px;
-          transition: all 0.2s ease;
-        }
-        .page-delete-btn-item:hover {
-          background: #f5c6cb;
-        }
-      </style>
-    `)
-
-    this.editor.Modal.open()
-
-    setTimeout(() => {
-      this.setupPageDeleteListeners()
-    }, 100)
-  }
-
-  setupPageDeleteListeners() {
-    document.addEventListener("click", (e) => {
-      const deleteBtn = e.target.closest(".page-delete-btn-item");
-      if (deleteBtn) {
-        const pageIndex = Number.parseInt(deleteBtn.dataset.pageIndex, 10);
-        if (!isNaN(pageIndex)) {
-          this.deletePage(pageIndex);
-        }
-        return; // Important: prevent fallthrough
-      }
-
-      const cancelBtn = e.target.closest("#cancelPageDelete");
-      if (cancelBtn) {
-        this.editor.Modal.close();
-      }
-    });
-  }
-
-
-  deletePage(pageIndex) {
-    if (this.pageSettings.numberOfPages <= 1) {
-      alert("Cannot delete the last page");
-      return;
-    }
-
-    // Preserve content before deletion
-    this.preserveAllContent();
-
-    // Remove the page from settings
-    this.pageSettings.pages.splice(pageIndex, 1);
-    this.pageSettings.numberOfPages--;
-
-    // Adjust excluded pages list
-    const deletedPageNumber = pageIndex + 1;
-    if (this.pageSettings.pageNumbering.excludedPages.includes(deletedPageNumber)) {
-      this.pageSettings.pageNumbering.excludedPages = this.pageSettings.pageNumbering.excludedPages.filter(
-        p => p !== deletedPageNumber
-      );
-    } else {
-      this.pageSettings.pageNumbering.excludedPages = this.pageSettings.pageNumbering.excludedPages.map(p =>
-        p > deletedPageNumber ? p - 1 : p
-      );
-    }
-
-    // Ensure startFromPage is within valid range
-    this.pageSettings.pageNumbering.startFromPage = Math.min(
-      this.pageSettings.pageNumbering.startFromPage,
-      this.pageSettings.numberOfPages
-    );
-
-    // Recreate pages
-    this.setupEditorPages();
-
-    // Restore content and visuals
-    setTimeout(() => {
-      this.pageContents.delete(pageIndex);
-
-      // Shift remaining page contents
-      const newPageContents = new Map();
-      for (const [index, content] of this.pageContents.entries()) {
-        if (index < pageIndex) {
-          newPageContents.set(index, content);
-        } else if (index > pageIndex) {
-          newPageContents.set(index - 1, content);
-        }
-      }
-      this.pageContents = newPageContents;
-
-      this.restoreAllContent();
-      this.updateAllPageVisuals();
-    }, 300);
-
-    // ✅ Close modal after delete
-    this.editor.Modal.close();
-
-    // ✅ Rebuild modal labels (optional: open it again if needed)
-    setTimeout(() => {
-      // Uncomment this to reopen the modal with updated page labels
-      // this.showPageDeleteModal();
-
-      // Or refresh only if modal is still open
-      if (this.editor.Modal.isOpen && this.editor.Modal.isOpen()) {
-        this.showPageDeleteModal();
-      }
-    }, 500);
-
-    console.log(`Page ${pageIndex + 1} deleted`);
-  }
-
-
-  updateAllPageIndicesAndLabels() {
-    const allPages = this.editor.getWrapper().find(".page-container");
-
-    allPages.forEach((pageComponent, newIndex) => {
-      pageComponent.addAttributes({ "data-page-index": newIndex });
-
-      // Find header region and label
-      const headerRegion = pageComponent.find('[data-shared-region="header"]')[0];
-      if (headerRegion) {
-        const label = headerRegion.find(".page-number-label")[0];
-        if (label) {
-          label.components(`Page ${newIndex + 1}`);
-        } else {
-          // Inject label if it doesn't exist
-          const newLabel = headerRegion.append(`
-          <div class="page-number-label" style="
-            position: absolute;
-            top: 4px;
-            right: 10px;
-            font-weight: bold;
-            font-size: 12px;
-            color: #000;
-            z-index: 9999;
-            pointer-events: none;
-          ">Page ${newIndex + 1}</div>
-        `)[0];
-
-          newLabel.set({
-            editable: false,
-            removable: false,
-            selectable: false,
-            draggable: false,
-            copyable: false
-          });
-        }
-      }
-    });
-  }
-
-
-  addNewPage() {
-    if (!this.isInitialized) return null;
-
-    try {
-      // PREVENT recursive pagination during page creation
-      const originalPaginationState = this.paginationInProgress;
-      this.paginationInProgress = true;
-
-      const newPageIndex = this.pageSettings.numberOfPages;
-      const newPageId = `page-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      console.log(`📄 Creating new page with ID: ${newPageId} at index: ${newPageIndex}`);
-
-      // Add to page count FIRST
-      this.pageSettings.numberOfPages++;
-
-      const newPageSettings = {
-        id: newPageId,
-        name: `Page ${newPageIndex + 1}`,
-        margins: { ...this.pageSettings.margins },
-        backgroundColor: this.pageSettings.backgroundColor,
-        header: {
-          enabled: this.pageSettings.headerFooter?.headerEnabled || false,
-          height: this.pageSettings.headerFooter?.headerHeight || 12.7,
-          text: this.pageSettings.headerFooter?.headerText || "",
-          shouldShowContent: true
-        },
-        footer: {
-          enabled: this.pageSettings.headerFooter?.footerEnabled || false,
-          height: this.pageSettings.headerFooter?.footerHeight || 12.7,
-          text: this.pageSettings.headerFooter?.footerText || "",
-          shouldShowContent: true
-        }
-      };
-
-      this.pageSettings.pages.push(newPageSettings);
-
-      // Calculate dimensions
-      const mmToPx = 96 / 25.4;
-      const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx);
-      const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx);
-      const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx);
-      const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx);
-      const totalPageWidth = Math.round(this.pageSettings.width * mmToPx);
-      const totalPageHeight = Math.round(this.pageSettings.height * mmToPx);
-      const contentWidth = totalPageWidth - marginLeftPx - marginRightPx;
-      const contentHeight = totalPageHeight - marginTopPx - marginBottomPx;
-      const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx);
-      const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx);
-      const mainContentAreaHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
-
-      // Create page with full structure
-      const pageHTML = `
-      <div class="page-container" data-page-id="${newPageId}" data-page-index="${newPageIndex}">
-        <div class="page-content" style="
-          width: ${contentWidth}px; 
-          height: ${contentHeight}px; 
-          margin: ${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px;
-          position: relative;
-          overflow: hidden;
-          background-color: ${newPageSettings.backgroundColor};
-          display: flex;
-          flex-direction: column;
-        ">
-          <div class="header-wrapper" data-shared-region="header" style="
-            width: 100%;
-            height: ${defaultHeaderHeight}px;
-            flex-shrink: 0;
-          ">
-            <div class="page-header-element" style="
-              width: 100%;
-              height: 100%;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              border: 2px dashed transparent;
-              transition: border-color 0.2s ease;
-            "></div>
-          </div>
-          <div class="content-wrapper" style="
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            height: ${mainContentAreaHeight}px;
-          ">
-            <div class="main-content-area" style="
-              width: 100%;
-              height: 100%;
-              border: 2px dashed transparent;
-              transition: border-color 0.2s ease;
-              overflow: hidden;
-              position: relative;
-            "></div>
-          </div>
-          <div class="footer-wrapper" data-shared-region="footer" style="
-            width: 100%;
-            height: ${defaultFooterHeight}px;
-            flex-shrink: 0;
-          ">
-            <div class="page-footer-element" style="
-              width: 100%;
-              height: 100%;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              border: 2px dashed transparent;
-              transition: border-color 0.2s ease;
-            "></div>
-          </div>
-        </div>
-      </div>`;
-
-      const pageComponent = this.editor.getWrapper().append(pageHTML)[0];
-
-      // Apply styles
-      pageComponent.addStyle({
-        width: `${totalPageWidth}px`,
-        height: `${totalPageHeight}px`,
-        background: newPageSettings.backgroundColor,
-        margin: "20px auto",
-        "box-shadow": "0 4px 12px rgba(0, 0, 0, 0.15)",
-        border: "2px solid transparent",
-        position: "relative",
-        "page-break-after": "always",
-        overflow: "hidden",
-        "box-sizing": "border-box",
-        transition: "border-color 0.2s ease"
-      });
-
-      // Configure component properties
-      const headerElement = pageComponent.find(".page-header-element")[0];
-      if (headerElement) {
-        headerElement.set({
-          droppable: true,
-          editable: true,
-          selectable: true,
-          draggable: false,
-          copyable: false,
-          removable: false,
-          "custom-name": "Header (Shared across all pages)"
-        });
-      }
-
-      const mainContentArea = pageComponent.find(".main-content-area")[0];
-      if (mainContentArea) {
-        mainContentArea.set({
-          droppable: true,
-          editable: true,
-          selectable: true,
-          "custom-name": "Content Area"
-        });
-      }
-
-      const footerElement = pageComponent.find(".page-footer-element")[0];
-      if (footerElement) {
-        footerElement.set({
-          droppable: true,
-          editable: true,
-          selectable: true,
-          draggable: false,
-          copyable: false,
-          removable: false,
-          "custom-name": "Footer (Shared across all pages)"
-        });
-      }
-
-      // ✅ Get page-content for watermark
-    const pageContentComponent = pageComponent.find(".page-content")[0];
-
-    // Add watermark immediately
-    if (pageContentComponent) {
-      this.addWatermarkToPage(pageContentComponent, newPageIndex);
-    }
-      // CRITICAL: Setup observer AFTER page is fully created, with delay
-      setTimeout(() => {
-        // Restore pagination state
-        this.paginationInProgress = originalPaginationState;
-
-        // Setup observer for new page
-        this.setupPageObserver(newPageIndex);
-        console.log(`✅ New page ${newPageIndex + 1} created and observer attached`);
-      }, 500); // Longer delay to ensure page is fully ready
-
-      return newPageSettings;
-
-    } catch (error) {
-      console.error("❌ Error creating new page:", error);
-      this.paginationInProgress = false;
-      return null;
-    }
-  }
-
-  clearAllObservers() {
-    this.pageObservers.forEach((observer, pageIndex) => {
-      if (observer) {
-        observer.disconnect();
-        console.log(`🗑️ Disconnected observer for page ${pageIndex}`);
-      }
-    });
-    this.pageObservers.clear();
-
-    this.debounceTimers.forEach(timer => clearTimeout(timer));
-    this.debounceTimers.clear();
-  }
-
-  // FIXED: New method to setup individual page observer with debouncing
-  setupPageObserver(pageIndex) {
-    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-    if (!pageComponent) {
-      console.warn(`❌ Page component not found for index ${pageIndex}`);
-      return;
-    }
-
-    const contentArea = pageComponent.find(".main-content-area")[0];
-    if (!contentArea) {
-      console.warn(`❌ .main-content-area not found in page ${pageIndex}`);
-      return;
-    }
-
-    const contentEl = contentArea.getEl();
-    if (!contentEl) {
-      console.warn(`❌ contentEl (DOM) not available for page ${pageIndex}`);
-      return;
-    }
-
-    // Disconnect existing observer if any
-    if (this.pageObservers.has(pageIndex)) {
-      this.pageObservers.get(pageIndex).disconnect();
-    }
-
-    console.log(`🔍 Setting up debounced observer for page ${pageIndex}`);
-
-    const observer = new MutationObserver((mutations) => {
-      // FIXED: Check if mutations are actually meaningful
-      const meaningfulMutation = mutations.some(mutation => {
-        // Only trigger on actual content changes, not style changes
-        return (
-          (mutation.type === 'childList' &&
-            (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)) ||
-          (mutation.type === 'characterData' &&
-            mutation.target.textContent && mutation.target.textContent.length > 10)
-        );
-      });
-
-      if (!meaningfulMutation) {
-        return; // Skip insignificant mutations
-      }
-
-      // Clear existing debounce timer
-      if (this.debounceTimers.has(pageIndex)) {
-        clearTimeout(this.debounceTimers.get(pageIndex));
-      }
-
-      // Set new debounced timer
-      const timer = setTimeout(() => {
-        if (!this.paginationInProgress) {
-          console.log(`🔁 Debounced mutation handling for page ${pageIndex}`);
-          this.handleAutoPagination(pageIndex);
-        }
-      }, 500); // FIXED: Increased debounce to 500ms for better stability
-
-      this.debounceTimers.set(pageIndex, timer);
-    });
-
-    observer.observe(contentEl, {
-      childList: true,
-      subtree: true,
-      characterData: true, // FIXED: Re-enable to catch text changes
-      attributes: false // Keep disabled to reduce noise
-    });
-
-    this.pageObservers.set(pageIndex, observer);
-  }
-
-  disableAutoPagination() {
-    this.paginationInProgress = true;
-    console.log("⏸️ Auto-pagination disabled");
-  }
-
-  // New method to re-enable auto-pagination
-  enableAutoPagination() {
-    this.paginationInProgress = false;
-    console.log("▶️ Auto-pagination enabled");
-  }
-
-  checkAllPagesForOverflow() {
-    console.log("🔍 Manually checking all pages for overflow...");
-
-    for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-      const pageComponent = this.editor.getWrapper().find(`[data-page-index="${i}"]`)[0];
-      if (!pageComponent) continue;
-
-      const contentArea = pageComponent.find(".main-content-area")[0];
-      if (!contentArea) continue;
-
-      const contentEl = contentArea.getEl();
-      if (!contentEl) continue;
-
-      // Force a layout recalculation
-      contentEl.offsetHeight;
-
-      const contentHeight = contentEl.scrollHeight;
-      const maxHeight = contentEl.clientHeight;
-
-      console.log(`📏 Page ${i}: ${contentHeight}px content in ${maxHeight}px available`);
-
-      const actuallyOverflowing =
-        contentHeight > maxHeight ||
-        contentEl.scrollHeight > contentEl.clientHeight ||
-        this.hasVisualOverflowInPage(contentEl, maxHeight);
-
-      if (actuallyOverflowing) {
-        console.log(`🚨 Manual overflow check triggered pagination for page ${i}`);
-        setTimeout(() => this.handleAutoPagination(i), 100);
-        break;
-      }
-    }
-  }
-
-  hasVisualOverflowInPage(contentEl, maxHeight) {
-    const children = contentEl.children;
-
-    for (let child of children) {
-      const rect = child.getBoundingClientRect();
-      const containerRect = contentEl.getBoundingClientRect();
-
-      // Check if child extends beyond container bottom
-      if (rect.bottom > containerRect.bottom) {
-        console.log(`🔍 Visual overflow found: child extends ${rect.bottom - containerRect.bottom}px beyond container`);
-        return true;
-      }
-
-      // Check if child has internal overflow
-      if (child.scrollHeight > child.clientHeight) {
-        console.log(`🔍 Child element has internal overflow: ${child.scrollHeight}px > ${child.clientHeight}px`);
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  forcePaginationForPage(pageIndex) {
-    console.log(`🔧 Force pagination triggered for page ${pageIndex}`);
-
-    if (this.paginationInProgress) {
-      setTimeout(() => this.forcePaginationForPage(pageIndex), 1000);
-      return;
-    }
-
-    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-    if (!pageComponent) return;
-
-    const contentArea = pageComponent.find(".main-content-area")[0];
-    if (!contentArea) return;
-
-    const components = contentArea.components();
-    if (components.length === 0) return;
-
-    // Split content roughly in half
-    const splitIndex = Math.ceil(components.length / 2);
-
-    if (splitIndex >= components.length) return;
-
-    const overflowComponents = [];
-    for (let i = splitIndex; i < components.length; i++) {
-      overflowComponents.push(components.at(i));
-    }
-
-    const nextPageIndex = pageIndex + 1;
-
-    if (nextPageIndex >= this.pageSettings.numberOfPages) {
-      this.addNewPage();
-    }
-
-    this.moveComponentsToPage(overflowComponents, nextPageIndex);
-
-    console.log(`✅ Force pagination completed for page ${pageIndex}`);
-  }
-
-  startContentMonitoring() {
-    // Clear any existing monitoring
-    if (this.contentCheckInterval) {
-      clearInterval(this.contentCheckInterval);
-    }
-
-    // FIXED: Check less frequently to reduce noise
-    this.contentCheckInterval = setInterval(() => {
-      // Only check if not currently paginating
-      if (!this.paginationInProgress) {
-        this.checkForContentChanges();
-        this.link
-      }
-    }, 3000); // Increased to 3 seconds
-
-
-    console.log("🔍 Started periodic content monitoring");
-  }
-
-  
-  checkForContentChanges() {
-    for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-      const pageComponent = this.editor.getWrapper().find(`[data-page-index="${i}"]`)[0];
-      if (!pageComponent) continue;
-
-      const contentArea = pageComponent.find(".main-content-area")[0];
-      if (!contentArea) continue;
-
-      const contentEl = contentArea.getEl();
-      if (!contentEl) continue;
-
-      // Create more detailed content snapshot
-      const currentSnapshot = {
-        innerHTML: contentEl.innerHTML,
-        scrollHeight: contentEl.scrollHeight,
-        childCount: contentEl.children.length,
-        textLength: (contentEl.textContent || '').trim().length,
-        hasOverflow: contentEl.scrollHeight > contentEl.clientHeight
-      };
-
-      const lastSnapshot = this.lastContentSnapshot.get(i);
-
-      // FIXED: Only trigger on significant changes
-      const hasSignificantChange = !lastSnapshot ||
-        lastSnapshot.childCount !== currentSnapshot.childCount ||
-        Math.abs(lastSnapshot.scrollHeight - currentSnapshot.scrollHeight) > 10 ||
-        Math.abs(lastSnapshot.textLength - currentSnapshot.textLength) > 50;
-
-      if (hasSignificantChange) {
-        console.log(`📝 Content change detected on page ${i}`);
-        console.log(`   Previous: ${lastSnapshot?.scrollHeight || 0}px, Current: ${currentSnapshot.scrollHeight}px`);
-
-        // Update snapshot
-        this.lastContentSnapshot.set(i, currentSnapshot);
-
-        // Check for overflow with delay to allow DOM to settle
-        setTimeout(() => {
-          this.checkPageForOverflow(i);
-        }, 100);
-      }
-    }
-  }
-
-  checkPageForOverflow(pageIndex) {
-    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-    if (!pageComponent) return;
-
-    const contentArea = pageComponent.find(".main-content-area")[0];
-    if (!contentArea) return;
-
-    const contentEl = contentArea.getEl();
-    if (!contentEl) return;
-
-    // Force layout recalculation
-    contentEl.offsetHeight;
-
-    const contentHeight = contentEl.scrollHeight;
-    const maxHeight = contentEl.clientHeight;
-
-    // Check for various types of overflow
-    const hasScrollOverflow = contentEl.scrollHeight > contentEl.clientHeight;
-    const hasVisualOverflow = this.checkDeepVisualOverflow(contentEl, maxHeight);
-    const hasTextOverflow = this.checkTextOverflow(contentEl);
-
-    console.log(`🔍 Comprehensive overflow check for page ${pageIndex}:`);
-    console.log(`   Content: ${contentHeight}px in ${maxHeight}px available`);
-    console.log(`   Scroll overflow: ${hasScrollOverflow}`);
-    console.log(`   Visual overflow: ${hasVisualOverflow}`);
-    console.log(`   Text overflow: ${hasTextOverflow}`);
-
-    // FIXED: Detect overflow even when heights match exactly
-    const needsPagination =
-      contentHeight > maxHeight ||
-      hasScrollOverflow ||
-      hasVisualOverflow ||
-      hasTextOverflow ||
-      (contentHeight === maxHeight && this.contentLooksOverflowing(contentEl));
-
-    if (needsPagination) {
-      console.log(`🚨 OVERFLOW DETECTED - triggering pagination for page ${pageIndex}`);
-      setTimeout(() => this.handleAutoPagination(pageIndex), 100);
-    } else {
-      console.log(`✅ No overflow on page ${pageIndex}`);
-    }
-  }
-
-  contentLooksOverflowing(contentEl) {
-    // Count total text content
-    const textContent = contentEl.textContent || '';
-    const textLength = textContent.trim().length;
-
-    // Count paragraphs and other block elements
-    const paragraphs = contentEl.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6');
-    const totalElements = contentEl.querySelectorAll('*').length;
-
-    console.log(`📊 Content analysis:`);
-    console.log(`   Text length: ${textLength} characters`);
-    console.log(`   Paragraphs/blocks: ${paragraphs.length}`);
-    console.log(`   Total elements: ${totalElements}`);
-
-    // Heuristic: if there's a lot of text content, it probably overflows
-    return (
-      textLength > 3000 ||  // More than 3000 characters
-      paragraphs.length > 8 || // More than 8 paragraphs
-      totalElements > 15    // More than 15 nested elements
-    );
-  }
-
-  checkDeepVisualOverflow(container, maxHeight) {
-    const containerRect = container.getBoundingClientRect();
-    const allElements = container.querySelectorAll('*');
-
-    for (let element of allElements) {
-      const rect = element.getBoundingClientRect();
-      if (rect.bottom > containerRect.bottom + 5) {
-        console.log(`🔍 Deep visual overflow: ${element.tagName}#${element.id} extends beyond container`);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  checkTextOverflow(container) {
-    const textElements = container.querySelectorAll('p, div, span, h1, h2, h3, h4, h5, h6');
-
-    for (let element of textElements) {
-      if (element.scrollHeight > element.clientHeight + 2) {
-        console.log(`📝 Text overflow in ${element.tagName}#${element.id}: ${element.scrollHeight}px > ${element.clientHeight}px`);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  triggerPaginationCheck() {
-    console.log("🔧 Manual pagination check triggered");
-
-    // Reset pagination flag to ensure it's not stuck
-    this.paginationInProgress = false;
-
-    // Force content change check
-    this.checkForContentChanges();
-
-    // Also try direct overflow check on all pages
-    setTimeout(() => {
-      for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-        this.checkPageForOverflow(i);
-      }
-    }, 200);
-  }
-
-  resetPaginationState() {
-    console.log("🔄 Emergency pagination state reset");
-
-    this.paginationInProgress = false;
-
-    // Clear all debounce timers
-    this.debounceTimers.forEach(timer => clearTimeout(timer));
-    this.debounceTimers.clear();
-
-    // Clear and re-setup all observers
-    this.clearAllObservers();
-
-    setTimeout(() => {
-      for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-        this.setupPageObserver(i);
-      }
-      console.log("✅ All observers re-established");
-    }, 500);
-  }
-
-  setupGlobalPasteListener() {
-    // Listen for paste events on the entire canvas
-    const canvasBody = this.editor.Canvas.getBody();
-
-    if (canvasBody) {
-      canvasBody.addEventListener('paste', (e) => {
-        console.log("📋 Paste event detected");
-
-        // Wait for paste to complete, then check for overflow
-        setTimeout(() => {
-          this.triggerPaginationCheck();
-        }, 500);
-      });
-
-      // Also listen for input events (typing, content changes)
-      canvasBody.addEventListener('input', (e) => {
-        console.log("⌨️ Input event detected");
-
-        // Debounced check for typing
-        clearTimeout(this.inputDebounceTimer);
-        this.inputDebounceTimer = setTimeout(() => {
-          this.triggerPaginationCheck();
-        }, 1000);
-      });
-
-      console.log("📋 Global paste/input listeners attached");
-    }
-  }
-
-  // Enhanced cleanup method
-  destroy() {
-    this.clearAllObservers();
-
-    if (this.contentCheckInterval) {
-      clearInterval(this.contentCheckInterval);
-    }
-
-    if (this.inputDebounceTimer) {
-      clearTimeout(this.inputDebounceTimer);
-    }
-
-    this.paginationInProgress = false;
-    console.log("🗑️ PageSetupManager cleanup completed");
-  }
-
-
-  getUsableHeight(contentArea) {
-    // GrapesJS DOM element for content
-    const el = contentArea.view.el;
-
-    // Page container (Dynamic Header Footer block wrapper)
-    const pageContainer = el.closest('.sections-container');
-    const totalHeight = pageContainer ? pageContainer.clientHeight : 1123;
-
-    // Header + Footer height
-    const header = pageContainer.querySelector('.gjs-editor-header');
-    const footer = pageContainer.querySelector('.gjs-editor-footer');
-    const headerH = header ? header.clientHeight : 0;
-    const footerH = footer ? footer.clientHeight : 0;
-
-    // Margins (stored as dataset from modal if available)
-    const topMargin = parseInt(pageContainer.dataset.marginTop || 0, 10);
-    const bottomMargin = parseInt(pageContainer.dataset.marginBottom || 0, 10);
-
-    // Usable height for content area
-    return totalHeight - (headerH + footerH + topMargin + bottomMargin);
-  }
-
-
-  createPagesFromEditor(editor) {
-    const wrapper = editor.getWrapper();
-
-    // Find the first Dynamic Header Footer page
-    const pageBlocks = wrapper.find('[data-gjs-type="Dynamic Header Footer"]');
-    if (!pageBlocks.length) {
-      alert("⚠️ No Dynamic Header Footer block found.");
-      return;
-    }
-
-    const firstPage = pageBlocks[0];
-    const contentArea = firstPage.find('.gjs-editor-content')[0];
-
-    if (!contentArea) {
-      alert("⚠️ No content area found.");
-      return;
-    }
-
-    // Get pasted content (inside textarea/text component)
-    let rawContent = "";
-    contentArea.components().forEach(cmp => {
-      if (cmp.get('type') === 'text' || cmp.get('tagName') === 'textarea') {
-        rawContent += cmp.get('content') || cmp.view.el.innerText || "";
-      }
-    });
-
-    if (!rawContent.trim()) {
-      alert("⚠️ Content area is empty.");
-      return;
-    }
-
-    // Try parsing JSON, fallback to plain text
-    let data;
-    try {
-      data = JSON.parse(rawContent);
-    } catch (e) {
-      data = rawContent.split(/\n+/).map(line => ({ text: line }));
-    }
-
-    // Clear existing content area before distributing
-    contentArea.components().reset();
-
-    // Measure usable height dynamically
-    let usableHeight = getUsableHeight(contentArea);
-    let currentPage = firstPage;
-    let currentContentArea = contentArea;
-    let currentHeight = 0;
-
-    data.forEach(item => {
-      const block = document.createElement("div");
-      block.className = "content-block";
-      block.innerText = item.first_name
-        ? `${item.id}. ${item.first_name} ${item.last_name} - ${item.email}`
-        : item.text;
-
-      // Temporarily append to measure height
-      currentContentArea.view.el.appendChild(block);
-      const blockHeight = block.offsetHeight || 20;
-
-      if (currentHeight + blockHeight > usableHeight) {
-        // Need a new page
-        currentPage = editor.addComponents({
-          type: "Dynamic Header Footer",
-          content: ""
-        })[0];
-
-        currentContentArea = currentPage.find('.gjs-editor-content')[0];
-
-        // Append block to new page
-        currentContentArea.view.el.appendChild(block);
-
-        usableHeight = getUsableHeight(currentContentArea);
-        currentHeight = blockHeight;
-      } else {
-        currentHeight += blockHeight;
-      }
-    });
-
-    alert("✅ Pages created successfully!");
-  }
-
-
-
-
-
-
-
-
-
-
-
-
 
 }
