@@ -118,7 +118,7 @@ const editor = InteractiveDesigner.init({
     ],
   },
 });
-
+window.editor = editor
 // // Add CSS for fixed A4 page size with visible boundary in editor too
 // const styleEl = document.createElement("style");
 // styleEl.innerHTML = `

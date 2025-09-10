@@ -386,7 +386,7 @@ function jsontablecustom(editor) {
                         label: 'Manage Highlight Conditions',
                         text: 'Add/Edit Conditions',
                         full: true,
-                        command: 'open-table-condition-manager'
+                        command: 'open-table-condition-manager-json-table'
                     },
                     {
                         type: 'button',
@@ -1970,7 +1970,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     });
 
     // Enhanced export handling for proper content preservation
-    editor.Commands.add('open-table-condition-manager', {
+    editor.Commands.add('open-table-condition-manager-json-table', {
         run(editor) {
             const selected = editor.getSelected();
             if (!selected || selected.get('type') !== 'json-table') return;

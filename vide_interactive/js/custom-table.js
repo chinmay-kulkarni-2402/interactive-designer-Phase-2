@@ -883,87 +883,6 @@ function customTable(editor) {
     }
   }
 
-  editor.Commands.add('open-table-condition-manager', {
-    run(editor) {
-      console.log("ytreertyu")
-      const selected = editor.getSelected();
-      if (!selected || selected.get('type') !== 'enhanced-table') return;
-
-      const conditions = selected.getHighlightConditions();
-      const highlightColor = selected.get('highlight-color') || '#ffff99';
-
-      const modalContent = `
-      <div class="table-condition-manager" style="padding: 20px; max-width: 600px;">
-        <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Table Highlight Conditions</h3>
-        
-        <div class="add-condition-form" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-          <h4 style="margin-top: 0;">Add New Condition</h4>
-          
-          <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
-            <select id="table-condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-              <option value="">Select Condition Type</option>
-              <option value="contains">Text: Contains</option>
-              <option value="starts-with">Text: Starts With</option>
-              <option value="ends-with">Text: Ends With</option>
-              <option value=">">Number: > (Greater than)</option>
-              <option value=">=">Number: >= (Greater than or equal)</option>
-              <option value="<">Number: < (Less than)</option>
-              <option value="<=">Number: <= (Less than or equal)</option>
-              <option value="=">Number: = (Equal to)</option>
-              <option value="!=">Number: != (Not equal to)</option>
-              <option value="between">Number: Between (range)</option>
-              <option value="null">Null/Empty (No value)</option>
-            </select>
-          </div>
-          
-          <div id="table-condition-inputs">
-            <div id="table-single-value-input" style="margin-bottom: 15px;">
-              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
-              <input type="text" id="table-condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
-            </div>
-            
-            <div id="table-range-inputs" style="display: none; margin-bottom: 15px;">
-              <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
-                  <input type="number" id="table-min-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-                <div style="flex: 1;">
-                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
-                  <input type="number" id="table-max-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <button id="table-add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
-        </div>
-        
-        <div class="existing-conditions">
-          <h4>Existing Conditions</h4>
-          <div id="table-conditions-list" style="max-height: 300px; overflow-y: auto;">
-            ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
-          </div>
-        </div>
-        
-        <div style="text-align: right; margin-top: 20px;">
-          <button id="table-close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
-          <button id="table-apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
-        </div>
-      </div>
-    `;
-
-      editor.Modal.setTitle('Table Condition Manager');
-      editor.Modal.setContent(modalContent);
-      editor.Modal.open();
-
-      setTimeout(() => {
-        initializeTableConditionManager(selected, conditions);
-      }, 100);
-    }
-  });
-
   // Detect table block drag stop
   editor.on('block:drag:stop', (block) => {
     if (block.get('tagName') === 'table') {
@@ -1110,7 +1029,86 @@ function customTable(editor) {
         console.warn('Could not access formula parser:', error);
       }
     };
+  editor.Commands.add('open-table-condition-manager-local-table', {
+    run() {
+      console.log("ytreertyu")
+      const selected = editor.getSelected();
+      if (!selected || selected.get('type') !== 'enhanced-table') return;
 
+      const conditions = selected.getHighlightConditions();
+      const highlightColor = selected.get('highlight-color') || '#ffff99';
+
+      const modalContent = `
+      <div class="table-condition-manager" style="padding: 20px; max-width: 600px;">
+        <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Table Highlight Conditions</h3>
+        
+        <div class="add-condition-form" style="padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+          <h4 style="margin-top: 0;">Add New Condition</h4>
+          
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
+            <select id="table-condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              <option value="">Select Condition Type</option>
+              <option value="contains">Text: Contains</option>
+              <option value="starts-with">Text: Starts With</option>
+              <option value="ends-with">Text: Ends With</option>
+              <option value=">">Number: > (Greater than)</option>
+              <option value=">=">Number: >= (Greater than or equal)</option>
+              <option value="<">Number: < (Less than)</option>
+              <option value="<=">Number: <= (Less than or equal)</option>
+              <option value="=">Number: = (Equal to)</option>
+              <option value="!=">Number: != (Not equal to)</option>
+              <option value="between">Number: Between (range)</option>
+              <option value="null">Null/Empty (No value)</option>
+            </select>
+          </div>
+          
+          <div id="table-condition-inputs">
+            <div id="table-single-value-input" style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
+              <input type="text" id="table-condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
+            </div>
+            
+            <div id="table-range-inputs" style="display: none; margin-bottom: 15px;">
+              <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
+                  <input type="number" id="table-min-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="flex: 1;">
+                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
+                  <input type="number" id="table-max-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <button id="table-add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
+        </div>
+        
+        <div class="existing-conditions">
+          <h4>Existing Conditions</h4>
+          <div id="table-conditions-list" style="max-height: 300px; overflow-y: auto;">
+            ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
+          </div>
+        </div>
+        
+        <div style="text-align: right; margin-top: 20px;">
+          <button id="table-close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
+          <button id="table-apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
+        </div>
+      </div>
+    `;
+
+      editor.Modal.setTitle('Table Condition Manager');
+      editor.Modal.setContent(modalContent);
+      editor.Modal.open();
+
+      setTimeout(() => {
+        initializeTableConditionManager(selected, conditions);
+      }, 100);
+    }
+  });
     // ✅ Custom formula registration
     function registerCustomFormulas() {
       if (!window.HotFormulaParser) return;
@@ -1267,7 +1265,7 @@ function customTable(editor) {
         }
 
         return `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; background: #f9f9f9;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
           <span><strong>${condition.type}:</strong> ${conditionText}</span>
           <button onclick="removeTableCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
         </div>
@@ -1428,7 +1426,7 @@ function customTable(editor) {
             label: 'Manage Highlight Conditions',
             text: 'Add/Edit Conditions',
             full: true,
-            command: 'open-table-condition-manager',
+            command: 'open-table-condition-manager-local-table',
             changeProp: 1
           },
           {
