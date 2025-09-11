@@ -1,122 +1,123 @@
 function jsontablecustom(editor) {
     let HotFormulaParser = null;
-    function loadFormulaParser(callback) {
-        const script = document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
-        script.onload = function () {
-            console.log('HotFormulaParser loaded successfully');
-            HotFormulaParser = new formulaParser.Parser();
+function loadFormulaParser(callback) {
+    const script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+    script.onload = function () {
+        console.log('HotFormulaParser loaded successfully');
+        HotFormulaParser = new formulaParser.Parser();
 
-            // ✅ Add custom formulas after parser is initialized
-            registerCustomFormulas();
+        // ✅ Attach cell reference handler once
+        HotFormulaParser.on('callCellValue', function (cellCoord, done) {
+            let cellValue = window.globalCellMap[cellCoord.label];
 
-            console.log("parser", HotFormulaParser);
-            if (callback) callback();
-        };
-        script.onerror = function () {
-            console.warn('Failed to load HotFormulaParser');
-            if (callback) callback(); // fallback so UI doesn’t hang
-        };
-        document.head.appendChild(script);
-    }
+            if (cellValue === null || cellValue === undefined || cellValue === '') {
+                done(0); // treat empty cells as 0 for numeric functions
+                return;
+            }
 
-    // ✅ Register custom formulas
-    function registerCustomFormulas() {
-        // --- PERCENT(base, percent) ---
-        HotFormulaParser.setFunction('PERCENT', function (params) {
-            if (params.length !== 2) return '#N/A';
-            const base = parseFloat(params[0]);
-            const percent = parseFloat(params[1]);
-            if (isNaN(base) || isNaN(percent)) return '#VALUE!';
-            return base * (percent / 100);
+            if (typeof cellValue === 'number') {
+                done(cellValue); // already numeric
+            } else if (!isNaN(cellValue)) {
+                done(parseFloat(cellValue)); // numeric string → number
+            } else {
+                done(String(cellValue)); // keep as text
+            }
         });
 
-        // --- Load number-to-words library ---
-        const numScript = document.createElement('script');
-        numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
-        numScript.onload = function () {
-            // --- NUMTOWORDS(number [, mode]) ---
-            // mode = "currency" will format as "rupees and paise"
-            HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
-                if (params.length < 1) return '#N/A';
+        // ✅ Add custom formulas
+        registerCustomFormulas();
 
-                const raw = params[0];
-                const num = parseFloat(raw);
-                if (isNaN(num)) return '#VALUE!';
+        console.log("parser", HotFormulaParser);
+        if (callback) callback();
+    };
+    script.onerror = function () {
+        console.warn('Failed to load HotFormulaParser');
+        if (callback) callback();
+    };
+    document.head.appendChild(script);
+}
 
-                const mode = (params[1] || "").toString().toLowerCase();
+// ✅ Custom formulas
+function registerCustomFormulas() {
+    // --- PERCENT(base, percent) ---
+    HotFormulaParser.setFunction('PERCENT', function (params) {
+        if (params.length !== 2) return '#N/A';
+        const base = parseFloat(params[0]);
+        const percent = parseFloat(params[1]);
+        if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+        return base * (percent / 100);
+    });
 
-                let words = "";
-                if (Number.isInteger(num)) {
-                    // Integer only
-                    words = numberToWords.toWords(num);
+    // --- NUMTOWORDS ---
+    const numScript = document.createElement('script');
+    numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
+    numScript.onload = function () {
+        HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+            if (params.length < 1) return '#N/A';
+
+            const raw = params[0];
+            const num = parseFloat(raw);
+            if (isNaN(num)) return '#VALUE!';
+
+            const mode = (params[1] || "").toString().toLowerCase();
+            let words = "";
+
+            if (Number.isInteger(num)) {
+                words = numberToWords.toWords(num);
+            } else {
+                const [intPart, decPart] = raw.toString().split(".");
+                const intWords = numberToWords.toWords(parseInt(intPart));
+                if (mode === "currency") {
+                    const paise = parseInt(decPart.substring(0, 2).padEnd(2, "0"));
+                    const paiseWords = paise > 0 ? numberToWords.toWords(paise) + " paise" : "";
+                    words = intWords + " rupees" + (paiseWords ? " and " + paiseWords : "");
                 } else {
-                    // Decimal handling
-                    const [intPart, decPart] = raw.toString().split(".");
-                    const intWords = numberToWords.toWords(parseInt(intPart));
-                    if (mode === "currency") {
-                        // Convert decimals as paise (up to 2 digits)
-                        const paise = parseInt(decPart.substring(0, 2).padEnd(2, "0"));
-                        const paiseWords = paise > 0 ? numberToWords.toWords(paise) + " paise" : "";
-                        words = intWords + " rupees" + (paiseWords ? " and " + paiseWords : "");
-                    } else {
-                        // Default: spell out each decimal digit
-                        const decWords = decPart.split("").map(d => numberToWords.toWords(parseInt(d))).join(" ");
-                        words = intWords + " point " + decWords;
-                    }
+                    const decWords = decPart.split("").map(d => numberToWords.toWords(parseInt(d))).join(" ");
+                    words = intWords + " point " + decWords;
                 }
-
-                return words;
-            });
-
-            console.log("NUMTOWORDS formula registered");
-        };
-        document.head.appendChild(numScript);
-    }
-
-
-    // ✅ Formula evaluation function
-    function evaluateFormula(formula, tableData, currentRow, currentCol) {
-        try {
-            if (!HotFormulaParser) {
-                return '#ERROR: Parser not loaded';
             }
 
-            // Clear and rebuild the cell map with current table data
-            window.globalCellMap = {};
-            const headers = Object.keys(tableData[0] || {});
+            return words;
+        });
 
-            tableData.forEach((row, rowIdx) => {
-                headers.forEach((columnKey, colIdx) => {
-                    const colLetter = indexToColumnLetter(colIdx);
-                    const cellLabel = colLetter + (rowIdx + 1); // Excel-style A1, B2 etc.
-                    let value = row[columnKey];
-                    if (value === null || value === undefined) value = '';
-                    window.globalCellMap[cellLabel] = value;
-                });
-            });
+        console.log("NUMTOWORDS formula registered");
+    };
+    document.head.appendChild(numScript);
+}
 
-            // Handle cell references
-            HotFormulaParser.on('callCellValue', function (cellCoord, done) {
-                let cellValue = window.globalCellMap[cellCoord.label];
-                if (cellValue === null || cellValue === undefined) {
-                    cellValue = '';
-                }
-                done(cellValue);
-            });
-
-            // Parse and evaluate
-            const { result, error } = HotFormulaParser.parse(formula);
-            if (error) {
-                return `#ERROR: ${error}`;
-            }
-
-            return result;
-        } catch (error) {
-            console.error('Formula evaluation error:', error);
-            return `#ERROR: ${error.message}`;
+// ✅ Formula evaluation
+function evaluateFormula(formula, tableData, currentRow, currentCol) {
+    try {
+        if (!HotFormulaParser) {
+            return '#ERROR: Parser not loaded';
         }
+
+        // Build cell map
+        window.globalCellMap = {};
+        const headers = Object.keys(tableData[0] || {});
+
+        tableData.forEach((row, rowIdx) => {
+            headers.forEach((columnKey, colIdx) => {
+                const colLetter = indexToColumnLetter(colIdx);
+                const cellLabel = colLetter + (rowIdx + 1);
+                let value = row[columnKey];
+                if (value === null || value === undefined) value = '';
+                window.globalCellMap[cellLabel] = value;
+            });
+        });
+
+        // Evaluate
+        const { result, error } = HotFormulaParser.parse(formula);
+        if (error) return `#ERROR: ${error}`;
+        return result;
+
+    } catch (error) {
+        console.error('Formula evaluation error:', error);
+        return `#ERROR: ${error.message}`;
     }
+}
+
 
 
     // Add highlighting function from custom table
@@ -1978,11 +1979,10 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             const conditions = selected.getHighlightConditions();
 
             const modalContent = `
-<div class="condition-manager" style="padding: 20px; max-width: 700px;">
-    <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Table Highlight Conditions</h3>
-    
+<div class="condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;">
+
     <!-- Highlight Style Settings -->
-    <div class="highlight-styles" style=" padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+    <div class="highlight-styles" style=" padding: 10px 15px 15px 0; border-radius: 5px;">
         <h4 style="margin-top: 0;">Highlight Styles</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
             <div>
@@ -2015,8 +2015,8 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         </div>
     </div>
     
-    <div class="add-condition-form" style="padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-        <h4 style="margin-top: 0;">Add New Condition</h4>
+    <div class="add-condition-form">
+        <h4 style="margin-top: 10px;  margin-bottom: 20px;">Add New Condition</h4>
         
         <div style="display: grid; grid-template-columns: 1fr auto; gap: 15px; margin-bottom: 15px;">
             <div>
@@ -2038,10 +2038,12 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                     <option value="null">Null/Empty (No value)</option>
                 </select>
             </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Case Sensitive:</label>
-                <input type="checkbox" id="case-sensitive" style="width: 20px; height: 20px; margin-top: 8px;">
-            </div>
+      <div style="display: flex; align-items: center; margin-top:27px;">
+        <label style="display: flex; align-items: center; color: #f8f9fa; cursor: pointer;">
+          <input type="checkbox" id="case-sensitive" style="margin-right: 8px; transform: scale(1.2);">
+          <span style="font-weight: bold;">Case Sensitive</span>
+        </label>
+      </div>
         </div>
         
         <div id="condition-inputs">
@@ -2064,24 +2066,24 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             </div>
         </div>
         
-        <button id="add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
+        <button id="add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-bottom: 3px">Add Condition</button>
     </div>
     
-    <div class="existing-conditions">
-        <h4>Existing Conditions</h4>
+    <div class="existing-conditions" style=" padding: 20px 20px 20px 0; border-radius: 8px; margin-bottom: 3px;">
+        <div style="margin-top: 5px; font-weight: bold">Existing Conditions</div>
         <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
             ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
         </div>
     </div>
     
-    <div style="text-align: right; margin-top: 20px;">
+    <div style="text-align: right;">
         <button id="close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
         <button id="apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
     </div>
 </div>`;
 
             const modal = editor.Modal;
-            modal.setTitle('Table Condition Manager');
+            modal.setTitle('Table Highlight Condition Manager');
             modal.setContent(modalContent);
             modal.open();
 

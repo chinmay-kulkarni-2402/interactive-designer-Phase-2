@@ -118,7 +118,7 @@ const editor = InteractiveDesigner.init({
     ],
   },
 });
-window.editor = editor
+
 // // Add CSS for fixed A4 page size with visible boundary in editor too
 // const styleEl = document.createElement("style");
 // styleEl.innerHTML = `
@@ -427,6 +427,328 @@ save.addEventListener("click", savePage, true);
 
 var importPage = document.getElementById("importPage");
 importPage.addEventListener("click", importSinglePages, true);
+
+
+// 1️⃣ Panel button
+editor.Panels.addButton("options", {
+  id: "bulkpage",
+  className: "fa fa-file",
+  attributes: { title: "Upload JSON file" },
+  command: "open-modal"
+});
+
+// 2️⃣ Modal command
+editor.Commands.add("open-modal", {
+  run(editor) {
+    const html = editor.getHtml();
+    const css = editor.getCss();
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = html;
+
+    // 1️⃣ Collect payload mappings
+    const mappingMap = {};
+    tempDiv.querySelectorAll("[my-input-json]").forEach(el => {
+      const id = el.id || null;
+      if (id) mappingMap[id] = el.getAttribute("my-input-json");
+    });
+
+    const cssRegex = /#([\w-]+)\s*{[^}]*my-input-json\s*:\s*([^;]+);/g;
+    let match;
+    while ((match = cssRegex.exec(css)) !== null) {
+      const id = match[1].trim();
+      const value = match[2].trim();
+      mappingMap[id] = value;
+    }
+
+    const inputJsonMappings = Object.keys(mappingMap).map(id => ({ [id]: mappingMap[id] }));
+
+    const uploadedJsonStr = localStorage.getItem("common_json") || "{}";
+    const uploadedJson = JSON.parse(uploadedJsonStr);
+    const englishKeys = uploadedJson.english ? Object.keys(uploadedJson.english) : [];
+
+    // State objects
+    let fileNameSaved = [];      // array of { key, indexes }
+    let passwordSaved = [];      // array of { key, indexes }
+    let passwordCustom = "";     // string if custom password
+
+    // Modal HTML
+    editor.Modal.open({
+      title: "Export and Send",
+      content: `
+      <div style="max-height:600px; overflow:auto;">
+
+        <h4>Payload Preview:</h4>
+        <pre id="payload-preview" style="max-height:150px; overflow:auto; background:#f5f5f5; padding:10px;">${JSON.stringify(inputJsonMappings, null, 2)}</pre>
+
+        <hr>
+
+        <!-- File Name Section -->
+        <h5>File Name</h5>
+        <select id="file-name-mode">
+          <option value="none">None</option>
+          <option value="json">JSON Keys</option>
+        </select>
+
+        <div id="file-name-key-section" style="display:none; margin-top:5px;">
+          <label>Select JSON Key:</label>
+          <select id="file-name-key-dropdown"><option value="">--Select--</option></select>
+        </div>
+
+        <div id="file-name-index-section" style="display:none; margin-top:5px;">
+          <input type="text" id="file-name-index-input" placeholder="Enter indexes, e.g., 0,1" style="width:70%">
+          <button id="file-name-add-btn">Add</button>
+        </div>
+
+        <div id="file-name-saved" style="margin-top:5px; font-size:0.9em; color:#333;"></div>
+
+        <hr>
+
+        <!-- Password Section -->
+        <h5>Password</h5>
+        <select id="password-mode">
+          <option value="none">None</option>
+          <option value="json">JSON Keys</option>
+          <option value="custom">Custom String</option>
+        </select>
+
+        <!-- Password JSON Keys -->
+        <div id="password-key-section" style="display:none; margin-top:5px;">
+          <label>Select JSON Key:</label>
+          <select id="password-key-dropdown"><option value="">--Select--</option></select>
+        </div>
+
+        <div id="password-index-section" style="display:none; margin-top:5px;">
+          <input type="text" id="password-index-input" placeholder="Enter indexes, e.g., 0,1" style="width:70%">
+          <button id="password-add-btn">Add</button>
+        </div>
+
+        <!-- Password Custom -->
+        <div id="password-custom-section" style="display:none; margin-top:5px;">
+          <input type="text" id="password-custom-input" placeholder="Enter custom password" style="width:100%">
+        </div>
+
+        <div id="password-saved" style="margin-top:5px; font-size:0.9em; color:#333;"></div>
+
+        <button id="send-api-btn" style="margin-top:15px;">Send</button>
+      </div>
+      `,
+      attributes: { class: "export-modal" }
+    });
+
+    // Populate dropdowns
+    const fileNameDropdown = document.getElementById("file-name-key-dropdown");
+    const passwordDropdown = document.getElementById("password-key-dropdown");
+    englishKeys.forEach(k => {
+      const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameDropdown.appendChild(opt1);
+      const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordDropdown.appendChild(opt2);
+    });
+
+    // Mode change handlers
+    document.getElementById("file-name-mode").addEventListener("change", e => {
+      const val = e.target.value;
+      document.getElementById("file-name-key-section").style.display = val==="json" ? "block" : "none";
+      document.getElementById("file-name-index-section").style.display = "none";
+      fileNameSaved = [];
+      renderSaved(fileNameSaved, "file-name-saved");
+    });
+
+    document.getElementById("password-mode").addEventListener("change", e => {
+      const val = e.target.value;
+      document.getElementById("password-key-section").style.display = val==="json" ? "block" : "none";
+      document.getElementById("password-index-section").style.display = "none";
+      document.getElementById("password-custom-section").style.display = val==="custom" ? "block" : "none";
+      passwordSaved = [];
+      passwordCustom = "";
+      renderSaved(passwordSaved, "password-saved");
+    });
+
+    // File name key selection
+    fileNameDropdown.addEventListener("change", e => {
+      if(e.target.value) {
+        document.getElementById("file-name-index-section").style.display = "block";
+      } else {
+        document.getElementById("file-name-index-section").style.display = "none";
+      }
+    });
+
+    // Password key selection
+    passwordDropdown.addEventListener("change", e => {
+      if(e.target.value) {
+        document.getElementById("password-index-section").style.display = "block";
+      } else {
+        document.getElementById("password-index-section").style.display = "none";
+      }
+    });
+
+    // Add buttons
+    document.getElementById("file-name-add-btn").addEventListener("click", () => {
+      const key = fileNameDropdown.value;
+      const idx = document.getElementById("file-name-index-input").value.trim();
+      if(key) {
+        fileNameSaved.push({ key, indexes: idx });
+        renderSaved(fileNameSaved, "file-name-saved");
+        document.getElementById("file-name-index-input").value="";
+        fileNameDropdown.value="";
+        document.getElementById("file-name-index-section").style.display="none";
+      }
+    });
+
+    document.getElementById("password-add-btn").addEventListener("click", () => {
+      const key = passwordDropdown.value;
+      const idx = document.getElementById("password-index-input").value.trim();
+      if(key) {
+        passwordSaved.push({ key, indexes: idx });
+        renderSaved(passwordSaved, "password-saved");
+        document.getElementById("password-index-input").value="";
+        passwordDropdown.value="";
+        document.getElementById("password-index-section").style.display="none";
+      }
+    });
+
+    function renderSaved(arr, containerId) {
+      const div = document.getElementById(containerId);
+      div.innerHTML = arr.map(o => `${o.key}${o.indexes?`[${o.indexes}]`:''}`).join(", ");
+    }
+
+    // Send button
+    document.getElementById("send-api-btn").addEventListener("click", async () => {
+      editor.Modal.close();
+
+      let fileNamePayload;
+      if(document.getElementById("file-name-mode").value==="json" && fileNameSaved.length) {
+        fileNamePayload = fileNameSaved.map(o=>o.indexes? `${o.key}[${o.indexes}]` : o.key).join(",");
+      }
+
+      let passwordPayload;
+      const pwMode = document.getElementById("password-mode").value;
+      if(pwMode==="json" && passwordSaved.length) {
+        passwordPayload = passwordSaved.map(o=>o.indexes? `${o.key}[${o.indexes}]` : o.key);
+      } else if(pwMode==="custom") {
+        const val = document.getElementById("password-custom-input").value.trim();
+        if(val) passwordPayload = val;
+      }
+
+      const finalPayload = [
+        ...inputJsonMappings,
+        fileNamePayload? { file_name: fileNamePayload } : {},
+        passwordPayload? { password: passwordPayload } : {}
+      ];
+
+      try {
+        const files = await exportDesignAndSend(editor, finalPayload);
+        files.forEach(({ blob, filename }) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+        alert("✅ Export sent & all files downloaded successfully!");
+      } catch(err) {
+        alert("❌ Error sending export. Check console.");
+        console.error(err);
+      }
+    });
+  }
+});
+
+
+
+// 3️⃣ Helper: inject CSS into HTML
+function htmlWithCss(html, css) {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>${css}</style>
+      </head>
+      <body>
+        ${html}
+      </body>
+    </html>
+  `;
+}
+// 🔹 Helper: Extract filename from response headers
+// 🔹 Helper: Extract filename from response headers
+function getFilenameFromResponse(response, fallback = "export.pdf") {
+  
+  console.log("🔍 response Raw Content-Disposition:", response);
+  const contentDisp = response.headers.get("Content-Disposition");
+  console.log("🔍 Raw Content-Disposition:", contentDisp);
+
+
+  if (!contentDisp) return fallback;
+
+  // Handles filename="chinmay.pdf" or filename=chinmay.pdf
+  const match = contentDisp.match(/filename\*?=(?:UTF-8''|")?([^;\n"]+)/i);
+  if (match && match[1]) {
+    return decodeURIComponent(match[1].trim());
+  }
+  return fallback;
+}
+
+
+// 4️⃣ Export function: send files + payload to API and return blobs
+async function exportDesignAndSend(editor, inputJsonMappings) {
+  const apiUrl = "http://192.168.0.177:9998/jsonApi/upload";
+
+  const html = editor.getHtml();
+  const css = editor.getCss();
+  const fullHtml = htmlWithCss(html, css);
+
+  const formData = new FormData();
+  formData.append("htmlFile", new Blob([fullHtml], { type: "text/html" }), "template.html");
+
+  const uploadedJson = localStorage.getItem("common_json");
+  if (uploadedJson) {
+    formData.append("files", new Blob([uploadedJson], { type: "application/json" }), "data.json");
+  }
+
+  formData.append("payload", JSON.stringify(inputJsonMappings));
+
+  const response = await fetch(apiUrl, { method: "POST", body: formData });
+  if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+  const contentType = response.headers.get("Content-Type") || "";
+
+  // 1️⃣ Single PDF
+  if (contentType.includes("application/pdf")) {
+    const filename = getFilenameFromResponse(response, "export.pdf");
+    const blob = await response.blob();
+    console.log("✅ Single PDF resolved filename:", filename);
+    return [{ blob, filename }];
+  }
+
+  // 2️⃣ Multiple PDFs (JSON response)
+  if (contentType.includes("application/json")) {
+    const json = await response.json();
+    return json.map(f => {
+      const byteCharacters = atob(f.content);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      console.log("✅ Multiple PDFs resolved filename:", f.filename);
+      return {
+        blob: new Blob([byteArray], { type: "application/pdf" }),
+        filename: f.filename
+      };
+    });
+  }
+
+  // 3️⃣ Fallback
+  const filename = getFilenameFromResponse(response, "export.pdf");
+  const blob = await response.blob();
+  console.log("⚠️ Fallback resolved filename:", filename);
+  return [{ blob, filename }];
+}
+
+
+
+
+
 
 
 // var filterBtn = document.getElementById("filterTable");
@@ -2269,7 +2591,7 @@ editor.on('load', () => {
 
 // ******** Same Link Page disable code
 
-function importSinglePages(){ 
+function importSinglePages() {
   editor.Modal.setTitle('Add Page Name');
   editor.Modal.setContent(`<div class="new-table-form">
   <div> 
@@ -2279,9 +2601,9 @@ function importSinglePages(){
   </div>
   </div>
   `);
-  editor.Modal.open(); 
+  editor.Modal.open();
   var el = document.getElementById("import-single-file");
-  el.addEventListener("click", importFile, true);   
+  el.addEventListener("click", importFile, true);
 }
 
 function importFile() {
@@ -2319,12 +2641,12 @@ function importFile() {
           });
         }
       }
-    } 
+    }
     editor.Modal.close();
     updateComponentsWithNewJson(editor);
   };
   reader.readAsText(file);
-} 
+}
 function importMultipleFiles() {
   const input = document.getElementById("importMultiplePageInput");
   const files = Array.from(input.files);

@@ -614,12 +614,21 @@ function addFormattedRichTextComponent(editor) {
     const conditionValue = document.getElementById('condition-value');
     const minValue = document.getElementById('min-value');
     const maxValue = document.getElementById('max-value');
+    const caseSensitive = document.getElementById('case-sensitive');
+    const highlightBgColor = document.getElementById('highlight-bg-color');
+    const highlightTextColor = document.getElementById('highlight-text-color');
+    const highlightFontFamily = document.getElementById('highlight-font-family');
     const addBtn = document.getElementById('add-condition-btn');
     const closeBtn = document.getElementById('close-manager-btn');
     const applyBtn = document.getElementById('apply-conditions-btn');
     const conditionsList = document.getElementById('conditions-list');
 
     let currentConditions = [...initialConditions];
+
+    // Initialize with current component settings
+    highlightBgColor.value = component.get('highlight-color') || '#ffff00';
+    highlightTextColor.value = component.get('highlight-text-color') || '#000000';
+    highlightFontFamily.value = component.get('highlight-font-family') || 'Default';
 
     // Handle condition type change
     conditionTypeSelect.addEventListener('change', function () {
@@ -628,15 +637,23 @@ function addFormattedRichTextComponent(editor) {
       if (selectedType === 'between') {
         singleValueInput.style.display = 'none';
         rangeInputs.style.display = 'block';
+        caseSensitive.disabled = true;
+        caseSensitive.checked = false;
       } else {
         singleValueInput.style.display = 'block';
         rangeInputs.style.display = 'none';
+        caseSensitive.disabled = false;
       }
 
-      // Update placeholder based on condition type
+      // Update placeholder and input type based on condition type
       if (['>', '>=', '<', '<=', '=', '!='].includes(selectedType)) {
         conditionValue.placeholder = 'Enter number';
         conditionValue.type = 'number';
+        caseSensitive.disabled = true;
+        caseSensitive.checked = false;
+      } else if (selectedType === 'once-if') {
+        conditionValue.placeholder = 'Enter letters, numbers, or spaces to highlight';
+        conditionValue.type = 'text';
       } else {
         conditionValue.placeholder = 'Enter text';
         conditionValue.type = 'text';
@@ -672,15 +689,16 @@ function addFormattedRichTextComponent(editor) {
           type: 'between',
           minValue: min,
           maxValue: max,
-          label: `Between ${min} and ${max}`
+          label: `Between ${min} and ${max}`,
+          caseSensitive: false
         };
 
         minValue.value = '';
         maxValue.value = '';
       } else {
-        const value = conditionValue.value.trim();
+        const value = conditionValue.value; // Don't trim for once-if to preserve spaces
 
-        if (!value) {
+        if (!value && value !== ' ') {
           alert('Please enter a value');
           return;
         }
@@ -699,10 +717,14 @@ function addFormattedRichTextComponent(editor) {
           '!=': 'Not equal to'
         };
 
+        const isCaseSensitive = caseSensitive.checked && !['>', '>=', '<', '<=', '=', '!='].includes(type);
+        const displayValue = value === ' ' ? 'space' : `"${value}"`;
+
         newCondition = {
           type: type,
           value: value,
-          label: `${typeLabels[type]}: "${value}"`
+          caseSensitive: isCaseSensitive,
+          label: `${typeLabels[type]}: ${displayValue}${isCaseSensitive ? ' (case sensitive)' : ''}`
         };
 
         conditionValue.value = '';
@@ -715,19 +737,21 @@ function addFormattedRichTextComponent(editor) {
       conditionTypeSelect.value = '';
       singleValueInput.style.display = 'block';
       rangeInputs.style.display = 'none';
+      caseSensitive.checked = false;
+      caseSensitive.disabled = false;
     });
 
     // Render conditions list
     function renderConditionsList() {
       if (currentConditions.length === 0) {
-        conditionsList.innerHTML = '<p style="color: #666;">No conditions added yet.</p>';
+        conditionsList.innerHTML = '<p style="color: #bbb;">No conditions added yet.</p>';
         return;
       }
 
       const conditionsHtml = currentConditions.map((condition, index) => `
-      <div class="condition-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; margin-bottom: 5px; border-radius: 4px; border: 1px solid #ddd;">
-        <span>${condition.label}</span>
-        <button onclick="removeCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
+      <div class="condition-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #555;">
+        <span style="color: #f8f9fa;">${condition.label}</span>
+        <button onclick="removeCondition(${index})" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Remove</button>
       </div>
     `).join('');
 
@@ -742,6 +766,10 @@ function addFormattedRichTextComponent(editor) {
 
     // Apply conditions
     applyBtn.addEventListener('click', function () {
+      // Set all styling properties
+      component.set('highlight-color', highlightBgColor.value);
+      component.set('highlight-text-color', highlightTextColor.value);
+      component.set('highlight-font-family', highlightFontFamily.value);
       component.setHighlightConditions(currentConditions);
       editor.Modal.close();
     });
@@ -754,6 +782,7 @@ function addFormattedRichTextComponent(editor) {
     // Initial render
     renderConditionsList();
   }
+
   // Add the formatted-rich-text component
   editor.DomComponents.addType('formatted-rich-text', {
     model: {
@@ -959,37 +988,54 @@ function addFormattedRichTextComponent(editor) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       },
 
-      applyOnceIfHighlight(content, condition, highlightColor) {
+      applyOnceIfHighlight(content, condition, highlightColor, textColor, fontFamily, caseSensitive) {
         const characters = condition.split('');
 
         characters.forEach(char => {
-          if (char.trim()) {
+          if (char || char === ' ') { // Allow spaces
             const escapedChar = this.escapeRegex(char);
+            let regex;
 
-            if (/\d/.test(char)) {
-              const regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, 'g');
-              content = content.replace(regex,
-                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
-              );
+            if (char === ' ') {
+              // Special handling for spaces - match any whitespace but replace with non-breaking space
+              regex = /(\s)/g;
+            } else if (/\d/.test(char)) {
+              regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, caseSensitive ? 'g' : 'gi');
             } else if (/[a-zA-Z]/.test(char)) {
-              const regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, 'gi');
-              content = content.replace(regex,
-                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
-              );
+              regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, caseSensitive ? 'g' : 'gi');
+            } else {
+              // Special characters
+              regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, 'g');
+            }
+
+            if (regex) {
+              const fontStyle = fontFamily && fontFamily !== 'Default' ? `font-family: ${fontFamily};` : '';
+              const colorStyle = textColor ? `color: ${textColor};` : '';
+              const replacement = char === ' ' ?
+                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px; ${fontStyle} ${colorStyle}">&nbsp;</span>` :
+                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px; ${fontStyle} ${colorStyle}">$1</span>`;
+
+              content = content.replace(regex, replacement);
             }
           }
         });
 
         return content;
       },
-      applyHighlightCondition(content, condition, highlightColor) {
+      applyHighlightCondition(content, condition, highlightColor, textColor, fontFamily) {
         const conditionType = condition.type;
         const conditionValue = condition.value;
+        const caseSensitive = condition.caseSensitive || false;
 
         // Handle "once-if" condition type
         if (conditionType === 'once-if') {
-          return this.applyOnceIfHighlight(content, conditionValue, highlightColor);
+          return this.applyOnceIfHighlight(content, conditionValue, highlightColor, textColor, fontFamily, caseSensitive);
         }
+
+        // Create style string
+        const fontStyle = fontFamily && fontFamily !== 'Default' ? `font-family: ${fontFamily};` : '';
+        const colorStyle = textColor ? `color: ${textColor};` : '';
+        const styleString = `background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px; ${fontStyle} ${colorStyle}`;
 
         // Handle number conditions
         if (['>', '>=', '<', '<=', '=', '!='].includes(conditionType)) {
@@ -1006,7 +1052,7 @@ function addFormattedRichTextComponent(editor) {
                     const escapedNum = this.escapeRegex(num.toString());
                     const regex = new RegExp(`(?!<[^>]*>)\\b(${escapedNum})\\b(?![^<]*<\\/span>)`, 'g');
                     content = content.replace(regex,
-                      `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+                      `<span class="highlighted-word" style="${styleString}">$1</span>`
                     );
                   }
                 });
@@ -1030,7 +1076,7 @@ function addFormattedRichTextComponent(editor) {
                     const escapedNum = this.escapeRegex(num.toString());
                     const regex = new RegExp(`(?!<[^>]*>)\\b(${escapedNum})\\b(?![^<]*<\\/span>)`, 'g');
                     content = content.replace(regex,
-                      `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+                      `<span class="highlighted-word" style="${styleString}">$1</span>`
                     );
                   }
                 });
@@ -1042,24 +1088,25 @@ function addFormattedRichTextComponent(editor) {
 
         // Handle text-based highlighting
         let regex;
+        const flags = caseSensitive ? 'g' : 'gi';
 
         if (conditionType === 'contains') {
           const escapedWord = this.escapeRegex(conditionValue);
-          regex = new RegExp(`(?!<[^>]*?>)(\\w*${escapedWord}\\w*)(?![^<]*?<\\/span>)`, 'gi');
+          regex = new RegExp(`(?!<[^>]*?>)(\\w*${escapedWord}\\w*)(?![^<]*?<\\/span>)`, flags);
         } else if (conditionType === 'starts-with') {
           const escapedWord = this.escapeRegex(conditionValue);
-          regex = new RegExp(`(?!<[^>]*?>)(${escapedWord}\\w*)(?![^<]*?<\/span>)`, 'gi');
+          regex = new RegExp(`(?!<[^>]*?>)(${escapedWord}\\w*)(?![^<]*?<\/span>)`, flags);
         } else if (conditionType === 'ends-with') {
           const escapedWord = this.escapeRegex(conditionValue);
-          regex = new RegExp(`(?!<[^>]*?>)(\\w*${escapedWord})\\b(?![^<]*?<\\/span>)`, 'gi');
+          regex = new RegExp(`(?!<[^>]*?>)(\\w*${escapedWord})\\b(?![^<]*?<\\/span>)`, flags);
         } else if (conditionType === 'exact') {
           const escapedWord = this.escapeRegex(conditionValue);
-          regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, 'gi');
+          regex = new RegExp(`(?!<[^>]*?>)\\b(${escapedWord})\\b(?![^<]*?<\/span>)`, flags);
         }
 
         if (regex) {
           content = content.replace(regex,
-            `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px;">$1</span>`
+            `<span class="highlighted-word" style="${styleString}">$1</span>`
           );
         }
 
@@ -1074,6 +1121,8 @@ function addFormattedRichTextComponent(editor) {
         const hideWords = this.get('hide-words') || '';
         const highlightConditions = this.getHighlightConditions();
         const highlightColor = this.get('highlight-color') || '#ffff00';
+        const highlightTextColor = this.get('highlight-text-color') || '#000000';
+        const highlightFontFamily = this.get('highlight-font-family') || 'Default';
 
         // Remove existing formatting
         processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
@@ -1107,16 +1156,15 @@ function addFormattedRichTextComponent(editor) {
           });
         }
 
-        // Apply highlight conditions
+        // Apply highlight conditions with styling
         if (hasHighlightConditions) {
           highlightConditions.forEach(condition => {
-            processedContent = this.applyHighlightCondition(processedContent, condition, highlightColor);
+            processedContent = this.applyHighlightCondition(processedContent, condition, highlightColor, highlightTextColor, highlightFontFamily);
           });
         }
 
         return processedContent;
       },
-
       updateContent() {
         const formatType = this.get('format-type') || 'text';
         const pattern = this.get('format-pattern') || 'None';
@@ -1749,71 +1797,118 @@ function addFormattedRichTextComponent(editor) {
 
       // Create modal content
       const modalContent = `
-      <div class="condition-manager" style="padding: 20px; max-width: 600px;">
-        <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Highlight Conditions</h3>
-        
-        <div class="add-condition-form" style=" padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-          <h4 style="margin-top: 0;">Add New Condition</h4>
-          
-          <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
-            <select id="condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-              <option value="">Select Condition Type</option>
-              <option value="contains">Text: Contains</option>
-              <option value="starts-with">Text: Starts With</option>
-              <option value="ends-with">Text: Ends With</option>
-              <option value="exact">Text: Exact Match</option>
-              <option value="once-if">Once If: Highlight individual letters/numbers</option>
-              <option value=">">Number: > (Greater than)</option>
-              <option value=">=">Number: >= (Greater than or equal)</option>
-              <option value="<">Number: < (Less than)</option>
-              <option value="<=">Number: <= (Less than or equal)</option>
-              <option value="=">Number: = (Equal to)</option>
-              <option value="!=">Number: != (Not equal to)</option>
-              <option value="between">Number: Between (range)</option>
-            </select>
+<div class="condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;color: white; border-radius: 8px;">
+  <!-- Highlight Styles Section -->
+  <div class="highlight-styles" style="padding: 10px 20px 20px 0; border-radius: 8px;">
+    <h4 style="margin-top: 0; margin-bottom: 20px; color: #f8f9fa;">Highlight Styles</h4>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: end;">
+      <div>
+        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Background Color:</label>
+        <input type="color" id="highlight-bg-color" value="#ffff00" style="width: 100%; height: 40px; border: 2px solid #666; border-radius: 4px; background: none;">
+      </div>
+      
+      <div>
+        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Text Color:</label>
+        <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: 2px solid #666; border-radius: 4px; background: none;">
+      </div>
+      
+      <div>
+        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Font Family:</label>
+        <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 2px solid #666; border-radius: 4px;">
+          <option value="Default">Default</option>
+          <option value="Arial">Arial</option>
+          <option value="Arial Black">Arial Black</option>
+          <option value="Brush Script MT">Brush Script MT</option>
+          <option value="Comic Sans MS">Comic Sans MS</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Helvetica">Helvetica</option>
+          <option value="Impact">Impact</option>
+          <option value="Lucida Sans Unicode">Lucida Sans Unicode</option>
+          <option value="Tahoma">Tahoma</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Trebuchet MS">Trebuchet MS</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add New Condition Section -->
+  <div class="add-condition-form">
+    <h4 style="margin-top: 10px; margin-bottom: 20px; color: #f8f9fa;">Add New Condition</h4>
+    
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 15px;">
+      <div>
+        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Condition Type:</label>
+        <select id="condition-type" style="width: 100%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
+          <option value="">Select Condition Type</option>
+          <option value="contains">Text: Contains</option>
+          <option value="starts-with">Text: Starts With</option>
+          <option value="ends-with">Text: Ends With</option>
+          <option value="exact">Text: Exact Match</option>
+          <option value="once-if">Once If: Highlight individual letters/numbers/spaces</option>
+          <option value=">">Number: > (Greater than)</option>
+          <option value=">=">Number: >= (Greater than or equal)</option>
+          <option value="<">Number: < (Less than)</option>
+          <option value="<=">Number: <= (Less than or equal)</option>
+          <option value="=">Number: = (Equal to)</option>
+          <option value="!=">Number: != (Not equal to)</option>
+          <option value="between">Number: Between (range)</option>
+        </select>
+      </div>
+      
+      <div style="display: flex; align-items: center; margin-top:27px;">
+        <label style="display: flex; align-items: center; color: #f8f9fa; cursor: pointer;">
+          <input type="checkbox" id="case-sensitive" style="margin-right: 8px; transform: scale(1.2);">
+          <span style="font-weight: bold;">Case Sensitive</span>
+        </label>
+      </div>
+    </div>
+    
+    <div id="condition-inputs">
+      <div id="single-value-input" style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Value:</label>
+        <input type="text" id="condition-value" style="width: 97%; padding: 10px; border: 2px solid #666; border-radius: 4px;" placeholder="Enter text, number, or space">
+      </div>
+      
+      <div id="range-inputs" style="display: none; margin-bottom: 15px;">
+        <div style="display: flex; gap: 15px;">
+          <div style="flex: 1;">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Min Value:</label>
+            <input type="number" id="min-value" style="width: 90%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
           </div>
-          
-          <div id="condition-inputs">
-            <div id="single-value-input" style="margin-bottom: 15px;">
-              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
-              <input type="text" id="condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
-            </div>
-            
-            <div id="range-inputs" style="display: none; margin-bottom: 15px;">
-              <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
-                  <input type="number" id="min-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-                <div style="flex: 1;">
-                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
-                  <input type="number" id="max-value" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-              </div>
-            </div>
+          <div style="flex: 1;">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Max Value:</label>
+            <input type="number" id="max-value" style="width: 90%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
           </div>
-          
-          <button id="add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
-        </div>
-        
-        <div class="existing-conditions">
-          <h4>Existing Conditions</h4>
-          <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
-            ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
-          </div>
-        </div>
-        
-        <div style="text-align: right; margin-top: 20px;">
-          <button id="close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
-          <button id="apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
         </div>
       </div>
-    `;
+    </div>
+    
+    <button id="add-condition-btn" style="background: #3498db; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">Add Condition</button>
+  </div>
+  
+  <!-- Existing Conditions Section -->
+  <div class="existing-conditions" style=" padding: 20px 20px 20px 0; border-radius: 8px; margin-bottom: 3px;">
+    <div style="margin-top: 5px; color: #f8f9fa; font-weight: bold">Existing Conditions</div>
+    <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
+      ${conditions.length === 0 ? '<p style="color: #bbb;">No conditions added yet.</p>' : ''}
+    </div>
+  </div>
+  
+  <!-- Action Buttons -->
+  <div style="text-align: right;">
+    <button id="close-manager-btn" style="background: #95a5a6; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; margin-right: 15px; font-weight: bold;">Close</button>
+    <button id="apply-conditions-btn" style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">Apply Changes</button>
+  </div>
+</div>
+`;
 
       // Create and show modal
       const modal = editor.Modal;
-      modal.setTitle('Condition Manager');
+      modal.setTitle('Text Highlight Condition Manager');
       modal.setContent(modalContent);
       modal.open();
 
@@ -1907,13 +2002,9 @@ function addFormattedRichTextComponent(editor) {
     
     [data-gjs-type="formatted-rich-text"] .highlighted-word {
       border-radius: 2px;
-      padding: 1px 2px;
       transition: background-color 0.2s ease;
     }
     
-    [data-gjs-type="formatted-rich-text"] .highlighted-word:hover {
-      opacity: 0.8;
-    }
     
     /* Loading state */
     [data-gjs-type="formatted-rich-text"].loading {

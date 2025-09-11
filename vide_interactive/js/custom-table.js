@@ -247,6 +247,186 @@ function customTable(editor) {
       console.warn('Error applying multiple highlighting:', err);
     }
   }
+
+  function applyMultipleHighlightingWithStyles(tableId, conditions, styles = {}) {
+    try {
+      const canvasBody = editor.Canvas.getBody();
+      const table = canvasBody.querySelector(`#${tableId}`);
+      if (!table) return;
+
+      const wrapper = editor.DomComponents.getWrapper();
+      const defaultStyles = {
+        backgroundColor: '#ffff99',
+        textColor: '#000000',
+        fontFamily: ''
+      };
+
+      const highlightStyles = { ...defaultStyles, ...styles };
+
+      // Clear previous highlights
+      const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
+      prev.forEach(td => {
+        td.style.backgroundColor = '';
+        td.style.color = '';
+        td.style.fontFamily = '';
+        td.removeAttribute('data-highlighted');
+
+        const id = td.id;
+        if (id) {
+          const comp = wrapper.find(`#${id}`)[0];
+          if (comp) {
+            comp.removeStyle('background-color');
+            comp.removeStyle('color');
+            comp.removeStyle('font-family');
+            comp.removeStyle('background');
+          }
+        }
+      });
+
+      // Apply highlights only if conditions exist
+      if (conditions && conditions.length > 0) {
+        const bodyCells = table.querySelectorAll('tbody td');
+        bodyCells.forEach(td => {
+          const div = td.querySelector('div');
+          const val = div ? div.textContent.trim() : td.textContent.trim();
+
+          // Check if any condition matches
+          let shouldHighlight = false;
+          for (let condition of conditions) {
+            if (evaluateConditionWithCaseSensitivity(val, condition.type, condition.value, condition.caseSensitive)) {
+              shouldHighlight = true;
+              break;
+            }
+          }
+
+          if (shouldHighlight) {
+            // Apply all styles
+            td.style.backgroundColor = highlightStyles.backgroundColor;
+            td.style.color = highlightStyles.textColor;
+            if (highlightStyles.fontFamily) {
+              td.style.fontFamily = highlightStyles.fontFamily;
+            }
+            td.setAttribute('data-highlighted', 'true');
+
+            const id = td.id;
+            if (id) {
+              const comp = wrapper.find(`#${id}`)[0];
+              if (comp) {
+                const styleObj = {
+                  'background-color': highlightStyles.backgroundColor,
+                  'color': highlightStyles.textColor,
+                  '-webkit-print-color-adjust': 'exact',
+                  'color-adjust': 'exact',
+                  'print-color-adjust': 'exact'
+                };
+
+                if (highlightStyles.fontFamily) {
+                  styleObj['font-family'] = highlightStyles.fontFamily;
+                }
+
+                comp.addStyle(styleObj);
+              }
+            }
+          }
+        });
+      }
+
+    } catch (err) {
+      console.warn('Error applying highlighting with styles:', err);
+    }
+  }
+
+  // Enhanced evaluation function with case sensitivity support
+  function evaluateConditionWithCaseSensitivity(cellValue, conditionType, conditionValue, caseSensitive = false) {
+    if (!conditionType || !conditionType.trim()) return false;
+
+    try {
+      // Handle null/empty condition
+      if (conditionType === 'null') {
+        return !cellValue || cellValue.toString().trim() === '';
+      }
+
+      // If no condition value provided for non-null conditions, return false
+      if (!conditionValue && conditionType !== 'null') return false;
+
+      const conditions = conditionValue.split(',').map(cond => cond.trim()).filter(cond => cond);
+
+      return conditions.some(condition => {
+        // Check if it's a number condition based on condition type
+        const isNumberConditionType = ['>', '>=', '<', '<=', '=', '!=', 'between'].includes(conditionType);
+
+        if (isNumberConditionType) {
+          const numericValue = parseFloat(cellValue);
+          const isNumeric = !isNaN(numericValue);
+
+          if (!isNumeric) return false;
+
+          if (conditionType === 'between') {
+            // For 'between', expect format like "100 < value < 1000" or "100 <= value <= 1000"
+            const trimmed = condition.trim();
+
+            // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
+            const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
+            const rangeMatch = trimmed.match(rangePattern);
+
+            if (rangeMatch) {
+              const [, min, minOp, maxOp, max] = rangeMatch;
+              const minValue = parseFloat(min);
+              const maxValue = parseFloat(max);
+              const minInclusive = minOp === '<=';
+              const maxInclusive = maxOp === '<=';
+
+              const minCondition = minInclusive ? numericValue >= minValue : numericValue > minValue;
+              const maxCondition = maxInclusive ? numericValue <= maxValue : numericValue < maxValue;
+
+              return minCondition && maxCondition;
+            }
+            return false;
+          } else {
+            // For other number conditions (>, >=, <, <=, =, !=)
+            const threshold = parseFloat(condition);
+            if (isNaN(threshold)) return false;
+
+            switch (conditionType) {
+              case '>': return numericValue > threshold;
+              case '>=': return numericValue >= threshold;
+              case '<': return numericValue < threshold;
+              case '<=': return numericValue <= threshold;
+              case '=': return numericValue === threshold;
+              case '!=': return numericValue !== threshold;
+              default: return false;
+            }
+          }
+        } else {
+          // Text-based conditions with case sensitivity support
+          let cellText = cellValue.toString();
+          let conditionText = condition;
+
+          // Apply case sensitivity
+          if (!caseSensitive) {
+            cellText = cellText.toLowerCase();
+            conditionText = conditionText.toLowerCase();
+          }
+
+          switch (conditionType) {
+            case 'contains':
+              return cellText.includes(conditionText);
+            case 'starts-with':
+              return cellText.startsWith(conditionText);
+            case 'ends-with':
+              return cellText.endsWith(conditionText);
+            default:
+              // Exact match
+              return cellText === conditionText;
+          }
+        }
+      });
+
+    } catch (error) {
+      console.warn('Error evaluating highlight condition:', error);
+      return false;
+    }
+  }
   // Enhanced function to get target container that works with page system
   function getTargetContainer() {
     const selected = editor.getSelected();
@@ -1029,86 +1209,134 @@ function customTable(editor) {
         console.warn('Could not access formula parser:', error);
       }
     };
-  editor.Commands.add('open-table-condition-manager-local-table', {
-    run() {
-      console.log("ytreertyu")
-      const selected = editor.getSelected();
-      if (!selected || selected.get('type') !== 'enhanced-table') return;
+    editor.Commands.add('open-table-condition-manager-local-table', {
+      run() {
+        console.log("ytreertyu")
+        const selected = editor.getSelected();
+        if (!selected || selected.get('type') !== 'enhanced-table') return;
 
-      const conditions = selected.getHighlightConditions();
-      const highlightColor = selected.get('highlight-color') || '#ffff99';
+        const conditions = selected.getHighlightConditions();
+        const highlightColor = selected.get('highlight-color') || '#ffff99';
 
-      const modalContent = `
-      <div class="table-condition-manager" style="padding: 20px; max-width: 600px;">
-        <h3 style="margin-top: 0; margin-bottom: 20px;">Manage Table Highlight Conditions</h3>
-        
-        <div class="add-condition-form" style="padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-          <h4 style="margin-top: 0;">Add New Condition</h4>
-          
-          <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
-            <select id="table-condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-              <option value="">Select Condition Type</option>
-              <option value="contains">Text: Contains</option>
-              <option value="starts-with">Text: Starts With</option>
-              <option value="ends-with">Text: Ends With</option>
-              <option value=">">Number: > (Greater than)</option>
-              <option value=">=">Number: >= (Greater than or equal)</option>
-              <option value="<">Number: < (Less than)</option>
-              <option value="<=">Number: <= (Less than or equal)</option>
-              <option value="=">Number: = (Equal to)</option>
-              <option value="!=">Number: != (Not equal to)</option>
-              <option value="between">Number: Between (range)</option>
-              <option value="null">Null/Empty (No value)</option>
-            </select>
-          </div>
-          
-          <div id="table-condition-inputs">
-            <div id="table-single-value-input" style="margin-bottom: 15px;">
-              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
-              <input type="text" id="table-condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
-            </div>
+        const modalContent = `
+        <div class="table-condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;">
+       
+          <!-- NEW: Highlight Styles Section -->
+          <div class="highlight-styles-section" style="padding: 10px 15px 15px 0;">
+            <h4 style="margin-top: 0;">Highlight Styles</h4>
             
-            <div id="table-range-inputs" style="display: none; margin-bottom: 15px;">
-              <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
-                  <input type="number" id="table-min-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-                <div style="flex: 1;">
-                  <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
-                  <input type="number" id="table-max-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;">
+              <div style="flex: 1; min-width: 150px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
+                <input type="color" id="highlight-bg-color" value="#ffff99" 
+                      style="width: 100%; height: 40px; border: 2px solid #ccc; border-radius: 4px; cursor: pointer;">
+              </div>
+              
+              <div style="flex: 1; min-width: 150px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
+                <input type="color" id="highlight-text-color" value="#000000" 
+                      style="width: 100%; height: 40px; border: 2px solid #ccc; border-radius: 4px; cursor: pointer;">
+              </div>
+              
+              <div style="flex: 1; min-width: 150px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
+                <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 40px;">
+                  <option value="">Default</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Arial Black">Arial Black</option>
+                  <option value="Brush Script MT">Brush Script MT</option>
+                  <option value="Comic Sans MS">Comic Sans MS</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Impact">Impact</option>
+                  <option value="Lucida Sans Unicode">Lucida Sans Unicode</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Trebuchet MS">Trebuchet MS</option>
+                  <option value="Verdana">Verdana</option>
+                </select>
               </div>
             </div>
           </div>
           
-          <button id="table-add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
-        </div>
-        
-        <div class="existing-conditions">
-          <h4>Existing Conditions</h4>
-          <div id="table-conditions-list" style="max-height: 300px; overflow-y: auto;">
-            ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
+          <div class="add-condition-form" >
+            <h4 style="margin-top: 10px;  margin-bottom: 20px;">Add New Condition</h4>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+              <div style="flex: 2;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Condition Type:</label>
+                <select id="table-condition-type" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="">Select Condition Type</option>
+                  <option value="contains">Text: Contains</option>
+                  <option value="starts-with">Text: Starts With</option>
+                  <option value="ends-with">Text: Ends With</option>
+                  <option value=">">Number: > (Greater than)</option>
+                  <option value=">=">Number: >= (Greater than or equal)</option>
+                  <option value="<">Number: < (Less than)</option>
+                  <option value="<=">Number: <= (Less than or equal)</option>
+                  <option value="=">Number: = (Equal to)</option>
+                  <option value="!=">Number: != (Not equal to)</option>
+                  <option value="between">Number: Between (range)</option>
+                  <option value="null">Null/Empty (No value)</option>
+                </select>
+              </div>
+              
+              <!-- NEW: Case Sensitive Checkbox -->
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end;">
+                <label style="display: flex; align-items: center; font-weight: bold; height: 36px;">
+                  <input type="checkbox" id="case-sensitive" style="margin-right: 8px;">
+                  Case Sensitive
+                </label>
+              </div>
+            </div>
+            
+            <div id="table-condition-inputs">
+              <div id="table-single-value-input" style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Value:</label>
+                <input type="text" id="table-condition-value" style="width: 97%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" placeholder="Enter text or number">
+              </div>
+              
+              <div id="table-range-inputs" style="display: none; margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px;">
+                  <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Min Value:</label>
+                    <input type="number" id="table-min-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  </div>
+                  <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Max Value:</label>
+                    <input type="number" id="table-max-value" style="width: 90%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button id="table-add-condition-btn" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Add Condition</button>
+          </div>
+          
+          <div class="existing-conditions" style=" padding: 20px 20px 20px 0; border-radius: 8px; margin-bottom: 3px;">
+            <div style="margin-top: 5px; font-weight: bold">Existing Conditions</div>
+            <div id="table-conditions-list" style="max-height: 300px; overflow-y: auto;">
+              ${conditions.length === 0 ? '<p style="color: #666;">No conditions added yet.</p>' : ''}
+            </div>
+          </div>
+          
+          <div style="text-align: right;">
+            <button id="table-close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
+            <button id="table-apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
           </div>
         </div>
-        
-        <div style="text-align: right; margin-top: 20px;">
-          <button id="table-close-manager-btn" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Close</button>
-          <button id="table-apply-conditions-btn" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Changes</button>
-        </div>
-      </div>
-    `;
+      `;
 
-      editor.Modal.setTitle('Table Condition Manager');
-      editor.Modal.setContent(modalContent);
-      editor.Modal.open();
+        editor.Modal.setTitle('Table Highlight Condition Manager');
+        editor.Modal.setContent(modalContent);
+        editor.Modal.open();
 
-      setTimeout(() => {
-        initializeTableConditionManager(selected, conditions);
-      }, 100);
-    }
-  });
+        setTimeout(() => {
+          initializeTableConditionManager(selected, conditions);
+        }, 100);
+      }
+    });
     // ✅ Custom formula registration
     function registerCustomFormulas() {
       if (!window.HotFormulaParser) return;
@@ -1227,10 +1455,23 @@ function customTable(editor) {
     const applyBtn = document.getElementById('table-apply-conditions-btn');
     const conditionsList = document.getElementById('table-conditions-list');
 
-    if (!conditionTypeSelect || !addBtn || !closeBtn || !applyBtn || !conditionsList) {
+    // NEW: Get styling elements
+    const bgColorInput = document.getElementById('highlight-bg-color');
+    const textColorInput = document.getElementById('highlight-text-color');
+    const fontFamilySelect = document.getElementById('highlight-font-family');
+    const caseSensitiveCheckbox = document.getElementById('case-sensitive');
+
+    if (!conditionTypeSelect || !addBtn || !closeBtn || !applyBtn || !conditionsList ||
+      !bgColorInput || !textColorInput || !fontFamilySelect || !caseSensitiveCheckbox) {
       console.warn('Table condition manager elements not found');
       return;
     }
+
+    // Load existing styling settings from tableComponent if available
+    const existingStyles = tableComponent.get('highlight-styles') || {};
+    bgColorInput.value = existingStyles.backgroundColor || '#ffff99';
+    textColorInput.value = existingStyles.textColor || '#000000';
+    fontFamilySelect.value = existingStyles.fontFamily || '';
 
     // Handle condition type change
     conditionTypeSelect.addEventListener('change', (e) => {
@@ -1238,12 +1479,25 @@ function customTable(editor) {
       if (selectedType === 'between') {
         singleValueInput.style.display = 'none';
         rangeInputs.style.display = 'block';
+        // Disable case sensitivity for numeric conditions
+        caseSensitiveCheckbox.disabled = true;
+        caseSensitiveCheckbox.checked = false;
       } else if (selectedType === 'null') {
         singleValueInput.style.display = 'none';
         rangeInputs.style.display = 'none';
+        caseSensitiveCheckbox.disabled = true;
+        caseSensitiveCheckbox.checked = false;
+      } else if (['>', '>=', '<', '<=', '=', '!='].includes(selectedType)) {
+        singleValueInput.style.display = 'block';
+        rangeInputs.style.display = 'none';
+        // Disable case sensitivity for numeric conditions
+        caseSensitiveCheckbox.disabled = true;
+        caseSensitiveCheckbox.checked = false;
       } else {
         singleValueInput.style.display = 'block';
         rangeInputs.style.display = 'none';
+        // Enable case sensitivity for text conditions
+        caseSensitiveCheckbox.disabled = false;
       }
     });
 
@@ -1261,15 +1515,16 @@ function customTable(editor) {
         } else if (condition.type === 'null') {
           conditionText = 'Is null/empty';
         } else {
-          conditionText = `${condition.type} "${condition.value}"`;
+          const caseText = condition.caseSensitive ? ' (Case Sensitive)' : '';
+          conditionText = `${condition.type} "${condition.value}"${caseText}`;
         }
 
         return `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
-          <span><strong>${condition.type}:</strong> ${conditionText}</span>
-          <button onclick="removeTableCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
-        </div>
-      `;
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
+            <span>${conditionText}</span>
+            <button onclick="removeTableCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
+          </div>
+        `;
       }).join('');
     }
 
@@ -1308,6 +1563,11 @@ function customTable(editor) {
           return;
         }
         condition.value = value;
+
+        // Add case sensitivity for text conditions
+        if (['contains', 'starts-with', 'ends-with'].includes(type)) {
+          condition.caseSensitive = caseSensitiveCheckbox.checked;
+        }
       }
 
       conditions.push(condition);
@@ -1318,14 +1578,29 @@ function customTable(editor) {
       document.getElementById('table-condition-value').value = '';
       document.getElementById('table-min-value').value = '';
       document.getElementById('table-max-value').value = '';
+      caseSensitiveCheckbox.checked = false;
+      caseSensitiveCheckbox.disabled = false;
       singleValueInput.style.display = 'block';
       rangeInputs.style.display = 'none';
     });
 
     // Apply conditions
     applyBtn.addEventListener('click', () => {
+      // Save styling settings to tableComponent
+      const highlightStyles = {
+        backgroundColor: bgColorInput.value,
+        textColor: textColorInput.value,
+        fontFamily: fontFamilySelect.value
+      };
+
+      tableComponent.set('highlight-styles', highlightStyles);
       tableComponent.setHighlightConditions([...conditions]);
-      showToast('Conditions applied successfully!', 'success');
+
+      // Apply highlighting with new styles
+      const tableId = tableComponent.getId();
+      applyMultipleHighlightingWithStyles(tableId, conditions, highlightStyles);
+
+      showToast('Conditions and styles applied successfully!', 'success');
       editor.Modal.close();
     });
 
@@ -1469,9 +1744,13 @@ function customTable(editor) {
       handleHighlightChange() {
         const tableId = this.getId();
         const conditions = this.getHighlightConditions();
-        const color = this.get('highlight-color');
+        const styles = this.get('highlight-styles') || {
+          backgroundColor: '#ffff99',
+          textColor: '#000000',
+          fontFamily: ''
+        };
 
-        applyMultipleHighlighting(tableId, conditions, color);
+        applyMultipleHighlightingWithStyles(tableId, conditions, styles);
         editor.trigger('component:update', this);
       }
     }
@@ -2264,15 +2543,6 @@ function customTable(editor) {
       const currentText = cell.innerText;
 
       // Show formula suggestions when typing after '='
-      if (currentText.includes('=') && currentText.length > 1) {
-        const lastEqualIndex = currentText.lastIndexOf('=');
-        const afterEqual = currentText.substring(lastEqualIndex);
-
-        // Check if we're typing a formula (letters after =)
-        if (/=[A-Z]*$/i.test(afterEqual)) {
-          showFormulaSuggestions(e, cell, currentText);
-        }
-      }
     }
 
     function handleCellKeydown(e) {
