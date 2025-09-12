@@ -1012,8 +1012,8 @@ function addFormattedRichTextComponent(editor) {
               const fontStyle = fontFamily && fontFamily !== 'Default' ? `font-family: ${fontFamily};` : '';
               const colorStyle = textColor ? `color: ${textColor};` : '';
               const replacement = char === ' ' ?
-                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px; ${fontStyle} ${colorStyle}">&nbsp;</span>` :
-                `<span class="highlighted-word" style="background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px; ${fontStyle} ${colorStyle}">$1</span>`;
+                `<span class="highlighted-word" style="background-color: ${highlightColor};  border-radius: 2px; ${fontStyle} ${colorStyle}">&nbsp;</span>` :
+                `<span class="highlighted-word" style="background-color: ${highlightColor};  border-radius: 2px; ${fontStyle} ${colorStyle}">$1</span>`;
 
               content = content.replace(regex, replacement);
             }

@@ -27,14 +27,11 @@ const editor = InteractiveDesigner.init({
     addFormattedRichTextComponent,
     marqueTag,
     addQRBarcodeComponent,
-    // jsonTableComponent,
     registerCustomShapes,
-    // customJsonTable,
     customTableOfContents,
     addLiveLineChartComponent,
     linkTrackerPlugin,
-    //  initializePrintPlugin,
-    // loadCustomTextboxComponent,
+    backgroundMusic,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -51,7 +48,6 @@ const editor = InteractiveDesigner.init({
     "style-bg-component",
     "navbar-component",
     "page-manager-component",
-    // "pageBreakPlugin",
     "grapesjsHideOnPrint",
     window.addEventListener('load', () => {
       drawingTool(editor);
@@ -413,6 +409,12 @@ editor.Panels.addPanel({ id: "devices-c" })
       attributes: { title: "Change Language", id: "multiLanguage" },
       className: "fa fa-language",
     },
+    {
+      id: "bulkpage",
+      className: "fa fa-files-o",
+      attributes: { title: "Bulk PDF Generation", id: "bulkpage" },
+      command: "open-modal",
+    },
     // {
     //   id: "filterTable",
     //   attributes: { title: "Report Parameter", id: "filterTable" },
@@ -430,14 +432,15 @@ importPage.addEventListener("click", importSinglePages, true);
 
 
 // 1️⃣ Panel button
-editor.Panels.addButton("options", {
-  id: "bulkpage",
-  className: "fa fa-file",
-  attributes: { title: "Upload JSON file" },
-  command: "open-modal"
-});
+// editor.Panels.addButton("options", {
+//   id: "bulkpage",
+//   className: "fa-solid fa-file-export",
+//   attributes: { title: "Bulk PDF Generation" },
+//   command: "open-modal"
+// });
 
 // 2️⃣ Modal command
+// Updated modal command with hierarchical JSON key selection
 editor.Commands.add("open-modal", {
   run(editor) {
     const html = editor.getHtml();
@@ -449,7 +452,12 @@ editor.Commands.add("open-modal", {
     const mappingMap = {};
     tempDiv.querySelectorAll("[my-input-json]").forEach(el => {
       const id = el.id || null;
-      if (id) mappingMap[id] = el.getAttribute("my-input-json");
+      if (id) {
+        const jsonPath = el.getAttribute("my-input-json");
+        // Remove language prefix (e.g., "user1.customer_name" becomes "customer_name")
+        const pathWithoutLanguage = jsonPath.includes('.') ? jsonPath.split('.').slice(1).join('.') : jsonPath;
+        mappingMap[id] = pathWithoutLanguage;
+      }
     });
 
     const cssRegex = /#([\w-]+)\s*{[^}]*my-input-json\s*:\s*([^;]+);/g;
@@ -457,14 +465,16 @@ editor.Commands.add("open-modal", {
     while ((match = cssRegex.exec(css)) !== null) {
       const id = match[1].trim();
       const value = match[2].trim();
-      mappingMap[id] = value;
+      // Remove language prefix from CSS values as well
+      const pathWithoutLanguage = value.includes('.') ? value.split('.').slice(1).join('.') : value;
+      mappingMap[id] = pathWithoutLanguage;
     }
 
     const inputJsonMappings = Object.keys(mappingMap).map(id => ({ [id]: mappingMap[id] }));
 
     const uploadedJsonStr = localStorage.getItem("common_json") || "{}";
     const uploadedJson = JSON.parse(uploadedJsonStr);
-    const englishKeys = uploadedJson.english ? Object.keys(uploadedJson.english) : [];
+    const topLevelKeys = Object.keys(uploadedJson); // Get top-level keys (languages)
 
     // State objects
     let fileNameSaved = [];      // array of { key, indexes }
@@ -490,8 +500,12 @@ editor.Commands.add("open-modal", {
         </select>
 
         <div id="file-name-key-section" style="display:none; margin-top:5px;">
-          <label>Select JSON Key:</label>
-          <select id="file-name-key-dropdown"><option value="">--Select--</option></select>
+          <label>Select Language:</label>
+          <select id="file-name-language-dropdown"><option value="">--Select Language--</option></select>
+          <div id="file-name-key-dropdown-section" style="display:none; margin-top:5px;">
+            <label>Select JSON Key:</label>
+            <select id="file-name-key-dropdown"><option value="">--Select Key--</option></select>
+          </div>
         </div>
 
         <div id="file-name-index-section" style="display:none; margin-top:5px;">
@@ -513,8 +527,12 @@ editor.Commands.add("open-modal", {
 
         <!-- Password JSON Keys -->
         <div id="password-key-section" style="display:none; margin-top:5px;">
-          <label>Select JSON Key:</label>
-          <select id="password-key-dropdown"><option value="">--Select--</option></select>
+          <label>Select Language:</label>
+          <select id="password-language-dropdown"><option value="">--Select Language--</option></select>
+          <div id="password-key-dropdown-section" style="display:none; margin-top:5px;">
+            <label>Select JSON Key:</label>
+            <select id="password-key-dropdown"><option value="">--Select Key--</option></select>
+          </div>
         </div>
 
         <div id="password-index-section" style="display:none; margin-top:5px;">
@@ -535,18 +553,39 @@ editor.Commands.add("open-modal", {
       attributes: { class: "export-modal" }
     });
 
-    // Populate dropdowns
-    const fileNameDropdown = document.getElementById("file-name-key-dropdown");
-    const passwordDropdown = document.getElementById("password-key-dropdown");
-    englishKeys.forEach(k => {
-      const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameDropdown.appendChild(opt1);
-      const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordDropdown.appendChild(opt2);
+    // Helper function to extract keys from nested object
+    function extractMetaDataKeys(obj, prefix = '') {
+      let keys = [];
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          let newKey;
+          if (Array.isArray(obj)) {
+            newKey = `${prefix}[${key}]`;
+          } else {
+            newKey = prefix ? `${prefix}.${key}` : key;
+          }
+          keys.push(newKey);
+          if (typeof obj[key] === 'object' && obj[key] !== null) {
+            keys = keys.concat(extractMetaDataKeys(obj[key], newKey));
+          }
+        }
+      }
+      return keys;
+    }
+
+    // Populate language dropdowns
+    const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
+    const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
+    topLevelKeys.forEach(k => {
+      const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
+      const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
     });
 
     // Mode change handlers
     document.getElementById("file-name-mode").addEventListener("change", e => {
       const val = e.target.value;
       document.getElementById("file-name-key-section").style.display = val==="json" ? "block" : "none";
+      document.getElementById("file-name-key-dropdown-section").style.display = "none";
       document.getElementById("file-name-index-section").style.display = "none";
       fileNameSaved = [];
       renderSaved(fileNameSaved, "file-name-saved");
@@ -555,6 +594,7 @@ editor.Commands.add("open-modal", {
     document.getElementById("password-mode").addEventListener("change", e => {
       const val = e.target.value;
       document.getElementById("password-key-section").style.display = val==="json" ? "block" : "none";
+      document.getElementById("password-key-dropdown-section").style.display = "none";
       document.getElementById("password-index-section").style.display = "none";
       document.getElementById("password-custom-section").style.display = val==="custom" ? "block" : "none";
       passwordSaved = [];
@@ -562,8 +602,63 @@ editor.Commands.add("open-modal", {
       renderSaved(passwordSaved, "password-saved");
     });
 
+    // Language selection handlers
+    fileNameLanguageDropdown.addEventListener("change", e => {
+      const selectedLanguage = e.target.value;
+      const fileNameKeyDropdown = document.getElementById("file-name-key-dropdown");
+      const fileNameKeySection = document.getElementById("file-name-key-dropdown-section");
+      
+      if (selectedLanguage) {
+        // Clear existing options
+        fileNameKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
+        
+        // Get keys for selected language
+        const languageData = uploadedJson[selectedLanguage];
+        if (languageData) {
+          const keys = extractMetaDataKeys(languageData);
+          keys.forEach(key => {
+            const opt = document.createElement("option");
+            opt.value = `${selectedLanguage}.${key}`;
+            opt.textContent = key;
+            fileNameKeyDropdown.appendChild(opt);
+          });
+        }
+        fileNameKeySection.style.display = "block";
+      } else {
+        fileNameKeySection.style.display = "none";
+      }
+      document.getElementById("file-name-index-section").style.display = "none";
+    });
+
+    passwordLanguageDropdown.addEventListener("change", e => {
+      const selectedLanguage = e.target.value;
+      const passwordKeyDropdown = document.getElementById("password-key-dropdown");
+      const passwordKeySection = document.getElementById("password-key-dropdown-section");
+      
+      if (selectedLanguage) {
+        // Clear existing options
+        passwordKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
+        
+        // Get keys for selected language
+        const languageData = uploadedJson[selectedLanguage];
+        if (languageData) {
+          const keys = extractMetaDataKeys(languageData);
+          keys.forEach(key => {
+            const opt = document.createElement("option");
+            opt.value = `${selectedLanguage}.${key}`;
+            opt.textContent = key;
+            passwordKeyDropdown.appendChild(opt);
+          });
+        }
+        passwordKeySection.style.display = "block";
+      } else {
+        passwordKeySection.style.display = "none";
+      }
+      document.getElementById("password-index-section").style.display = "none";
+    });
+
     // File name key selection
-    fileNameDropdown.addEventListener("change", e => {
+    document.getElementById("file-name-key-dropdown").addEventListener("change", e => {
       if(e.target.value) {
         document.getElementById("file-name-index-section").style.display = "block";
       } else {
@@ -572,7 +667,7 @@ editor.Commands.add("open-modal", {
     });
 
     // Password key selection
-    passwordDropdown.addEventListener("change", e => {
+    document.getElementById("password-key-dropdown").addEventListener("change", e => {
       if(e.target.value) {
         document.getElementById("password-index-section").style.display = "block";
       } else {
@@ -582,25 +677,25 @@ editor.Commands.add("open-modal", {
 
     // Add buttons
     document.getElementById("file-name-add-btn").addEventListener("click", () => {
-      const key = fileNameDropdown.value;
+      const key = document.getElementById("file-name-key-dropdown").value;
       const idx = document.getElementById("file-name-index-input").value.trim();
       if(key) {
         fileNameSaved.push({ key, indexes: idx });
         renderSaved(fileNameSaved, "file-name-saved");
         document.getElementById("file-name-index-input").value="";
-        fileNameDropdown.value="";
+        document.getElementById("file-name-key-dropdown").value="";
         document.getElementById("file-name-index-section").style.display="none";
       }
     });
 
     document.getElementById("password-add-btn").addEventListener("click", () => {
-      const key = passwordDropdown.value;
+      const key = document.getElementById("password-key-dropdown").value;
       const idx = document.getElementById("password-index-input").value.trim();
       if(key) {
         passwordSaved.push({ key, indexes: idx });
         renderSaved(passwordSaved, "password-saved");
         document.getElementById("password-index-input").value="";
-        passwordDropdown.value="";
+        document.getElementById("password-key-dropdown").value="";
         document.getElementById("password-index-section").style.display="none";
       }
     });
@@ -616,23 +711,36 @@ editor.Commands.add("open-modal", {
 
       let fileNamePayload;
       if(document.getElementById("file-name-mode").value==="json" && fileNameSaved.length) {
-        fileNamePayload = fileNameSaved.map(o=>o.indexes? `${o.key}[${o.indexes}]` : o.key).join(",");
+        // Remove language prefix from keys (e.g., "user1.customer_name" becomes "customer_name")
+        fileNamePayload = fileNameSaved.map(o => {
+          const keyWithoutLanguage = o.key.includes('.') ? o.key.split('.').slice(1).join('.') : o.key;
+          return o.indexes ? `${keyWithoutLanguage}[${o.indexes}]` : keyWithoutLanguage;
+        }).join(",");
       }
 
       let passwordPayload;
       const pwMode = document.getElementById("password-mode").value;
       if(pwMode==="json" && passwordSaved.length) {
-        passwordPayload = passwordSaved.map(o=>o.indexes? `${o.key}[${o.indexes}]` : o.key);
+        // Remove language prefix from keys (e.g., "user1.customer_name" becomes "customer_name")
+        passwordPayload = passwordSaved.map(o => {
+          const keyWithoutLanguage = o.key.includes('.') ? o.key.split('.').slice(1).join('.') : o.key;
+          return o.indexes ? `${keyWithoutLanguage}[${o.indexes}]` : keyWithoutLanguage;
+        });
       } else if(pwMode==="custom") {
         const val = document.getElementById("password-custom-input").value.trim();
         if(val) passwordPayload = val;
       }
 
-      const finalPayload = [
-        ...inputJsonMappings,
-        fileNamePayload? { file_name: fileNamePayload } : {},
-        passwordPayload? { password: passwordPayload } : {}
-      ];
+      // Build final payload array, only add non-empty objects
+      const finalPayload = [...inputJsonMappings];
+      
+      if(fileNamePayload) {
+        finalPayload.push({ file_name: fileNamePayload });
+      }
+      
+      if(passwordPayload) {
+        finalPayload.push({ password: passwordPayload });
+      }
 
       try {
         const files = await exportDesignAndSend(editor, finalPayload);
@@ -652,7 +760,6 @@ editor.Commands.add("open-modal", {
     });
   }
 });
-
 
 
 // 3️⃣ Helper: inject CSS into HTML
@@ -2538,6 +2645,7 @@ editor.on('component:add', function (component) {
 
 // ******* END Resize and drag code ***********
 // ✅ Always track internal <a> links
+
 editor.on('load', () => {
   console.log("hiiiiiii")
   const scanLinks = () => {
