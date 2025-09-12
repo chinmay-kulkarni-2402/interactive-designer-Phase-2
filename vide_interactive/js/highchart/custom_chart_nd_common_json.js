@@ -2103,38 +2103,38 @@ function customChartCommonJson(editor) {
 
     addCustomLineChartType(editor);
 
-const styleManager = editor.StyleManager;
-let common_json_file_name_value = localStorage.getItem('common_json_file_name');
-let common_json_file_name_text = '';
-if (common_json_file_name_value !== null && typeof jsonData !== 'undefined' && jsonData.length !== 0) {
-    common_json_file_name_text = 'Already Added File : ' + common_json_file_name_value;
-}
+    const styleManager = editor.StyleManager;
+    let common_json_file_name_value = localStorage.getItem('common_json_file_name');
+    let common_json_file_name_text = '';
+    if (common_json_file_name_value !== null && typeof jsonData !== 'undefined' && jsonData.length !== 0) {
+        common_json_file_name_text = 'Already Added File : ' + common_json_file_name_value;
+    }
 
-editor.on('load', (block) => {
-    var jsonF = document.getElementById("jsonFileUpload");
-    jsonF.addEventListener("click", jsonFileUploads, true);
-})
+    editor.on('load', (block) => {
+        var jsonF = document.getElementById("jsonFileUpload");
+        jsonF.addEventListener("click", jsonFileUploads, true);
+    })
 
-function jsonFileUploads() {
-    let existingFileNames = localStorage.getItem('common_json_files');
-    let displayFileNames = '';
+    function jsonFileUploads() {
+        let existingFileNames = localStorage.getItem('common_json_files');
+        let displayFileNames = '';
 
-    if (existingFileNames) {
-        const namesArray = existingFileNames.split(',').map(n => n.trim());
-        displayFileNames = 'Already Added File(s): <br><ul style="margin:5px 0; padding-left:18px;">';
-        namesArray.forEach(name => {
-            displayFileNames += `
+        if (existingFileNames) {
+            const namesArray = existingFileNames.split(',').map(n => n.trim());
+            displayFileNames = 'Already Added File(s): <br><ul style="margin:5px 0; padding-left:18px;">';
+            namesArray.forEach(name => {
+                displayFileNames += `
                 <li style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
                     <span>${name}</span>
                     <button onclick="deleteJsonFile('${name}')" style="background: #ff4444; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 12px;">✕</button>
                 </li>
             `;
-        });
-        displayFileNames += '</ul>';
-    }
+            });
+            displayFileNames += '</ul>';
+        }
 
-    editor.Modal.setTitle('Import Json File');
-    editor.Modal.setContent(`
+        editor.Modal.setTitle('Import Json File');
+        editor.Modal.setContent(`
         <div class="new-table-form">
             <div style="padding-bottom:10px">${displayFileNames}</div>
             <div> 
@@ -2146,443 +2146,535 @@ function jsonFileUploads() {
             <input id="import-input-json-file" class="popupaddbtn" type="button" value="Add" data-component-id="c1006">
         </div>
     `);
-    editor.Modal.open();
-    document.getElementById("import-input-json-file").addEventListener("click", importInputJsonFile, true);
-}
-
-function importInputJsonFile() {
-    const input = document.getElementById('importJsonInputFile');
-    const files = input.files;
-
-    if (files.length > 0) {
-        let processedCount = 0;
-        let newFileNames = [];
-
-        // Load existing file list
-        let existingFileNames = localStorage.getItem('common_json_files');
-        let allFileNames = existingFileNames ? existingFileNames.split(',').map(f => f.trim()) : [];
-
-        Array.from(files).forEach((file) => {
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-                try {
-                    let code = JSON.parse(e.target.result);
-
-                    // Save this file's JSON separately
-                    localStorage.setItem(`common_json_${file.name}`, JSON.stringify(code));
-
-                    // Track file name
-                    if (!allFileNames.includes(file.name)) {
-                        allFileNames.push(file.name);
-                    }
-                    newFileNames.push(file.name);
-                } catch (err) {
-                    alert('Invalid JSON in file: ' + file.name);
-                }
-
-                processedCount++;
-                if (processedCount === files.length) {
-                    // Save updated file list
-                    localStorage.setItem('common_json_files', allFileNames.join(', '));
-
-                    common_json_file_name_text = 'Already Added File(s): ' + allFileNames.join(', ');
-
-                    alert('File(s) Imported');
-                    editor.Modal.close();
-                    
-                    if (typeof updateComponentsWithNewJson === 'function') {
-                        updateComponentsWithNewJson(editor);
-                    }
-                    
-                    // Update StyleManager options immediately
-                    updateFileIndexOptions();
-                }
-            };
-
-            reader.readAsText(file);
-        });
-    } else {
-        alert('No file selected');
+        editor.Modal.open();
+        document.getElementById("import-input-json-file").addEventListener("click", importInputJsonFile, true);
     }
-}
 
-function getJsonFileOptions() {
-    const storedFileNames = localStorage.getItem('common_json_files');
-    const options = [{ id: '0', name: 'Select File' }];
+    function importInputJsonFile() {
+        const input = document.getElementById('importJsonInputFile');
+        const files = input.files;
 
-    if (storedFileNames) {
-        const fileNames = storedFileNames.split(',').map(f => f.trim());
-        fileNames.forEach((fileName, index) => {
-            options.push({ id: (index+1).toString(), name: fileName });
-        });
-    }
-    return options;
-}
+        if (files.length > 0) {
+            let processedCount = 0;
+            let newFileNames = [];
 
-function updateFileIndexOptions() {
-    const newOptions = getJsonFileOptions();
-    const jsonSector = styleManager.getSector('JSON');
-    
-    if (jsonSector) {
-        const fileIndexProperty = jsonSector.getProperty('json-file-index');
-        if (fileIndexProperty) {
-            fileIndexProperty.set('options', newOptions);
-            // Force re-render of the StyleManager
-            setTimeout(() => {
-                editor.StyleManager.render();
-                // Ensure button is re-added after render
-                ensureJsonSuggestionButton();
-            }, 100);
-        }
-    }
-}
+            // Load existing file list
+            let existingFileNames = localStorage.getItem('common_json_files');
+            let allFileNames = existingFileNames ? existingFileNames.split(',').map(f => f.trim()) : [];
 
-function ensureJsonSuggestionButton() {
-    setTimeout(() => {
-        const jsonSector = document.querySelector('.i_designer-sm-sector__JSON');
-        if (jsonSector) {
-            // Check if button already exists
-            const existingButton = document.getElementById('json-suggestion-btn');
-            if (!existingButton) {
-                const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
-                if (jsonPathInput) {
-                    const button = document.createElement('button');
-                    button.innerHTML = 'Json Suggestion';
-                    button.id = 'json-suggestion-btn';
-                    button.style.marginLeft = '0px';
-                    jsonPathInput.parentNode.appendChild(button);
-                    button.addEventListener('click', function () {
-                        openSuggestionJsonModal();
-                    });
-                }
-            }
-        }
-    }, 200);
-}
+            Array.from(files).forEach((file) => {
+                const reader = new FileReader();
 
-function deleteJsonFile(fileName) {
-    if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
-        // Remove the specific JSON file from localStorage
-        localStorage.removeItem(`common_json_${fileName}`);
-        
-        // Update the file list
-        let existingFileNames = localStorage.getItem('common_json_files');
-        if (existingFileNames) {
-            let fileArray = existingFileNames.split(',').map(f => f.trim());
-            fileArray = fileArray.filter(name => name !== fileName);
-            
-            if (fileArray.length > 0) {
-                localStorage.setItem('common_json_files', fileArray.join(', '));
-                common_json_file_name_text = 'Already Added File(s): ' + fileArray.join(', ');
-            } else {
-                localStorage.removeItem('common_json_files');
-                common_json_file_name_text = '';
-            }
-        }
-        
-        // Update StyleManager options
-        updateFileIndexOptions();
-        
-        // Close and reopen modal to show updated list
-        editor.Modal.close();
-        setTimeout(() => {
-            jsonFileUploads();
-        }, 100);
-        
-        alert(`"${fileName}" has been deleted successfully!`);
-    }
-}
+                reader.onload = function (e) {
+                    try {
+                        let code = JSON.parse(e.target.result);
 
-// Make deleteJsonFile globally accessible
-window.deleteJsonFile = deleteJsonFile;
+                        // Save this file's JSON separately
+                        localStorage.setItem(`common_json_${file.name}`, JSON.stringify(code));
 
-styleManager.addSector('JSON', {
-    name: 'JSON',
-    open: false,
-    properties: [
-        {
-            name: 'File Index',
-            property: 'json-file-index',
-            type: 'select',
-            options: getJsonFileOptions(),
-            onChange: handleFileIndexChange,
-        },
-        {
-            name: 'Json Path',
-            property: 'my-input-json',
-            type: 'text',
-            onChange: handleJsonPathChange,
-        },
-    ]
-});
-
-function handleFileIndexChange(event) {
-    // Clear the JSON path when file changes
-    const selectedComponent = editor.getSelected();
-    if (selectedComponent) {
-        selectedComponent.set('my-input-json', '', { silent: true });
-        // Force re-render of traits to show cleared path
-        setTimeout(() => {
-            editor.TraitManager.render();
-        }, 50);
-    }
-}
-
-function handleJsonPathChange(event) {
-    if (event.value) {
-        const selectedComponent = editor.getSelected();
-        const componentType = selectedComponent?.get('type');
-
-        if (componentType === 'text' || componentType === 'formatted-rich-text' || componentType === 'custom-heading') {
-            const content = selectedComponent?.get('content');
-            if (content !== undefined) {
-                try {
-                    // Get file index from dropdown
-                    let fileIndex = '0';
-                    const fileIndexSelect = document.querySelector('.i_designer-sm-property__json-file-index select');
-                    if (fileIndexSelect) {
-                        fileIndex = fileIndexSelect.value || '0';
-                    }
-                    
-                    let commonJson;
-                    
-                    if (fileIndex !== '0') {
-                        // Multi-file mode - get selected file's JSON
-                        const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
-                        const selectedFile = fileNames[parseInt(fileIndex)-1];
-                        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
-                        if (jsonString) {
-                            commonJson = JSON.parse(jsonString);
+                        // Track file name
+                        if (!allFileNames.includes(file.name)) {
+                            allFileNames.push(file.name);
                         }
-                    } else {
-                        // Fallback to single file mode
-                        commonJson = JSON.parse(localStorage.getItem("common_json"));
+                        newFileNames.push(file.name);
+                    } catch (err) {
+                        alert('Invalid JSON in file: ' + file.name);
                     }
 
-                    if (commonJson) {
-                        // Extract language from the path (first part before the first dot)
-                        const pathParts = event.value.split('.');
-                        const selectedLanguage = pathParts[0];
-                        const remainingPath = pathParts.slice(1).join('.');
+                    processedCount++;
+                    if (processedCount === files.length) {
+                        // Save updated file list
+                        localStorage.setItem('common_json_files', allFileNames.join(', '));
 
-                        // Build the correct JSON path using the selected language
-                        const jsonPath = `commonJson.${selectedLanguage}.${remainingPath}`;
-                        const value = eval(jsonPath);
+                        common_json_file_name_text = 'Already Added File(s): ' + allFileNames.join(', ');
 
-                        if (value !== undefined && value !== null) {
-                            if (componentType === 'formatted-rich-text') {
-                                selectedComponent.set('raw-content', String(value), { silent: true });
-                                selectedComponent.set('my-input-json', event.value, { silent: true });
-                                selectedComponent.updateContent();
+                        alert('File(s) Imported');
+                        editor.Modal.close();
+
+                        if (typeof updateComponentsWithNewJson === 'function') {
+                            updateComponentsWithNewJson(editor);
+                        }
+
+                        // Update StyleManager options immediately
+                        updateFileIndexOptions();
+                    }
+                };
+
+                reader.readAsText(file);
+            });
+        } else {
+            alert('No file selected');
+        }
+    }
+
+    function getJsonFileOptions() {
+        const storedFileNames = localStorage.getItem('common_json_files');
+        const options = [{ id: '0', name: 'Select File' }];
+
+        if (storedFileNames) {
+            const fileNames = storedFileNames.split(',').map(f => f.trim());
+            fileNames.forEach((fileName, index) => {
+                options.push({ id: (index + 1).toString(), name: fileName });
+            });
+        }
+        return options;
+    }
+
+    function updateFileIndexOptions() {
+        const newOptions = getJsonFileOptions();
+        const jsonSector = styleManager.getSector('JSON');
+
+        if (jsonSector) {
+            const fileIndexProperty = jsonSector.getProperty('json-file-index');
+            if (fileIndexProperty) {
+                fileIndexProperty.set('options', newOptions);
+                // Force re-render of the StyleManager
+                setTimeout(() => {
+                    editor.StyleManager.render();
+                    // Ensure button is re-added after render
+                    ensureJsonSuggestionButton();
+                }, 100);
+            }
+        }
+    }
+
+    function ensureJsonSuggestionButton() {
+        setTimeout(() => {
+            const jsonSector = document.querySelector('.i_designer-sm-sector__JSON');
+            if (jsonSector) {
+                // Check if button already exists
+                const existingButton = document.getElementById('json-suggestion-btn');
+                if (!existingButton) {
+                    const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
+                    if (jsonPathInput) {
+                        const button = document.createElement('button');
+                        button.innerHTML = 'Json Suggestion';
+                        button.id = 'json-suggestion-btn';
+                        button.style.marginLeft = '0px';
+                        jsonPathInput.parentNode.appendChild(button);
+                        button.addEventListener('click', function () {
+                            openSuggestionJsonModal();
+                        });
+                    }
+                }
+            }
+        }, 200);
+    }
+
+    function deleteJsonFile(fileName) {
+        if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
+            // Remove the specific JSON file from localStorage
+            localStorage.removeItem(`common_json_${fileName}`);
+
+            // Update the file list
+            let existingFileNames = localStorage.getItem('common_json_files');
+            if (existingFileNames) {
+                let fileArray = existingFileNames.split(',').map(f => f.trim());
+                fileArray = fileArray.filter(name => name !== fileName);
+
+                if (fileArray.length > 0) {
+                    localStorage.setItem('common_json_files', fileArray.join(', '));
+                    common_json_file_name_text = 'Already Added File(s): ' + fileArray.join(', ');
+                } else {
+                    localStorage.removeItem('common_json_files');
+                    common_json_file_name_text = '';
+                }
+            }
+
+            // Update StyleManager options
+            updateFileIndexOptions();
+
+            // Close and reopen modal to show updated list
+            editor.Modal.close();
+            setTimeout(() => {
+                jsonFileUploads();
+            }, 100);
+
+            alert(`"${fileName}" has been deleted successfully!`);
+        }
+    }
+
+    // Make deleteJsonFile globally accessible
+    window.deleteJsonFile = deleteJsonFile;
+
+    styleManager.addSector('JSON', {
+        name: 'JSON',
+        open: false,
+        properties: [
+            {
+                name: 'File Index',
+                property: 'json-file-index',
+                type: 'select',
+                options: getJsonFileOptions(),
+                onChange: handleFileIndexChange,
+            },
+            {
+                name: 'Json Path',
+                property: 'my-input-json',
+                type: 'text',
+                onChange: handleJsonPathChange,
+            },
+        ]
+    });
+
+    function handleFileIndexChange(event) {
+        // Clear the JSON path when file changes
+        const selectedComponent = editor.getSelected();
+        if (selectedComponent) {
+            selectedComponent.set('my-input-json', '', { silent: true });
+            // Force re-render of traits to show cleared path
+            setTimeout(() => {
+                editor.TraitManager.render();
+            }, 50);
+        }
+    }
+
+    function handleJsonPathChange(event) {
+        if (event.value) {
+            const selectedComponent = editor.getSelected();
+            const componentType = selectedComponent?.get('type');
+
+            if (componentType === 'text' || componentType === 'formatted-rich-text' || componentType === 'custom-heading') {
+                const content = selectedComponent?.get('content');
+                if (content !== undefined) {
+                    try {
+                        // Get file index from dropdown
+                        let fileIndex = '0';
+                        const fileIndexSelect = document.querySelector('.i_designer-sm-property__json-file-index select');
+                        if (fileIndexSelect) {
+                            fileIndex = fileIndexSelect.value || '0';
+                        }
+
+                        let commonJson;
+
+                        if (fileIndex !== '0') {
+                            const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
+                            const selectedFile = fileNames[parseInt(fileIndex) - 1];
+                            const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+                            if (jsonString) {
+                                commonJson = JSON.parse(jsonString);
+                            }
+                        } else {
+                            commonJson = JSON.parse(localStorage.getItem("common_json"));
+                        }
+
+                        if (commonJson) {
+                            const jsonPaths = event.value.split(',').map(path => path.trim());
+
+                            // Check if content has curly braces for selective replacement
+                            if (content.includes('{') && content.includes('}')) {
+                                // Selective replacement mode
+                                let updatedContent = content;
+
+                                jsonPaths.forEach(jsonPath => {
+                                    const pathParts = jsonPath.split('.');
+                                    const selectedLanguage = pathParts[0];
+                                    const remainingPath = pathParts.slice(1).join('.');
+
+                                    try {
+                                        const fullJsonPath = `commonJson.${selectedLanguage}.${remainingPath}`;
+                                        const value = eval(fullJsonPath);
+
+                                        if (value !== undefined && value !== null) {
+                                            // Replace {remainingPath} with the actual value
+                                            const placeholder = `{${remainingPath}}`;
+                                            updatedContent = updatedContent.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+                                        }
+                                    } catch (e) {
+                                        console.warn(`Error evaluating path ${jsonPath}:`, e);
+                                    }
+                                });
+
+                                if (componentType === 'formatted-rich-text') {
+                                    selectedComponent.set('raw-content', updatedContent, { silent: true });
+                                    selectedComponent.set('my-input-json', event.value, { silent: true });
+                                    selectedComponent.updateContent();
+                                } else {
+                                    const componentView = selectedComponent.view;
+                                    if (componentView) {
+                                        componentView.el.innerHTML = updatedContent;
+                                    }
+                                }
                             } else {
-                                const componentView = selectedComponent.view;
-                                if (componentView) {
-                                    componentView.el.innerHTML = value;
+                                // Complete replacement mode (existing behavior)
+                                const jsonPath = jsonPaths[0]; // Use first path for complete replacement
+                                const pathParts = jsonPath.split('.');
+                                const selectedLanguage = pathParts[0];
+                                const remainingPath = pathParts.slice(1).join('.');
+
+                                const fullJsonPath = `commonJson.${selectedLanguage}.${remainingPath}`;
+                                const value = eval(fullJsonPath);
+
+                                if (value !== undefined && value !== null) {
+                                    if (componentType === 'formatted-rich-text') {
+                                        selectedComponent.set('raw-content', String(value), { silent: true });
+                                        selectedComponent.set('my-input-json', event.value, { silent: true });
+                                        selectedComponent.updateContent();
+                                    } else {
+                                        const componentView = selectedComponent.view;
+                                        if (componentView) {
+                                            componentView.el.innerHTML = value;
+                                        }
+                                    }
                                 }
                             }
+
                             setTimeout(() => {
                                 editor.TraitManager.render();
                             }, 100);
                         }
+                    } catch (e) {
+                        console.error("Error evaluating JSON path:", e);
                     }
-                } catch (e) {
-                    console.error("Error evaluating JSON path:", e);
                 }
             }
         }
     }
-}
 
-editor.on('load', function () {
-    const jsonSector = document.querySelector('.i_designer-sm-sector__JSON');
-    if (jsonSector) {
-        const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
-        if (jsonPathInput) {
-            const button = document.createElement('button');
-            button.innerHTML = 'Json Suggestion';
-            button.id = 'json-suggestion-btn';
-            button.style.marginLeft = '0px';
-            jsonPathInput.parentNode.appendChild(button);
-            button.addEventListener('click', function () {
-                openSuggestionJsonModal();
-            });
-        }
-    }
-});
-
-function extractMetaDataKeys(obj, prefix = '') {
-    let keys = [];
-    for (const key in obj) {
-        if (obj.hasOwnProperty(key)) {
-            let newKey;
-            if (Array.isArray(obj)) {
-                newKey = `${prefix}[${key}]`;
-            } else {
-                newKey = prefix ? `${prefix}.${key}` : key;
-            }
-            keys.push(newKey);
-            if (typeof obj[key] === 'object' && obj[key] !== null) {
-                keys = keys.concat(extractMetaDataKeys(obj[key], newKey));
+    editor.on('load', function () {
+        const jsonSector = document.querySelector('.i_designer-sm-sector__JSON');
+        if (jsonSector) {
+            const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
+            if (jsonPathInput) {
+                const button = document.createElement('button');
+                button.innerHTML = 'Json Suggestion';
+                button.id = 'json-suggestion-btn';
+                button.style.marginLeft = '0px';
+                jsonPathInput.parentNode.appendChild(button);
+                button.addEventListener('click', function () {
+                    openSuggestionJsonModal();
+                });
             }
         }
-    }
-    return keys;
-}
-
-function openSuggestionJsonModal() {
-    const selectedComponent = editor.getSelected();
-    
-    // Get file index from the StyleManager dropdown value directly
-    let fileIndex = '0';
-    const fileIndexSelect = document.querySelector('.i_designer-sm-property__json-file-index select');
-    if (fileIndexSelect) {
-        fileIndex = fileIndexSelect.value || '0';
-    }
-    
-    // Also try to get from component attribute as fallback
-    if (fileIndex === '0' && selectedComponent) {
-        fileIndex = selectedComponent.get('json-file-index') || '0';
-    }
-    
-    if (fileIndex === '0') {
-        alert('Please select a JSON file first');
-        return;
-    }
-    
-    // Get the selected file's JSON data
-    const fileNames = (localStorage.getItem('common_json_files') || "")
-                        .split(',').map(f => f.trim());
-    const selectedFile = fileNames[parseInt(fileIndex)-1];
-    const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
-    
-    if (!jsonString) {
-        alert('Selected JSON file not found');
-        return;
-    }
-    
-    const commonJson = JSON.parse(jsonString);
-
-    // Show top-level keys (language options) first
-    const topLevelKeys = Object.keys(commonJson);
-
-    let modalContent = `
-    <div class="new-table-form">
-      <div style="padding-bottom:10px">
-        <input type="text" id="searchInput" placeholder="Search json">
-      </div>
-      <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-  `;
-
-    topLevelKeys.forEach(key => {
-        modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
     });
 
-    modalContent += `
+    function extractMetaDataKeys(obj, prefix = '') {
+        let keys = [];
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                let newKey;
+                if (Array.isArray(obj)) {
+                    newKey = `${prefix}[${key}]`;
+                } else {
+                    newKey = prefix ? `${prefix}.${key}` : key;
+                }
+                keys.push(newKey);
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    keys = keys.concat(extractMetaDataKeys(obj[key], newKey));
+                }
+            }
+        }
+        return keys;
+    }
+
+    function openSuggestionJsonModal() {
+        const selectedComponent = editor.getSelected();
+
+        // Get file index from the StyleManager dropdown value directly
+        let fileIndex = '0';
+        const fileIndexSelect = document.querySelector('.i_designer-sm-property__json-file-index select');
+        if (fileIndexSelect) {
+            fileIndex = fileIndexSelect.value || '0';
+        }
+
+        // Also try to get from component attribute as fallback
+        if (fileIndex === '0' && selectedComponent) {
+            fileIndex = selectedComponent.get('json-file-index') || '0';
+        }
+
+        if (fileIndex === '0') {
+            alert('Please select a JSON file first');
+            return;
+        }
+
+        // Get the selected file's JSON data
+        const fileNames = (localStorage.getItem('common_json_files') || "")
+            .split(',').map(f => f.trim());
+        const selectedFile = fileNames[parseInt(fileIndex) - 1];
+        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+
+        if (!jsonString) {
+            alert('Selected JSON file not found');
+            return;
+        }
+
+        const commonJson = JSON.parse(jsonString);
+
+        // Show top-level keys (language options) first
+        const topLevelKeys = Object.keys(commonJson);
+
+        let modalContent = `
+        <div class="new-table-form">
+        <div style="padding-bottom:10px">
+            <input type="text" id="searchInput" placeholder="Search json">
+        </div>
+        <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+        `;
+
+        topLevelKeys.forEach(key => {
+            modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
+        });
+
+        modalContent += `
       </div>
     </div>
   `;
 
-    editor.Modal.setTitle('Json Suggestion');
-    editor.Modal.setContent(modalContent);
-    editor.Modal.open();
+        editor.Modal.setTitle('Json Suggestion');
+        editor.Modal.setContent(modalContent);
+        editor.Modal.open();
 
-    // Add event listener to search input
-    document.getElementById("searchInput").addEventListener("input", function () {
-        filterSuggestions(this.value);
-    });
-
-    const suggestionItems = document.querySelectorAll('.suggestion');
-    suggestionItems.forEach(item => {
-        item.addEventListener('click', function () {
-            const selectedValue = this.getAttribute('data-value');
-            const dataType = this.getAttribute('data-type');
-
-            if (dataType === 'language') {
-                // Show keys under selected language
-                showLanguageKeys(selectedValue, commonJson);
-            } else {
-                // Final selection - set the value
-                const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
-                if (inputField) {
-                    inputField.value = selectedValue;
-                    var event = new Event('change', {
-                        bubbles: true,
-                        cancelable: true
-                    });
-                    inputField.dispatchEvent(event);
-                }
-                editor.Modal.close();
-            }
+        // Add event listener to search input
+        document.getElementById("searchInput").addEventListener("input", function () {
+            filterSuggestions(this.value);
         });
-    });
-}
 
-function showLanguageKeys(language, commonJson) {
-    const metaDataKeys = extractMetaDataKeys(commonJson[language]);
+        const suggestionItems = document.querySelectorAll('.suggestion');
+        suggestionItems.forEach(item => {
+            item.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+                const dataType = this.getAttribute('data-type');
 
-    let modalContent = `
+                if (dataType === 'language') {
+                    // Show keys under selected language
+                    showLanguageKeys(selectedValue, commonJson);
+                } else {
+                    // Final selection - set the value
+                    const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
+                    if (inputField) {
+                        inputField.value = selectedValue;
+                        var event = new Event('change', {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        inputField.dispatchEvent(event);
+                    }
+                    editor.Modal.close();
+                }
+            });
+        });
+    }
+
+    function showLanguageKeys(language, commonJson) {
+        const metaDataKeys = extractMetaDataKeys(commonJson[language]);
+
+        let modalContent = `
     <div class="new-table-form">
       <div style="padding-bottom:10px">
         <button id="backBtn" style="margin-right: 10px;">← Back</button>
         <input type="text" id="searchInput" placeholder="Search json">
       </div>
+      <div style="padding-bottom:10px">
+        <label>
+          <input type="checkbox" id="multipleKeysCheckbox" style="margin-right: 5px;">
+          Select multiple keys
+        </label>
+      </div>
       <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
   `;
 
-    metaDataKeys.forEach(key => {
-        // Include the language prefix in the data-value
-        const fullPath = `${language}.${key}`;
-        modalContent += `<div class="suggestion" data-value="${fullPath}" data-type="key">${key}</div>`;
-    });
+        metaDataKeys.forEach(key => {
+            const fullPath = `${language}.${key}`;
+            modalContent += `<div class="suggestion" data-value="${fullPath}" data-type="key">${key}</div>`;
+        });
 
-    modalContent += `
+        modalContent += `
       </div>
     </div>
   `;
 
-    editor.Modal.setContent(modalContent);
+        editor.Modal.setContent(modalContent);
 
-    // Back button functionality
-    document.getElementById("backBtn").addEventListener("click", function () {
-        openSuggestionJsonModal();
-    });
-
-    // Search functionality
-    document.getElementById("searchInput").addEventListener("input", function () {
-        filterSuggestions(this.value);
-    });
-
-    // Key selection
-    const suggestionItems = document.querySelectorAll('.suggestion');
-    suggestionItems.forEach(item => {
-        item.addEventListener('click', function () {
-            const selectedValue = this.getAttribute('data-value');
-            const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
-            if (inputField) {
-                inputField.value = selectedValue;
-                var event = new Event('change', {
-                    bubbles: true,
-                    cancelable: true
-                });
-                inputField.dispatchEvent(event);
-            }
-            editor.Modal.close();
+        // Back button functionality
+        document.getElementById("backBtn").addEventListener("click", function () {
+            openSuggestionJsonModal();
         });
-    });
-}
 
-function filterSuggestions(query) {
-    const suggestionResults = document.querySelector('.suggestion-results');
-    const metaDataKeys = Array.from(suggestionResults.children);
-    metaDataKeys.forEach(key => {
-        if (key.textContent.toLowerCase().includes(query.toLowerCase())) {
-            key.style.display = "block";
-        } else {
-            key.style.display = "none";
-        }
-    });
-}
+        // Search functionality
+        document.getElementById("searchInput").addEventListener("input", function () {
+            filterSuggestions(this.value);
+        });
+
+        // Key selection with multiple selection support
+        const suggestionItems = document.querySelectorAll('.suggestion');
+        let selectedKeys = new Set();
+
+        suggestionItems.forEach(item => {
+            item.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+                const multipleMode = document.getElementById('multipleKeysCheckbox').checked;
+
+                if (multipleMode) {
+                    // Toggle selection
+                    if (selectedKeys.has(selectedValue)) {
+                        selectedKeys.delete(selectedValue);
+                        this.style.backgroundColor = '';
+                        this.style.color = '';
+                    } else {
+                        selectedKeys.add(selectedValue);
+                        this.style.backgroundColor = '#007bff';
+                        this.style.color = 'white';
+                    }
+                } else {
+                    // Single selection (original behavior)
+                    const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
+                    if (inputField) {
+                        inputField.value = selectedValue;
+                        var event = new Event('change', {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        inputField.dispatchEvent(event);
+                    }
+                    editor.Modal.close();
+                }
+            });
+        });
+
+        // Handle multiple selection checkbox
+        document.getElementById('multipleKeysCheckbox').addEventListener('change', function () {
+            const applyBtn = document.getElementById('applyMultipleKeys');
+            if (this.checked && !applyBtn) {
+                const btnContainer = document.createElement('div');
+                btnContainer.style.paddingTop = '10px';
+                btnContainer.innerHTML = '<button id="applyMultipleKeys" style="background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Apply Selected Keys</button>';
+                document.querySelector('.new-table-form').appendChild(btnContainer);
+
+                document.getElementById('applyMultipleKeys').addEventListener('click', function () {
+                    const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
+                    if (inputField && selectedKeys.size > 0) {
+                        inputField.value = Array.from(selectedKeys).join(', ');
+                        var event = new Event('change', {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        inputField.dispatchEvent(event);
+                    }
+                    editor.Modal.close();
+                });
+            } else if (!this.checked && applyBtn) {
+                applyBtn.parentElement.remove();
+                selectedKeys.clear();
+                // Reset all selections visually
+                suggestionItems.forEach(item => {
+                    item.style.backgroundColor = '';
+                    item.style.color = '';
+                });
+            }
+        });
+    }
+
+    function filterSuggestions(query) {
+        const suggestionResults = document.querySelector('.suggestion-results');
+        const metaDataKeys = Array.from(suggestionResults.children);
+        metaDataKeys.forEach(key => {
+            if (key.textContent.toLowerCase().includes(query.toLowerCase())) {
+                key.style.display = "block";
+            } else {
+                key.style.display = "none";
+            }
+        });
+    }
     // Add event listener for component selection 
     editor.on('component:selected', (component) => {
         if (component.attributes.type === 'custom_line_chart') {

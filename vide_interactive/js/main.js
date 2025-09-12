@@ -431,13 +431,7 @@ var importPage = document.getElementById("importPage");
 importPage.addEventListener("click", importSinglePages, true);
 
 
-// 1️⃣ Panel button
-// editor.Panels.addButton("options", {
-//   id: "bulkpage",
-//   className: "fa-solid fa-file-export",
-//   attributes: { title: "Bulk PDF Generation" },
-//   command: "open-modal"
-// });
+
 
 // 2️⃣ Modal command
 // Updated modal command with hierarchical JSON key selection
@@ -584,7 +578,7 @@ editor.Commands.add("open-modal", {
     // Mode change handlers
     document.getElementById("file-name-mode").addEventListener("change", e => {
       const val = e.target.value;
-      document.getElementById("file-name-key-section").style.display = val==="json" ? "block" : "none";
+      document.getElementById("file-name-key-section").style.display = val === "json" ? "block" : "none";
       document.getElementById("file-name-key-dropdown-section").style.display = "none";
       document.getElementById("file-name-index-section").style.display = "none";
       fileNameSaved = [];
@@ -593,10 +587,10 @@ editor.Commands.add("open-modal", {
 
     document.getElementById("password-mode").addEventListener("change", e => {
       const val = e.target.value;
-      document.getElementById("password-key-section").style.display = val==="json" ? "block" : "none";
+      document.getElementById("password-key-section").style.display = val === "json" ? "block" : "none";
       document.getElementById("password-key-dropdown-section").style.display = "none";
       document.getElementById("password-index-section").style.display = "none";
-      document.getElementById("password-custom-section").style.display = val==="custom" ? "block" : "none";
+      document.getElementById("password-custom-section").style.display = val === "custom" ? "block" : "none";
       passwordSaved = [];
       passwordCustom = "";
       renderSaved(passwordSaved, "password-saved");
@@ -607,11 +601,11 @@ editor.Commands.add("open-modal", {
       const selectedLanguage = e.target.value;
       const fileNameKeyDropdown = document.getElementById("file-name-key-dropdown");
       const fileNameKeySection = document.getElementById("file-name-key-dropdown-section");
-      
+
       if (selectedLanguage) {
         // Clear existing options
         fileNameKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
-        
+
         // Get keys for selected language
         const languageData = uploadedJson[selectedLanguage];
         if (languageData) {
@@ -634,11 +628,11 @@ editor.Commands.add("open-modal", {
       const selectedLanguage = e.target.value;
       const passwordKeyDropdown = document.getElementById("password-key-dropdown");
       const passwordKeySection = document.getElementById("password-key-dropdown-section");
-      
+
       if (selectedLanguage) {
         // Clear existing options
         passwordKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
-        
+
         // Get keys for selected language
         const languageData = uploadedJson[selectedLanguage];
         if (languageData) {
@@ -659,7 +653,7 @@ editor.Commands.add("open-modal", {
 
     // File name key selection
     document.getElementById("file-name-key-dropdown").addEventListener("change", e => {
-      if(e.target.value) {
+      if (e.target.value) {
         document.getElementById("file-name-index-section").style.display = "block";
       } else {
         document.getElementById("file-name-index-section").style.display = "none";
@@ -668,7 +662,7 @@ editor.Commands.add("open-modal", {
 
     // Password key selection
     document.getElementById("password-key-dropdown").addEventListener("change", e => {
-      if(e.target.value) {
+      if (e.target.value) {
         document.getElementById("password-index-section").style.display = "block";
       } else {
         document.getElementById("password-index-section").style.display = "none";
@@ -679,66 +673,66 @@ editor.Commands.add("open-modal", {
     document.getElementById("file-name-add-btn").addEventListener("click", () => {
       const key = document.getElementById("file-name-key-dropdown").value;
       const idx = document.getElementById("file-name-index-input").value.trim();
-      if(key) {
+      if (key) {
         fileNameSaved.push({ key, indexes: idx });
         renderSaved(fileNameSaved, "file-name-saved");
-        document.getElementById("file-name-index-input").value="";
-        document.getElementById("file-name-key-dropdown").value="";
-        document.getElementById("file-name-index-section").style.display="none";
+        document.getElementById("file-name-index-input").value = "";
+        document.getElementById("file-name-key-dropdown").value = "";
+        document.getElementById("file-name-index-section").style.display = "none";
       }
     });
 
     document.getElementById("password-add-btn").addEventListener("click", () => {
       const key = document.getElementById("password-key-dropdown").value;
       const idx = document.getElementById("password-index-input").value.trim();
-      if(key) {
+      if (key) {
         passwordSaved.push({ key, indexes: idx });
         renderSaved(passwordSaved, "password-saved");
-        document.getElementById("password-index-input").value="";
-        document.getElementById("password-key-dropdown").value="";
-        document.getElementById("password-index-section").style.display="none";
+        document.getElementById("password-index-input").value = "";
+        document.getElementById("password-key-dropdown").value = "";
+        document.getElementById("password-index-section").style.display = "none";
       }
     });
 
     function renderSaved(arr, containerId) {
       const div = document.getElementById(containerId);
-      div.innerHTML = arr.map(o => `${o.key}${o.indexes?`[${o.indexes}]`:''}`).join(", ");
+      div.innerHTML = arr.map(o => `${o.key}${o.indexes ? `[${o.indexes}]` : ''}`).join(", ");
     }
 
     // Send button
     document.getElementById("send-api-btn").addEventListener("click", async () => {
       editor.Modal.close();
 
+      // In the "Send" button click handler, replace this section:
       let fileNamePayload;
-      if(document.getElementById("file-name-mode").value==="json" && fileNameSaved.length) {
-        // Remove language prefix from keys (e.g., "user1.customer_name" becomes "customer_name")
+      if (document.getElementById("file-name-mode").value === "json" && fileNameSaved.length) {
         fileNamePayload = fileNameSaved.map(o => {
           const keyWithoutLanguage = o.key.includes('.') ? o.key.split('.').slice(1).join('.') : o.key;
           return o.indexes ? `${keyWithoutLanguage}[${o.indexes}]` : keyWithoutLanguage;
-        }).join(",");
+        }); // ❌ no .join()
       }
 
       let passwordPayload;
       const pwMode = document.getElementById("password-mode").value;
-      if(pwMode==="json" && passwordSaved.length) {
-        // Remove language prefix from keys (e.g., "user1.customer_name" becomes "customer_name")
+      if (pwMode === "json" && passwordSaved.length) {
         passwordPayload = passwordSaved.map(o => {
           const keyWithoutLanguage = o.key.includes('.') ? o.key.split('.').slice(1).join('.') : o.key;
           return o.indexes ? `${keyWithoutLanguage}[${o.indexes}]` : keyWithoutLanguage;
-        });
-      } else if(pwMode==="custom") {
+        }); // ❌ no .join()
+      } else if (pwMode === "custom") {
         const val = document.getElementById("password-custom-input").value.trim();
-        if(val) passwordPayload = val;
+        if (val) passwordPayload = [val]; // still an array
       }
+
 
       // Build final payload array, only add non-empty objects
       const finalPayload = [...inputJsonMappings];
-      
-      if(fileNamePayload) {
+
+      if (fileNamePayload) {
         finalPayload.push({ file_name: fileNamePayload });
       }
-      
-      if(passwordPayload) {
+
+      if (passwordPayload) {
         finalPayload.push({ password: passwordPayload });
       }
 
@@ -753,8 +747,7 @@ editor.Commands.add("open-modal", {
           URL.revokeObjectURL(url);
         });
         alert("✅ Export sent & all files downloaded successfully!");
-      } catch(err) {
-        alert("❌ Error sending export. Check console.");
+      } catch (err) {
         console.error(err);
       }
     });
@@ -779,7 +772,7 @@ function htmlWithCss(html, css) {
 // 🔹 Helper: Extract filename from response headers
 // 🔹 Helper: Extract filename from response headers
 function getFilenameFromResponse(response, fallback = "export.pdf") {
-  
+
   console.log("🔍 response Raw Content-Disposition:", response);
   const contentDisp = response.headers.get("Content-Disposition");
   console.log("🔍 Raw Content-Disposition:", contentDisp);
@@ -798,7 +791,7 @@ function getFilenameFromResponse(response, fallback = "export.pdf") {
 
 // 4️⃣ Export function: send files + payload to API and return blobs
 async function exportDesignAndSend(editor, inputJsonMappings) {
-  const apiUrl = "http://192.168.0.177:9998/jsonApi/upload";
+  const apiUrl = "http://192.168.0.144:9998/jsonApi/upload";
 
   const html = editor.getHtml();
   const css = editor.getCss();
@@ -817,40 +810,15 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   const response = await fetch(apiUrl, { method: "POST", body: formData });
   if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
-  const contentType = response.headers.get("Content-Type") || "";
+  // just read the plain text log from backend
+  const message = await response.text();
+  console.log("📄 Backend response:", message);
+  alert(message);
 
-  // 1️⃣ Single PDF
-  if (contentType.includes("application/pdf")) {
-    const filename = getFilenameFromResponse(response, "export.pdf");
-    const blob = await response.blob();
-    console.log("✅ Single PDF resolved filename:", filename);
-    return [{ blob, filename }];
-  }
-
-  // 2️⃣ Multiple PDFs (JSON response)
-  if (contentType.includes("application/json")) {
-    const json = await response.json();
-    return json.map(f => {
-      const byteCharacters = atob(f.content);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      console.log("✅ Multiple PDFs resolved filename:", f.filename);
-      return {
-        blob: new Blob([byteArray], { type: "application/pdf" }),
-        filename: f.filename
-      };
-    });
-  }
-
-  // 3️⃣ Fallback
-  const filename = getFilenameFromResponse(response, "export.pdf");
-  const blob = await response.blob();
-  console.log("⚠️ Fallback resolved filename:", filename);
-  return [{ blob, filename }];
+  // return message in case you want to use it elsewhere
+  return message;
 }
+
 
 
 

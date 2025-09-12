@@ -897,7 +897,6 @@ function addFormattedRichTextComponent(editor) {
         const jsonPath = this.get('my-input-json');
         console.log('JSON Path:', jsonPath);
 
-        // FIXED: Force stop RTE before updating
         if (this.view && this.view.rteActive) {
           console.log('RTE active, forcing stop before JSON update');
           this.view.forceStopRTE();
@@ -906,25 +905,51 @@ function addFormattedRichTextComponent(editor) {
         if (jsonPath && jsonPath.trim()) {
           try {
             const commonJson = JSON.parse(localStorage.getItem("common_json"));
-            const fullJsonPath = `commonJson.${custom_language}.${jsonPath}`;
-            const value = eval(fullJsonPath);
-            console.log('Evaluated value:', value);
+            const jsonPaths = jsonPath.split(',').map(path => path.trim());
+            const currentContent = this.get('raw-content') || '';
 
-            if (value !== undefined && value !== null) {
-              const stringValue = String(value);
-              console.log('Setting raw-content to:', stringValue);
+            // Check for selective replacement mode
+            if (currentContent.includes('{') && currentContent.includes('}')) {
+              let updatedContent = currentContent;
 
-              this.set('raw-content', stringValue, { silent: true });
-              this.updateContent();
-              console.log('Content updated');
-
-              if (this.view && this.view.el) {
-                this.view.render();
-                console.log('View rendered immediately');
-
-                if (this.em) {
-                  this.em.trigger('change:canvasOffset');
+              jsonPaths.forEach(path => {
+                const fullJsonPath = `commonJson.${custom_language}.${path}`;
+                try {
+                  const value = eval(fullJsonPath);
+                  if (value !== undefined && value !== null) {
+                    const placeholder = `{${path}}`;
+                    updatedContent = updatedContent.replace(
+                      new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+                      String(value)
+                    );
+                  }
+                } catch (e) {
+                  console.warn(`Error evaluating path ${path}:`, e);
                 }
+              });
+
+              console.log('Setting selective replacement content:', updatedContent);
+              this.set('raw-content', updatedContent, { silent: true });
+              this.updateContent();
+            } else {
+              // Complete replacement mode (existing behavior)
+              const firstPath = jsonPaths[0];
+              const fullJsonPath = `commonJson.${custom_language}.${firstPath}`;
+              const value = eval(fullJsonPath);
+              console.log('Evaluated value:', value);
+
+              if (value !== undefined && value !== null) {
+                const stringValue = String(value);
+                console.log('Setting complete replacement content:', stringValue);
+                this.set('raw-content', stringValue, { silent: true });
+                this.updateContent();
+              }
+            }
+
+            if (this.view && this.view.el) {
+              this.view.render();
+              if (this.em) {
+                this.em.trigger('change:canvasOffset');
               }
             }
           } catch (e) {
