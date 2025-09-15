@@ -32,6 +32,7 @@ const editor = InteractiveDesigner.init({
     addLiveLineChartComponent,
     linkTrackerPlugin,
     backgroundMusic,
+    ttsPlugin,
     "basic-block-component",
     "countdown-component",
     "forms-component",
