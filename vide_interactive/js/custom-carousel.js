@@ -63,7 +63,7 @@ function customCarousel(editor) {
         const carouselImg = document.createElement("img");
         carouselImg.src = "https://via.placeholder.com/800x400.png?text=Slide+" + (i + 1);
         carouselImg.style.width = "100%";
-        carouselImg.style.margin = "5px 0px";
+        carouselImg.style.margin = "5px 190px";
         carouselImg.style.height = "300px";
 
         carouselA.append(carouselImg);

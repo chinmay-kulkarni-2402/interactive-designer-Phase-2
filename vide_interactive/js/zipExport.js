@@ -7189,130 +7189,544 @@
                   };
                 }
               };
-          const h = function (e, r) {
-            void 0 === r && (r = {});
-            var n = e.getConfig("stylePrefix"),
-              i = "i_designer-export-zip",
-              h = s(
-                {
-                  addExportBtn: !0,
-                  btnLabel: "Download ZIP File",
-                  filenamePfx: "interactive_designer_template",
-                  filename: void 0,
-                  done: function () {},
-                  onError: console.error,
-                  root: { 
-                    "index.html": function (e) {                     
-                      // var iframe = document.querySelector('#editor iframe'); 
-                      // var iframeContent = iframe.contentDocument.body.innerHTML;   
-                      // var data =`<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css"><link rel="stylesheet" href="https://cdn.datatables.net/v/bs4/dt-1.13.2/datatables.min.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> <link rel="stylesheet" href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css"><link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"><script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script> <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script><script src="https://code.jquery.com/jquery-2.1.1.min.js"></script><script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script><script src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script><script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js"></script><script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"></script><script src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"></script><script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script><script src="https://code.highcharts.com/highcharts.js"></script><script src="https://code.highcharts.com/modules/drilldown.js"></script>
-                      // <style>${e.getCss()} .highlight_text{background-color: yellow} .i_designer-selected{outline: none !important;}</style></head><body> ${iframeContent} </body>\n</html>`
+const h = function (e, r) {
+  void 0 === r && (r = {});
+  var n = e.getConfig("stylePrefix"),
+    i = "i_designer-export-zip",
+    h = s(
+      {
+        addExportBtn: !0,
+        btnLabel: "Download ZIP File",
+        filenamePfx: "interactive_designer_template",
+        filename: void 0,
+        done: function () {},
+        onError: console.error,
+        root: { 
+          "index.html": function (e) {                     
+            var iframe = document.querySelector('#editor iframe'); 
+            var iframeContent = iframe.contentDocument.body.innerHTML; 
+            let exportedJsonData = []; 
+            var common_json = JSON.parse(localStorage.getItem("common_json")); 
+            if(common_json !==null){
+              exportedJsonData.length = 0;  
+              exportedJsonData.push(common_json);
+              exportedJsonData = JSON.stringify(exportedJsonData); 
+            }    
+            
+            let googleTranslater =  '';  
+            let enableTTS = '';
+            var result = confirm("Do you want to add the google translator?");  
+            if (result) { 
+              googleTranslater = 'Yes'; 
+            } else { 
+              googleTranslater = 'No'; 
+            }
 
-                      var iframe = document.querySelector('#editor iframe'); 
-                      var iframeContent = iframe.contentDocument.body.innerHTML; 
-                      let exportedJsonData = []; 
-                      var common_json = JSON.parse(localStorage.getItem("common_json")); 
-                      if(common_json !==null){
-                        exportedJsonData.length = 0;  
-                        exportedJsonData.push(common_json);
-                        exportedJsonData = JSON.stringify(exportedJsonData); 
-                      }    
+            // Add TTS check - Fixed the confirmation text
+            var ttsCheckbox = confirm("Do you want to add Text-to-Speech functionality?"); 
+            if (ttsCheckbox) {
+              enableTTS = 'Yes';
+            } else {
+              enableTTS = 'No';
+            }
                       
-                      let googleTranslater =  '';  
-                      var result = confirm("Do you want to add the google translater?");  
-                        if (result) { 
-                            googleTranslater = 'Yes'; 
-                        } else { 
-                            googleTranslater = 'No'; 
+            //START API CODE
+            editor.Modal.setTitle('Export Template');
+            editor.Modal.setContent(`<div class="new-table-form">
+            <div style="padding: 10px 0px;">
+              <label for="templateName">Template Name</label> 
+            </div>
+            <div>  
+              <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
+            </div>  
+            <input id="download-template-file" class="popupaddbtn" type="button" value="Save" data-component-id="c1006">
+            </div>
+            </div>
+            `); 
+            editor.Modal.open();   
+            console.log(googleTranslater,'googleTranslater');
+            console.log(enableTTS,'enableTTS');
+
+            var downTemp = document.getElementById("download-template-file");
+            downTemp.addEventListener("click", downloadTemplate, true); 
+
+            //END API CODE
+
+            var data =`<!doctype html><html lang="en"><head><meta charset="utf-8">
+            <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+            <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+            <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css">
+            <link rel="stylesheet" href="https://cdn.datatables.net/v/bs4/dt-1.13.2/datatables.min.css">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+            <link rel="stylesheet" href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+            <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css">
+            <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+            <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>  
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script> 
+            <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+            <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+            <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+            <script src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script>
+            <script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js"></script>
+            <script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"></script>
+            <script src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"></script>
+            <script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script>
+            <script src="https://code.highcharts.com/highcharts.js"></script>
+            <script src="https://code.highcharts.com/modules/drilldown.js"></script>
+            <style>
+              ${e.getCss()} 
+              .highlight_text{background-color: yellow} 
+              .i_designer-selected{outline: none !important;} 
+              #main-nav-div .hamburger-menu {
+                display: none !important; text-align: right; font-size: 30px;  padding: 10px;  color: #472e90; cursor: pointer; 
+              } 
+              @media (max-width: 991px) { 
+                #main-nav-div .hamburger-menu {
+                  display: block !important;
+                }  
+                #main-nav-div .tab-container, #main-nav-div .tab{
+                  width:99%;
+                  text-align:center;
+                } 
+              } 
+              @media (max-width: 767px){
+                #main-nav-div .hamburger-menu {display: block !important;} 
+                #main-nav-div .tab-container, #main-nav-div .tab{width:98%;}
+              } 
+              #google_translate_element{padding:5px !important;}
+              .VIpgJd-ZVi9od-ORHb-OEVmcd ,.goog-te-gadget-simple img{display:none !important;}
+              .goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed span{padding-right:5px}
+              .VIpgJd-yAWNEb-L7lbkb{display:none!important}
+              body{ top:0px !important;}  
+              .dataTables_scrollHeadInner{ width: 100% !important;} 
+              
+              #tts_element {
+                padding: 5px !important;
+                position: relative;
+                display: inline-block;
+              }
+              
+              .tts-toggle {
+                display: inline-block;
+                cursor: pointer;
+                padding: 8px 12px;
+                border: 2px solid #007bff;
+                border-radius: 25px;
+                background: linear-gradient(45deg, #007bff, #0056b3);
+                color: white;
+                font-size: 16px;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+                user-select: none;
+              }
+              
+              .tts-toggle:hover {
+                background: linear-gradient(45deg, #0056b3, #004085);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+              }
+              
+              .tts-toggle.active {
+                background: linear-gradient(45deg, #28a745, #1e7e34);
+                border-color: #28a745;
+                box-shadow: 0 2px 8px rgba(40,167,69,0.3);
+              }
+              
+              .tts-menu {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 0;
+                margin-top: 5px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+                z-index: 1000;
+                min-width: 150px;
+                overflow: hidden;
+              }
+              
+              .tts-menu-item {
+                padding: 12px 16px;
+                cursor: pointer;
+                border-bottom: 1px solid #eee;
+                transition: background-color 0.2s ease;
+                color: #333;
+                font-size: 14px;
+              }
+              
+              .tts-menu-item:last-child {
+                border-bottom: none;
+              }
+              
+              .tts-menu-item:hover {
+                background-color: #f8f9fa;
+                color: #007bff;
+              }
+              
+              .tts-status {
+                font-size: 12px;
+                margin-left: 8px;
+                color: #6c757d;
+              }
+            </style>
+            </head>
+            <body> 
+              <div id="AllBodyData" style="display: none;"> 
+                <div id="defaultPDF" style="display:none"></div> 
+                <div id="google_translate_element"></div> 
+                <div id="tts_element"></div>
+                
+                <script>  
+                  const googleTranslaterF = '${googleTranslater}'; 
+                  const enableTTSF = '${enableTTS}';
+                  
+                  if (googleTranslaterF !== 'Yes') { 
+                    let googleTranslateDiv = document.getElementById('google_translate_element');
+                    if(googleTranslateDiv !== null && googleTranslateDiv !== undefined){
+                      googleTranslateDiv.parentNode.removeChild(googleTranslateDiv); 
+                    }
+                  }
+                  
+                  if (enableTTSF === 'Yes') {
+                    initializeTTS();
+                  } else {
+                    let ttsDiv = document.getElementById('tts_element');
+                    if(ttsDiv !== null && ttsDiv !== undefined){
+                      ttsDiv.parentNode.removeChild(ttsDiv); 
+                    }
+                  }
+                  
+                  function initializeTTS() {
+                    const ttsElement = document.getElementById('tts_element');
+                    if (!ttsElement) return;
+                    
+                    ttsElement.innerHTML = \`
+                      <div class="tts-toggle" id="ttsToggle">
+                        <span style="font-size: 18px;">🔊</span>
+                        <span class="tts-status" id="ttsStatus">TTS</span>
+                      </div>
+                      <div class="tts-menu" id="ttsMenu">
+                        <div class="tts-menu-item" onclick="readAll()">📖 Read All Content</div>
+                        <div class="tts-menu-item" onclick="readCustom()">🎯 Read on Click</div>
+                        <div class="tts-menu-item" onclick="stopReading()">⏹️ Stop Reading</div>
+                      </div>
+                    \`;
+                    
+                    let ttsActive = false;
+                    let customReadMode = false;
+                    let speechSynthesis = window.speechSynthesis;
+                    let currentUtterance = null;
+                    
+                    const ttsToggle = document.getElementById('ttsToggle');
+                    const ttsMenu = document.getElementById('ttsMenu');
+                    const ttsStatus = document.getElementById('ttsStatus');
+                    
+                    ttsToggle.addEventListener('click', function(e) {
+                      e.stopPropagation();
+                      if (ttsActive && customReadMode) {
+                        stopReading();
+                      } else {
+                        const isVisible = ttsMenu.style.display === 'block';
+                        ttsMenu.style.display = isVisible ? 'none' : 'block';
+                      }
+                    });
+                    
+                    document.addEventListener('click', function(e) {
+                      if (!ttsElement.contains(e.target)) {
+                        ttsMenu.style.display = 'none';
+                      }
+                    });
+                    
+                    window.readAll = function() {
+                      ttsActive = true;
+                      customReadMode = false;
+                      ttsMenu.style.display = 'none';
+                      ttsToggle.classList.add('active');
+                      ttsStatus.textContent = 'Reading...';
+                      
+                      const allBodyData = document.getElementById('AllBodyData');
+                      let textToRead = allBodyData.innerText || allBodyData.textContent || '';
+                      
+                      textToRead = textToRead.replace(/\\s+/g, ' ').trim();
+                      textToRead = textToRead.replace(/TTS|Read All Content|Read on Click|Stop Reading/g, '');
+                      
+                      if (textToRead && textToRead.length > 0) {
+                        if (currentUtterance) {
+                          speechSynthesis.cancel();
                         }
                         
-                         //START API CODE
-                        editor.Modal.setTitle('Export Template');
-                        editor.Modal.setContent(`<div class="new-table-form">
-                        <div style="padding: 10px 0px;">
-                          <label for="templateName">Template Name</label> 
-                        </div>
-                        <div>  
-                          <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
-                        </div>  
-                        <input id="download-template-file" class="popupaddbtn" type="button" value="Save" data-component-id="c1006">
-                        </div>
-                        </div>
-                        `); 
-                        editor.Modal.open();   
-                        console.log(googleTranslater,'googleTranslater');
-
-                        var downTemp = document.getElementById("download-template-file");
-                        downTemp.addEventListener("click", downloadTemplate, true); 
-
-                        //END API CODE
-
-                      var data =`<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css"><link rel="stylesheet" href="https://cdn.datatables.net/v/bs4/dt-1.13.2/datatables.min.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> <link rel="stylesheet" href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css"><link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"><script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script> <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script><script src="https://code.jquery.com/jquery-2.1.1.min.js"></script><script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script><script src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"></script><script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js"></script><script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"></script><script src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"></script><script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script><script src="https://code.highcharts.com/highcharts.js"></script><script src="https://code.highcharts.com/modules/drilldown.js"></script>
-                      <style>${e.getCss()} .highlight_text{background-color: yellow} .i_designer-selected{outline: none !important;} 
-                        #main-nav-div .hamburger-menu {
-                        display: none !important; text-align: right; font-size: 30px;  padding: 10px;  color: #472e90; cursor: pointer; } 
-                       @media (max-width: 991px) { 
-                        #main-nav-div .hamburger-menu {
-                           display: block !important;
-                        }  
-                        #main-nav-div .tab-container, #main-nav-div .tab{
-                          width:99%;
-                          text-align:center;
-                       } 
-                      } 
-                      @media (max-width: 767px){#main-nav-div .hamburger-menu {display: block !important;} #main-nav-div .tab-container, #main-nav-div .tab{width:98%;}} 
-                     #google_translate_element{padding:5px !important;}
-                     .VIpgJd-ZVi9od-ORHb-OEVmcd ,.goog-te-gadget-simple img{display:none !important;}
-                     .goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed span{padding-right:5px}
-                     .VIpgJd-yAWNEb-L7lbkb{display:none!important}
-                     body{ top:0px !important;}  .dataTables_scrollHeadInner{ width: 100% !important;} 
-                     </style></head><body> 
-                     <div id="AllBodyData" style="display: none;"> 
-                     <div id="defaultPDF" style="display:none"></div> 
-                     <div id="google_translate_element"></div> 
-                     <script>  
-                     const googleTranslaterF = '${googleTranslater}'; 
-                     if (googleTranslaterF !== 'Yes') { 
-                         let googleTranslateDiv = document.getElementById('google_translate_element');
-                         if(googleTranslateDiv !== null && googleTranslateDiv !== undefined){
-                          googleTranslateDiv.parentNode.removeChild(googleTranslateDiv); 
-                         }
-                     } 
-                      var project_type2 = 'downloadedJsonType';
-                      var jsonData1 = ${exportedJsonData};  
-                      var custom_language =  localStorage.getItem('language'); 
-                      if(custom_language == null){
-                        custom_language = 'english';
-                      }      
-                      function updateDivContent() {  
-                              var styleTags = document.getElementsByTagName('style');
-                              var jsonData = {};
-                              for (var i = 0; i < styleTags.length; i++) {
-                                  var styleContent = styleTags[i].textContent;  
-                                  var regex = /#(\\w+)\\s*{\\s*[^{}]*my-input-json:\\s*([^;]+)\\s*;[^{}]*}/g;
-                                  var matches; 
-                                  while ((matches = regex.exec(styleContent)) !== null) { 
-                                      var divId = matches[1];
-                                      var jsonKey = matches[2];
-                                      var lang = jsonKey; 
-                                      jsonData[divId] = lang;
-                                  } 
-                              }   
-                              for (var divId in jsonData) { 
-                                  var jsonKey2 = jsonData[divId]; 
-                                    const str = 'jsonData1[0].' + custom_language + '.' + jsonKey2; 
-                                    var value = eval(str);  
-                                    var div = document.getElementById(divId); 
-                                    if (div && value) {  
-                                        div.textContent = value;
-                                    }  
+                        currentUtterance = new SpeechSynthesisUtterance(textToRead);
+                        currentUtterance.rate = 0.8;
+                        currentUtterance.pitch = 1;
+                        currentUtterance.volume = 1;
+                        
+                        currentUtterance.onstart = function() {
+                          console.log('TTS started');
+                        };
+                        
+                        currentUtterance.onend = function() {
+                          ttsActive = false;
+                          customReadMode = false;
+                          ttsToggle.classList.remove('active');
+                          ttsStatus.textContent = 'TTS';
+                          console.log('TTS ended');
+                        };
+                        
+                        currentUtterance.onerror = function(event) {
+                          console.error('TTS error:', event);
+                          stopReading();
+                        };
+                        
+                        speechSynthesis.speak(currentUtterance);
+                      } else {
+                        alert('No content found to read');
+                        stopReading();
+                      }
+                    };
+                    
+                    window.readCustom = function() {
+                      ttsActive = true;
+                      customReadMode = true;
+                      ttsMenu.style.display = 'none';
+                      ttsToggle.classList.add('active');
+                      ttsStatus.textContent = 'Click to Read';
+                      
+                      document.addEventListener('click', handleCustomRead, true);
+                    };
+                    
+                    window.stopReading = function() {
+                      if (currentUtterance) {
+                        speechSynthesis.cancel();
+                      }
+                      ttsActive = false;
+                      customReadMode = false;
+                      ttsToggle.classList.remove('active');
+                      ttsStatus.textContent = 'TTS';
+                      ttsMenu.style.display = 'none';
+                      document.removeEventListener('click', handleCustomRead, true);
+                    };
+                    
+                    function handleCustomRead(e) {
+                      if (!customReadMode || 
+                          e.target.closest('#tts_element') || 
+                          e.target.closest('#google_translate_element')) {
+                        return;
+                      }
+                      
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
+                      let clickedElement = e.target;
+                      let textToRead = '';
+                      let clickPosition = null;
+                      
+                      if (clickedElement.nodeType === Node.TEXT_NODE) {
+                        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                        if (range) {
+                          clickPosition = range.startOffset;
+                        }
+                        clickedElement = clickedElement.parentElement;
+                      } else {
+                        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                        if (range && range.startContainer.nodeType === Node.TEXT_NODE) {
+                          clickPosition = range.startOffset;
+                          clickedElement = range.startContainer.parentElement;
+                        }
+                      }
+                      
+                      let immediateText = clickedElement.innerText || clickedElement.textContent || '';
+                      immediateText = immediateText.replace(/TTS|Read All Content|Read on Click|Stop Reading/g, '').trim();
+                      
+                      let contextElement = clickedElement;
+                      let fullText = '';
+                      
+                      const containers = ['p', 'div', 'section', 'article', 'li', 'td', 'th', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+                      for (let containerType of containers) {
+                        let container = clickedElement.closest(containerType);
+                        if (container && container !== document.body) {
+                          contextElement = container;
+                          fullText = container.innerText || container.textContent || '';
+                          break;
+                        }
+                      }
+                      
+                      fullText = fullText.replace(/\\s+/g, ' ').trim();
+                      fullText = fullText.replace(/TTS|Read All Content|Read on Click|Stop Reading/g, '').trim();
+                      
+                      if (clickedElement.tagName === 'A' || clickedElement.tagName === 'BUTTON' || 
+                          clickedElement.closest('a') || clickedElement.closest('button')) {
+                        if (immediateText && immediateText.length > 2) {
+                          const textStart = fullText.toLowerCase().indexOf(immediateText.toLowerCase());
+                          if (textStart !== -1) {
+                            textToRead = fullText.substring(textStart);
+                          } else {
+                            textToRead = immediateText + '. ' + fullText;
+                          }
+                        } else {
+                          textToRead = fullText;
+                        }
+                      } else {
+                        textToRead = fullText;
+                        
+                        if (clickPosition !== null && clickPosition > 0) {
+                          const words = fullText.split(' ');
+                          let charCount = 0;
+                          let startWordIndex = 0;
+                          
+                          for (let i = 0; i < words.length; i++) {
+                            if (charCount >= clickPosition) {
+                              startWordIndex = Math.max(0, i - 1);
+                              break;
+                            }
+                            charCount += words[i].length + 1;
+                          }
+                          
+                          if (startWordIndex > 0) {
+                            textToRead = words.slice(startWordIndex).join(' ');
+                          }
+                        }
+                      }
+                      
+                      if (textToRead && textToRead.length > 3) {
+                        const parentContainer = contextElement.parentElement;
+                        if (parentContainer) {
+                          const allText = parentContainer.innerText || parentContainer.textContent || '';
+                          const cleanAllText = allText.replace(/\\s+/g, ' ').trim()
+                                                    .replace(/TTS|Read All Content|Read on Click|Stop Reading/g, '').trim();
+                          
+                          const currentTextInParent = cleanAllText.indexOf(textToRead.substring(0, 50));
+                          if (currentTextInParent !== -1) {
+                            const extendedText = cleanAllText.substring(currentTextInParent);
+                            if (extendedText.length > textToRead.length) {
+                              textToRead = extendedText;
+                            }
+                          }
+                        }
+                      }
+                      
+                      if (textToRead && textToRead.length > 3) {
+                        if (currentUtterance) {
+                          speechSynthesis.cancel();
+                        }
+                        
+                        const chunks = splitTextIntoChunks(textToRead, 500); 
+                        speakChunks(chunks, 0);
+                      }
+                    }
+                    
+                    function splitTextIntoChunks(text, maxLength) {
+                      if (text.length <= maxLength) {
+                        return [text];
+                      }
+                      
+                      const chunks = [];
+                      const sentences = text.split(/(?<=[.!?])\\s+/);
+                      let currentChunk = '';
+                      
+                      for (let sentence of sentences) {
+                        if ((currentChunk + sentence).length <= maxLength) {
+                          currentChunk += (currentChunk ? ' ' : '') + sentence;
+                        } else {
+                          if (currentChunk) {
+                            chunks.push(currentChunk);
+                            currentChunk = sentence;
+                          } else {
+                            const words = sentence.split(' ');
+                            for (let word of words) {
+                              if ((currentChunk + word).length <= maxLength) {
+                                currentChunk += (currentChunk ? ' ' : '') + word;
+                              } else {
+                                if (currentChunk) chunks.push(currentChunk);
+                                currentChunk = word;
                               }
-                          } 
-                          document.addEventListener("DOMContentLoaded", function () { 
-                              updateDivContent();
-                          });
-         
-                     </script>
+                            }
+                          }
+                        }
+                      }
+                      
+                      if (currentChunk) {
+                        chunks.push(currentChunk);
+                      }
+                      
+                      return chunks;
+                    }
+                    
+                    function speakChunks(chunks, index) {
+                      if (!customReadMode || index >= chunks.length) {
+                        ttsStatus.textContent = 'Click to Read';
+                        return;
+                      }
+                      
+                      const chunk = chunks[index];
+                      currentUtterance = new SpeechSynthesisUtterance(chunk);
+                      currentUtterance.rate = 0.8;
+                      currentUtterance.pitch = 1;
+                      currentUtterance.volume = 1;
+                      
+                      currentUtterance.onstart = function() {
+                        ttsStatus.textContent = \`Speaking (\${index + 1}/\${chunks.length})...\`;
+                      };
+                      
+                      currentUtterance.onend = function() {
+                        setTimeout(() => {
+                          speakChunks(chunks, index + 1);
+                        }, 100);
+                      };
+                      
+                      currentUtterance.onerror = function(event) {
+                        console.error('TTS error:', event);
+                        setTimeout(() => {
+                          speakChunks(chunks, index + 1);
+                        }, 500);
+                      };
+                      
+                      speechSynthesis.speak(currentUtterance);
+                    }
+                  }
+                  
+                  var project_type2 = 'downloadedJsonType';
+                  var jsonData1 = ${exportedJsonData};  
+                  var custom_language = localStorage.getItem('language'); 
+                  if(custom_language == null){
+                    custom_language = 'english';
+                  }      
+                  
+                  function updateDivContent() {  
+                    var styleTags = document.getElementsByTagName('style');
+                    var jsonData = {};
+                    for (var i = 0; i < styleTags.length; i++) {
+                      var styleContent = styleTags[i].textContent;  
+                      var regex = /#(\\w+)\\s*{\\s*[^{}]*my-input-json:\\s*([^;]+)\\s*;[^{}]*}/g;
+                      var matches; 
+                      while ((matches = regex.exec(styleContent)) !== null) { 
+                        var divId = matches[1];
+                        var jsonKey = matches[2];
+                        var lang = jsonKey; 
+                        jsonData[divId] = lang;
+                      } 
+                    }   
+                    for (var divId in jsonData) { 
+                      var jsonKey2 = jsonData[divId]; 
+                      const str = 'jsonData1[0].' + custom_language + '.' + jsonKey2; 
+                      var value = eval(str);  
+                      var div = document.getElementById(divId); 
+                      if (div && value) {  
+                        div.textContent = value;
+                      }  
+                    }
+                  } 
+                  
+                  document.addEventListener("DOMContentLoaded", function () { 
+                    updateDivContent();
+                  });
+                </script>
                      ${e.getHtml()} </div> 
                      <script>  
                      var hamburgerMenu = document.getElementById("hamburgerMenu");   

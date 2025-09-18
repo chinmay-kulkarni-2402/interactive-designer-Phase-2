@@ -1382,6 +1382,7 @@ function addFormattedRichTextComponent(editor) {
           const content = this.model.get('content') || '';
           if (content.includes('class="hidden-word"') && content.includes('display: none')) {
             console.log('Content is hidden, cannot edit');
+            windows.alert("please remove hide word conditions first");
             return;
           }
         }
@@ -1676,8 +1677,7 @@ function addFormattedRichTextComponent(editor) {
       },
 
       // FIXED: Use focusout instead of blur for better handling
-      // FIXED: Remove handleRTEFocusOut method completely and replace with this simpler version
-      handleRTEExit() {
+handleRTEExit() {
         console.log('=== RTE EXIT TRIGGERED ===');
 
         if (!this.rteActive) {
@@ -1692,19 +1692,26 @@ function addFormattedRichTextComponent(editor) {
         const isFormulaEnabled = this.model.get('formula-label') || false;
         console.log('Format type:', formatType, 'Formula enabled:', isFormulaEnabled);
 
-        // NEW: Special handling for formula content
+        // FIXED: Always update raw content first
+        console.log('Setting raw content:', content);
+        this.model.set('raw-content', content, { silent: true });
+
+        // Then validate and update
         if (isFormulaEnabled) {
           const textContent = formatHelpers.extractTextContent(content);
+          console.log('Extracted text for formula check:', textContent);
 
           if (formatHelpers.isFormula(textContent)) {
             // For formulas, validate that it's a proper formula syntax
             try {
               const result = formatHelpers.evaluateFormula(textContent.trim());
+              console.log('Formula evaluation result:', result);
+              
               if (typeof result === 'string' && result.startsWith('#ERROR')) {
                 console.log('Formula validation failed:', result);
                 alert(`Formula Error: ${result.replace('#ERROR: ', '')}`);
                 // Revert to previous content
-                const previousContent = this.model.get('raw-content');
+                const previousContent = this.model.get('content');
                 this.el.innerHTML = previousContent;
                 return;
               }
@@ -1712,15 +1719,13 @@ function addFormattedRichTextComponent(editor) {
               console.log('Formula validation error:', error);
               alert(`Formula Error: ${error.message}`);
               // Revert to previous content
-              const previousContent = this.model.get('raw-content');
+              const previousContent = this.model.get('content');
               this.el.innerHTML = previousContent;
               return;
             }
           }
 
-          // For formula-enabled content, skip format validation since formula result will be formatted
-          console.log('Formula content validated, updating');
-          this.model.set('raw-content', content, { silent: true });
+          console.log('Formula content processed, updating');
           this.model.updateContent();
         } else {
           // Existing validation for non-formula content
@@ -1730,11 +1735,10 @@ function addFormattedRichTextComponent(editor) {
             console.log('Validation failed:', validation.error);
             alert(validation.error);
             // Revert to previous content
-            const previousContent = this.model.get('raw-content');
+            const previousContent = this.model.get('content');
             this.el.innerHTML = previousContent;
           } else {
             console.log('Validation passed, updating content');
-            this.model.set('raw-content', content, { silent: true });
             this.model.updateContent();
           }
         }

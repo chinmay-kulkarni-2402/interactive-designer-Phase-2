@@ -1,0 +1,3 @@
+function textTrackerPlugin(editor) {
+
+}

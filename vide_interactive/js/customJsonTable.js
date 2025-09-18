@@ -1,122 +1,122 @@
 function jsontablecustom(editor) {
     let HotFormulaParser = null;
-function loadFormulaParser(callback) {
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
-    script.onload = function () {
-        console.log('HotFormulaParser loaded successfully');
-        HotFormulaParser = new formulaParser.Parser();
+    function loadFormulaParser(callback) {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+        script.onload = function () {
+            console.log('HotFormulaParser loaded successfully');
+            HotFormulaParser = new formulaParser.Parser();
 
-        // ✅ Attach cell reference handler once
-        HotFormulaParser.on('callCellValue', function (cellCoord, done) {
-            let cellValue = window.globalCellMap[cellCoord.label];
+            // ✅ Attach cell reference handler once
+            HotFormulaParser.on('callCellValue', function (cellCoord, done) {
+                let cellValue = window.globalCellMap[cellCoord.label];
 
-            if (cellValue === null || cellValue === undefined || cellValue === '') {
-                done(0); // treat empty cells as 0 for numeric functions
-                return;
-            }
-
-            if (typeof cellValue === 'number') {
-                done(cellValue); // already numeric
-            } else if (!isNaN(cellValue)) {
-                done(parseFloat(cellValue)); // numeric string → number
-            } else {
-                done(String(cellValue)); // keep as text
-            }
-        });
-
-        // ✅ Add custom formulas
-        registerCustomFormulas();
-
-        console.log("parser", HotFormulaParser);
-        if (callback) callback();
-    };
-    script.onerror = function () {
-        console.warn('Failed to load HotFormulaParser');
-        if (callback) callback();
-    };
-    document.head.appendChild(script);
-}
-
-// ✅ Custom formulas
-function registerCustomFormulas() {
-    // --- PERCENT(base, percent) ---
-    HotFormulaParser.setFunction('PERCENT', function (params) {
-        if (params.length !== 2) return '#N/A';
-        const base = parseFloat(params[0]);
-        const percent = parseFloat(params[1]);
-        if (isNaN(base) || isNaN(percent)) return '#VALUE!';
-        return base * (percent / 100);
-    });
-
-    // --- NUMTOWORDS ---
-    const numScript = document.createElement('script');
-    numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
-    numScript.onload = function () {
-        HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
-            if (params.length < 1) return '#N/A';
-
-            const raw = params[0];
-            const num = parseFloat(raw);
-            if (isNaN(num)) return '#VALUE!';
-
-            const mode = (params[1] || "").toString().toLowerCase();
-            let words = "";
-
-            if (Number.isInteger(num)) {
-                words = numberToWords.toWords(num);
-            } else {
-                const [intPart, decPart] = raw.toString().split(".");
-                const intWords = numberToWords.toWords(parseInt(intPart));
-                if (mode === "currency") {
-                    const paise = parseInt(decPart.substring(0, 2).padEnd(2, "0"));
-                    const paiseWords = paise > 0 ? numberToWords.toWords(paise) + " paise" : "";
-                    words = intWords + " rupees" + (paiseWords ? " and " + paiseWords : "");
-                } else {
-                    const decWords = decPart.split("").map(d => numberToWords.toWords(parseInt(d))).join(" ");
-                    words = intWords + " point " + decWords;
+                if (cellValue === null || cellValue === undefined || cellValue === '') {
+                    done(0); // treat empty cells as 0 for numeric functions
+                    return;
                 }
+
+                if (typeof cellValue === 'number') {
+                    done(cellValue); // already numeric
+                } else if (!isNaN(cellValue)) {
+                    done(parseFloat(cellValue)); // numeric string → number
+                } else {
+                    done(String(cellValue)); // keep as text
+                }
+            });
+
+            // ✅ Add custom formulas
+            registerCustomFormulas();
+
+            console.log("parser", HotFormulaParser);
+            if (callback) callback();
+        };
+        script.onerror = function () {
+            console.warn('Failed to load HotFormulaParser');
+            if (callback) callback();
+        };
+        document.head.appendChild(script);
+    }
+
+    // ✅ Custom formulas
+    function registerCustomFormulas() {
+        // --- PERCENT(base, percent) ---
+        HotFormulaParser.setFunction('PERCENT', function (params) {
+            if (params.length !== 2) return '#N/A';
+            const base = parseFloat(params[0]);
+            const percent = parseFloat(params[1]);
+            if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+            return base * (percent / 100);
+        });
+
+        // --- NUMTOWORDS ---
+        const numScript = document.createElement('script');
+        numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
+        numScript.onload = function () {
+            HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+                if (params.length < 1) return '#N/A';
+
+                const raw = params[0];
+                const num = parseFloat(raw);
+                if (isNaN(num)) return '#VALUE!';
+
+                const mode = (params[1] || "").toString().toLowerCase();
+                let words = "";
+
+                if (Number.isInteger(num)) {
+                    words = numberToWords.toWords(num);
+                } else {
+                    const [intPart, decPart] = raw.toString().split(".");
+                    const intWords = numberToWords.toWords(parseInt(intPart));
+                    if (mode === "currency") {
+                        const paise = parseInt(decPart.substring(0, 2).padEnd(2, "0"));
+                        const paiseWords = paise > 0 ? numberToWords.toWords(paise) + " paise" : "";
+                        words = intWords + " rupees" + (paiseWords ? " and " + paiseWords : "");
+                    } else {
+                        const decWords = decPart.split("").map(d => numberToWords.toWords(parseInt(d))).join(" ");
+                        words = intWords + " point " + decWords;
+                    }
+                }
+
+                return words;
+            });
+
+            console.log("NUMTOWORDS formula registered");
+        };
+        document.head.appendChild(numScript);
+    }
+
+    // ✅ Formula evaluation
+    function evaluateFormula(formula, tableData, currentRow, currentCol) {
+        try {
+            if (!HotFormulaParser) {
+                return '#ERROR: Parser not loaded';
             }
 
-            return words;
-        });
+            // Build cell map
+            window.globalCellMap = {};
+            const headers = Object.keys(tableData[0] || {});
 
-        console.log("NUMTOWORDS formula registered");
-    };
-    document.head.appendChild(numScript);
-}
-
-// ✅ Formula evaluation
-function evaluateFormula(formula, tableData, currentRow, currentCol) {
-    try {
-        if (!HotFormulaParser) {
-            return '#ERROR: Parser not loaded';
-        }
-
-        // Build cell map
-        window.globalCellMap = {};
-        const headers = Object.keys(tableData[0] || {});
-
-        tableData.forEach((row, rowIdx) => {
-            headers.forEach((columnKey, colIdx) => {
-                const colLetter = indexToColumnLetter(colIdx);
-                const cellLabel = colLetter + (rowIdx + 1);
-                let value = row[columnKey];
-                if (value === null || value === undefined) value = '';
-                window.globalCellMap[cellLabel] = value;
+            tableData.forEach((row, rowIdx) => {
+                headers.forEach((columnKey, colIdx) => {
+                    const colLetter = indexToColumnLetter(colIdx);
+                    const cellLabel = colLetter + (rowIdx + 1);
+                    let value = row[columnKey];
+                    if (value === null || value === undefined) value = '';
+                    window.globalCellMap[cellLabel] = value;
+                });
             });
-        });
 
-        // Evaluate
-        const { result, error } = HotFormulaParser.parse(formula);
-        if (error) return `#ERROR: ${error}`;
-        return result;
+            // Evaluate
+            const { result, error } = HotFormulaParser.parse(formula);
+            if (error) return `#ERROR: ${error}`;
+            return result;
 
-    } catch (error) {
-        console.error('Formula evaluation error:', error);
-        return `#ERROR: ${error.message}`;
+        } catch (error) {
+            console.error('Formula evaluation error:', error);
+            return `#ERROR: ${error.message}`;
+        }
     }
-}
 
 
 
@@ -265,11 +265,24 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
         }
         return result;
     }
+    function getJsonFileOptions() {
+        const storedFileNames = localStorage.getItem('common_json_files');
+        const options = [{ id: '0', name: 'Select File' }];
+
+        if (storedFileNames) {
+            const fileNames = storedFileNames.split(',').map(f => f.trim()).filter(f => f);
+            fileNames.forEach((fileName, index) => {
+                options.push({ id: (index + 1).toString(), name: fileName });
+            });
+        }
+        return options;
+    }
 
     editor.DomComponents.addType('json-table', {
         model: {
             defaults: {
                 tagName: 'div',
+                selectable: true,
                 attributes: { class: 'json-table-container' },
                 traits: [
                     {
@@ -356,7 +369,15 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
                         type: 'text',
                         name: 'json-path',
                         label: 'Json Path',
-                        placeholder: 'Enter Json Path'
+                        placeholder: 'Enter Json Path',
+                        changeProp: 1
+                    },
+                    {
+                        type: 'select',
+                        name: 'json-file-index',
+                        label: 'JSON File',
+                        options: getJsonFileOptions(),
+                        changeProp: 1
                     },
                     {
                         type: 'button',
@@ -388,6 +409,14 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
                         text: 'Add/Edit Conditions',
                         full: true,
                         command: 'open-table-condition-manager-json-table'
+                    },
+                    {
+                        type: 'button',
+                        name: 'reorder-columns-btn',
+                        label: 'Reorder Columns',
+                        text: 'Manage Column Order',
+                        full: true,
+                        command: 'open-column-reorder-manager'
                     },
                     {
                         type: 'button',
@@ -457,21 +486,93 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
                     window.globalFormulaParser = null;
                 }
 
-                this.on('change:json-path', () => {
-                    this.updateTableFromJson();
-                    this.updateFilterColumnOptions();
-                    this.updateRunningTotalColumnOptions();
+                this.on('change:json-file-index', () => {
+                    this.set('json-path', '');
                     this.set('filter-column', '');
                     this.set('filter-value', '');
                     this.set('running-total-column', '');
                     this.set('enable-running-total', false);
+                    // Clear loaded data
+                    this.set('custom-headers', null);
+                    this.set('custom-data', null);
+                    this.set('table-headers', null);
+                    this.set('table-data', null);
+                    this.set('show-placeholder', true);
+                    this.updateTableHTML();
+
+                    // Update trait options after file change
+                    setTimeout(() => {
+                        this.updateFilterColumnOptions();
+                    }, 100);
                 });
+
+                this.on('change:json-path', () => {
+                    this.updateTableFromJson();
+                    this.set('filter-column', '');
+                    this.set('filter-value', '');
+                    this.set('running-total-column', '');
+                    this.set('enable-running-total', false);
+                    // Clear any existing loaded data
+                    this.set('custom-headers', null);
+                    this.set('custom-data', null);
+
+                    // Update trait display after path change
+                    setTimeout(() => {
+                        const jsonPathTrait = this.getTrait('json-path');
+                        if (jsonPathTrait) {
+                            const currentPath = this.get('json-path');
+                            jsonPathTrait.set('value', currentPath);
+                            // Trigger view update
+                            if (jsonPathTrait.view && jsonPathTrait.view.render) {
+                                jsonPathTrait.view.render();
+                            }
+                        }
+                    }, 100);
+                });
+
                 this.on('change:selected-running-total-columns', () => {
                     this.updateRunningTotals();
                 });
 
-                this.on('change:filter-column change:filter-value', () => {
-                    if (this.get('filter-value') && this.get('filter-value').trim() !== '') {
+                // MODIFIED: Only load data when both filter column and value are set
+                this.on('change:filter-column', () => {
+                    const filterColumn = this.get('filter-column');
+                    const filterValue = this.get('filter-value');
+
+                    // Handle "none" option - load all data immediately
+                    if (filterColumn === "none") {
+                        this.loadFilteredData();
+                        return;
+                    }
+
+                    // For regular columns, check if both column and value are set
+                    if (filterColumn && filterValue && filterValue.trim() !== '') {
+                        this.loadFilteredData();
+                    } else if (!filterColumn) {
+                        // If filter column is cleared, show placeholder again
+                        this.set('custom-headers', null);
+                        this.set('custom-data', null);
+                        this.set('show-placeholder', true);
+                        this.updateTableHTML();
+                    }
+                });
+
+                this.on('change:filter-value', () => {
+                    const filterColumn = this.get('filter-column');
+                    const filterValue = this.get('filter-value');
+
+                    // Skip if "none" is selected (no filter value needed)
+                    if (filterColumn === "none") {
+                        return;
+                    }
+
+                    if (filterColumn && filterValue && filterValue.trim() !== '') {
+                        this.loadFilteredData();
+                    } else if (!filterValue || filterValue.trim() === '') {
+                        // If filter value is cleared, show placeholder again
+                        this.set('custom-headers', null);
+                        this.set('custom-data', null);
+                        this.set('show-placeholder', true);
                         this.updateTableHTML();
                     }
                 });
@@ -481,62 +582,254 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
 
                 this.set('show-placeholder', true);
                 this.updateTableHTML();
+            },
 
+safeInitializeFormulaParser() {
+    try {
+        if (typeof loadFormulaParser === 'function') {
+            this.initializeFormulaParser();
+        }
+    } catch (error) {
+        console.warn('Could not initialize formula parser:', error);
+    }
+},
+            loadFilteredData() {
+                const filterColumn = this.get('filter-column');
+                const filterValue = this.get('filter-value');
+                const originalHeaders = this.get('table-headers');
+                const originalData = this.get('table-data');
+
+                if (!originalHeaders || !originalData) {
+                    console.warn('Cannot load data: missing table data');
+                    return;
+                }
+
+                // Handle "none" option - load all data without filtering
+                if (filterColumn === "none") {
+                    const allData = [...originalData];
+
+                    this.set('custom-headers', { ...originalHeaders });
+                    this.set('custom-data', allData);
+                    this.set('show-placeholder', false);
+
+                    // Clear filter value when none is selected
+                    this.set('filter-value', '');
+                    const filterValueTrait = this.getTrait('filter-value');
+                    if (filterValueTrait) {
+                        filterValueTrait.set('value', '');
+                    }
+
+                    // Initialize formula parser safely
+                    this.safeInitializeFormulaParser();
+
+                    this.updateTableHTML();
+                    console.log(`Loaded all ${allData.length} rows without filtering`);
+                    return;
+                }
+
+                // Regular filtering logic
+                if (!filterColumn || !filterValue || filterColumn === '') {
+                    console.warn('Cannot load data: missing filter criteria');
+                    return;
+                }
+
+                let filteredData;
+
+                // If filter value is "=", load complete data
+                if (filterValue === "=") {
+                    filteredData = [...originalData];
+                } else {
+                    // Apply filtering
+                    filteredData = originalData.filter(row => {
+                        const cellValue = String(row[filterColumn] || "").toLowerCase();
+                        const searchValue = String(filterValue).toLowerCase();
+                        return cellValue.includes(searchValue);
+                    });
+                }
+
+                // Set the filtered data as custom data
+                this.set('custom-headers', { ...originalHeaders });
+                this.set('custom-data', filteredData);
+                this.set('show-placeholder', false);
+
+                // Preserve filter values in the traits
+                const filterColumnTrait = this.getTrait('filter-column');
+                const filterValueTrait = this.getTrait('filter-value');
+
+                if (filterColumnTrait) {
+                    filterColumnTrait.set('value', filterColumn);
+                }
+                if (filterValueTrait) {
+                    filterValueTrait.set('value', filterValue);
+                }
+
+                // Initialize formula parser safely
+                this.safeInitializeFormulaParser();
+
+                this.updateTableHTML();
+
+                console.log(`Loaded ${filteredData.length} rows based on filter: ${filterColumn} contains "${filterValue}"`);
+
+                // Show success message
+                if (filteredData.length === 0) {
+                    alert('No data matches the filter criteria');
+                } else {
+                    console.log(`Successfully loaded ${filteredData.length} filtered rows`);
+                }
+            },
+            reorderColumns(newColumnOrder) {
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                // Create new ordered headers
+                const reorderedHeaders = {};
+                newColumnOrder.forEach(columnKey => {
+                    if (headers[columnKey]) {
+                        reorderedHeaders[columnKey] = headers[columnKey];
+                    }
+                });
+
+                // Create new ordered data
+                const reorderedData = data.map(row => {
+                    const newRow = {};
+                    newColumnOrder.forEach(columnKey => {
+                        if (row.hasOwnProperty(columnKey)) {
+                            newRow[columnKey] = row[columnKey];
+                        }
+                    });
+                    return newRow;
+                });
+
+                // Update the component
+                this.set('custom-headers', reorderedHeaders);
+                this.set('custom-data', reorderedData);
+                this.updateTableHTML();
             },
             updateFilterColumnOptions() {
                 try {
                     const jsonPath = this.get('json-path');
+                    const fileIndex = this.get('json-file-index') || '0';
                     if (!jsonPath || jsonPath.trim() === "") {
+                        // Reset filter options when no path
+                        const filterTrait = this.getTrait('filter-column');
+                        if (filterTrait) {
+                            const options = [{ value: "", name: "First enter JSON path" }];
+                            filterTrait.set('options', options);
+                        }
                         return;
                     }
 
-                    let custom_language = localStorage.getItem('language') || 'english';
-                    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+                    // Parse jsonPath to extract language and subpath
+                    const pathParts = jsonPath.split('.');
+                    let selectedLanguage = localStorage.getItem('language') || 'english';
+                    let subPath = jsonPath;
+                    if (pathParts.length > 1) {
+                        selectedLanguage = pathParts[0];
+                        subPath = pathParts.slice(1).join('.');
+                    }
 
-                    if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+                    let jsonDataN;
+                    if (fileIndex !== '0') {
+                        const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
+                        const selectedFile = fileNames[parseInt(fileIndex) - 1];
+                        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+                        if (jsonString) {
+                            const fileJson = JSON.parse(jsonString);
+                            jsonDataN = fileJson[selectedLanguage];
+                        }
+                    } else {
+                        const commonJson = JSON.parse(localStorage.getItem("common_json"));
+                        jsonDataN = commonJson[selectedLanguage];
+                    }
+
+                    if (!jsonDataN || !jsonDataN[subPath]) {
+                        const filterTrait = this.getTrait('filter-column');
+                        if (filterTrait) {
+                            const options = [{ value: "", name: "Invalid JSON path" }];
+                            filterTrait.set('options', options);
+                        }
                         return;
                     }
 
-                    const str = jsonDataN[custom_language][jsonPath];
-                    const tableData = eval(str);
+                    const str = jsonDataN[subPath];
+                    let tableData;
+                    if (typeof str === 'string') {
+                        tableData = eval(str);
+                    } else {
+                        tableData = str;
+                    }
 
                     if (!tableData || !tableData.heading) {
+                        const filterTrait = this.getTrait('filter-column');
+                        if (filterTrait) {
+                            const options = [{ value: "", name: "Invalid table structure" }];
+                            filterTrait.set('options', options);
+                        }
                         return;
                     }
 
                     const objectKeys = Object.keys(tableData.heading);
 
-                    // Update the filter column trait options
+                    // Update the filter column trait options with "none" option
                     const filterTrait = this.getTrait('filter-column');
                     if (filterTrait) {
+                        const currentValue = this.get('filter-column'); // Preserve current selection
                         const options = [
-                            { value: "", name: "Select Column to Filter" },
+                            { value: "", name: "Select Column to Filter & Load Data" },
+                            { value: "none", name: "None (Load All Data)" },
                             ...objectKeys.map(key => ({
                                 value: key,
                                 name: tableData.heading[key]
                             }))
                         ];
                         filterTrait.set('options', options);
+
+                        // Preserve the current selection if it exists
+                        if (currentValue && currentValue !== '') {
+                            filterTrait.set('value', currentValue);
+                        }
                     }
+
+                    console.log('Filter column options updated:', objectKeys.length, 'columns available');
+
                 } catch (error) {
                     console.log('Error updating filter options:', error);
+                    const filterTrait = this.getTrait('filter-column');
+                    if (filterTrait) {
+                        const options = [{ value: "", name: "Error loading columns" }];
+                        filterTrait.set('options', options);
+                    }
                 }
             },
             updateRunningTotalColumnOptions() {
                 try {
                     const jsonPath = this.get('json-path');
+                    const fileIndex = this.get('json-file-index') || '0';
                     if (!jsonPath || jsonPath.trim() === "") {
                         return;
                     }
 
+                    let jsonDataN;
                     let custom_language = localStorage.getItem('language') || 'english';
-                    const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
 
-                    if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+                    if (fileIndex !== '0') {
+                        const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
+                        const selectedFile = fileNames[parseInt(fileIndex) - 1];
+                        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+                        if (jsonString) {
+                            const fileJson = JSON.parse(jsonString);
+                            jsonDataN = fileJson[custom_language];
+                        }
+                    } else {
+                        const commonJson = JSON.parse(localStorage.getItem("common_json"));
+                        jsonDataN = commonJson[custom_language];
+                    }
+
+                    if (!jsonDataN || !jsonDataN[jsonPath]) {
                         return;
                     }
 
-                    const str = jsonDataN[custom_language][jsonPath];
+                    const str = jsonDataN[jsonPath];
                     const tableData = eval(str);
 
                     if (!tableData || !tableData.heading) {
@@ -799,99 +1092,147 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
             },
             initializeFormulaParser() {
                 const self = this;
-                loadFormulaParser(function () { });
 
-                const cellMap = window.globalCellMap;
-                HotFormulaParser.on('callCellValue', function (cellCoord, done) {
-                    const label = cellCoord.label;
-                    done(cellMap[label] || 0);
-                });
-                console.log("cell map", cellMap);
-                console.log("hotformulaparcer", HotFormulaParser)
-                self.set('formula-parser', HotFormulaParser);
-                self.set('cell-map', cellMap);
-
-            },
-            updateTableFromJson() {
-                const jsonPath = this.get('json-path');
-                if (!jsonPath) return;
-
-                try {
-                    let custom_language = localStorage.getItem('language');
-                    if (custom_language === null) {
-                        custom_language = 'english';
-                    }
-                    const commonJson = JSON.parse(localStorage.getItem('common_json'));
-                    if (!commonJson || !commonJson[custom_language]) {
-                        console.error('Common JSON or language data not found');
-                        return;
-                    }
-
-                    const fullPath = `commonJson.${custom_language}.${jsonPath}`;
-                    const tableData = eval(fullPath);
-
-                    if (tableData && tableData.heading && tableData.data) {
-                        this.set('table-headers', tableData.heading);
-                        this.set('table-data', tableData.data);
-                        this.set('custom-headers', tableData.heading);
-                        this.set('custom-data', [...tableData.data]);
-                        this.set('show-placeholder', false);
-
-                        // Initialize formula parser
-                        this.initializeFormulaParser();
-
-                        this.updateTableHTML();
-                        this.updateRunningTotalColumnOptions();
-                        setTimeout(() => {
-                            this.trigger('change:content');
-                            this.view.render();
-                            this.registerTableCellComponents();
-                        }, 50);
-                    } else {
-                        console.error('Invalid table data structure');
-                    }
-                } catch (error) {
-                    console.error('Error parsing JSON path:', error);
+                // Check if formula parser is already loaded
+                if (!window.HotFormulaParser) {
+                    loadFormulaParser(function () {
+                        if (window.HotFormulaParser) {
+                            self.setupFormulaParser();
+                        }
+                    });
+                } else {
+                    this.setupFormulaParser();
                 }
             },
 
-            registerTableCellComponents() {
-                const tableElement = this.view.el.querySelector('.json-data-table');
-                if (!tableElement) return;
+            setupFormulaParser() {
+                const cellMap = window.globalCellMap || {};
 
-                setTimeout(() => {
-                    const wrapper = editor.DomComponents.getWrapper();
-
-                    // Register both th and td elements
-                    const allCells = tableElement.querySelectorAll('th, td');
-                    allCells.forEach((cell) => {
-                        // Ensure proper component attributes
-                        cell.setAttribute('data-gjs-type', 'json-table-cell');
-                        cell.setAttribute('data-gjs-selectable', 'true');
-                        cell.setAttribute('data-gjs-hoverable', 'true');
-                        cell.setAttribute('data-gjs-editable', 'false');
-
-                        // Add a unique ID if missing
-                        if (!cell.id) {
-                            cell.id = `cell-${Math.random().toString(36).substr(2, 9)}`;
-                        }
-
-                        // Force component recognition
-                        const existingComp = wrapper.find(`#${cell.id}`)[0];
-                        // if (!existingComp) {
-                        //     // Just register the existing DOM element without adding new component
-                        //     const existingComp = wrapper.find(`#${cell.id}`)[0];
-                        //     if (!existingComp) {
-                        //         // Force component recognition for existing DOM element
-                        //         editor.getModelForEl(cell);
-                        //     }
-                        // }
+                // Only set up if HotFormulaParser exists
+                if (window.HotFormulaParser) {
+                    window.HotFormulaParser.on('callCellValue', function (cellCoord, done) {
+                        const label = cellCoord.label;
+                        done(cellMap[label] || 0);
                     });
 
-                    // Refresh component recognition
-                    editor.trigger('component:update');
-                }, 200);
+                    console.log("cell map", cellMap);
+                    console.log("hotformulaparcer", window.HotFormulaParser);
+
+                    this.set('formula-parser', window.HotFormulaParser);
+                    this.set('cell-map', cellMap);
+                }
             },
+
+            updateTableFromJson() {
+                const jsonPath = this.get('json-path');
+                const fileIndex = this.get('json-file-index') || '0';
+                if (!jsonPath) {
+                    console.warn('No JSON path provided');
+                    this.set('show-placeholder', true);
+                    this.updateTableHTML();
+                    return;
+                }
+
+                try {
+                    // Parse jsonPath to extract language and subpath
+                    const pathParts = jsonPath.split('.');
+                    let selectedLanguage = localStorage.getItem('language') || 'english';
+                    let subPath = jsonPath;
+                    if (pathParts.length > 1) {
+                        selectedLanguage = pathParts[0];
+                        subPath = pathParts.slice(1).join('.');
+                    }
+
+                    let jsonDataN;
+                    if (fileIndex !== '0') {
+                        const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
+                        if (!fileNames.length || parseInt(fileIndex) > fileNames.length) {
+                            console.error('Invalid file index or no files available:', fileIndex, fileNames);
+                            this.set('show-placeholder', true);
+                            this.updateTableHTML();
+                            return;
+                        }
+                        const selectedFile = fileNames[parseInt(fileIndex) - 1];
+                        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+                        if (!jsonString) {
+                            console.error(`JSON file not found: common_json_${selectedFile}`);
+                            this.set('show-placeholder', true);
+                            this.updateTableHTML();
+                            return;
+                        }
+                        const fileJson = JSON.parse(jsonString);
+                        jsonDataN = fileJson[selectedLanguage];
+                        if (!jsonDataN) {
+                            console.error(`Language "${selectedLanguage}" not found in JSON file: ${selectedFile}`);
+                            this.set('show-placeholder', true);
+                            this.updateTableHTML();
+                            return;
+                        }
+                    } else {
+                        const commonJsonString = localStorage.getItem('common_json');
+                        if (!commonJsonString) {
+                            console.error('Common JSON not found in localStorage');
+                            this.set('show-placeholder', true);
+                            this.updateTableHTML();
+                            return;
+                        }
+                        const commonJson = JSON.parse(commonJsonString);
+                        jsonDataN = commonJson[selectedLanguage];
+                        if (!jsonDataN) {
+                            console.error(`Language "${selectedLanguage}" not found in common JSON`);
+                            this.set('show-placeholder', true);
+                            this.updateTableHTML();
+                            return;
+                        }
+                    }
+
+                    if (!jsonDataN[subPath]) {
+                        console.error(`JSON subpath "${subPath}" not found under language "${selectedLanguage}"`);
+                        this.set('show-placeholder', true);
+                        this.updateTableHTML();
+                        return;
+                    }
+
+                    const str = jsonDataN[subPath];
+                    let tableData;
+                    if (typeof str === 'string') {
+                        tableData = eval(str);
+                    } else {
+                        tableData = str;
+                    }
+
+                    if (tableData && tableData.heading && tableData.data) {
+                        // ONLY store headers and raw data, don't load into table yet
+                        this.set('table-headers', tableData.heading);
+                        this.set('table-data', tableData.data);
+
+                        // Clear any existing custom data
+                        this.set('custom-headers', null);
+                        this.set('custom-data', null);
+
+                        // Keep showing placeholder until filter is applied
+                        this.set('show-placeholder', true);
+                        this.updateTableHTML();
+
+                        // Update filter dropdown with headers
+                        this.updateFilterColumnOptions();
+                        this.updateRunningTotalColumnOptions();
+
+                        console.log('Headers loaded. Apply filter to load data.');
+                    } else {
+                        console.error('Invalid table data structure: missing heading or data');
+                        this.set('show-placeholder', true);
+                        this.updateTableHTML();
+                    }
+                } catch (error) {
+                    console.error('Error parsing JSON path:', error);
+                    this.set('show-placeholder', true);
+                    this.updateTableHTML();
+                }
+            },
+
+
+
             addRow() {
                 const headers = this.get('custom-headers') || this.get('table-headers');
                 const data = this.get('custom-data') || this.get('table-data') || [];
@@ -1077,10 +1418,62 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
                 const cellKey = `${rowIndex}-${columnKey}`;
                 return cellStyles[cellKey] || {};
             },
+            showLoader() {
+                if (!this.loaderElement) {
+                    this.loaderElement = document.createElement('div');
+                    this.loaderElement.className = 'json-table-loader';
+                    this.loaderElement.innerHTML = `
+            <div style="
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                width: 100%; 
+                height: 100%; 
+                background: rgba(0,0,0,0.5); 
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                z-index: 10000;
+            ">
+                <div style="
+                    background: white; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    display: flex; 
+                    align-items: center; 
+                    gap: 10px;
+                ">
+                    <div style="
+                        width: 20px; 
+                        height: 20px; 
+                        border: 2px solid #f3f3f3; 
+                        border-top: 2px solid #007bff; 
+                        border-radius: 50%; 
+                        animation: spin 1s linear infinite;
+                    "></div>
+                    Loading table data...
+                </div>
+            </div>
+            <style>
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>
+        `;
+                }
+                document.body.appendChild(this.loaderElement);
+            },
+
+            hideLoader() {
+                if (this.loaderElement && this.loaderElement.parentNode) {
+                    this.loaderElement.parentNode.removeChild(this.loaderElement);
+                }
+            },
 
             updateTableHTML() {
-                const headers = this.get('custom-headers') || this.get('table-headers');
-                const data = this.get('custom-data') || this.get('table-data');
+                const headers = this.get('custom-headers');
+                const data = this.get('custom-data');
                 const name = this.get('name') || 'Table';
                 const title = this.get('title') || '';
                 const footer = this.get('footer') || 'no';
@@ -1095,206 +1488,491 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
                 // Generate unique table ID
                 const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
 
-                // --- PLACEHOLDER HANDLING ---
-                if ((!headers || !data) && showPlaceholder) {
-                    const placeholderHTML = `
-        <div class="json-table-placeholder" style="
-            width: 100%; 
-            min-height: 200px; 
-            border: 2px dashed #007bff; 
-            border-radius: 8px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            background-color: #f8f9fa;
-            color: #6c757d;
-            text-align: center;
-            padding: 40px 20px;
-            font-family: Arial, sans-serif;
-        ">
-            <div style="font-size: 48px; margin-bottom: 20px; color: #007bff;">📊</div>
-            <h3 style="margin: 0 0 10px 0; color: #495057;">JSON Table Data</h3>
-            <p style="margin: 0; font-size: 14px;">Add JSON path from the properties panel to display table data</p>
-        </div>`;
+                // Clear existing components but preserve the main container
+                const existingComponents = this.components();
+                existingComponents.reset();
 
-                    this.set('content', placeholderHTML);
+                // Handle placeholder state
+                if (showPlaceholder || !headers || !data) {
+                    this.addPlaceholderComponent();
                     return;
                 }
 
-                // Clear placeholder flag when data is available
-                if (headers && data) {
-                    this.set('show-placeholder', false);
-                }
+                // Add main wrapper component
+                const wrapperComponent = this.components().add({
+                    type: 'default',
+                    tagName: 'div',
+                    classes: ['json-table-wrapper'],
+                    style: {
+                        'width': '100%',
+                        'overflow-x': 'auto'
+                    }
+                });
 
-                // --- START TABLE GENERATION ---
-                let tableHTML = `<div class="json-table-wrapper" style="width: 100%; overflow-x: auto;">`;
-
+                // Add title if present
                 if (title) {
-                    tableHTML += `<h3 style="margin-bottom: 15px;">${title}</h3>`;
-                }
-
-                // Controls (Search & File Download)
-                if (search === 'yes' || fileDownload) {
-                    tableHTML += `<div class="table-controls" style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">`;
-                    if (search === 'yes') {
-                        tableHTML += `<input type="text" placeholder="Search..." class="table-search" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 200px;">`;
-                    }
-                    if (fileDownload) {
-                        const downloadOptions = fileDownload.replace(/"/g, '').split(',').map(opt => opt.trim());
-                        tableHTML += `<div class="download-buttons">`;
-                        downloadOptions.forEach(option => {
-                            tableHTML += `<button class="download-btn" data-type="${option}" style="margin-left: 5px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">${option.charAt(0).toUpperCase() + option.slice(1)}</button>`;
-                        });
-                        tableHTML += `</div>`;
-                    }
-                    tableHTML += `</div>`;
-                }
-
-                tableHTML += `<table class="json-data-table" id="${tableId}" style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; font-family: Arial, sans-serif;">`;
-
-                // Caption
-                if (caption === 'yes' && name) {
-                    tableHTML += `<caption style="text-align: ${captionAlign}; padding: 10px; font-weight: bold; background-color: #f8f9fa;">${name}</caption>`;
-                }
-
-                if (headers && data) {
-                    // Table Header with div wrappers
-                    tableHTML += `<thead style="background-color: #f8f9fa; border: 1px solid #000;"><tr>`;
-                    Object.entries(headers).forEach(([key, header]) => {
-                        const headerId = `${tableId}-header-${key}`;
-                        const storedHeader = this.get(`header-content-${key}`) || header;
-                        tableHTML += `<th id="${headerId}" class="editable-header json-table-cell" data-column-key="${key}" data-gjs-type="json-table-cell" data-gjs-selectable="true" data-gjs-hoverable="true" style="padding: 0; text-align: left; border: 1px solid #000000ff; font-weight: bold; cursor: pointer; position: relative;">
-                <div class="cell-content" style="padding: 12px; width: 100%; height: 100%; box-sizing: border-box;">${storedHeader}</div>
-            </th>`;
+                    wrapperComponent.components().add({
+                        type: 'text',
+                        tagName: 'h3',
+                        content: title,
+                        style: {
+                            'margin-bottom': '15px'
+                        }
                     });
-                    tableHTML += `</tr></thead>`;
-
-                    // Table Body with div wrappers and filtering
-                    tableHTML += `<tbody>`;
-                    if (headers && data) {
-                        const filterColumn = this.get('filter-column');
-                        const filterValue = this.get('filter-value');
-
-                        let filteredData = data;
-                        if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
-                            if (filterValue === "=") {
-                                filteredData = data;
-                            } else {
-                                filteredData = data.filter(row => {
-                                    const cellValue = String(row[filterColumn] || "").toLowerCase();
-                                    const searchValue = String(filterValue).toLowerCase();
-                                    return cellValue.includes(searchValue);
-                                });
-                            }
-                        }
-
-                        if (filteredData.length === 0) {
-                            const columnCount = Object.keys(headers).length;
-                            tableHTML += `<tr><td colspan="${columnCount}" style="text-align: center; padding: 20px; color: #666;">No data found</td></tr>`;
-                        } else {
-                            filteredData.forEach((row, rowIndex) => {
-                                const actualRowIndex = data.indexOf(row); // Get original row index
-                                const rowClass = actualRowIndex % 2 === 0 ? 'even-row' : 'odd-row';
-                                tableHTML += `<tr class="${rowClass}" style="background-color: ${actualRowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'};">`;
-                                Object.keys(headers).forEach(key => {
-                                    const cellId = `${tableId}-cell-${actualRowIndex}-${key}`;
-                                    const cellStyles = this.getCellStyle(actualRowIndex, key);
-                                    const formulaCellId = `cell-${actualRowIndex}-${key}`;
-                                    const cellFormulas = this.get('cell-formulas') || {};
-                                    const hasFormula = cellFormulas[formulaCellId];
-                                    const cellStyleString = Object.entries(cellStyles).map(([prop, value]) => `${prop}: ${value}`).join('; ');
-                                    const formulaClass = hasFormula ? ' formula-cell' : '';
-
-                                    // Use clean border styling with no padding on td, padding on div
-                                    const combinedStyle = `padding: 0; border: 1px solid #000; cursor: pointer; position: relative; ${cellStyleString}`;
-                                    const storedContent = this.get(`cell-content-${formulaCellId}`) || row[key] || '';
-                                    const displayValue = row[key] || ''; // Always show the evaluated value
-
-                                    tableHTML += `<td id="${cellId}" class="editable-cell json-table-cell${formulaClass}" data-row="${actualRowIndex}" data-column-key="${key}" data-gjs-type="json-table-cell" data-gjs-selectable="true" data-gjs-hoverable="true" style="${combinedStyle}" title="${hasFormula ? hasFormula : ''}" data-formula="${hasFormula || ''}">
-                            <div class="cell-content" style="padding: 8px; width: 100%; height: 100%; box-sizing: border-box;">${displayValue}</div>
-                        </td>`;
-                                });
-                                tableHTML += `</tr>`;
-                            });
-                        }
-                    }
-                    tableHTML += `</tbody>`;
-
-                    // Footer
-                    if (footer === 'yes') {
-                        tableHTML += `<tfoot style="background-color: #e9ecef;"><tr>`;
-                        Object.values(headers).forEach(header => {
-                            tableHTML += `<th style="padding: 12px; text-align: left; border-top: 2px solid #dee2e6; font-weight: bold;">${header}</th>`;
-                        });
-                        tableHTML += `</tr></tfoot>`;
-                    }
-                } else {
-                    // Fallback sample data if no headers/data and placeholder is off
-                    tableHTML += `<thead style="background-color: #f8f9fa;"><tr>
-            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
-                <div class="cell-content" style="padding: 12px;">Sample Header 1</div>
-            </th>
-            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
-                <div class="cell-content" style="padding: 12px;">Sample Header 2</div>
-            </th>
-            <th style="padding: 0; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: bold;">
-                <div class="cell-content" style="padding: 12px;">Sample Header 3</div>
-            </th>
-        </tr></thead>
-        <tbody>
-            <tr style="background-color: #ffffff;">
-                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
-                    <div class="cell-content" style="padding: 12px;">Sample Data 1</div>
-                </td>
-                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
-                    <div class="cell-content" style="padding: 12px;">Sample Data 2</div>
-                </td>
-                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
-                    <div class="cell-content" style="padding: 12px;">Sample Data 3</div>
-                </td>
-            </tr>
-            <tr style="background-color: #f8f9fa;">
-                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
-                    <div class="cell-content" style="padding: 12px;">Sample Data 4</div>
-                </td>
-                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
-                    <div class="cell-content" style="padding: 12px;">Sample Data 5</div>
-                </td>
-                <td style="padding: 0; border-bottom: 1px solid #dee2e6;">
-                    <div class="cell-content" style="padding: 12px;">Sample Data 6</div>
-                </td>
-            </tr>
-        </tbody>`;
                 }
 
-                tableHTML += `</table>`;
+                // Add controls (search & download)
+                if (search === 'yes' || fileDownload) {
+                    this.addControlsComponent(wrapperComponent, search, fileDownload);
+                }
 
-                // Pagination
+                // Add the main table component
+                const tableComponent = wrapperComponent.components().add({
+                    type: 'default',
+                    tagName: 'table',
+                    classes: ['json-data-table'],
+                    attributes: {
+                        id: tableId
+                    },
+                    style: {
+                        'width': '100%',
+                        'border-collapse': 'collapse',
+                        'border': '1px solid #ddd',
+                        'font-family': 'Arial, sans-serif'
+                    }
+                });
+
+                // Add caption if enabled
+                if (caption === 'yes' && name) {
+                    tableComponent.components().add({
+                        type: 'text',
+                        tagName: 'caption',
+                        content: name,
+                        style: {
+                            'text-align': captionAlign,
+                            'padding': '10px',
+                            'font-weight': 'bold',
+                            'background-color': '#f8f9fa'
+                        }
+                    });
+                }
+
+                // Add table header
+                this.addTableHeader(tableComponent, headers, tableId);
+
+                // Add table body
+                this.addTableBody(tableComponent, headers, data, tableId);
+
+                // Add footer if enabled
+                if (footer === 'yes') {
+                    this.addTableFooter(tableComponent, headers);
+                }
+
+                // Add pagination if enabled
                 if (pagination === 'yes') {
-                    tableHTML += `<div class="table-pagination" style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-            <div>Show <select class="page-length-select" style="padding: 4px;">
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-            </select> entries</div>
-            <div class="pagination-controls">
-                <button class="page-btn" data-page="prev" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Previous</button>
-                <span class="page-info" style="padding: 0 10px;">Page 1 of 1</span>
-                <button class="page-btn" data-page="next" style="padding: 6px 12px; margin: 0 2px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Next</button>
-            </div>
-        </div>`;
+                    this.addPaginationComponent(wrapperComponent, pageLength);
                 }
 
-                tableHTML += `</div>`;
+                // Add styles component
+                this.addStylesComponent(wrapperComponent);
 
-                // Updated styles with proper print handling
+                // Apply highlighting after DOM is ready
+                setTimeout(() => {
+                    const conditions = this.getHighlightConditions();
+                    const color = this.get('highlight-color');
+                    if (conditions && conditions.length > 0) {
+                        applyHighlighting(tableId, conditions, color);
+                    }
+                }, 100);
+            },
 
-                tableHTML += `<style>
-/* Regular styles */
+            addPlaceholderComponent() {
+                const tableHeaders = this.get('table-headers');
+                const filterColumn = this.get('filter-column');
+                const filterValue = this.get('filter-value');
+
+                let placeholderMessage = 'Add JSON path from the properties panel to display table data';
+                let placeholderIcon = '📊';
+
+                if (tableHeaders && Object.keys(tableHeaders).length > 0) {
+                    if (!filterColumn || filterColumn === '') {
+                        placeholderMessage = 'Select a column from "Filter Column" dropdown or choose "None" to load all data<br><small style="color: #666;">Headers are loaded and ready for filtering</small>';
+                        placeholderIcon = '🎯';
+                    } else if (filterColumn !== 'none' && (!filterValue || filterValue === '')) {
+                        placeholderMessage = 'Enter a filter value to load data<br><small style="color: #666;">Enter "=" to load all data for this column</small>';
+                        placeholderIcon = '✏️';
+                    }
+                }
+
+                this.components().add({
+                    type: 'default',
+                    tagName: 'json-table',
+                    selectable: false,
+                    classes: ['json-table-placeholder'],
+                    content: `
+            <div style="font-size: 48px; margin-bottom: 20px; color: #007bff;">${placeholderIcon}</div>
+            <h3 style="margin: 0 0 10px 0; color: #495057;">JSON Table Data</h3>
+            <p style="margin: 0; font-size: 14px;">${placeholderMessage}</p>
+        `,
+                    style: {
+                        'width': '100%',
+                        'min-height': '200px',
+                        'border': '2px dashed #007bff',
+                        'border-radius': '8px',
+                        'display': 'flex',
+                        'flex-direction': 'column',
+                        'align-items': 'center',
+                        'justify-content': 'center',
+                        'background-color': '#f8f9fa',
+                        'color': '#6c757d',
+                        'text-align': 'center',
+                        'font-family': 'Arial, sans-serif',
+                        'cursor': 'pointer'
+                    }
+                });
+            },
+
+            addControlsComponent(parentComponent, search, fileDownload) {
+                const controlsComponent = parentComponent.components().add({
+                    type: 'default',
+                    tagName: 'div',
+                    classes: ['table-controls'],
+                    style: {
+                        'margin-bottom': '15px',
+                        'display': 'flex',
+                        'justify-content': 'space-between',
+                        'align-items': 'center'
+                    }
+                });
+
+                if (search === 'yes') {
+                    controlsComponent.components().add({
+                        type: 'input',
+                        classes: ['table-search'],
+                        attributes: {
+                            type: 'text',
+                            placeholder: 'Search...'
+                        },
+                        style: {
+                            'padding': '8px',
+                            'border': '1px solid #ddd',
+                            'border-radius': '4px',
+                            'width': '200px'
+                        }
+                    });
+                }
+
+                if (fileDownload) {
+                    const downloadContainer = controlsComponent.components().add({
+                        type: 'default',
+                        tagName: 'div',
+                        classes: ['download-buttons']
+                    });
+
+                    const downloadOptions = fileDownload.replace(/"/g, '').split(',').map(opt => opt.trim());
+                    downloadOptions.forEach(option => {
+                        downloadContainer.components().add({
+                            type: 'button',
+                            classes: ['download-btn'],
+                            content: option.charAt(0).toUpperCase() + option.slice(1),
+                            attributes: {
+                                'data-type': option
+                            },
+                            style: {
+                                'margin-left': '5px',
+                                'padding': '6px 12px',
+                                'background': '#007bff',
+                                'color': 'white',
+                                'border': 'none',
+                                'border-radius': '4px',
+                                'cursor': 'pointer'
+                            }
+                        });
+                    });
+                }
+            },
+
+            addTableHeader(tableComponent, headers, tableId) {
+                const theadComponent = tableComponent.components().add({
+                    type: 'default',
+                    tagName: 'thead',
+                    style: {
+                        'background-color': '#f8f9fa',
+                        'border': '1px solid #000'
+                    }
+                });
+
+                const headerRowComponent = theadComponent.components().add({
+                    type: 'default',
+                    tagName: 'tr'
+                });
+
+                Object.entries(headers).forEach(([key, header]) => {
+                    const headerId = `${tableId}-header-${key}`;
+                    const storedHeader = this.get(`header-content-${key}`) || header;
+
+                    const headerCellComponent = headerRowComponent.components().add({
+                        type: 'json-table-cell', // Use your custom cell type
+                        tagName: 'th',
+                        classes: ['editable-header', 'json-table-cell'],
+                        attributes: {
+                            id: headerId,
+                            'data-column-key': key,
+                            'data-gjs-type': 'json-table-cell',
+                            'data-gjs-selectable': 'true',
+                            'data-gjs-hoverable': 'true'
+                        },
+                        style: {
+                            'padding': '0',
+                            'text-align': 'left',
+                            'border': '1px solid #000000ff',
+                            'font-weight': 'bold',
+                            'cursor': 'pointer',
+                            'position': 'relative'
+                        }
+                    });
+
+                    // Add cell content div
+                    headerCellComponent.components().add({
+                        type: 'text',
+                        tagName: 'div',
+                        classes: ['cell-content'],
+                        editable: true,
+                        content: storedHeader,
+                        style: {
+                            'margin': '10px',
+                            'width': '97%',
+                            'height': '100%',
+                            'box-sizing': 'border-box'
+                        }
+                    });
+                });
+            },
+
+            addTableBody(tableComponent, headers, data, tableId) {
+                const tbodyComponent = tableComponent.components().add({
+                    type: 'default',
+                    tagName: 'tbody'
+                });
+
+                if (data.length === 0) {
+                    const emptyRowComponent = tbodyComponent.components().add({
+                        type: 'default',
+                        tagName: 'tr'
+                    });
+
+                    emptyRowComponent.components().add({
+                        type: 'text',
+                        tagName: 'td',
+                        content: 'No data found',
+                        attributes: {
+                            colspan: Object.keys(headers).length.toString()
+                        },
+                        style: {
+                            'text-align': 'center',
+                            'padding': '20px',
+                            'color': '#666'
+                        }
+                    });
+                    return;
+                }
+
+                data.forEach((row, rowIndex) => {
+                    const rowComponent = tbodyComponent.components().add({
+                        type: 'default',
+                        tagName: 'tr',
+                        classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
+                        style: {
+                            'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'
+                        }
+                    });
+
+                    Object.keys(headers).forEach(key => {
+                        const cellId = `${tableId}-cell-${rowIndex}-${key}`;
+                        const cellStyles = this.getCellStyle(rowIndex, key);
+                        const formulaCellId = `cell-${rowIndex}-${key}`;
+                        const cellFormulas = this.get('cell-formulas') || {};
+                        const hasFormula = cellFormulas[formulaCellId];
+
+                        const cellClasses = ['editable-cell', 'json-table-cell'];
+                        if (hasFormula) cellClasses.push('formula-cell');
+
+                        const cellComponent = rowComponent.components().add({
+                            type: 'json-table-cell', // Use your custom cell type
+                            tagName: 'td',
+                            classes: cellClasses,
+                            attributes: {
+                                id: cellId,
+                                'data-row': rowIndex.toString(),
+                                'data-column-key': key,
+                                'data-gjs-type': 'json-table-cell',
+                                'data-gjs-selectable': 'true',
+                                'data-gjs-hoverable': 'true',
+                                title: hasFormula ? hasFormula : '',
+                                'data-formula': hasFormula || ''
+                            },
+                            style: {
+                                'padding': '0',
+                                'border': '1px solid #000',
+                                'cursor': 'pointer',
+                                'position': 'relative',
+                                ...cellStyles // Apply any custom cell styles
+                            }
+                        });
+
+                        // Add cell content div
+                        const displayValue = row[key] || '';
+                        cellComponent.components().add({
+                            type: 'text',
+                            tagName: 'div',
+                            classes: ['cell-content'],
+                            content: displayValue,
+                            style: {
+                                'margin': '10px',
+                                'width': '97%',
+                                'height': '100%',
+                                'box-sizing': 'border-content-box'
+                            }
+                        });
+                    });
+                });
+            },
+
+            addTableFooter(tableComponent, headers) {
+                const tfootComponent = tableComponent.components().add({
+                    type: 'default',
+                    tagName: 'tfoot',
+                    style: {
+                        'background-color': '#e9ecef'
+                    }
+                });
+
+                const footerRowComponent = tfootComponent.components().add({
+                    type: 'default',
+                    tagName: 'tr'
+                });
+
+                Object.values(headers).forEach(header => {
+                    footerRowComponent.components().add({
+                        type: 'text',
+                        tagName: 'th',
+                        content: header,
+                        style: {
+                            'padding': '12px',
+                            'text-align': 'left',
+                            'border-top': '2px solid #dee2e6',
+                            'font-weight': 'bold'
+                        }
+                    });
+                });
+            },
+
+            addPaginationComponent(parentComponent, pageLength) {
+                const paginationComponent = parentComponent.components().add({
+                    type: 'default',
+                    tagName: 'div',
+                    classes: ['table-pagination'],
+                    style: {
+                        'margin-top': '15px',
+                        'display': 'flex',
+                        'justify-content': 'space-between',
+                        'align-items': 'center'
+                    }
+                });
+
+                // Page length selector
+                const pageLengthContainer = paginationComponent.components().add({
+                    type: 'default',
+                    tagName: 'div',
+                    content: 'Show '
+                });
+
+                const selectComponent = pageLengthContainer.components().add({
+                    type: 'select',
+                    classes: ['page-length-select'],
+                    style: {
+                        'padding': '4px'
+                    }
+                });
+
+                // Add options
+                [10, 25, 50, 100].forEach(value => {
+                    selectComponent.components().add({
+                        type: 'option',
+                        attributes: { value: value.toString() },
+                        content: value.toString()
+                    });
+                });
+
+                pageLengthContainer.components().add({
+                    type: 'text',
+                    content: ' entries'
+                });
+
+                // Pagination controls
+                const controlsContainer = paginationComponent.components().add({
+                    type: 'default',
+                    tagName: 'div',
+                    classes: ['pagination-controls']
+                });
+
+                // Previous button
+                controlsContainer.components().add({
+                    type: 'button',
+                    classes: ['page-btn'],
+                    content: 'Previous',
+                    attributes: {
+                        'data-page': 'prev'
+                    },
+                    style: {
+                        'padding': '6px 12px',
+                        'margin': '0 2px',
+                        'background': '#007bff',
+                        'color': 'white',
+                        'border': 'none',
+                        'border-radius': '4px',
+                        'cursor': 'pointer'
+                    }
+                });
+
+                // Page info
+                controlsContainer.components().add({
+                    type: 'text',
+                    classes: ['page-info'],
+                    content: 'Page 1 of 1',
+                    style: {
+                        'padding': '0 10px'
+                    }
+                });
+
+                // Next button
+                controlsContainer.components().add({
+                    type: 'button',
+                    classes: ['page-btn'],
+                    content: 'Next',
+                    attributes: {
+                        'data-page': 'next'
+                    },
+                    style: {
+                        'padding': '6px 12px',
+                        'margin': '0 2px',
+                        'background': '#007bff',
+                        'color': 'white',
+                        'border': 'none',
+                        'border-radius': '4px',
+                        'cursor': 'pointer'
+                    }
+                });
+            },
+
+            addStylesComponent(parentComponent) {
+                parentComponent.components().add({
+                    type: 'default',
+                    tagName: 'style',
+                    content: `
+/* Table Styles */
 .json-table-container {
-    min-height: 200px;
+    min-height: 100px;
     padding: 10px 0 10px 0;
     width: 100%;
     margin: 10px 0;
@@ -1331,16 +2009,8 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
 
 .json-table-cell {
     position: relative;
-    min-height: 40px; /* Ensure minimum height */
+    min-height: 40px;
     overflow: hidden;
-}
-
-.cell-content {
-    width: 100%;
-    height: 100%;
-    min-height: inherit;
-    display: block;
-    word-wrap: break-word;
 }
 
 .json-table-cell.editing .cell-content {
@@ -1349,7 +2019,6 @@ function evaluateFormula(formula, tableData, currentRow, currentCol) {
     min-height: inherit;
     overflow: hidden;
 }
-
 
 td[data-highlighted="true"], th[data-highlighted="true"] {
     position: relative;
@@ -1379,267 +2048,239 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     color: #1976d2 !important;
     font-family: 'Courier New', monospace !important;
 }
-   @media print {
-  .json-data-table {
-    border: 1px solid #000 !important;
-    border-collapse: separate !important;   
-    border-spacing: 0 !important;          
-    width: 100% !important;
-  }
 
-  .json-data-table th,
-  .json-data-table td {
-    border: 1px solid #000 !important;
-    background: #fff !important;
-    padding: 4px !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  .json-data-table th,
-  .json-data-table td {
-    position: relative;
-  }
+        `
+                });
+            },
 
-  .json-data-table th::after,
-  .json-data-table td::after {
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    border: 1px solid #000 !important;
-    pointer-events: none;
-  }
-    .cell-content{
-    padding: 2px !important}
-    .running-total-column {
-        background-color: #f0f8ff !important;
-        border-left: 2px solid #000 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-}
-</style>`;
+            // Method to update specific cells without rebuilding entire table
+            updateSpecificCells(updates) {
+                // updates = [{ rowIndex, columnKey, newValue }, ...]
+                const tableId = this.cid ? `json-table-${this.cid}` : null;
+                if (!tableId) return;
 
-                this.set('content', tableHTML);
+                updates.forEach(({ rowIndex, columnKey, newValue }) => {
+                    const cellId = `${tableId}-cell-${rowIndex}-${columnKey}`;
 
-                // Apply highlighting
-                setTimeout(() => {
-                    const conditions = this.getHighlightConditions();
-                    const color = this.get('highlight-color');
-                    if (conditions && conditions.length > 0) {
-                        applyHighlighting(tableId, conditions, color);
+                    // Find the component by traversing the component tree
+                    const tableComponent = this.components().at(0); // Main wrapper
+                    const tableElement = tableComponent.components().find(comp =>
+                        comp.get('tagName') === 'table'
+                    );
+
+                    if (tableElement) {
+                        const tbody = tableElement.components().find(comp =>
+                            comp.get('tagName') === 'tbody'
+                        );
+
+                        if (tbody) {
+                            const rows = tbody.components();
+                            const targetRow = rows.at(rowIndex);
+
+                            if (targetRow) {
+                                const cells = targetRow.components();
+                                const headerKeys = Object.keys(this.get('custom-headers') || this.get('table-headers') || {});
+                                const columnIndex = headerKeys.indexOf(columnKey);
+
+                                if (columnIndex >= 0) {
+                                    const targetCell = cells.at(columnIndex);
+                                    if (targetCell) {
+                                        const cellContent = targetCell.components().at(0); // The div with cell-content class
+                                        if (cellContent) {
+                                            cellContent.set('content', newValue);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
+                });
+            },
 
-                    // Register components after table is rendered
-                    this.registerTableCellComponents();
-                }, 100);
+            // Method to add/remove rows dynamically
+            addRowDynamic() {
+                const headers = this.get('custom-headers') || this.get('table-headers');
+                const data = this.get('custom-data') || this.get('table-data') || [];
+
+                if (!headers) return;
+
+                const newRow = {};
+                Object.keys(headers).forEach(key => {
+                    newRow[key] = 'New Data';
+                });
+
+                const updatedData = [...data, newRow];
+                this.set('custom-data', updatedData);
+
+                // Add the new row component instead of rebuilding entire table
+                const tableComponent = this.components().at(0); // Main wrapper
+                const tableElement = tableComponent.components().find(comp =>
+                    comp.get('tagName') === 'table'
+                );
+
+                if (tableElement) {
+                    const tbody = tableElement.components().find(comp =>
+                        comp.get('tagName') === 'tbody'
+                    );
+
+                    if (tbody) {
+                        const rowIndex = updatedData.length - 1;
+                        const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
+
+                        this.addSingleRowComponent(tbody, newRow, rowIndex, headers, tableId);
+                    }
+                }
+            },
+
+            addSingleRowComponent(tbodyComponent, row, rowIndex, headers, tableId) {
+                const rowComponent = tbodyComponent.components().add({
+                    type: 'default',
+                    tagName: 'tr',
+                    classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
+                    style: {
+                        'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                    }
+                });
+
+                Object.keys(headers).forEach(key => {
+                    const cellId = `${tableId}-cell-${rowIndex}-${key}`;
+                    const cellStyles = this.getCellStyle(rowIndex, key);
+
+                    const cellComponent = rowComponent.components().add({
+                        type: 'json-table-cell',
+                        tagName: 'td',
+                        classes: ['editable-cell', 'json-table-cell'],
+                        attributes: {
+                            id: cellId,
+                            'data-row': rowIndex.toString(),
+                            'data-column-key': key,
+                            'data-gjs-type': 'json-table-cell',
+                            'data-gjs-selectable': 'true',
+                            'data-gjs-hoverable': 'true'
+                        },
+                        style: {
+                            'padding': '0',
+                            'border': '1px solid #000',
+                            'cursor': 'pointer',
+                            'position': 'relative',
+                            ...cellStyles
+                        }
+                    });
+
+                    cellComponent.components().add({
+                        type: 'text',
+                        tagName: 'div',
+                        classes: ['cell-content'],
+                        content: row[key] || '',
+                        style: {
+                            'margin': '10px',
+                            'width': '97%',
+                            'height': '100%',
+                            'box-sizing': 'border-content-box'
+                        }
+                    });
+                });
             }
 
 
         },
 
+        // Add these event handlers to the view's events object
         view: {
             events: {
                 'input .table-search': 'handleSearch',
                 'click .download-btn': 'handleDownload',
                 'click .page-btn': 'handlePagination',
                 'change .page-length-select': 'handlePageLengthChange',
-                'click .json-table-cell': 'handleCellClick',
+                'click .json-table-cell, .json-table-cell *': 'handleCellClick',
                 'blur .cell-input': 'handleCellEdit',
                 'blur .header-input': 'handleHeaderEdit',
                 'keydown .cell-input': 'handleCellKeydown',
                 'keydown .header-input': 'handleHeaderKeydown',
-                'dblclick .json-table-cell': 'preventDoubleClick',
-            },
-            preventDoubleClick(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                // Just trigger single click behavior instead
-                this.handleCellClick(e);
-            },
-            handleSearch(e) {
-                const searchTerm = e.target.value.toLowerCase();
-                const table = this.el.querySelector('.json-data-table tbody');
-                const rows = table.querySelectorAll('tr');
-
-                rows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(searchTerm) ? '' : 'none';
-                });
+                'dblclick .json-table-cell': 'handleCellDoubleClick',
+                'click': 'handleOutsideClick',
+                'mouseenter .json-table-cell': 'handleCellMouseEnter',
+                'mouseleave .json-table-cell': 'handleCellMouseLeave'
             },
 
-            handleDownload(e) {
-                const type = e.target.getAttribute('data-type');
-                const table = this.el.querySelector('.json-data-table');
-
-                switch (type) {
-                    case 'copy':
-                        this.copyTableToClipboard(table);
-                        break;
-                    case 'csv':
-                        this.downloadTableAsCSV(table);
-                        break;
-                    case 'excel':
-                        this.downloadTableAsExcel(table);
-                        break;
-                    case 'pdf':
-                        this.downloadTableAsPDF(table);
-                        break;
-                    case 'print':
-                        window.print();
-                        break;
-                }
-            },
-
-            copyTableToClipboard(table) {
-                const range = document.createRange();
-                range.selectNode(table);
-                window.getSelection().removeAllRanges();
-                window.getSelection().addRange(range);
-                document.execCommand('copy');
-                window.getSelection().removeAllRanges();
-                alert('Table copied to clipboard!');
-            },
-
-            downloadTableAsCSV(table) {
-                let csv = [];
-                const rows = table.querySelectorAll('tr');
-
-                for (let i = 0; i < rows.length; i++) {
-                    const row = [];
-                    const cols = rows[i].querySelectorAll('td, th');
-
-                    for (let j = 0; j < cols.length; j++) {
-                        row.push(cols[j].innerText);
-                    }
-                    csv.push(row.join(','));
-                }
-
-                const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
-                const downloadLink = document.createElement('a');
-                downloadLink.download = 'table-data.csv';
-                downloadLink.href = window.URL.createObjectURL(csvFile);
-                downloadLink.style.display = 'none';
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-            },
-
-            downloadTableAsExcel(table) {
-                // Basic Excel export (would need a library like SheetJS for full Excel support)
-                this.downloadTableAsCSV(table); // Fallback to CSV
-            },
-
-            downloadTableAsPDF(table) {
-                // Basic PDF export using print functionality
-                const printWindow = window.open('', '', 'height=600,width=800');
-                printWindow.document.write('<html><head><title>Table Data</title>');
-                printWindow.document.write('<style>table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}</style>');
-                printWindow.document.write('</head><body>');
-                printWindow.document.write(table.outerHTML);
-                printWindow.document.write('</body></html>');
-                printWindow.document.close();
-                printWindow.print();
-            },
-
-            handlePagination(e) {
-                // Basic pagination logic (would need more sophisticated implementation)
-                const pageType = e.target.getAttribute('data-page');
-                console.log('Pagination:', pageType);
-            },
-
-            handlePageLengthChange(e) {
-                const pageLength = e.target.value;
-                console.log('Page length changed to:', pageLength);
-            },
-
-            // Modified cell click handler for Style Manager integration
+            // Hover highlight
+            // ✅ Single click = select TD/TH
             handleCellClick(e) {
                 e.preventDefault();
                 e.stopPropagation();
 
-                const clickedElement = e.target;
-                let cell, cellContent;
+                // Always climb up to the td/th
+                const cell = e.target.closest('td, th');
+                console.log("Cell click: raw target =", e.target, "resolved TD/TH =", cell);
 
-                // Determine if we clicked on cell or div content
-                if (clickedElement.classList.contains('cell-content')) {
-                    cellContent = clickedElement;
-                    cell = clickedElement.parentElement;
-                } else if (clickedElement.classList.contains('json-table-cell')) {
-                    cell = clickedElement;
-                    cellContent = cell.querySelector('.cell-content');
-                } else {
+                if (!cell || cell.classList.contains('editing')) {
+                    console.log("❌ No valid TD/TH to select");
                     return;
                 }
 
-                // If clicked on div content, start editing
-                if (clickedElement.classList.contains('cell-content')) {
-                    // Stop editing mode for any currently editing cell
+                // Remove old selection
+                const allCells = this.el.querySelectorAll('td, th');
+                allCells.forEach(c => c.classList.remove('i_designer_selected'));
+
+                // ✅ Keep only our class (wipe others)
+                cell.className = "i_designer_selected";
+                console.log("✅ Added i_designer_selected to TD/TH:", cell);
+            },
+
+            // ✅ Hover highlight
+            handleCellMouseEnter(e) {
+                const cell = e.target.closest('td, th');
+                console.log("Mouse enter:", e.target, "resolved TD/TH:", cell);
+                if (cell && !cell.classList.contains('editing')) {
+                    cell.classList.add('i_designer_hovered');
+                }
+            },
+
+            handleCellMouseLeave(e) {
+                const cell = e.target.closest('td, th');
+                console.log("Mouse leave:", e.target, "resolved TD/TH:", cell);
+                if (cell) {
+                    cell.classList.remove('i_designer_hovered');
+                }
+            },
+
+
+            // Double click = start editing
+            handleCellDoubleClick(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+
+            },
+
+            // Outside click = clear selection
+            handleOutsideClick(e) {
+                if (!e.target.closest('.json-table-cell')) {
+                    const allSelectedCells = document.querySelectorAll('.json-table-cell.i_designer_selected');
+                    allSelectedCells.forEach(cell => {
+                        cell.classList.remove('i_designer_selected');
+                        console.log("Removed i_designer_selected from:", cell);
+                    });
+                }
+
+                if (!e.target.classList.contains('cell-content') &&
+                    !e.target.classList.contains('cell-input') &&
+                    !e.target.classList.contains('header-input')) {
+
                     const currentlyEditing = this.el.querySelector('.json-table-cell.editing');
-                    if (currentlyEditing && currentlyEditing !== cell) {
+                    if (currentlyEditing) {
+                        console.log("Stopping editing for:", currentlyEditing);
                         this.stopCellEditing(currentlyEditing);
                     }
-
-                    // If this cell is already in editing mode, stop editing
-                    if (cell.classList.contains('editing')) {
-                        this.stopCellEditing(cell);
-                        return;
-                    }
-
-                    // Check if cell is already being edited with input
-                    if (cell.querySelector('.cell-input, .header-input')) return;
-
-                    // For formula cells, show the original formula for editing
-                    const rowIndex = cell.getAttribute('data-row');
-                    const columnKey = cell.getAttribute('data-column-key');
-                    const isHeader = cell.classList.contains('editable-header');
-
-                    if (!isHeader && rowIndex !== null && columnKey) {
-                        const cellId = `cell-${rowIndex}-${columnKey}`;
-                        const cellFormulas = this.model.get('cell-formulas') || {};
-                        const storedFormula = cellFormulas[cellId];
-
-                        if (storedFormula) {
-                            // Start editing with the original formula
-                            this.startCellEditingWithValue(cell, cellContent, storedFormula);
-                            return;
-                        }
-                    }
-
-                    // Start normal editing mode
-                    this.startCellEditing(cell, cellContent);
-                } else if (clickedElement.classList.contains('json-table-cell')) {
-                    // If clicked on cell area but not div content, select the cell component
-                    const cellComponent = editor.DomComponents.getComponentFromElement(cell);
-                    if (cellComponent) {
-                        editor.select(cellComponent);
-                    }
                 }
             },
 
-            // Add this new method
-            startCellEditingWithValue(cell, cellContent, value) {
-                const rowIndex = cell.getAttribute('data-row');
-                const columnKey = cell.getAttribute('data-column-key');
-                const isHeader = cell.classList.contains('editable-header');
-
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = value; // Use the provided value (like formula)
-                input.className = isHeader ? 'header-input' : 'cell-input';
-                input.style.cssText = 'width: 100%; height: 100%; border: 2px solid #007bff; padding: 8px; box-sizing: border-box; background: white; font-family: inherit; font-size: inherit; margin: 0; min-height: inherit; resize: none;';
-
-                if (isHeader) {
-                    input.style.fontWeight = 'bold';
-                }
-
-                cell.classList.add('editing');
-                cellContent.innerHTML = '';
-                cellContent.appendChild(input);
-                input.focus();
-                input.select();
-            },
-
+            // Editing start
             startCellEditing(cell, cellContent) {
+                console.log("Start editing cell:", cell);
+
+                cell.classList.remove('i_designer_hovered');
+
                 const rowIndex = cell.getAttribute('data-row');
                 const columnKey = cell.getAttribute('data-column-key');
                 const isHeader = cell.classList.contains('editable-header');
@@ -1649,22 +2290,45 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 input.type = 'text';
                 input.value = currentValue;
                 input.className = isHeader ? 'header-input' : 'cell-input';
-                input.style.cssText = 'width: 100%; height: 100%; border: 2px solid #007bff; padding: 8px; box-sizing: border-box; background: white; font-family: inherit; font-size: inherit; margin: 0; min-height: inherit; resize: none;';
 
-                if (isHeader) {
-                    input.style.fontWeight = 'bold';
-                }
+                const computedStyle = window.getComputedStyle(cellContent);
+                input.style.cssText = `
+            width: 100%;
+            height: 100%;
+            border: 2px solid #007bff;
+            padding: ${computedStyle.padding};
+            box-sizing: border-box;
+            background: white;
+            font-family: ${computedStyle.fontFamily};
+            font-size: ${computedStyle.fontSize};
+            margin: 0;
+            min-height: ${computedStyle.minHeight};
+            max-height: ${computedStyle.height};
+            resize: none;
+            outline: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        `;
 
+                if (isHeader) input.style.fontWeight = 'bold';
+
+                cell.style.position = 'relative';
                 cell.classList.add('editing');
-                cellContent.innerHTML = '';
-                cellContent.appendChild(input);
+                cellContent.style.opacity = '0';
+                cell.appendChild(input);
                 input.focus();
                 input.select();
             },
 
+            // Editing stop
             stopCellEditing(cell) {
+                console.log("Stop editing cell:", cell);
+
                 const cellContent = cell.querySelector('.cell-content');
-                const input = cellContent?.querySelector('.cell-input, .header-input');
+                const input = cell.querySelector('.cell-input, .header-input');
                 if (!input || !cellContent) return;
 
                 const rowIndex = cell.getAttribute('data-row');
@@ -1672,199 +2336,36 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 const isHeader = cell.classList.contains('editable-header');
                 const newValue = input.value;
 
+                // Clean up editing
+                cell.removeChild(input);
                 cell.classList.remove('editing');
+                cell.style.position = '';
+                cellContent.style.opacity = '';
 
-                // Update model
+                // Update data
                 if (isHeader) {
                     this.model.updateHeaderData(columnKey, newValue);
+                    cellContent.innerHTML = newValue;
                 } else {
                     this.model.updateCellData(parseInt(rowIndex), columnKey, newValue);
 
-                    // Handle formula display logic
                     if (newValue.startsWith('=')) {
                         const cellId = `cell-${rowIndex}-${columnKey}`;
                         const cellFormulas = this.model.get('cell-formulas') || {};
-                        const evaluatedValue = cellFormulas[cellId] ? this.model.get('custom-data')[rowIndex][columnKey] : newValue;
+                        const evaluatedValue = cellFormulas[cellId]
+                            ? this.model.get('custom-data')[rowIndex][columnKey]
+                            : newValue;
                         cellContent.innerHTML = evaluatedValue;
                     } else {
                         cellContent.innerHTML = newValue;
                     }
-                    return;
                 }
 
-                // Update cell display for non-formula cells
-                cellContent.innerHTML = newValue;
-            },
-
-            // createCellComponent(cell) {
-            //     try {
-            //         const rowIndex = cell.getAttribute('data-row');
-            //         const columnKey = cell.getAttribute('data-column-key');
-            //         const isHeader = cell.classList.contains('editable-header');
-            //         const cellId = cell.id;
-
-            //         // Create a temporary component for style editing
-            //         const cellComponent = editor.DomComponents.addComponent({
-            //             tagName: isHeader ? 'th' : 'td',
-            //             content: cell.innerHTML,
-            //             attributes: {
-            //                 id: cellId,
-            //                 'data-row': rowIndex,
-            //                 'data-column-key': columnKey,
-            //                 class: cell.className
-            //             },
-            //             style: {
-            //                 padding: '12px',
-            //                 border: '1px solid #dee2e6',
-            //                 'text-align': 'left'
-            //             },
-            //             traits: [
-            //                 {
-            //                     type: 'color',
-            //                     name: 'background-color',
-            //                     label: 'Background Color'
-            //                 },
-            //                 {
-            //                     type: 'color',
-            //                     name: 'color',
-            //                     label: 'Text Color'
-            //                 },
-            //                 {
-            //                     type: 'select',
-            //                     name: 'font-weight',
-            //                     label: 'Font Weight',
-            //                     options: [
-            //                         { value: 'normal', name: 'Normal' },
-            //                         { value: 'bold', name: 'Bold' }
-            //                     ]
-            //                 },
-            //                 {
-            //                     type: 'select',
-            //                     name: 'text-align',
-            //                     label: 'Text Align',
-            //                     options: [
-            //                         { value: 'left', name: 'Left' },
-            //                         { value: 'center', name: 'Center' },
-            //                         { value: 'right', name: 'Right' }
-            //                     ]
-            //                 }
-            //             ]
-            //         });
-
-            //         // Listen for style changes and apply them to the actual cell
-            //         cellComponent.on('change:style', () => {
-            //             const styles = cellComponent.getStyle();
-            //             Object.keys(styles).forEach(prop => {
-            //                 cell.style[prop] = styles[prop];
-            //             });
-
-            //             // Store styles in the model
-            //             if (!isHeader && rowIndex !== null && columnKey) {
-            //                 this.model.setCellStyle(parseInt(rowIndex), columnKey, styles);
-            //             }
-            //         });
-
-            //         return cellComponent;
-
-            //     } catch (error) {
-            //         console.warn('Error creating cell component:', error);
-            //         return null;
-            //     }
-            // },
-
-            handleCellEdit(e) {
-                const input = e.target;
-                const cell = input.parentElement;
-                const rowIndex = parseInt(cell.getAttribute('data-row'));
-                const columnKey = cell.getAttribute('data-column-key');
-                const newValue = input.value;
-
-                // Handle formula input
-                if (newValue.startsWith('=')) {
-                    cell.classList.add('formula-cell');
-                    cell.title = newValue; // Show formula in tooltip
-                } else {
-                    cell.classList.remove('formula-cell', 'formula-error');
-                    cell.title = '';
-                }
-
-                this.stopCellEditing(cell);
-
-                // Update the model with the new value
-                if (rowIndex !== null && columnKey) {
-                    this.model.updateCellData(rowIndex, columnKey, newValue);
-                }
-            },
-
-
-            handleHeaderEdit(e) {
-                const input = e.target;
-                const header = input.parentElement;
-                this.stopCellEditing(header);
-            },
-
-            handleCellKeydown(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.target.blur();
-                }
-                if (e.key === 'Escape') {
-                    const cell = e.target.parentElement;
-                    const rowIndex = parseInt(cell.getAttribute('data-row'));
-                    const columnKey = cell.getAttribute('data-column-key');
-                    const data = this.model.get('custom-data') || this.model.get('table-data') || [];
-                    const originalValue = data[rowIndex] ? data[rowIndex][columnKey] || '' : '';
-
-                    cell.classList.remove('editing');
-                    cell.innerHTML = originalValue;
-                }
-            },
-
-            handleHeaderKeydown(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.target.blur();
-                }
-                if (e.key === 'Escape') {
-                    const header = e.target.parentElement;
-                    const columnKey = header.getAttribute('data-column-key');
-                    const headers = this.model.get('custom-headers') || this.model.get('table-headers') || {};
-                    const originalValue = headers[columnKey] || '';
-
-                    header.classList.remove('editing');
-                    header.innerHTML = originalValue;
-                }
-            },
-            onRender() {
-                // Register components immediately after render
-                setTimeout(() => {
-                    this.model.registerTableCellComponents();
-
-                    // Force component scanner to run
-                    const canvasBody = editor.Canvas.getBody();
-                    const cells = this.el.querySelectorAll('.json-table-cell');
-
-                    cells.forEach(cell => {
-                        // Try to get the existing component model from the DOM element
-                        let comp = editor.getModelForEl(cell);
-
-                        // If it doesn't exist, create a new component
-                        if (!comp) {
-                            comp = editor.DomComponents.addComponent({
-                                type: 'json-table-cell',
-                                selectable: true,
-                                hoverable: true,
-                                // You can pass attributes/content if needed
-                            }, { at: undefined, avoidUpdateStyle: true, el: cell });
-                        }
-                    });
-
-
-                    // Refresh the canvas
-                    editor.refresh();
-                }, 100);
+                console.log("✅ Final classes for cell:", cell.className, "value:", newValue);
             }
+
         }
+
     });
 
     // Add enhanced table cell component type for style manager integration
@@ -2092,6 +2593,89 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             }, 100);
         }
     });
+    editor.Commands.add('open-column-reorder-manager', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
+
+            const headers = selected.get('custom-headers') || selected.get('table-headers') || {};
+            const columnKeys = Object.keys(headers);
+
+            if (columnKeys.length <= 1) {
+                alert('Need at least 2 columns to reorder');
+                return;
+            }
+
+            const modalContent = `
+<div class="column-reorder-manager" style="padding: 20px; max-width: 500px;">
+    <h3 style="margin-top: 0; margin-bottom: 20px;">Reorder Table Columns</h3>
+    <p style="font-size: 14px; margin-bottom: 15px;">
+        Drag and drop to reorder columns. The first column will appear leftmost in the table.
+    </p>
+    
+    <div id="column-list" style="border: 1px solid #ddd; border-radius: 5px; ">
+        ${columnKeys.map((key, index) => `
+            <div class="column-item" data-key="${key}" style="
+                background: white; 
+                margin: 2px; 
+                padding: 12px 15px; 
+                border-radius: 3px; 
+                cursor: move; 
+                border-left: 4px solid #007bff;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: all 0.2s ease;
+            ">
+                <span style="font-weight: 500;">${headers[key]}</span>
+                <span style="color: #666; font-size: 12px;">≡≡≡</span>
+            </div>
+        `).join('')}
+    </div>
+    
+    <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+        <div>
+            <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                Reset to Original
+            </button>
+        </div>
+        <div>
+            <button id="cancel-reorder" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                Cancel
+            </button>
+            <button id="apply-reorder" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                Apply Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.column-item:hover {
+    box-shadow: 0 2px 8px rgba(0,123,255,0.2);
+    transform: translateY(-1px);
+}
+
+.column-item.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+.column-item.drag-over {
+    border-top: 3px solid #28a745;
+}
+</style>`;
+
+            const modal = editor.Modal;
+            modal.setTitle('Column Reorder Manager');
+            modal.setContent(modalContent);
+            modal.open();
+
+            setTimeout(() => {
+                initializeColumnReorderManager(selected, columnKeys, headers);
+            }, 100);
+        }
+    });
     editor.Commands.add('open-running-total-manager', {
         run(editor) {
             const selected = editor.getSelected();
@@ -2312,6 +2896,112 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         // Initial load
         refreshConditionsList(component);
     }
+
+    function initializeColumnReorderManager(component, originalOrder, headers) {
+        const columnList = document.getElementById('column-list');
+        const cancelBtn = document.getElementById('cancel-reorder');
+        const applyBtn = document.getElementById('apply-reorder');
+        const resetBtn = document.getElementById('reset-order');
+
+        let draggedElement = null;
+
+        // Make columns draggable
+        const columnItems = columnList.querySelectorAll('.column-item');
+        columnItems.forEach(item => {
+            item.draggable = true;
+
+            item.addEventListener('dragstart', function (e) {
+                draggedElement = this;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.outerHTML);
+            });
+
+            item.addEventListener('dragend', function (e) {
+                this.classList.remove('dragging');
+                draggedElement = null;
+
+                // Remove drag-over class from all items
+                columnItems.forEach(item => item.classList.remove('drag-over'));
+            });
+
+            item.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+
+                if (this !== draggedElement) {
+                    this.classList.add('drag-over');
+                }
+            });
+
+            item.addEventListener('dragleave', function (e) {
+                this.classList.remove('drag-over');
+            });
+
+            item.addEventListener('drop', function (e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+
+                if (this !== draggedElement) {
+                    const allItems = Array.from(columnList.children);
+                    const draggedIndex = allItems.indexOf(draggedElement);
+                    const targetIndex = allItems.indexOf(this);
+
+                    if (draggedIndex < targetIndex) {
+                        this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                    } else {
+                        this.parentNode.insertBefore(draggedElement, this);
+                    }
+                }
+            });
+        });
+
+        // Reset to original order
+        resetBtn.addEventListener('click', function () {
+            const columnList = document.getElementById('column-list');
+            columnList.innerHTML = originalOrder.map(key => `
+            <div class="column-item" data-key="${key}" draggable="true" style="
+                background: white; 
+                margin: 2px; 
+                padding: 12px 15px; 
+                border-radius: 3px; 
+                cursor: move; 
+                border-left: 4px solid #007bff;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: all 0.2s ease;
+            ">
+                <span style="font-weight: 500;">${headers[key]}</span>
+                <span style="color: #666; font-size: 12px;">≡≡≡</span>
+            </div>
+        `).join('');
+
+            // Re-initialize drag and drop for new elements
+            initializeColumnReorderManager(component, originalOrder, headers);
+        });
+
+        // Cancel
+        cancelBtn.addEventListener('click', function () {
+            editor.Modal.close();
+        });
+
+        // Apply reorder
+        applyBtn.addEventListener('click', function () {
+            const currentItems = columnList.querySelectorAll('.column-item');
+            const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
+
+            console.log('Reordering columns from:', originalOrder, 'to:', newOrder);
+
+            component.reorderColumns(newOrder);
+            editor.Modal.close();
+
+            // Show success message
+            setTimeout(() => {
+                alert('Column order updated successfully!');
+            }, 100);
+        });
+    }
     // Override HTML export for proper content preservation
     // const originalGetHtml = editor.getHtml;
     // editor.getHtml = function () {
@@ -2357,10 +3047,165 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
     // Add remaining commands and functions from original code
     editor.Commands.add('open-json-table-suggestion', {
-        run: function (editor, sender) {
-            openJsonTableSuggestionModal();
+        run(editor, sender) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
+
+            // Get file index from trait
+            let fileIndex = selected.get('json-file-index') || '0';
+            if (fileIndex === '0') {
+                alert('Please select a JSON file first');
+                return;
+            }
+
+            // Get the selected file's JSON data
+            const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
+            const selectedFile = fileNames[parseInt(fileIndex) - 1];
+            const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+
+            if (!jsonString) {
+                alert('Selected JSON file not found');
+                return;
+            }
+
+            const commonJson = JSON.parse(jsonString);
+
+            // Show top-level keys (language options) first
+            const topLevelKeys = Object.keys(commonJson);
+
+            let modalContent = `
+        <div class="new-table-form">
+        <div style="padding-bottom:10px">
+            <input type="text" id="searchInput" placeholder="Search json">
+        </div>
+        <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+        `;
+
+            topLevelKeys.forEach(key => {
+                modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
+            });
+
+            modalContent += `
+      </div>
+    </div>
+  `;
+
+            editor.Modal.setTitle('Json Suggestion');
+            editor.Modal.setContent(modalContent);
+            editor.Modal.open();
+
+            // Add event listener to search input
+            document.getElementById("searchInput").addEventListener("input", function () {
+                filterSuggestions(this.value);
+            });
+
+            const suggestionItems = document.querySelectorAll('.suggestion');
+            suggestionItems.forEach(item => {
+                item.addEventListener('click', function () {
+                    const selectedValue = this.getAttribute('data-value');
+                    const dataType = this.getAttribute('data-type');
+
+                    if (dataType === 'language') {
+                        // Show keys under selected language
+                        showTableLanguageKeys(selectedValue, commonJson, selected);
+                    }
+                });
+            });
         }
     });
+
+    // Add helper functions for table suggestion (place at the end, after commands)
+    function showTableLanguageKeys(language, commonJson, selectedComponent) {
+        const metaDataKeys = extractMetaDataKeys(commonJson[language]);
+
+        let modalContent = `
+<div class="new-table-form">
+  <div style="padding-bottom:10px">
+    <button id="backBtn" style="margin-right: 10px;">← Back</button>
+    <input type="text" id="searchInput" placeholder="Search json">
+  </div>
+  <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+`;
+
+        metaDataKeys.forEach(key => {
+            const fullPath = `${language}.${key}`;
+            modalContent += `<div class="suggestion" data-value="${fullPath}" data-type="key">${key}</div>`;
+        });
+
+        modalContent += `
+  </div>
+</div>
+`;
+
+        editor.Modal.setContent(modalContent);
+
+        // Back button functionality
+        document.getElementById("backBtn").addEventListener("click", function () {
+            editor.Commands.run('open-json-table-suggestion');
+        });
+
+        // Search functionality
+        document.getElementById("searchInput").addEventListener("input", function () {
+            filterSuggestions(this.value);
+        });
+
+        // Key selection (single for table)
+        const suggestionItems = document.querySelectorAll('.suggestion');
+        suggestionItems.forEach(item => {
+            item.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+                console.log('Setting JSON path to:', selectedValue);
+
+                // Set the json-path value in the model
+                selectedComponent.set('json-path', selectedValue);
+
+                // Update the trait value and trigger re-render
+                const jsonPathTrait = selectedComponent.getTrait('json-path');
+                if (jsonPathTrait) {
+                    jsonPathTrait.set('value', selectedValue);
+                    // Force trait view update
+                    setTimeout(() => {
+                        if (jsonPathTrait.view && jsonPathTrait.view.render) {
+                            jsonPathTrait.view.render();
+                        }
+                        // Also trigger the component's change event
+                        selectedComponent.trigger('change:json-path');
+                    }, 50);
+                }
+
+                editor.Modal.close();
+            });
+        });
+    }
+    function extractMetaDataKeys(obj, prefix = '') {
+        let keys = [];
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                let newKey;
+                if (Array.isArray(obj)) {
+                    newKey = `${prefix}[${key}]`;
+                } else {
+                    newKey = prefix ? `${prefix}.${key}` : key;
+                }
+                keys.push(newKey);
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    keys = keys.concat(extractMetaDataKeys(obj[key], newKey));
+                }
+            }
+        }
+        return keys;
+    }
+    function filterSuggestions(query) {
+        const suggestionResults = document.querySelector('.suggestion-results');
+        const metaDataKeys = Array.from(suggestionResults.children);
+        metaDataKeys.forEach(key => {
+            if (key.textContent.toLowerCase().includes(query.toLowerCase())) {
+                key.style.display = "block";
+            } else {
+                key.style.display = "none";
+            }
+        });
+    }
 
     editor.Commands.add('add-table-row', {
         run: function (editor, sender) {
