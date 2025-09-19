@@ -584,15 +584,16 @@ function jsontablecustom(editor) {
                 this.updateTableHTML();
             },
 
-safeInitializeFormulaParser() {
-    try {
-        if (typeof loadFormulaParser === 'function') {
-            this.initializeFormulaParser();
-        }
-    } catch (error) {
-        console.warn('Could not initialize formula parser:', error);
-    }
-},
+            safeInitializeFormulaParser() {
+                try {
+                    console.log("safe method called")
+                    if (typeof loadFormulaParser === 'function') {
+                        this.initializeFormulaParser();
+                    }
+                } catch (error) {
+                    console.warn('Could not initialize formula parser:', error);
+                }
+            },
             loadFilteredData() {
                 const filterColumn = this.get('filter-column');
                 const filterValue = this.get('filter-value');
@@ -1098,6 +1099,7 @@ safeInitializeFormulaParser() {
                     loadFormulaParser(function () {
                         if (window.HotFormulaParser) {
                             self.setupFormulaParser();
+                            console.log("loadformulaparcer called")
                         }
                     });
                 } else {
@@ -1107,7 +1109,7 @@ safeInitializeFormulaParser() {
 
             setupFormulaParser() {
                 const cellMap = window.globalCellMap || {};
-
+                console.log("setup formula called")
                 // Only set up if HotFormulaParser exists
                 if (window.HotFormulaParser) {
                     window.HotFormulaParser.on('callCellValue', function (cellCoord, done) {
@@ -1322,8 +1324,10 @@ safeInitializeFormulaParser() {
 
                         // Evaluate formula
                         try {
-                            const formulaExpression = formula.substring(1); // Remove '='
+                            const formulaExpression = formula.substring(1);
+                            console.log("formulaaaaaa", formulaExpression)
                             const evaluatedValue = evaluateFormula(formulaExpression, updatedData, rowIndex, columnKey);
+                            console.log("evaluateformulaa", evaluatedValue)
                             updatedData[rowIndex][columnKey] = evaluatedValue;
                         } catch (error) {
                             updatedData[rowIndex][columnKey] = '#ERROR';
@@ -1712,9 +1716,9 @@ safeInitializeFormulaParser() {
                     const storedHeader = this.get(`header-content-${key}`) || header;
 
                     const headerCellComponent = headerRowComponent.components().add({
-                        type: 'json-table-cell', // Use your custom cell type
+                        type: 'json-table-cell',
                         tagName: 'th',
-                        classes: ['editable-header', 'json-table-cell'],
+                        classes: ['json-table-cell'],
                         attributes: {
                             id: headerId,
                             'data-column-key': key,
@@ -1727,23 +1731,26 @@ safeInitializeFormulaParser() {
                             'text-align': 'left',
                             'border': '1px solid #000000ff',
                             'font-weight': 'bold',
-                            'cursor': 'pointer',
                             'position': 'relative'
                         }
                     });
 
-                    // Add cell content div
+                    // Apply editable classes to the div element
                     headerCellComponent.components().add({
                         type: 'text',
                         tagName: 'div',
-                        classes: ['cell-content'],
+                        classes: ['cell-content', 'editable-header'],
                         editable: true,
                         content: storedHeader,
+                        attributes: {
+                            'data-column-key': key
+                        },
                         style: {
                             'margin': '10px',
                             'width': '97%',
                             'height': '100%',
-                            'box-sizing': 'border-box'
+                            'box-sizing': 'border-box',
+                            'cursor': 'pointer'
                         }
                     });
                 });
@@ -1794,44 +1801,46 @@ safeInitializeFormulaParser() {
                         const cellFormulas = this.get('cell-formulas') || {};
                         const hasFormula = cellFormulas[formulaCellId];
 
-                        const cellClasses = ['editable-cell', 'json-table-cell'];
-                        if (hasFormula) cellClasses.push('formula-cell');
-
                         const cellComponent = rowComponent.components().add({
-                            type: 'json-table-cell', // Use your custom cell type
+                            type: 'json-table-cell',
                             tagName: 'td',
-                            classes: cellClasses,
+                            classes: ['json-table-cell'],
                             attributes: {
                                 id: cellId,
                                 'data-row': rowIndex.toString(),
                                 'data-column-key': key,
                                 'data-gjs-type': 'json-table-cell',
                                 'data-gjs-selectable': 'true',
-                                'data-gjs-hoverable': 'true',
-                                title: hasFormula ? hasFormula : '',
-                                'data-formula': hasFormula || ''
+                                'data-gjs-hoverable': 'true'
                             },
                             style: {
                                 'padding': '0',
                                 'border': '1px solid #000',
-                                'cursor': 'pointer',
                                 'position': 'relative',
-                                ...cellStyles // Apply any custom cell styles
+                                ...cellStyles
                             }
                         });
 
-                        // Add cell content div
+                        // Apply formula classes and attributes to the div element
+                        const cellClasses = ['cell-content', 'editable-cell'];
+                        if (hasFormula) cellClasses.push('formula-cell');
+
                         const displayValue = row[key] || '';
                         cellComponent.components().add({
                             type: 'text',
                             tagName: 'div',
-                            classes: ['cell-content'],
+                            classes: cellClasses,
                             content: displayValue,
+                            attributes: {
+                                'data-formula': hasFormula || '',
+                                title: hasFormula ? hasFormula : ''
+                            },
                             style: {
                                 'margin': '10px',
                                 'width': '97%',
                                 'height': '100%',
-                                'box-sizing': 'border-content-box'
+                                'box-sizing': 'border-content-box',
+                                'cursor': 'pointer'
                             }
                         });
                     });
@@ -2013,11 +2022,30 @@ safeInitializeFormulaParser() {
     overflow: hidden;
 }
 
-.json-table-cell.editing .cell-content {
+/* Apply editing styles to cell-content div */
+.cell-content.editing {
     background-color: #e3f2fd !important;
     outline: 2px solid #007bff !important;
     min-height: inherit;
     overflow: hidden;
+}
+
+/* Apply formula styles to cell-content div */
+.cell-content.formula-cell {
+    font-family: 'Courier New', monospace !important;
+    font-weight: bold;
+    background-color: #f0f8ff !important;
+    position: relative;
+}
+
+.cell-content.formula-cell::before {
+    content: "f(x)";
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 8px;
+    color: #1976d2;
+    font-weight: bold;
 }
 
 td[data-highlighted="true"], th[data-highlighted="true"] {
@@ -2048,7 +2076,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     color: #1976d2 !important;
     font-family: 'Courier New', monospace !important;
 }
-
         `
                 });
             },
@@ -2205,27 +2232,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
             // Hover highlight
             // ✅ Single click = select TD/TH
-            handleCellClick(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                // Always climb up to the td/th
-                const cell = e.target.closest('td, th');
-                console.log("Cell click: raw target =", e.target, "resolved TD/TH =", cell);
-
-                if (!cell || cell.classList.contains('editing')) {
-                    console.log("❌ No valid TD/TH to select");
-                    return;
-                }
-
-                // Remove old selection
-                const allCells = this.el.querySelectorAll('td, th');
-                allCells.forEach(c => c.classList.remove('i_designer_selected'));
-
-                // ✅ Keep only our class (wipe others)
-                cell.className = "i_designer_selected";
-                console.log("✅ Added i_designer_selected to TD/TH:", cell);
-            },
 
             // ✅ Hover highlight
             handleCellMouseEnter(e) {
@@ -2250,24 +2256,55 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 e.preventDefault();
                 e.stopPropagation();
 
+                const cellContent = e.target.closest('.cell-content');
+                const cell = e.target.closest('td, th');
+
+                if (!cell || !cellContent || cell.classList.contains('editing')) {
+                    return;
+                }
+
 
             },
 
+            handleCellClick(e) {
+                console.log("singleclick started")
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Look for the cell-content div first, then climb to td/th
+                const cellContent = e.target.closest('.cell-content');
+                console.log("cell content", cellContent)
+                const cell = e.target.closest('td, th');
+                console.log("celllll", cell)
+
+                if (!cell || cell.classList.contains('editing')) {
+                    return;
+                }
+
+                // Remove old selection
+                const allCells = this.el.querySelectorAll('td, th');
+                allCells.forEach(c => c.classList.remove('i_designer_selected'));
+
+                cell.className = "i_designer_selected";
+
+            },
             // Outside click = clear selection
             handleOutsideClick(e) {
-                if (!e.target.closest('.json-table-cell')) {
-                    const allSelectedCells = document.querySelectorAll('.json-table-cell.i_designer_selected');
-                    allSelectedCells.forEach(cell => {
-                        cell.classList.remove('i_designer_selected');
-                        console.log("Removed i_designer_selected from:", cell);
-                    });
-                }
+                console.log("outside click")
+                // if (!e.target.closest('.json-table-cell')) {
+                //     const allSelectedCells = document.querySelectorAll('.json-table-cell.i_designer_selected');
+                //     allSelectedCells.forEach(cell => {
+                //         cell.classList.remove('i_designer_selected');
+                //         console.log("Removed i_designer_selected from:", cell);
+                //     });
+                // }
 
                 if (!e.target.classList.contains('cell-content') &&
                     !e.target.classList.contains('cell-input') &&
                     !e.target.classList.contains('header-input')) {
 
-                    const currentlyEditing = this.el.querySelector('.json-table-cell.editing');
+                    const currentlyEditing = this.el.querySelector('.json-table-cell');
+                    console.log("current", currentlyEditing)
                     if (currentlyEditing) {
                         console.log("Stopping editing for:", currentlyEditing);
                         this.stopCellEditing(currentlyEditing);
@@ -2277,41 +2314,19 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
             // Editing start
             startCellEditing(cell, cellContent) {
-                console.log("Start editing cell:", cell);
-
+                console.log("editor cell editing stared")
                 cell.classList.remove('i_designer_hovered');
+                cellContent.classList.add('editing'); // Add editing class to div
 
                 const rowIndex = cell.getAttribute('data-row');
-                const columnKey = cell.getAttribute('data-column-key');
-                const isHeader = cell.classList.contains('editable-header');
+                const columnKey = cellContent.getAttribute('data-column-key') || cell.getAttribute('data-column-key');
+                const isHeader = cellContent.classList.contains('editable-header');
 
                 const currentValue = cellContent.textContent;
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.value = currentValue;
                 input.className = isHeader ? 'header-input' : 'cell-input';
-
-                const computedStyle = window.getComputedStyle(cellContent);
-                input.style.cssText = `
-            width: 100%;
-            height: 100%;
-            border: 2px solid #007bff;
-            padding: ${computedStyle.padding};
-            box-sizing: border-box;
-            background: white;
-            font-family: ${computedStyle.fontFamily};
-            font-size: ${computedStyle.fontSize};
-            margin: 0;
-            min-height: ${computedStyle.minHeight};
-            max-height: ${computedStyle.height};
-            resize: none;
-            outline: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-        `;
 
                 if (isHeader) input.style.fontWeight = 'bold';
 
@@ -2325,11 +2340,12 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
             // Editing stop
             stopCellEditing(cell) {
-                console.log("Stop editing cell:", cell);
-
                 const cellContent = cell.querySelector('.cell-content');
+                console.log("cellllcontentttt", cellContent)
                 const input = cell.querySelector('.cell-input, .header-input');
                 if (!input || !cellContent) return;
+
+                cellContent.classList.remove('editing'); // Remove editing class from div
 
                 const rowIndex = cell.getAttribute('data-row');
                 const columnKey = cell.getAttribute('data-column-key');
@@ -2347,6 +2363,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                     this.model.updateHeaderData(columnKey, newValue);
                     cellContent.innerHTML = newValue;
                 } else {
+                    console.log("stopcell editing, updatedata called")
                     this.model.updateCellData(parseInt(rowIndex), columnKey, newValue);
 
                     if (newValue.startsWith('=')) {
@@ -2368,7 +2385,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
     });
 
-    // Add enhanced table cell component type for style manager integration
     // editor.DomComponents.addType('json-table-cell', {
     //     isComponent: el => el.classList && el.classList.contains('json-table-cell'),
     //     model: {
@@ -2616,7 +2632,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     <div id="column-list" style="border: 1px solid #ddd; border-radius: 5px; ">
         ${columnKeys.map((key, index) => `
             <div class="column-item" data-key="${key}" style="
-                background: white; 
                 margin: 2px; 
                 padding: 12px 15px; 
                 border-radius: 3px; 
@@ -3002,7 +3017,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             }, 100);
         });
     }
-    // Override HTML export for proper content preservation
+
     // const originalGetHtml = editor.getHtml;
     // editor.getHtml = function () {
     //     try {
