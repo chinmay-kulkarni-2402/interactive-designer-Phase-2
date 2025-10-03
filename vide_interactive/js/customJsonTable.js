@@ -1,125 +1,363 @@
 function jsontablecustom(editor) {
-    let HotFormulaParser = null;
-    function loadFormulaParser(callback) {
-        const script = document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
-        script.onload = function () {
-            console.log('HotFormulaParser loaded successfully');
-            HotFormulaParser = new formulaParser.Parser();
 
-            // ✅ Attach cell reference handler once
-            HotFormulaParser.on('callCellValue', function (cellCoord, done) {
-                let cellValue = window.globalCellMap[cellCoord.label];
+    function enableFormulaEditing(tableId) {
+        const iframeDoc = editor.Canvas.getDocument();
+        const parser = new iframeDoc.defaultView.formulaParser.Parser();
 
-                if (cellValue === null || cellValue === undefined || cellValue === '') {
-                    done(0); // treat empty cells as 0 for numeric functions
-                    return;
-                }
-
-                if (typeof cellValue === 'number') {
-                    done(cellValue); // already numeric
-                } else if (!isNaN(cellValue)) {
-                    done(parseFloat(cellValue)); // numeric string → number
+        // Enhanced parser with range support
+        parser.on('callCellValue', function (cellCoord, done) {
+            let col = cellCoord.column.index;
+            let row = cellCoord.row.index;
+            let tableElem = iframeDoc.getElementById(tableId);
+            let cell = tableElem.rows[row]?.cells[col];
+            if (cell) {
+                let val = cell.getAttribute('data-formula') || cell.innerText;
+                if (val.startsWith('=')) {
+                    try {
+                        let res = parser.parse(val.substring(1));
+                        done(res.result);
+                    } catch {
+                        done('#ERROR');
+                    }
                 } else {
-                    done(String(cellValue)); // keep as text
+                    done(parseFloat(val) || val);
                 }
-            });
-
-            // ✅ Add custom formulas
-            registerCustomFormulas();
-
-            console.log("parser", HotFormulaParser);
-            if (callback) callback();
-        };
-        script.onerror = function () {
-            console.warn('Failed to load HotFormulaParser');
-            if (callback) callback();
-        };
-        document.head.appendChild(script);
-    }
-
-    // ✅ Custom formulas
-    function registerCustomFormulas() {
-        // --- PERCENT(base, percent) ---
-        HotFormulaParser.setFunction('PERCENT', function (params) {
-            if (params.length !== 2) return '#N/A';
-            const base = parseFloat(params[0]);
-            const percent = parseFloat(params[1]);
-            if (isNaN(base) || isNaN(percent)) return '#VALUE!';
-            return base * (percent / 100);
+            } else {
+                done(null);
+            }
         });
 
-        // --- NUMTOWORDS ---
-        const numScript = document.createElement('script');
-        numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
-        numScript.onload = function () {
-            HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
-                if (params.length < 1) return '#N/A';
+        // Enhanced parser for range support (A1:A5)
+        parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
+            let tableElem = iframeDoc.getElementById(tableId);
+            let values = [];
 
-                const raw = params[0];
-                const num = parseFloat(raw);
-                if (isNaN(num)) return '#VALUE!';
+            let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+            let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+            let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+            let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
 
-                const mode = (params[1] || "").toString().toLowerCase();
-                let words = "";
-
-                if (Number.isInteger(num)) {
-                    words = numberToWords.toWords(num);
-                } else {
-                    const [intPart, decPart] = raw.toString().split(".");
-                    const intWords = numberToWords.toWords(parseInt(intPart));
-                    if (mode === "currency") {
-                        const paise = parseInt(decPart.substring(0, 2).padEnd(2, "0"));
-                        const paiseWords = paise > 0 ? numberToWords.toWords(paise) + " paise" : "";
-                        words = intWords + " rupees" + (paiseWords ? " and " + paiseWords : "");
+            for (let row = startRow; row <= endRow; row++) {
+                for (let col = startCol; col <= endCol; col++) {
+                    let cell = tableElem.rows[row]?.cells[col];
+                    if (cell) {
+                        let val = cell.getAttribute('data-formula') || cell.innerText;
+                        if (val.startsWith('=')) {
+                            try {
+                                let res = parser.parse(val.substring(1));
+                                values.push(res.result);
+                            } catch {
+                                values.push(0);
+                            }
+                        } else {
+                            values.push(parseFloat(val) || 0);
+                        }
                     } else {
-                        const decWords = decPart.split("").map(d => numberToWords.toWords(parseInt(d))).join(" ");
-                        words = intWords + " point " + decWords;
+                        values.push(0);
                     }
                 }
-
-                return words;
-            });
-
-            console.log("NUMTOWORDS formula registered");
-        };
-        document.head.appendChild(numScript);
-    }
-
-    // ✅ Formula evaluation
-    function evaluateFormula(formula, tableData, currentRow, currentCol) {
-        try {
-            if (!HotFormulaParser) {
-                return '#ERROR: Parser not loaded';
             }
 
-            // Build cell map
-            window.globalCellMap = {};
-            const headers = Object.keys(tableData[0] || {});
+            done(values);
+        });
 
-            tableData.forEach((row, rowIdx) => {
-                headers.forEach((columnKey, colIdx) => {
-                    const colLetter = indexToColumnLetter(colIdx);
-                    const cellLabel = colLetter + (rowIdx + 1);
-                    let value = row[columnKey];
-                    if (value === null || value === undefined) value = '';
-                    window.globalCellMap[cellLabel] = value;
-                });
+        // Function to attach event listeners to cells
+        function attachCellListeners() {
+            const tableElem = iframeDoc.getElementById(tableId);
+            if (!tableElem) return;
+
+            tableElem.querySelectorAll('td, th').forEach(cell => {
+                // Skip if already has listeners
+                if (cell.hasAttribute('data-formula-enabled')) return;
+
+                cell.contentEditable = "true";
+                cell.setAttribute('data-formula-enabled', 'true');
+
+                cell.addEventListener('focus', handleCellFocus);
+                cell.addEventListener('blur', handleCellBlur);
+                cell.addEventListener('input', handleCellInput);
+                cell.addEventListener('keydown', handleCellKeydown);
             });
-
-            // Evaluate
-            const { result, error } = HotFormulaParser.parse(formula);
-            if (error) return `#ERROR: ${error}`;
-            return result;
-
-        } catch (error) {
-            console.error('Formula evaluation error:', error);
-            return `#ERROR: ${error.message}`;
         }
+
+        function handleCellFocus() {
+            let formula = this.getAttribute('data-formula');
+            if (formula) this.innerText = formula;
+        }
+
+        function handleCellInput(e) {
+            const cell = this;
+            const currentText = cell.innerText;
+            // Show formula suggestions when typing after '='
+        }
+
+        function handleCellKeydown(e) {
+            // Handle Tab key for navigation
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const cell = this;
+                const table = cell.closest('table');
+                const allCells = Array.from(table.querySelectorAll('td, th'));
+                const currentIndex = allCells.indexOf(cell);
+
+                let nextIndex;
+                if (e.shiftKey) {
+                    nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+                } else {
+                    nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+                }
+
+                allCells[nextIndex].focus();
+            }
+        }
+
+        function handleCellBlur() {
+            const cell = this;
+            let val = cell.innerText.trim();
+
+            // Remove existing suggestions
+            const iframeDoc = editor.Canvas.getDocument();
+            iframeDoc.querySelectorAll('.formula-suggestions').forEach(s => s.remove());
+
+            if (val.startsWith('=')) {
+                cell.setAttribute('data-formula', val);
+                try {
+                    const formulaContent = val.substring(1).trim();
+                    if (!formulaContent) throw new Error('Empty formula');
+
+                    // Parse formula
+                    const res = parser.parse(formulaContent);
+                    if (res.error) throw new Error(res.error);
+
+                    // Use string or number result
+                    cell.innerText = (res.result !== undefined && res.result !== null) ? res.result : '#ERROR';
+                    cell.classList.remove('formula-error');
+
+                } catch (error) {
+                    console.warn('Formula parsing error:', error);
+                    cell.innerText = '#ERROR';
+                    cell.classList.add('formula-error');
+                }
+            } else {
+                cell.removeAttribute('data-formula');
+                cell.innerText = val;
+                cell.classList.remove('formula-error');
+            }
+
+            updateComponentContent(cell.closest('table').id);
+        }
+
+        function updateComponentContent(tableId) {
+            // We don't need to sync back to GrapesJS component for formula calculations
+            return;
+        }
+
+        // Initial attachment of listeners
+        attachCellListeners();
+
+        // Re-attach listeners when component is updated/re-rendered
+        editor.on('component:update', (component) => {
+            if (component.getId() === tableId || component.find(`#${tableId}`).length > 0) {
+                setTimeout(() => {
+                    attachCellListeners();
+                }, 100);
+            }
+        });
     }
 
+    editor.on('load', () => {
+        const iframe = editor.getContainer().querySelector('iframe');
+        if (iframe && iframe.contentDocument) {
+            const head = iframe.contentDocument.head;
 
+            // Add DataTables CSS and JS
+            const datatableCSS = document.createElement('link');
+            datatableCSS.rel = 'stylesheet';
+            datatableCSS.href = 'https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css';
+            head.appendChild(datatableCSS);
 
+            const buttonsCSS = document.createElement('link');
+            buttonsCSS.rel = 'stylesheet';
+            buttonsCSS.href = 'https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css';
+            head.appendChild(buttonsCSS);
+
+            // Add formula parser script
+            const formulaScript = document.createElement('script');
+            formulaScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+            head.appendChild(formulaScript);
+
+            formulaScript.onload = () => {
+                try {
+                    if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
+                        window.formulaParser = iframe.contentWindow.formulaParser;
+                        window.HotFormulaParser = new window.formulaParser.Parser();
+
+                        // Register custom formulas if needed
+                        registerCustomFormulas();
+                    }
+                } catch (error) {
+                    console.warn('Could not access formula parser:', error);
+                }
+            };
+
+            // Add jQuery and DataTables scripts if not already present
+            const jqueryScript = document.createElement('script');
+            jqueryScript.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+            head.appendChild(jqueryScript);
+
+            jqueryScript.onload = () => {
+                const datatableScript = document.createElement('script');
+                datatableScript.src = 'https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js';
+                head.appendChild(datatableScript);
+
+                const buttonsScript = document.createElement('script');
+                buttonsScript.src = 'https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js';
+                head.appendChild(buttonsScript);
+
+                const exportScripts = [
+                    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js',
+                    'https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js',
+                    'https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js'
+                ];
+
+                exportScripts.forEach(src => {
+                    const script = document.createElement('script');
+                    script.src = src;
+                    head.appendChild(script);
+                });
+            };
+        }
+    });
+
+    function loadNumberToWords() {
+        const iframe = editor.getContainer().querySelector('iframe');
+        if (!iframe || !iframe.contentWindow) {
+            setTimeout(loadNumberToWords, 500);
+            return;
+        }
+
+        const iframeWindow = iframe.contentWindow;
+
+        // Check if already loaded
+        if (iframeWindow.numberToWords) {
+            registerNumToWords(iframeWindow);
+            return;
+        }
+
+        // Create script element in iframe document
+        const script = iframeWindow.document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
+        script.crossOrigin = "anonymous";
+
+        script.onload = function () {
+            setTimeout(() => {
+                registerNumToWords(iframeWindow);
+            }, 100);
+        };
+
+        script.onerror = function () {
+            console.error('Failed to load number-to-words library');
+
+            // Fallback implementation
+            if (window.HotFormulaParser) {
+                window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+                    if (params.length !== 1) return '#N/A';
+                    const num = parseInt(params[0]);
+                    if (isNaN(num)) return '#VALUE!';
+
+                    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+                        'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+
+                    if (num >= 0 && num <= 20) {
+                        return words[num];
+                    } else if (num < 100) {
+                        const tens = Math.floor(num / 10);
+                        const ones = num % 10;
+                        const tensWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+                        return ones === 0 ? tensWords[tens] : tensWords[tens] + '-' + words[ones];
+                    }
+                    return 'Number too large';
+                });
+            }
+        };
+
+        iframeWindow.document.head.appendChild(script);
+    }
+
+    function loadNumberToWords() {
+        const iframe = editor.getContainer().querySelector('iframe');
+        if (!iframe || !iframe.contentWindow) {
+            setTimeout(loadNumberToWords, 500);
+            return;
+        }
+
+        const iframeWindow = iframe.contentWindow;
+
+        // Check if already loaded
+        if (iframeWindow.numberToWords) {
+            registerNumToWords(iframeWindow);
+            return;
+        }
+
+        // Create script element in iframe document
+        const script = iframeWindow.document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
+        script.crossOrigin = "anonymous";
+
+        script.onload = function () {
+            setTimeout(() => {
+                registerNumToWords(iframeWindow);
+            }, 100);
+        };
+
+        script.onerror = function () {
+            console.error('Failed to load number-to-words library');
+
+            // Fallback implementation
+            if (window.HotFormulaParser) {
+                window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+                    if (params.length !== 1) return '#N/A';
+                    const num = parseInt(params[0]);
+                    if (isNaN(num)) return '#VALUE!';
+
+                    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+                        'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+
+                    if (num >= 0 && num <= 20) {
+                        return words[num];
+                    } else if (num < 100) {
+                        const tens = Math.floor(num / 10);
+                        const ones = num % 10;
+                        const tensWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+                        return ones === 0 ? tensWords[tens] : tensWords[tens] + '-' + words[ones];
+                    }
+                    return 'Number too large';
+                });
+            }
+        };
+
+        iframeWindow.document.head.appendChild(script);
+    }
+
+    function registerNumToWords(iframeWindow) {
+        if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords && window.HotFormulaParser) {
+            window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
+                if (params.length !== 1) return '#N/A';
+                const num = parseInt(params[0]);
+                if (isNaN(num)) return '#VALUE!';
+
+                try {
+                    return iframeWindow.numberToWords.toWords(num);
+                } catch (error) {
+                    return '#ERROR';
+                }
+            });
+
+            console.log('NUMTOWORDS formula registered successfully');
+        }
+    }
     // Add highlighting function from custom table
     function applyHighlighting(tableId, conditions, highlightColor) {
         try {
@@ -374,6 +612,16 @@ function jsontablecustom(editor) {
                     },
                     {
                         type: 'select',
+                        name: 'table-type',
+                        label: 'Table Type',
+                        options: [
+                            { value: 'standard', name: 'Standard Table' },
+                            { value: 'crosstab', name: 'Crosstab/Pivot Table' }
+                        ],
+                        changeProp: 1
+                    },
+                    {
+                        type: 'select',
                         name: 'json-file-index',
                         label: 'JSON File',
                         options: getJsonFileOptions(),
@@ -387,20 +635,45 @@ function jsontablecustom(editor) {
                         full: true,
                         command: 'open-json-table-suggestion'
                     },
-                    {
-                        type: 'select',
-                        name: 'filter-column',
-                        label: 'Filter Column',
-                        options: [{ value: "", name: "First enter JSON path" }],
-                        changeProp: 1
-                    },
-                    {
-                        type: 'text',
-                        name: 'filter-value',
-                        label: 'Filter Value',
-                        placeholder: 'Enter filter value or "=" for all data',
-                        changeProp: 1
-                    },
+{
+    type: 'select',
+    name: 'filter-column',
+    label: 'Filter Column',
+    options: [{ value: "", name: "First enter JSON path" }],
+    changeProp: 1,
+    // Update this section
+    attributes: {
+        style: 'display: none;'  // Hidden by default
+    }
+},
+{
+    type: 'text',
+    name: 'filter-value',
+    label: 'Filter Value',
+    placeholder: 'Enter filter value or "=" for all data',
+    changeProp: 1,
+    attributes: {
+        style: 'display: none;'  // Hidden by default
+    }
+},
+                    // {
+                    //     type: 'checkbox',
+                    //     name: 'show-row-totals',
+                    //     label: 'Show Row Totals',
+                    //     changeProp: 1
+                    // },
+                    // {
+                    //     type: 'checkbox',
+                    //     name: 'show-column-totals',
+                    //     label: 'Show Column Totals',
+                    //     changeProp: 1
+                    // },
+                    // {
+                    //     type: 'checkbox',
+                    //     name: 'show-grand-total',
+                    //     label: 'Show Grand Total',
+                    //     changeProp: 1
+                    // },
                     // Add highlighting traits from custom table
                     {
                         type: 'button',
@@ -474,17 +747,10 @@ function jsontablecustom(editor) {
                 'highlight-text-color': '',
                 'highlight-font-family': '',
                 'show-placeholder': true,
-                'cell-formulas': {},
-                'cell-map': {},
-                'formula-parser': null
             },
 
             init() {
-                // Clear any existing formula data to prevent cross-table contamination
-                window.globalCellMap = {};
-                if (window.globalFormulaParser) {
-                    window.globalFormulaParser = null;
-                }
+                // Replace the existing onChange handlers with these optimized ones:
 
                 this.on('change:json-file-index', () => {
                     this.set('json-path', '');
@@ -492,7 +758,6 @@ function jsontablecustom(editor) {
                     this.set('filter-value', '');
                     this.set('running-total-column', '');
                     this.set('enable-running-total', false);
-                    // Clear loaded data
                     this.set('custom-headers', null);
                     this.set('custom-data', null);
                     this.set('table-headers', null);
@@ -500,56 +765,88 @@ function jsontablecustom(editor) {
                     this.set('show-placeholder', true);
                     this.updateTableHTML();
 
-                    // Update trait options after file change
                     setTimeout(() => {
                         this.updateFilterColumnOptions();
                     }, 100);
                 });
 
                 this.on('change:json-path', () => {
+                    const tableType = this.get('table-type') || 'standard';
+
+                    // For crosstab, render immediately
+                    if (tableType === 'crosstab') {
+                        this.updateTableFromJson();
+                        return;
+                    }
+
+                    // For standard table, clear filters and wait
                     this.updateTableFromJson();
                     this.set('filter-column', '');
                     this.set('filter-value', '');
                     this.set('running-total-column', '');
                     this.set('enable-running-total', false);
-                    // Clear any existing loaded data
                     this.set('custom-headers', null);
                     this.set('custom-data', null);
 
-                    // Update trait display after path change
                     setTimeout(() => {
                         const jsonPathTrait = this.getTrait('json-path');
                         if (jsonPathTrait) {
                             const currentPath = this.get('json-path');
                             jsonPathTrait.set('value', currentPath);
-                            // Trigger view update
                             if (jsonPathTrait.view && jsonPathTrait.view.render) {
                                 jsonPathTrait.view.render();
                             }
                         }
                     }, 100);
                 });
+this.on('change:table-type', () => {
+    const tableType = this.get('table-type');
+    
+    // Show/hide filter traits based on table type
+    setTimeout(() => {
+        const filterColumnTrait = this.getTrait('filter-column');
+        const filterValueTrait = this.getTrait('filter-value');
+        
+        if (filterColumnTrait && filterColumnTrait.view) {
+            const display = tableType === 'crosstab' ? 'none' : 'block';
+            filterColumnTrait.view.el.style.display = display;
+        }
+        if (filterValueTrait && filterValueTrait.view) {
+            const display = tableType === 'crosstab' ? 'none' : 'block';
+            filterValueTrait.view.el.style.display = display;
+        }
+    }, 100);
+    
+    // Clear filters when switching to crosstab
+    if (tableType === 'crosstab') {
+        this.set('filter-column', '');
+        this.set('filter-value', '');
+        this.set('custom-headers', null);
+        this.set('custom-data', null);
+    }
 
+    // Re-process the table if json-path exists
+    const jsonPath = this.get('json-path');
+    if (jsonPath) {
+        this.updateTableFromJson();
+    }
+});
                 this.on('change:selected-running-total-columns', () => {
                     this.updateRunningTotals();
                 });
 
-                // MODIFIED: Only load data when both filter column and value are set
                 this.on('change:filter-column', () => {
                     const filterColumn = this.get('filter-column');
                     const filterValue = this.get('filter-value');
 
-                    // Handle "none" option - load all data immediately
                     if (filterColumn === "none") {
                         this.loadFilteredData();
                         return;
                     }
 
-                    // For regular columns, check if both column and value are set
                     if (filterColumn && filterValue && filterValue.trim() !== '') {
                         this.loadFilteredData();
                     } else if (!filterColumn) {
-                        // If filter column is cleared, show placeholder again
                         this.set('custom-headers', null);
                         this.set('custom-data', null);
                         this.set('show-placeholder', true);
@@ -561,7 +858,6 @@ function jsontablecustom(editor) {
                     const filterColumn = this.get('filter-column');
                     const filterValue = this.get('filter-value');
 
-                    // Skip if "none" is selected (no filter value needed)
                     if (filterColumn === "none") {
                         return;
                     }
@@ -569,7 +865,6 @@ function jsontablecustom(editor) {
                     if (filterColumn && filterValue && filterValue.trim() !== '') {
                         this.loadFilteredData();
                     } else if (!filterValue || filterValue.trim() === '') {
-                        // If filter value is cleared, show placeholder again
                         this.set('custom-headers', null);
                         this.set('custom-data', null);
                         this.set('show-placeholder', true);
@@ -577,107 +872,130 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateTableHTML);
+                this.on('change:table-type', () => {
+                    const tableType = this.get('table-type');
+
+                    // Clear filters when switching to crosstab
+                    if (tableType === 'crosstab') {
+                        this.set('filter-column', '');
+                        this.set('filter-value', '');
+                        this.set('custom-headers', null);
+                        this.set('custom-data', null);
+                    }
+
+                    // Re-process the table if json-path exists
+                    const jsonPath = this.get('json-path');
+                    if (jsonPath) {
+                        this.updateTableFromJson();
+                    }
+                });
+                // REPLACE these lines that cause full table rebuilds:
+                // OLD: this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateTableHTML);
+                // NEW: Only update DataTable settings, not entire HTML
+                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateDataTableSettings);
+
+                // Keep highlight changes separate
                 this.on('change:highlight-conditions change:highlight-color', this.handleHighlightChange);
 
                 this.set('show-placeholder', true);
                 this.updateTableHTML();
             },
+            updateDataTableSettings() {
+                const tableId = this.cid ? `json-table-${this.cid}` : null;
+                if (!tableId) return;
 
-            safeInitializeFormulaParser() {
-                try {
-                    console.log("safe method called")
-                    if (typeof loadFormulaParser === 'function') {
-                        this.initializeFormulaParser();
-                    }
-                } catch (error) {
-                    console.warn('Could not initialize formula parser:', error);
+                const canvasDoc = editor.Canvas.getDocument();
+                const tableElement = canvasDoc.getElementById(tableId);
+
+                if (!tableElement) return;
+
+                // Destroy and recreate DataTable with new settings
+                if (canvasDoc.defaultView.$ && canvasDoc.defaultView.$.fn.DataTable.isDataTable(tableElement)) {
+                    const dt = canvasDoc.defaultView.$(tableElement).DataTable();
+                    dt.destroy();
+
+                    // Reinitialize with new settings
+                    setTimeout(() => {
+                        this.initializeDataTable(tableId);
+                    }, 100);
                 }
             },
-            loadFilteredData() {
-                const filterColumn = this.get('filter-column');
-                const filterValue = this.get('filter-value');
-                const originalHeaders = this.get('table-headers');
-                const originalData = this.get('table-data');
+loadFilteredData() {
+    const filterColumn = this.get('filter-column');
+    const filterValue = this.get('filter-value');
+    const originalHeaders = this.get('table-headers');
+    const originalData = this.get('table-data');
 
-                if (!originalHeaders || !originalData) {
-                    console.warn('Cannot load data: missing table data');
-                    return;
-                }
+    if (!originalHeaders || !originalData) {
+        console.warn('Cannot load data: missing table data');
+        return;
+    }
 
-                // Handle "none" option - load all data without filtering
-                if (filterColumn === "none") {
-                    const allData = [...originalData];
+    // Handle "none" option - load all data without filtering
+    if (filterColumn === "none") {
+        const allData = [...originalData];
+        
+        this.set('custom-headers', { ...originalHeaders });
+        this.set('custom-data', allData);
+        this.set('show-placeholder', false);
+        
+        // Clear filter value when none is selected
+        this.set('filter-value', '');
+        const filterValueTrait = this.getTrait('filter-value');
+        if (filterValueTrait) {
+            filterValueTrait.set('value', '');
+        }
+        
+        this.updateTableHTML();
+        console.log(`Loaded all ${allData.length} rows without filtering`);
+        return;
+    }
 
-                    this.set('custom-headers', { ...originalHeaders });
-                    this.set('custom-data', allData);
-                    this.set('show-placeholder', false);
+    // Regular filtering logic
+    if (!filterColumn || !filterValue || filterColumn === '') {
+        console.warn('Cannot load data: missing filter criteria');
+        return;
+    }
 
-                    // Clear filter value when none is selected
-                    this.set('filter-value', '');
-                    const filterValueTrait = this.getTrait('filter-value');
-                    if (filterValueTrait) {
-                        filterValueTrait.set('value', '');
-                    }
+    let filteredData;
+    
+    if (filterValue === '=') {
+        // Load all data for this column
+        filteredData = [...originalData];
+    } else {
+        // Filter data based on column and value (case-insensitive partial match)
+        filteredData = originalData.filter(row => {
+            const cellValue = String(row[filterColumn] || '').toLowerCase();
+            const searchValue = String(filterValue).toLowerCase();
+            return cellValue.includes(searchValue);
+        });
+    }
 
-                    // Initialize formula parser safely
-                    this.safeInitializeFormulaParser();
+    // Set the filtered data as custom data
+    this.set('custom-headers', { ...originalHeaders });
+    this.set('custom-data', filteredData);
+    this.set('show-placeholder', false);
 
-                    this.updateTableHTML();
-                    console.log(`Loaded all ${allData.length} rows without filtering`);
-                    return;
-                }
+    // Preserve filter values in the traits
+    const filterColumnTrait = this.getTrait('filter-column');
+    const filterValueTrait = this.getTrait('filter-value');
 
-                // Regular filtering logic
-                if (!filterColumn || !filterValue || filterColumn === '') {
-                    console.warn('Cannot load data: missing filter criteria');
-                    return;
-                }
+    if (filterColumnTrait) {
+        filterColumnTrait.set('value', filterColumn);
+    }
+    if (filterValueTrait) {
+        filterValueTrait.set('value', filterValue);
+    }
 
-                let filteredData;
+    this.updateTableHTML();
 
-                // If filter value is "=", load complete data
-                if (filterValue === "=") {
-                    filteredData = [...originalData];
-                } else {
-                    // Apply filtering
-                    filteredData = originalData.filter(row => {
-                        const cellValue = String(row[filterColumn] || "").toLowerCase();
-                        const searchValue = String(filterValue).toLowerCase();
-                        return cellValue.includes(searchValue);
-                    });
-                }
+    console.log(`Loaded ${filteredData.length} rows based on filter: ${filterColumn} contains "${filterValue}"`);
 
-                // Set the filtered data as custom data
-                this.set('custom-headers', { ...originalHeaders });
-                this.set('custom-data', filteredData);
-                this.set('show-placeholder', false);
-
-                // Preserve filter values in the traits
-                const filterColumnTrait = this.getTrait('filter-column');
-                const filterValueTrait = this.getTrait('filter-value');
-
-                if (filterColumnTrait) {
-                    filterColumnTrait.set('value', filterColumn);
-                }
-                if (filterValueTrait) {
-                    filterValueTrait.set('value', filterValue);
-                }
-
-                // Initialize formula parser safely
-                this.safeInitializeFormulaParser();
-
-                this.updateTableHTML();
-
-                console.log(`Loaded ${filteredData.length} rows based on filter: ${filterColumn} contains "${filterValue}"`);
-
-                // Show success message
-                if (filteredData.length === 0) {
-                    alert('No data matches the filter criteria');
-                } else {
-                    console.log(`Successfully loaded ${filteredData.length} filtered rows`);
-                }
-            },
+    // Show message if no results
+    if (filteredData.length === 0) {
+        alert('No data matches the filter criteria');
+    }
+},
             reorderColumns(newColumnOrder) {
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const data = this.get('custom-data') || this.get('table-data') || [];
@@ -801,6 +1119,21 @@ function jsontablecustom(editor) {
                         filterTrait.set('options', options);
                     }
                 }
+                // Show filter traits for standard tables
+setTimeout(() => {
+    const tableType = this.get('table-type') || 'standard';
+    if (tableType === 'standard') {
+        const filterColumnTrait = this.getTrait('filter-column');
+        const filterValueTrait = this.getTrait('filter-value');
+        
+        if (filterColumnTrait && filterColumnTrait.view) {
+            filterColumnTrait.view.el.style.display = 'block';
+        }
+        if (filterValueTrait && filterValueTrait.view) {
+            filterValueTrait.view.el.style.display = 'block';
+        }
+    }
+}, 200);
             },
             updateRunningTotalColumnOptions() {
                 try {
@@ -1091,43 +1424,13 @@ function jsontablecustom(editor) {
                 this.set('custom-data', null);
                 this.set('show-placeholder', true);
             },
-            initializeFormulaParser() {
-                const self = this;
 
-                // Check if formula parser is already loaded
-                if (!window.HotFormulaParser) {
-                    loadFormulaParser(function () {
-                        if (window.HotFormulaParser) {
-                            self.setupFormulaParser();
-                            console.log("loadformulaparcer called")
-                        }
-                    });
-                } else {
-                    this.setupFormulaParser();
-                }
-            },
-
-            setupFormulaParser() {
-                const cellMap = window.globalCellMap || {};
-                console.log("setup formula called")
-                // Only set up if HotFormulaParser exists
-                if (window.HotFormulaParser) {
-                    window.HotFormulaParser.on('callCellValue', function (cellCoord, done) {
-                        const label = cellCoord.label;
-                        done(cellMap[label] || 0);
-                    });
-
-                    console.log("cell map", cellMap);
-                    console.log("hotformulaparcer", window.HotFormulaParser);
-
-                    this.set('formula-parser', window.HotFormulaParser);
-                    this.set('cell-map', cellMap);
-                }
-            },
 
             updateTableFromJson() {
                 const jsonPath = this.get('json-path');
                 const fileIndex = this.get('json-file-index') || '0';
+                const tableType = this.get('table-type') || 'standard';
+
                 if (!jsonPath) {
                     console.warn('No JSON path provided');
                     this.set('show-placeholder', true);
@@ -1136,7 +1439,6 @@ function jsontablecustom(editor) {
                 }
 
                 try {
-                    // Parse jsonPath to extract language and subpath
                     const pathParts = jsonPath.split('.');
                     let selectedLanguage = localStorage.getItem('language') || 'english';
                     let subPath = jsonPath;
@@ -1203,20 +1505,28 @@ function jsontablecustom(editor) {
                         tableData = str;
                     }
 
-                    if (tableData && tableData.heading && tableData.data) {
-                        // ONLY store headers and raw data, don't load into table yet
-                        this.set('table-headers', tableData.heading);
-                        this.set('table-data', tableData.data);
-
-                        // Clear any existing custom data
-                        this.set('custom-headers', null);
-                        this.set('custom-data', null);
-
-                        // Keep showing placeholder until filter is applied
-                        this.set('show-placeholder', true);
+                    // CROSSTAB MODE - Direct rendering
+                    if (tableType === 'crosstab' && tableData.type === 'crosstab') {
+                        const tableResult = this.buildCrosstabTable(tableData);
+                        this.set('table-headers', tableResult.headers);
+                        this.set('table-data', tableResult.data);
+                        this.set('custom-headers', tableResult.headers);
+                        this.set('custom-data', tableResult.data);
+                        this.set('show-placeholder', false);
                         this.updateTableHTML();
 
-                        // Update filter dropdown with headers
+                        console.log('Crosstab table rendered directly');
+                        return;
+                    }
+
+                    // STANDARD MODE - Store headers, wait for filter
+                    if (tableData && tableData.heading && tableData.data) {
+                        this.set('table-headers', tableData.heading);
+                        this.set('table-data', tableData.data);
+                        this.set('custom-headers', null);
+                        this.set('custom-data', null);
+                        this.set('show-placeholder', true);
+                        this.updateTableHTML();
                         this.updateFilterColumnOptions();
                         this.updateRunningTotalColumnOptions();
 
@@ -1233,6 +1543,319 @@ function jsontablecustom(editor) {
                 }
             },
 
+            parseCrosstabData() {
+                const jsonPath = this.get('json-path');
+                const fileIndex = this.get('json-file-index') || '0';
+
+                if (!jsonPath) return null;
+
+                try {
+                    const pathParts = jsonPath.split('.');
+                    let selectedLanguage = localStorage.getItem('language') || 'english';
+                    let subPath = jsonPath;
+                    if (pathParts.length > 1) {
+                        selectedLanguage = pathParts[0];
+                        subPath = pathParts.slice(1).join('.');
+                    }
+
+                    let jsonDataN;
+                    if (fileIndex !== '0') {
+                        const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
+                        const selectedFile = fileNames[parseInt(fileIndex) - 1];
+                        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+                        if (jsonString) {
+                            const fileJson = JSON.parse(jsonString);
+                            jsonDataN = fileJson[selectedLanguage];
+                        }
+                    } else {
+                        const commonJson = JSON.parse(localStorage.getItem("common_json"));
+                        jsonDataN = commonJson[selectedLanguage];
+                    }
+
+                    if (!jsonDataN || !jsonDataN[subPath]) return null;
+
+                    const crosstabData = typeof jsonDataN[subPath] === 'string'
+                        ? eval(jsonDataN[subPath])
+                        : jsonDataN[subPath];
+
+                    if (crosstabData.type !== 'crosstab') return null;
+
+                    return crosstabData;
+                } catch (error) {
+                    console.error('Error parsing crosstab data:', error);
+                    return null;
+                }
+            },
+
+            buildCrosstabTable(crosstabData) {
+                const columnHeaders = crosstabData.columnHeaders || [];
+                const rows = crosstabData.rows || [];
+                const structure = crosstabData.structure || {};
+
+                // Store crosstab structure for rendering
+                this.set('crosstab-structure', {
+                    columnHeaders,
+                    rows,
+                    structure
+                });
+
+                // Create flat headers for GrapesJS component structure
+                const headers = {};
+                const rowHeaderCount = structure.rowHeaderLevels || 1;
+
+                // Add row header columns
+                for (let i = 0; i < rowHeaderCount; i++) {
+                    headers[`row_header_${i}`] = `Row Header ${i + 1}`;
+                }
+
+                // Count data columns from first row
+                const dataColCount = rows.length > 0 && rows[0].cells ? rows[0].cells.length : 0;
+                for (let i = 0; i < dataColCount; i++) {
+                    headers[`data_col_${i}`] = `Column ${i + 1}`;
+                }
+
+                // Create flat data structure
+                const tableData = rows.map((row, rowIdx) => {
+                    const dataRow = {};
+
+                    // Check if rowHeaders exists, handle both 'headers' and 'rowHeaders' property names
+                    const rowHeadersData = row.rowHeaders || row.headers || [];
+
+                    // Add row headers
+                    rowHeadersData.forEach((header, idx) => {
+                        if (!header.skip) {
+                            dataRow[`row_header_${idx}`] = header.value || '';
+                        }
+                    });
+
+                    // Add data cells - handle undefined cells array
+                    const cellsData = row.cells || [];
+                    cellsData.forEach((cell, idx) => {
+                        dataRow[`data_col_${idx}`] = cell;
+                    });
+
+                    return dataRow;
+                });
+
+                return {
+                    headers,
+                    data: tableData
+                };
+            },
+
+            addCrosstabTableWithMerges(tableComponent, tableId) {
+                const crosstabStructure = this.get('crosstab-structure');
+                if (!crosstabStructure) return;
+
+                const { columnHeaders, rows, structure } = crosstabStructure;
+
+                // Add column headers with merges
+                const theadComponent = tableComponent.components().add({
+                    type: 'default',
+                    tagName: 'thead',
+                    style: {
+                        'background-color': '#f8f9fa',
+                        'border': '1px solid #000'
+                    }
+                });
+
+                // Render each level of column headers
+                columnHeaders.forEach((headerRow, levelIdx) => {
+                    const headerRowComponent = theadComponent.components().add({
+                        type: 'default',
+                        tagName: 'tr'
+                    });
+
+                    headerRow.forEach((header, colIdx) => {
+                        if (header.skip) return; // Skip cells that are part of a merge
+
+                        const attributes = {
+                            id: `${tableId}-colheader-${levelIdx}-${colIdx}`
+                        };
+
+                        if (header.colspan && header.colspan > 1) {
+                            attributes.colspan = header.colspan.toString();
+                        }
+                        if (header.rowspan && header.rowspan > 1) {
+                            attributes.rowspan = header.rowspan.toString();
+                        }
+
+                        headerRowComponent.components().add({
+                            type: 'json-table-cell',
+                            tagName: 'th',
+                            content: `<div>${header.value || ''}</div>`,
+                            selectable: true,
+                            attributes,
+                            style: {
+                                'padding': '8px',
+                                'border': '1px solid #000',
+                                'font-weight': 'bold',
+                                'text-align': 'center'
+                            }
+                        });
+                    });
+                });
+
+                // Add table body with merged row headers
+                const tbodyComponent = tableComponent.components().add({
+                    type: 'default',
+                    tagName: 'tbody'
+                });
+
+                rows.forEach((row, rowIdx) => {
+                    const rowComponent = tbodyComponent.components().add({
+                        type: 'default',
+                        tagName: 'tr',
+                        style: {
+                            'background-color': rowIdx % 2 === 0 ? '#ffffff' : '#f8f9fa'
+                        }
+                    });
+
+                    // Add row headers with merges
+// Add row headers with merges
+const rowHeadersData = row.rowHeaders || row.headers || [];
+rowHeadersData.forEach((header, headerIdx) => {
+                        if (header.skipFirst) return; // Skip if this header cell is merged from previous row
+
+                        const attributes = {
+                            id: `${tableId}-rowheader-${rowIdx}-${headerIdx}`,
+                            'data-row': rowIdx.toString(),
+                            'data-column-key': `row_header_${headerIdx}`
+                        };
+
+                        if (header.rowspan && header.rowspan > 1) {
+                            attributes.rowspan = header.rowspan.toString();
+                        }
+
+                        rowComponent.components().add({
+                            type: 'json-table-cell',
+                            tagName: 'th',
+                            content: `<div>${header.value || ''}</div>`,
+                            selectable: true,
+                            attributes,
+                            style: {
+                                'padding': '8px',
+                                'border': '1px solid #000',
+                                'font-weight': 'bold',
+                                'background-color': '#f8f9fa'
+                            }
+                        });
+                    });
+
+                    // Add data cells
+                    row.cells.forEach((cellValue, cellIdx) => {
+                        const cellId = `${tableId}-cell-${rowIdx}-${cellIdx}`;
+
+                        rowComponent.components().add({
+                            type: 'json-table-cell',
+                            tagName: 'td',
+                            content: `<div style="text-align: left;">${cellValue}</div>`,
+                            selectable: true,
+                            attributes: {
+                                id: cellId,
+                                'data-row': rowIdx.toString(),
+                                'data-column-key': `data_col_${cellIdx}`
+                            },
+                            style: {
+                                'padding': '8px',
+                                'border': '1px solid #000'
+                            }
+                        });
+                    });
+                });
+            },
+
+            calculateColumnStructure(columnHeaders) {
+                const leafColumns = [];
+
+                function traverse(headers, path = []) {
+                    if (headers.length === 0) {
+                        leafColumns.push({ fullPath: [...path] });
+                        return;
+                    }
+
+                    const [currentHeader, ...restHeaders] = headers;
+                    const values = typeof currentHeader.values === 'object' && !Array.isArray(currentHeader.values)
+                        ? (path.length > 0 ? currentHeader.values[path[path.length - 1]] || [] : Object.keys(currentHeader.values))
+                        : currentHeader.values;
+
+                    values.forEach(value => {
+                        traverse(restHeaders, [...path, value]);
+                    });
+                }
+
+                traverse(columnHeaders);
+                return { leafColumns };
+            },
+
+            calculateRowStructure(rowHeaders, data) {
+                const rows = [];
+
+                function traverse(headers, path = [], dataNode = data) {
+                    if (headers.length === 0) {
+                        rows.push({ path: [...path] });
+                        return;
+                    }
+
+                    const [currentHeader, ...restHeaders] = headers;
+                    const values = typeof currentHeader.values === 'object' && !Array.isArray(currentHeader.values)
+                        ? (path.length > 0 ? currentHeader.values[path[path.length - 1]] || [] : Object.keys(currentHeader.values))
+                        : currentHeader.values;
+
+                    values.forEach(value => {
+                        const nextDataNode = dataNode && dataNode[value];
+                        traverse(restHeaders, [...path, value], nextDataNode);
+                    });
+                }
+
+                traverse(rowHeaders);
+                return rows;
+            },
+
+            getCrosstabValue(data, rowPath, colPath) {
+                let current = data;
+
+                for (const key of rowPath) {
+                    if (!current || !current[key]) return null;
+                    current = current[key];
+                }
+
+                for (const key of colPath) {
+                    if (!current || !current[key]) return null;
+                    current = current[key];
+                }
+
+                return typeof current === 'number' ? current : null;
+            },
+
+            calculateRowTotal(data, rowPath, leafColumns) {
+                let total = 0;
+                leafColumns.forEach(col => {
+                    const value = this.getCrosstabValue(data, rowPath, col.fullPath);
+                    if (value !== null) total += value;
+                });
+                return total;
+            },
+
+            calculateColumnTotal(data, rowStructure, colPath) {
+                let total = 0;
+                rowStructure.forEach(rowDef => {
+                    const value = this.getCrosstabValue(data, rowDef.path, colPath);
+                    if (value !== null) total += value;
+                });
+                return total;
+            },
+
+            calculateGrandTotal(data, rowStructure, leafColumns) {
+                let total = 0;
+                rowStructure.forEach(rowDef => {
+                    leafColumns.forEach(col => {
+                        const value = this.getCrosstabValue(data, rowDef.path, col.fullPath);
+                        if (value !== null) total += value;
+                    });
+                });
+                return total;
+            },
 
 
             addRow() {
@@ -1311,43 +1934,48 @@ function jsontablecustom(editor) {
             updateCellData(rowIndex, columnKey, newValue) {
                 const data = this.get('custom-data') || this.get('table-data') || [];
                 const updatedData = [...data];
-                const cellFormulas = this.get('cell-formulas') || {};
                 const selectedRunningTotalColumns = this.get('selected-running-total-columns') || [];
 
                 if (updatedData[rowIndex]) {
+                    // Update the data model
+                    updatedData[rowIndex] = { ...updatedData[rowIndex], [columnKey]: newValue };
+
                     const cellId = `cell-${rowIndex}-${columnKey}`;
-
-                    if (typeof newValue === 'string' && newValue.trim().startsWith('=')) {
-                        // Store formula
-                        const formula = newValue.trim();
-                        cellFormulas[cellId] = formula;
-
-                        // Evaluate formula
-                        try {
-                            const formulaExpression = formula.substring(1);
-                            console.log("formulaaaaaa", formulaExpression)
-                            const evaluatedValue = evaluateFormula(formulaExpression, updatedData, rowIndex, columnKey);
-                            console.log("evaluateformulaa", evaluatedValue)
-                            updatedData[rowIndex][columnKey] = evaluatedValue;
-                        } catch (error) {
-                            updatedData[rowIndex][columnKey] = '#ERROR';
-                        }
-                    } else {
-                        // Regular value
-                        updatedData[rowIndex][columnKey] = newValue;
-                        delete cellFormulas[cellId];
-                    }
-
                     this.set('custom-data', updatedData);
-                    this.set('cell-formulas', cellFormulas);
                     this.set(`cell-content-${cellId}`, newValue);
 
-                    // Check if this column has a running total and recalculate
+                    // Update only the specific cell in the DOM
+                    this.updateSingleCell(rowIndex, columnKey, newValue);
+
+                    // Check if this column has a running total and recalculate only that
                     if (selectedRunningTotalColumns.includes(columnKey)) {
                         this.recalculateRunningTotalsForColumn(columnKey);
                     }
+                }
+            },
 
-                    this.updateTableHTML();
+            updateSingleCell(rowIndex, columnKey, newValue) {
+                const tableId = this.cid ? `json-table-${this.cid}` : null;
+                if (!tableId) return;
+
+                const canvasDoc = editor.Canvas.getDocument();
+                const cellId = `${tableId}-cell-${rowIndex}-${columnKey}`;
+                const cellElement = canvasDoc.getElementById(cellId);
+
+                if (cellElement) {
+                    const cellContent = cellElement.querySelector('div');
+                    if (cellContent) {
+                        cellContent.textContent = newValue;
+                    }
+
+                    // Update DataTable cell if it exists
+                    if (canvasDoc.defaultView.$ && canvasDoc.defaultView.$.fn.DataTable.isDataTable(`#${tableId}`)) {
+                        const dt = canvasDoc.defaultView.$(`#${tableId}`).DataTable();
+                        const cell = dt.cell(cellElement);
+                        if (cell) {
+                            cell.data(newValue).draw(false); // false = don't redraw entire table
+                        }
+                    }
                 }
             },
 
@@ -1370,42 +1998,80 @@ function jsontablecustom(editor) {
                 this.set('custom-data', updatedData);
             },
 
-
-            recalculateFormulas() {
-                const data = this.get('custom-data') || this.get('table-data') || [];
-                let hasFormulas = false;
-
-                // Check if any cells have formulas and re-evaluate them
-                const updatedData = data.map((row, rowIndex) => {
-                    const updatedRow = { ...row };
-                    Object.keys(row).forEach(columnKey => {
-                        const cellId = `cell-${rowIndex}-${columnKey}`;
-                        const formula = this.get(`cell-formula-${cellId}`);
-
-                        if (formula && formula.startsWith('=')) {
-                            hasFormulas = true;
-                            const evaluatedValue = evaluateFormula(formula.substring(1), data, rowIndex, columnKey);
-                            updatedRow[columnKey] = evaluatedValue;
-                        }
-                    });
-                    return updatedRow;
-                });
-
-                if (hasFormulas) {
-                    this.set('custom-data', updatedData);
-                    this.updateTableHTML();
-                }
-            },
-
             updateHeaderData(columnKey, newValue) {
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const updatedHeaders = { ...headers, [columnKey]: newValue };
                 this.set('custom-headers', updatedHeaders);
-
-                // Store the change in the component for export
                 this.set(`header-content-${columnKey}`, newValue);
 
-                this.updateTableHTML();
+                // Update only the specific header in DOM
+                this.updateSingleHeader(columnKey, newValue);
+
+                // DO NOT call updateTableHTML() here
+            },
+
+            updateSingleHeader(columnKey, newValue) {
+                const tableId = this.cid ? `json-table-${this.cid}` : null;
+                if (!tableId) return;
+
+                const canvasDoc = editor.Canvas.getDocument();
+                const headerId = `${tableId}-header-${columnKey}`;
+                const headerElement = canvasDoc.getElementById(headerId);
+
+                if (headerElement) {
+                    const headerContent = headerElement.querySelector('div');
+                    if (headerContent) {
+                        headerContent.textContent = newValue;
+                    }
+                }
+            },
+
+            addDataTableSortingFeatures(tableId) {
+                const canvasDoc = editor.Canvas.getDocument();
+                const tableElement = canvasDoc.getElementById(tableId);
+
+                if (!tableElement || !canvasDoc.defaultView.$) return;
+
+                // Add sort arrows to headers
+                const headers = tableElement.querySelectorAll('thead th');
+                headers.forEach((header, index) => {
+                    if (!header.querySelector('.sort-arrow')) {
+                        const sortArrow = canvasDoc.createElement('span');
+                        sortArrow.className = 'sort-arrow';
+                        sortArrow.innerHTML = ' ↕️';
+                        sortArrow.style.cssText = `
+                cursor: pointer;
+                margin-left: 5px;
+                user-select: none;
+                float: right;
+            `;
+
+                        // Prevent header cell editing when clicking arrow
+                        sortArrow.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+
+                            const dt = canvasDoc.defaultView.$(tableElement).DataTable();
+                            const currentOrder = dt.order();
+
+                            // Toggle sort order: none -> asc -> desc -> none
+                            let newOrder = [index, 'asc'];
+                            if (currentOrder.length && currentOrder[0][0] === index) {
+                                if (currentOrder[0][1] === 'asc') {
+                                    newOrder = [index, 'desc'];
+                                } else {
+                                    // Clear sorting
+                                    dt.order([]).draw();
+                                    return;
+                                }
+                            }
+
+                            dt.order(newOrder).draw();
+                        });
+
+                        header.appendChild(sortArrow);
+                    }
+                });
             },
 
             setCellStyle(rowIndex, columnKey, styles) {
@@ -1506,10 +2172,10 @@ function jsontablecustom(editor) {
                 const wrapperComponent = this.components().add({
                     type: 'default',
                     tagName: 'div',
+                    selectable: false,
                     classes: ['json-table-wrapper'],
                     style: {
-                        'width': '100%',
-                        'overflow-x': 'auto'
+                        'width': '99.5%',
                     }
                 });
 
@@ -1525,18 +2191,14 @@ function jsontablecustom(editor) {
                     });
                 }
 
-                // Add controls (search & download)
-                if (search === 'yes' || fileDownload) {
-                    this.addControlsComponent(wrapperComponent, search, fileDownload);
-                }
-
-                // Add the main table component
+                // Add the main table component - THIS IS KEY: it remains a GrapesJS component
                 const tableComponent = wrapperComponent.components().add({
                     type: 'default',
                     tagName: 'table',
-                    classes: ['json-data-table'],
+                    classes: ['json-data-table', 'table', 'table-striped', 'table-bordered'],
                     attributes: {
-                        id: tableId
+                        id: tableId,
+                        width: '100%'
                     },
                     style: {
                         'width': '100%',
@@ -1561,44 +2223,652 @@ function jsontablecustom(editor) {
                     });
                 }
 
-                // Add table header
-                this.addTableHeader(tableComponent, headers, tableId);
+                // Check if this is a crosstab table
+                const isCrosstab = this.get('crosstab-structure') !== undefined;
 
-                // Add table body
-                this.addTableBody(tableComponent, headers, data, tableId);
-
-                // Add footer if enabled
-                if (footer === 'yes') {
-                    this.addTableFooter(tableComponent, headers);
+                if (isCrosstab) {
+                    // Use special crosstab rendering with merges
+                    this.addCrosstabTableWithMerges(tableComponent, tableId);
+                } else {
+                    // Standard table rendering
+                    this.addTableHeader(tableComponent, headers, tableId);
+                    this.addTableBody(tableComponent, headers, data, tableId);
                 }
 
-                // Add pagination if enabled
-                if (pagination === 'yes') {
-                    this.addPaginationComponent(wrapperComponent, pageLength);
+                // Add footer if enabled (for standard tables only)
+                if (!isCrosstab && footer === 'yes') {
+                    this.addTableFooter(tableComponent, headers);
                 }
 
                 // Add styles component
                 this.addStylesComponent(wrapperComponent);
 
-                // Apply highlighting after DOM is ready
+                // Add DataTables initialization script AFTER the GrapesJS components are created
+                const datatableScript = this.createDataTableScript(tableId, pagination, pageLength, search, fileDownload, Object.keys(headers).length);
+                wrapperComponent.components().add(datatableScript);
+
+                // Apply highlighting and formulas after DOM is ready
                 setTimeout(() => {
                     const conditions = this.getHighlightConditions();
                     const color = this.get('highlight-color');
                     if (conditions && conditions.length > 0) {
                         applyHighlighting(tableId, conditions, color);
                     }
-                }, 100);
+                    // Enable formula editing on the GrapesJS components
+                    this.enableFormulaEditingOnComponents(tableId);
+                }, 500);
             },
+
+
+            createDataTableScript(tableId, pagination, pageLength, search, fileDownload, colCount) {
+                let downloadBtn = '[]';
+                if (fileDownload) {
+                    const downloadOptions = fileDownload.replace(/"/g, '').split(',').map(opt => opt.trim());
+                    downloadBtn = '[' + downloadOptions.map(opt => {
+                        if (opt === 'print') {
+                            return `{
+                    extend: 'print',
+                    title: '${this.get('name') || 'Table'}',
+                    customize: function(win) {
+                        const table = $(win.document.body).find('table');
+                        table.addClass('json-data-table');  // Ensure class is added for any matching styles
+                        table.css({
+                            'border-collapse': 'collapse',
+                            'border': '2px solid #000',
+                            'width': '100%'
+                        });
+                        table.find('th, td').css({
+                            'border': '1px solid #000',
+                            'padding': '8px',
+                            'text-align': 'left'
+                        });
+                        table.find('th').css({
+                            'background-color': '#f8f9fa',
+                            'font-weight': 'bold'
+                        });
+                        table.find('td').css({
+                            'background-color': '#fff'
+                        });
+                        // Hide any unnecessary elements in print
+                        $(win.document.body).find('.dt-buttons, .dataTables_info').remove();
+                    }
+                }`;
+                        } else {
+                            return `{extend: '${opt}', title: '${this.get('name') || 'Table'}'}`;
+                        }
+                    }).join(',') + ']';
+                }
+                const scriptContent = `
+(function() {
+    function initTable() {
+        if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+            setTimeout(initTable, 100);
+            return;
+        }
+        
+        const tableElement = document.getElementById('${tableId}');
+        if (!tableElement) {
+            setTimeout(initTable, 100);
+            return;
+        }
+        
+        // Store formula data before DataTable initialization
+        const formulaCells = tableElement.querySelectorAll('[data-formula]');
+        const formulaData = Array.from(formulaCells).map(cell => ({
+            cell: cell,
+            formula: cell.getAttribute('data-formula'),
+            calculatedValue: cell.getAttribute('data-calculated-value'),
+            id: cell.id || cell.getAttribute('data-row') + '-' + cell.getAttribute('data-column-key')
+        }));
+        
+        // Destroy existing DataTable if it exists
+        if ($.fn.DataTable.isDataTable(tableElement)) {
+            $(tableElement).DataTable().destroy();
+        }
+        
+        const isInPageSystem = tableElement.closest('.page-container');
+        
+        const dtOptions = {
+            dom: 'Bfrtip',
+            paging: ${pagination === 'yes'},
+            info: ${pagination === 'yes'},
+            lengthChange: true,
+            pageLength: ${pageLength},
+            fixedHeader: false,
+            scrollX: ${colCount > 5},
+            fixedColumns: ${colCount > 5},
+            searching: ${search === 'yes'},
+            buttons: ${downloadBtn},
+            ordering: true,
+            order: [], // No default sorting
+            columnDefs: [
+                {
+                    targets: '_all',
+                    orderable: true
+                }
+            ],
+            drawCallback: function() {
+                // Restore formula data after DataTable draw
+                setTimeout(() => {
+                    formulaData.forEach(data => {
+                        const cell = document.getElementById(data.id) ||
+                                   tableElement.querySelector('[data-row="' + data.id.split('-')[0] + '"][data-column-key="' + data.id.split('-')[1] + '"]');
+                        if (cell) {
+                            if (data.formula) cell.setAttribute('data-formula', data.formula);
+                            if (data.calculatedValue) {
+                                cell.setAttribute('data-calculated-value', data.calculatedValue);
+                                const cellContent = cell.querySelector('div');
+                                if (cellContent) {
+                                    cellContent.textContent = data.calculatedValue;
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Trigger custom event to re-enable formulas
+                    const event = new CustomEvent('datatableRedrawn', {
+                        detail: { tableId: '${tableId}', formulaData: formulaData }
+                    });
+                    document.dispatchEvent(event);
+                }, 100);
+                
+                if (isInPageSystem) {
+                    const wrapper = this.closest('.dataTables_wrapper');
+                    if (wrapper) {
+                        wrapper.style.maxWidth = '100%';
+                        wrapper.style.overflow = 'hidden';
+                    }
+                }
+            },
+            responsive: isInPageSystem ? {
+                details: {
+                    display: $.fn.dataTable.Responsive.display.childRowImmediate,
+                    type: 'none',
+                    target: ''
+                }
+            } : false
+        };
+        
+        const dt = $(tableElement).DataTable(dtOptions);
+        
+        // Add custom sorting arrows after DataTable initialization
+        setTimeout(() => {
+            const event = new CustomEvent('datatableInitialized', {
+                detail: { tableId: '${tableId}', dataTable: dt }
+            });
+            document.dispatchEvent(event);
+        }, 200);
+    }
+    
+    initTable();
+})();
+`;
+                return {
+                    type: 'default',
+                    tagName: 'script',
+                    content: scriptContent,
+                    attributes: {
+                        type: 'text/javascript'
+                    }
+                };
+            },
+
+
+            // 3. ADD this function to enable formulas on GrapesJS components:
+
+            enableFormulaEditingOnComponents(tableId) {
+                // Listen for DataTable redraws
+                document.addEventListener('datatableRedrawn', (e) => {
+                    if (e.detail.tableId === tableId) {
+                        this.attachFormulaHandlersToComponents(tableId);
+                        // Re-attach handlers after DataTable operations
+                        setTimeout(() => {
+                            this.reattachAllCellHandlers(tableId);
+                        }, 150);
+                    }
+                });
+
+                // Listen for original order reset
+                document.addEventListener('resetToOriginalOrder', (e) => {
+                    if (e.detail.tableId === tableId) {
+                        this.resetToOriginalOrder();
+                    }
+                });
+
+                // Listen for DataTable initialization
+                document.addEventListener('datatableInitialized', (e) => {
+                    if (e.detail.tableId === tableId) {
+                        setTimeout(() => {
+                            this.reattachAllCellHandlers(tableId);
+                        }, 300);
+                    }
+                });
+
+                // Initial attachment
+                this.attachFormulaHandlersToComponents(tableId);
+            },
+
+            // 4. ADD this function to attach formula handlers to GrapesJS components:
+
+            attachFormulaHandlersToComponents(tableId) {
+                const canvasDoc = editor.Canvas.getDocument();
+                const canvasWindow = canvasDoc.defaultView;
+
+                // ✅ Use or create global parser with custom formulas
+                let parser = canvasWindow.globalFormulaParser;
+
+                if (!parser && canvasWindow.formulaParser) {
+                    parser = new canvasWindow.formulaParser.Parser();
+                    canvasWindow.globalFormulaParser = parser;
+
+                    // Register custom formulas
+                    if (parser.setFunction) {
+                        parser.setFunction('PERCENT', function (params) {
+                            if (params.length !== 2) return '#N/A';
+                            const base = parseFloat(params[0]);
+                            const percent = parseFloat(params[1]);
+                            if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+                            return base * (percent / 100);
+                        });
+
+                        parser.setFunction('ABSOLUTE', function (params) {
+                            if (params.length !== 1) return '#N/A';
+                            const num = parseFloat(params[0]);
+                            if (isNaN(num)) return '#VALUE!';
+                            return Math.abs(num);
+                        });
+
+                        if (canvasWindow.numberToWords && canvasWindow.numberToWords.toWords) {
+                            parser.setFunction('NUMTOWORDS', function (params) {
+                                if (params.length !== 1) return '#N/A';
+                                const num = parseInt(params[0]);
+                                if (isNaN(num)) return '#VALUE!';
+                                try {
+                                    return canvasWindow.numberToWords.toWords(num);
+                                } catch (error) {
+                                    return '#ERROR';
+                                }
+                            });
+                        }
+                    }
+                }
+
+                if (!parser) {
+                    console.warn('Formula parser not available');
+                    return;
+                }
+
+                // Set up parser callbacks
+                parser.on('callCellValue', function (cellCoord, done) {
+                    let col = cellCoord.column.index;
+                    let row = cellCoord.row.index;
+                    let tableElem = canvasDoc.getElementById(tableId);
+                    let cell = tableElem?.rows[row]?.cells[col];
+                    if (cell) {
+                        // Check for calculated value first, then formula, then text
+                        let val = cell.getAttribute('data-calculated-value') ||
+                            cell.getAttribute('data-formula') ||
+                            cell.innerText;
+                        if (val.startsWith && val.startsWith('=')) {
+                            try {
+                                let res = parser.parse(val.substring(1));
+                                done(res.result);
+                            } catch {
+                                done('#ERROR');
+                            }
+                        } else {
+                            done(parseFloat(val) || val);
+                        }
+                    } else {
+                        done(null);
+                    }
+                });
+
+                parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
+                    let tableElem = canvasDoc.getElementById(tableId);
+                    let values = [];
+
+                    let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+                    let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+                    let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+                    let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
+
+                    for (let row = startRow; row <= endRow; row++) {
+                        for (let col = startCol; col <= endCol; col++) {
+                            let cell = tableElem?.rows[row]?.cells[col];
+                            if (cell) {
+                                let val = cell.getAttribute('data-calculated-value') ||
+                                    cell.getAttribute('data-formula') ||
+                                    cell.innerText;
+                                if (val.startsWith && val.startsWith('=')) {
+                                    try {
+                                        let res = parser.parse(val.substring(1));
+                                        values.push(res.result);
+                                    } catch {
+                                        values.push(0);
+                                    }
+                                } else {
+                                    values.push(parseFloat(val) || 0);
+                                }
+                            } else {
+                                values.push(0);
+                            }
+                        }
+                    }
+                    done(values);
+                });
+
+                // Find table cells in GrapesJS component tree and attach handlers
+                const tableComponent = this.components().find(comp => {
+                    return comp.find(`#${tableId}`).length > 0;
+                });
+
+                if (tableComponent) {
+                    const actualTable = tableComponent.find('table')[0];
+                    if (actualTable) {
+                        // Find all cell components (td, th)
+                        const cellComponents = actualTable.find('td, th');
+
+                        cellComponents.forEach(cellComp => {
+                            const cellEl = cellComp.getEl();
+                            if (cellEl && !cellEl.hasAttribute('data-formula-enabled')) {
+                                this.attachCellFormulaHandler(cellComp, cellEl, parser);
+                            }
+                        });
+                    }
+                }
+            },
+
+
+            // 5. ADD this function to attach formula handlers to individual cells:
+
+            attachCellFormulaHandler(cellComponent, cellElement, parser) {
+                // Skip if already has handlers
+                if (cellElement.hasAttribute('data-formula-enabled')) {
+                    return;
+                }
+
+                cellElement.setAttribute('data-formula-enabled', 'true');
+
+                const cellContent = cellElement.querySelector('div') || (() => {
+                    // If no div exists, create one and move content into it
+                    const existingContent = cellElement.textContent;
+                    cellElement.innerHTML = '';
+                    const newDiv = document.createElement('div');
+                    newDiv.className = 'cell-content';
+                    newDiv.textContent = existingContent;
+                    cellElement.appendChild(newDiv);
+                    return newDiv;
+                })();
+
+                cellContent.contentEditable = 'true';
+
+                const handleFocus = () => {
+                    const formula = cellElement.getAttribute('data-formula');
+                    if (formula) {
+                        cellContent.textContent = formula;
+                    }
+                    cellContent.setAttribute('data-editing', 'true');
+                    cellElement.classList.add('editing');
+                };
+
+                const handleBlur = () => {
+                    cellContent.removeAttribute('data-editing');
+                    cellElement.classList.remove('editing');
+
+                    const val = cellContent.textContent.trim();
+                    const rowIndex = cellElement.getAttribute('data-row');
+                    const columnKey = cellElement.getAttribute('data-column-key');
+                    const isHeader = cellElement.tagName === 'TH';
+
+                    if (isHeader) {
+                        cellElement.removeAttribute('data-formula');
+                        cellElement.removeAttribute('data-calculated-value');
+                        cellContent.textContent = val;
+                        cellElement.classList.remove('formula-error');
+
+                        if (columnKey) {
+                            this.updateHeaderData(columnKey, val);
+                        }
+                    } else if (val.startsWith('=')) {
+                        cellElement.setAttribute('data-formula', val);
+                        try {
+                            const formulaContent = val.substring(1).trim();
+                            if (!formulaContent) throw new Error('Empty formula');
+
+                            // ✅ Use the global parser with custom formulas instead of local parser
+                            const canvasWindow = cellElement.ownerDocument.defaultView;
+                            let formulaParser = canvasWindow.globalFormulaParser;
+
+                            // If global parser doesn't exist, create it and register custom formulas
+                            if (!formulaParser && canvasWindow.formulaParser) {
+                                formulaParser = new canvasWindow.formulaParser.Parser();
+                                canvasWindow.globalFormulaParser = formulaParser;
+
+                                // Register custom formulas on this parser instance
+                                if (formulaParser.setFunction) {
+                                    // PERCENT
+                                    formulaParser.setFunction('PERCENT', function (params) {
+                                        if (params.length !== 2) return '#N/A';
+                                        const base = parseFloat(params[0]);
+                                        const percent = parseFloat(params[1]);
+                                        if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+                                        return base * (percent / 100);
+                                    });
+
+                                    // ABSOLUTE
+                                    formulaParser.setFunction('ABSOLUTE', function (params) {
+                                        if (params.length !== 1) return '#N/A';
+                                        const num = parseFloat(params[0]);
+                                        if (isNaN(num)) return '#VALUE!';
+                                        return Math.abs(num);
+                                    });
+
+                                    // NUMTOWORDS
+                                    if (canvasWindow.numberToWords && canvasWindow.numberToWords.toWords) {
+                                        formulaParser.setFunction('NUMTOWORDS', function (params) {
+                                            if (params.length !== 1) return '#N/A';
+                                            const num = parseInt(params[0]);
+                                            if (isNaN(num)) return '#VALUE!';
+                                            try {
+                                                return canvasWindow.numberToWords.toWords(num);
+                                            } catch (error) {
+                                                return '#ERROR';
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+
+                            if (!formulaParser) {
+                                throw new Error('Formula parser not available');
+                            }
+
+                            const res = formulaParser.parse(formulaContent);
+                            if (res.error) throw new Error(res.error);
+
+                            const result = (res.result !== undefined && res.result !== null) ? res.result : '#ERROR';
+
+                            cellContent.textContent = result;
+                            cellElement.classList.remove('formula-error');
+                            cellElement.setAttribute('data-calculated-value', result);
+
+                            if (rowIndex !== null && columnKey) {
+                                const data = this.get('custom-data') || this.get('table-data') || [];
+                                const updatedData = [...data];
+                                if (updatedData[parseInt(rowIndex)]) {
+                                    updatedData[parseInt(rowIndex)] = {
+                                        ...updatedData[parseInt(rowIndex)],
+                                        [columnKey]: result
+                                    };
+                                    this.set('custom-data', updatedData, { silent: true });
+                                }
+                            }
+                        } catch (error) {
+                            console.warn('Formula parsing error:', error);
+                            cellContent.textContent = '#ERROR';
+                            cellElement.classList.add('formula-error');
+                            cellElement.setAttribute('data-calculated-value', '#ERROR');
+                        }
+                    } else {
+                        cellElement.removeAttribute('data-formula');
+                        cellElement.removeAttribute('data-calculated-value');
+                        cellContent.textContent = val;
+                        cellElement.classList.remove('formula-error');
+
+                        if (rowIndex !== null && columnKey) {
+                            this.updateCellData(parseInt(rowIndex), columnKey, val);
+                        }
+                    }
+
+                    setTimeout(() => {
+                        if (!cellElement.querySelector('div')) {
+                            const newDiv = document.createElement('div');
+                            newDiv.textContent = cellContent.textContent || val;
+                            newDiv.contentEditable = 'true';
+                            newDiv.className = 'cell-content';
+                            cellElement.innerHTML = '';
+                            cellElement.appendChild(newDiv);
+                        } else {
+                            const existingDiv = cellElement.querySelector('div');
+                            existingDiv.contentEditable = 'true';
+                        }
+                    }, 10);
+                };
+
+                // Rest of the function remains the same...
+                const handleKeydown = (e) => {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        cellContent.blur();
+
+                        const table = cellElement.closest('table');
+                        const allCells = Array.from(table.querySelectorAll('td[data-formula-enabled], th[data-formula-enabled]'));
+                        const currentIndex = allCells.indexOf(cellElement);
+
+                        let nextIndex;
+                        if (e.shiftKey) {
+                            nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+                        } else {
+                            nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+                        }
+
+                        const nextCell = allCells[nextIndex];
+                        const nextCellContent = nextCell.querySelector('div') || nextCell;
+                        setTimeout(() => {
+                            nextCellContent.contentEditable = 'true';
+                            nextCellContent.focus();
+                        }, 20);
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        cellContent.blur();
+                    }
+                };
+
+                cellContent.addEventListener('focus', handleFocus, { passive: false });
+                cellContent.addEventListener('blur', handleBlur, { passive: false });
+                cellContent.addEventListener('keydown', handleKeydown, { passive: false });
+
+                cellElement._formulaHandlers = { handleFocus, handleBlur, handleKeydown };
+                cellElement._cellContent = cellContent;
+            },
+
+            // Add this new method right after attachCellFormulaHandler:
+            reattachAllCellHandlers(tableId) {
+                const canvasDoc = editor.Canvas.getDocument();
+                const parser = canvasDoc.defaultView.formulaParser ? new canvasDoc.defaultView.formulaParser.Parser() : null;
+
+                if (!parser) return;
+
+                // Set up parser callbacks again
+                parser.on('callCellValue', function (cellCoord, done) {
+                    let col = cellCoord.column.index;
+                    let row = cellCoord.row.index;
+                    let tableElem = canvasDoc.getElementById(tableId);
+                    let cell = tableElem?.rows[row]?.cells[col];
+                    if (cell) {
+                        let val = cell.getAttribute('data-calculated-value') ||
+                            cell.getAttribute('data-formula') ||
+                            cell.innerText;
+                        if (val.startsWith && val.startsWith('=')) {
+                            try {
+                                let res = parser.parse(val.substring(1));
+                                done(res.result);
+                            } catch {
+                                done('#ERROR');
+                            }
+                        } else {
+                            done(parseFloat(val) || val);
+                        }
+                    } else {
+                        done(null);
+                    }
+                });
+
+                parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
+                    let tableElem = canvasDoc.getElementById(tableId);
+                    let values = [];
+
+                    let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+                    let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+                    let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+                    let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
+
+                    for (let row = startRow; row <= endRow; row++) {
+                        for (let col = startCol; col <= endCol; col++) {
+                            let cell = tableElem?.rows[row]?.cells[col];
+                            if (cell) {
+                                let val = cell.getAttribute('data-calculated-value') ||
+                                    cell.getAttribute('data-formula') ||
+                                    cell.innerText;
+                                if (val.startsWith && val.startsWith('=')) {
+                                    try {
+                                        let res = parser.parse(val.substring(1));
+                                        values.push(res.result);
+                                    } catch {
+                                        values.push(0);
+                                    }
+                                } else {
+                                    values.push(parseFloat(val) || 0);
+                                }
+                            } else {
+                                values.push(0);
+                            }
+                        }
+                    }
+                    done(values);
+                });
+
+                // Re-enable all cells
+                const tableElement = canvasDoc.getElementById(tableId);
+                if (tableElement) {
+                    const allCells = tableElement.querySelectorAll('td, th');
+                    allCells.forEach(cell => {
+                        if (!cell.hasAttribute('data-formula-enabled')) {
+                            this.attachCellFormulaHandler(null, cell, parser);
+                        } else {
+                            // Re-ensure contentEditable for existing cells
+                            const cellContent = cell.querySelector('div') || cell;
+                            cellContent.contentEditable = 'true';
+                        }
+                    });
+                }
+            },
+
 
             addPlaceholderComponent() {
                 const tableHeaders = this.get('table-headers');
                 const filterColumn = this.get('filter-column');
                 const filterValue = this.get('filter-value');
+                const tableType = this.get('table-type') || 'standard';
 
                 let placeholderMessage = 'Add JSON path from the properties panel to display table data';
                 let placeholderIcon = '📊';
 
-                if (tableHeaders && Object.keys(tableHeaders).length > 0) {
+                if (tableType === 'crosstab') {
+                    placeholderMessage = 'Select JSON path with crosstab data structure to render pivot table';
+                    placeholderIcon = '📊';
+                } else if (tableHeaders && Object.keys(tableHeaders).length > 0) {
                     if (!filterColumn || filterColumn === '') {
                         placeholderMessage = 'Select a column from "Filter Column" dropdown or choose "None" to load all data<br><small style="color: #666;">Headers are loaded and ready for filtering</small>';
                         placeholderIcon = '🎯';
@@ -1718,39 +2988,25 @@ function jsontablecustom(editor) {
                     const headerCellComponent = headerRowComponent.components().add({
                         type: 'json-table-cell',
                         tagName: 'th',
-                        classes: ['json-table-cell'],
+                        contenteditable: true,
+                        content: `<div>${storedHeader}</div>`,
+                        selectable: true,
+                        contentEditable: true,
+                        classes: ['json-table-cell', 'cell-content', 'editable-header'],
                         attributes: {
                             id: headerId,
                             'data-column-key': key,
-                            'data-gjs-type': 'json-table-cell',
-                            'data-gjs-selectable': 'true',
-                            'data-gjs-hoverable': 'true'
+                            'data-gjs-hoverable': 'true',
                         },
                         style: {
-                            'padding': '0',
+                            'padding': '8px',
+                            'width': 'auto',
+                            'height': '100%',
                             'text-align': 'left',
+                            'box-sizing': 'border-box',
                             'border': '1px solid #000000ff',
                             'font-weight': 'bold',
                             'position': 'relative'
-                        }
-                    });
-
-                    // Apply editable classes to the div element
-                    headerCellComponent.components().add({
-                        type: 'text',
-                        tagName: 'div',
-                        classes: ['cell-content', 'editable-header'],
-                        editable: true,
-                        content: storedHeader,
-                        attributes: {
-                            'data-column-key': key
-                        },
-                        style: {
-                            'margin': '10px',
-                            'width': '97%',
-                            'height': '100%',
-                            'box-sizing': 'border-box',
-                            'cursor': 'pointer'
                         }
                     });
                 });
@@ -1797,55 +3053,35 @@ function jsontablecustom(editor) {
                     Object.keys(headers).forEach(key => {
                         const cellId = `${tableId}-cell-${rowIndex}-${key}`;
                         const cellStyles = this.getCellStyle(rowIndex, key);
-                        const formulaCellId = `cell-${rowIndex}-${key}`;
-                        const cellFormulas = this.get('cell-formulas') || {};
-                        const hasFormula = cellFormulas[formulaCellId];
+                        const displayValue = row[key] || '';
 
                         const cellComponent = rowComponent.components().add({
                             type: 'json-table-cell',
                             tagName: 'td',
-                            classes: ['json-table-cell'],
+                            selectable: true,
+                            contenteditable: true,
+                            content: `<div style="text-align: left;">${displayValue}</div>`,
+                            classes: ['json-table-cell', 'cell-content', 'editable-cell'],
                             attributes: {
                                 id: cellId,
                                 'data-row': rowIndex.toString(),
                                 'data-column-key': key,
-                                'data-gjs-type': 'json-table-cell',
-                                'data-gjs-selectable': 'true',
                                 'data-gjs-hoverable': 'true'
                             },
                             style: {
-                                'padding': '0',
+                                'padding': '8px',
                                 'border': '1px solid #000',
                                 'position': 'relative',
-                                ...cellStyles
-                            }
-                        });
-
-                        // Apply formula classes and attributes to the div element
-                        const cellClasses = ['cell-content', 'editable-cell'];
-                        if (hasFormula) cellClasses.push('formula-cell');
-
-                        const displayValue = row[key] || '';
-                        cellComponent.components().add({
-                            type: 'text',
-                            tagName: 'div',
-                            classes: cellClasses,
-                            content: displayValue,
-                            attributes: {
-                                'data-formula': hasFormula || '',
-                                title: hasFormula ? hasFormula : ''
-                            },
-                            style: {
-                                'margin': '10px',
-                                'width': '97%',
+                                'width': 'auto',
                                 'height': '100%',
-                                'box-sizing': 'border-content-box',
-                                'cursor': 'pointer'
+                                'box-sizing': 'border-box',
+                                ...cellStyles
                             }
                         });
                     });
                 });
             },
+
 
             addTableFooter(tableComponent, headers) {
                 const tfootComponent = tableComponent.components().add({
@@ -1990,7 +3226,14 @@ function jsontablecustom(editor) {
 .json-table-wrapper {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     width: 100%;
+    overflow-x: visible;
+    overflow-y: visible;
+}
+
+/* Only show scroll when actually needed */
+.json-table-wrapper .dataTables_wrapper {
     overflow-x: auto;
+    overflow-y: visible;
 }
 
 .json-data-table {
@@ -2000,28 +3243,12 @@ function jsontablecustom(editor) {
     border: 2px solid #000;
 }
 
-.json-data-table th,
-.json-data-table td {
-    border: 1px solid #000;
-    padding: 3px;
-    text-align: left;
-    background-color: #fff;
-    word-wrap: break-word;
-    overflow: hidden;
-    position: relative;
-}
 
-.json-data-table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
+/* Formula editing styles */
+.formula-error {
+    background-color: #ffebee !important;
+    color: #c62828 !important;
 }
-
-.json-table-cell {
-    position: relative;
-    min-height: 40px;
-    overflow: hidden;
-}
-
 /* Apply editing styles to cell-content div */
 .cell-content.editing {
     background-color: #e3f2fd !important;
@@ -2030,24 +3257,9 @@ function jsontablecustom(editor) {
     overflow: hidden;
 }
 
-/* Apply formula styles to cell-content div */
-.cell-content.formula-cell {
-    font-family: 'Courier New', monospace !important;
-    font-weight: bold;
-    background-color: #f0f8ff !important;
-    position: relative;
+.cell-content[contenteditable="true"] {
+    text-align: left !important;
 }
-
-.cell-content.formula-cell::before {
-    content: "f(x)";
-    position: absolute;
-    top: 1px;
-    left: 2px;
-    font-size: 8px;
-    color: #1976d2;
-    font-weight: bold;
-}
-
 td[data-highlighted="true"], th[data-highlighted="true"] {
     position: relative;
     -webkit-print-color-adjust: exact !important;
@@ -2076,9 +3288,28 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     color: #1976d2 !important;
     font-family: 'Courier New', monospace !important;
 }
+    @media print {
+  table.json-data-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    width: 100% !important;
+
+  }
+
+  table.json-data-table th,
+  table.json-data-table td {
+    border: 1px solid #000 !important;
+    padding: 6px !important;
+    background: #fff !important;
+    color: #000 !important;
+    text-align: left !important;
+  }
+}
+
         `
                 });
             },
+
 
             // Method to update specific cells without rebuilding entire table
             updateSpecificCells(updates) {
@@ -2176,6 +3407,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                     const cellComponent = rowComponent.components().add({
                         type: 'json-table-cell',
                         tagName: 'td',
+                        contentEditable: true,
                         classes: ['editable-cell', 'json-table-cell'],
                         attributes: {
                             id: cellId,
@@ -2201,7 +3433,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                         content: row[key] || '',
                         style: {
                             'margin': '10px',
-                            'width': '97%',
+                            'width': 'auto',
                             'height': '100%',
                             'box-sizing': 'border-content-box'
                         }
@@ -2220,106 +3452,35 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 'click .page-btn': 'handlePagination',
                 'change .page-length-select': 'handlePageLengthChange',
                 'click .json-table-cell, .json-table-cell *': 'handleCellClick',
-                'blur .cell-input': 'handleCellEdit',
-                'blur .header-input': 'handleHeaderEdit',
-                'keydown .cell-input': 'handleCellKeydown',
-                'keydown .header-input': 'handleHeaderKeydown',
-                'dblclick .json-table-cell': 'handleCellDoubleClick',
                 'click': 'handleOutsideClick',
-                'mouseenter .json-table-cell': 'handleCellMouseEnter',
-                'mouseleave .json-table-cell': 'handleCellMouseLeave'
-            },
-
-            // Hover highlight
-            // ✅ Single click = select TD/TH
-
-            // ✅ Hover highlight
-            handleCellMouseEnter(e) {
-                const cell = e.target.closest('td, th');
-                console.log("Mouse enter:", e.target, "resolved TD/TH:", cell);
-                if (cell && !cell.classList.contains('editing')) {
-                    cell.classList.add('i_designer_hovered');
-                }
-            },
-
-            handleCellMouseLeave(e) {
-                const cell = e.target.closest('td, th');
-                console.log("Mouse leave:", e.target, "resolved TD/TH:", cell);
-                if (cell) {
-                    cell.classList.remove('i_designer_hovered');
-                }
-            },
-
-
-            // Double click = start editing
-            handleCellDoubleClick(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const cellContent = e.target.closest('.cell-content');
-                const cell = e.target.closest('td, th');
-
-                if (!cell || !cellContent || cell.classList.contains('editing')) {
-                    return;
-                }
-
-
             },
 
             handleCellClick(e) {
-                console.log("singleclick started")
+                console.log("singleclick started");
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Look for the cell-content div first, then climb to td/th
-                const cellContent = e.target.closest('.cell-content');
-                console.log("cell content", cellContent)
                 const cell = e.target.closest('td, th');
-                console.log("celllll", cell)
+                if (!cell) return;
 
-                if (!cell || cell.classList.contains('editing')) {
-                    return;
-                }
-
-                // Remove old selection
+                // Remove selection from all cells
                 const allCells = this.el.querySelectorAll('td, th');
-                allCells.forEach(c => c.classList.remove('i_designer_selected'));
+                allCells.forEach(c => {
+                    c.className = ""; // remove everything
+                });
 
-                cell.className = "i_designer_selected";
+                // Apply ONLY these two classes
+                cell.className = "i_designer_selected i_designer-selected";
 
+                console.log("✅ final cell classes:", cell.className);
             },
             // Outside click = clear selection
-            handleOutsideClick(e) {
-                console.log("outside click")
-                // if (!e.target.closest('.json-table-cell')) {
-                //     const allSelectedCells = document.querySelectorAll('.json-table-cell.i_designer_selected');
-                //     allSelectedCells.forEach(cell => {
-                //         cell.classList.remove('i_designer_selected');
-                //         console.log("Removed i_designer_selected from:", cell);
-                //     });
-                // }
 
-                if (!e.target.classList.contains('cell-content') &&
-                    !e.target.classList.contains('cell-input') &&
-                    !e.target.classList.contains('header-input')) {
-
-                    const currentlyEditing = this.el.querySelector('.json-table-cell');
-                    console.log("current", currentlyEditing)
-                    if (currentlyEditing) {
-                        console.log("Stopping editing for:", currentlyEditing);
-                        this.stopCellEditing(currentlyEditing);
-                    }
-                }
-            },
 
             // Editing start
             startCellEditing(cell, cellContent) {
                 console.log("editor cell editing stared")
                 cell.classList.remove('i_designer_hovered');
-                cellContent.classList.add('editing'); // Add editing class to div
-
-                const rowIndex = cell.getAttribute('data-row');
-                const columnKey = cellContent.getAttribute('data-column-key') || cell.getAttribute('data-column-key');
                 const isHeader = cellContent.classList.contains('editable-header');
 
                 const currentValue = cellContent.textContent;
@@ -2345,8 +3506,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 const input = cell.querySelector('.cell-input, .header-input');
                 if (!input || !cellContent) return;
 
-                cellContent.classList.remove('editing'); // Remove editing class from div
-
                 const rowIndex = cell.getAttribute('data-row');
                 const columnKey = cell.getAttribute('data-column-key');
                 const isHeader = cell.classList.contains('editable-header');
@@ -2354,9 +3513,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
                 // Clean up editing
                 cell.removeChild(input);
-                cell.classList.remove('editing');
-                cell.style.position = '';
-                cellContent.style.opacity = '';
 
                 // Update data
                 if (isHeader) {
@@ -2365,17 +3521,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 } else {
                     console.log("stopcell editing, updatedata called")
                     this.model.updateCellData(parseInt(rowIndex), columnKey, newValue);
-
-                    if (newValue.startsWith('=')) {
-                        const cellId = `cell-${rowIndex}-${columnKey}`;
-                        const cellFormulas = this.model.get('cell-formulas') || {};
-                        const evaluatedValue = cellFormulas[cellId]
-                            ? this.model.get('custom-data')[rowIndex][columnKey]
-                            : newValue;
-                        cellContent.innerHTML = evaluatedValue;
-                    } else {
-                        cellContent.innerHTML = newValue;
-                    }
                 }
 
                 console.log("✅ Final classes for cell:", cell.className, "value:", newValue);
@@ -2385,95 +3530,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
     });
 
-    // editor.DomComponents.addType('json-table-cell', {
-    //     isComponent: el => el.classList && el.classList.contains('json-table-cell'),
-    //     model: {
-    //         defaults: {
-    //             selectable: true,
-    //             hoverable: true,
-    //             editable: false,
-    //             droppable: false,
-    //             draggable: false,
-    //             removable: false,
-    //             copyable: false,
-    //             resizable: false,
-    //             propagate: [],
-    //             void: true,
-    //             traits: [
-    //                 {
-    //                     type: 'color',
-    //                     name: 'background-color',
-    //                     label: 'Background Color'
-    //                 },
-    //                 {
-    //                     type: 'color',
-    //                     name: 'color',
-    //                     label: 'Text Color'
-    //                 },
-    //                 {
-    //                     type: 'select',
-    //                     name: 'font-weight',
-    //                     label: 'Font Weight',
-    //                     options: [
-    //                         { value: 'normal', name: 'Normal' },
-    //                         { value: 'bold', name: 'Bold' }
-    //                     ]
-    //                 },
-    //                 {
-    //                     type: 'select',
-    //                     name: 'text-align',
-    //                     label: 'Text Align',
-    //                     options: [
-    //                         { value: 'left', name: 'Left' },
-    //                         { value: 'center', name: 'Center' },
-    //                         { value: 'right', name: 'Right' }
-    //                     ]
-    //                 }
-    //             ],
-    //             'custom-name': 'Table Cell'
-    //         },
-
-    //         init() {
-    //             this.on('change:style', this.handleStyleChange);
-    //         },
-
-    //         handleStyleChange() {
-    //             const element = this.getEl();
-    //             if (element) {
-    //                 const styles = this.getStyle();
-    //                 Object.keys(styles).forEach(prop => {
-    //                     element.style[prop] = styles[prop];
-    //                 });
-
-    //                 // Store styles for export
-    //                 const rowIndex = element.getAttribute('data-row');
-    //                 const columnKey = element.getAttribute('data-column-key');
-    //                 const tableContainer = element.closest('.json-table-container');
-
-    //                 if (tableContainer && rowIndex !== null && columnKey) {
-    //                     const tableComponent = editor.DomComponents.getComponentFromElement(tableContainer);
-    //                     if (tableComponent) {
-    //                         tableComponent.setCellStyle(parseInt(rowIndex), columnKey, styles);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // });
-
-    // Enhanced component selection handler
-    // editor.on('component:selected', function (component) {
-    //     if (component && component.getEl()) {
-    //         const element = component.getEl();
-
-    //         // Handle JSON table cell selection
-    //         if (element.classList.contains('json-table-cell')) {
-    //             if (component.get('type') !== 'json-table-cell') {
-    //                 component.set('type', 'json-table-cell');
-    //             }
-    //         }
-    //     }
-    // });
 
     // Add the component to blocks panel
     editor.BlockManager.add('json-table', {
@@ -3018,49 +4074,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         });
     }
 
-    // const originalGetHtml = editor.getHtml;
-    // editor.getHtml = function () {
-    //     try {
-    //         // Ensure all cell data is stored before export
-    //         const canvasBody = editor.Canvas.getBody();
-    //         const jsonTables = canvasBody.querySelectorAll('.json-table-container');
-
-    //         jsonTables.forEach(tableContainer => {
-    //             const tableComponent =editor.getModelByEl(tableContainer);
-
-    //             if (tableComponent) {
-    //                 const table = tableContainer.querySelector('.json-data-table');
-    //                 if (table) {
-    //                     // Update the component's HTML with current cell contents
-    //                     const cells = table.querySelectorAll('.json-table-cell');
-    //                     cells.forEach(cell => {
-    //                         const rowIndex = cell.getAttribute('data-row');
-    //                         const columnKey = cell.getAttribute('data-column-key');
-    //                         const isHeader = cell.tagName === 'TH';
-    //                         const content = cell.textContent;
-
-    //                         if (isHeader && columnKey) {
-    //                             tableComponent.updateHeaderData(columnKey, content);
-    //                         } else if (rowIndex !== null && columnKey) {
-    //                             tableComponent.updateCellData(parseInt(rowIndex), columnKey, content);
-    //                         }
-    //                     });
-
-    //                     // Force table re-render to capture changes
-    //                     tableComponent.updateTableHTML();
-    //                 }
-    //             }
-    //         });
-
-    //         return originalGetHtml.call(this);
-
-    //     } catch (error) {
-    //         console.warn('Error in JSON table HTML export:', error);
-    //         return originalGetHtml.call(this);
-    //     }
-    // };
-
-    // Add remaining commands and functions from original code
     editor.Commands.add('open-json-table-suggestion', {
         run(editor, sender) {
             const selected = editor.getSelected();
@@ -3279,93 +4292,81 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     }
 
 
-    // Add CSS for better styling
-    const tableCSS = `
-<style>
-.json-table-container {
-    min-height: 200px;
-    padding: 10px;
-    width: 100%;
-    margin: 10px 0;
-}
+    //     // Add CSS for better styling
+    //     const tableCSS = `
+    // <style>
 
-.json-table-wrapper {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    width: 100%;
-    overflow-x: auto;
-}
+    // .json-data-table th,
+    // .json-data-table td {
+    //     border: 1px solid #000;
+    //     padding: 8px;
+    //     text-align: left;
+    //     background-color: #fff;
+    // }
 
-.json-data-table {
-    width: 100%;
-    table-layout: auto;
-    border-collapse: collapse;
-    border: 2px solid #000;
-}
+    // .json-data-table th {
+    //     background-color: #f8f9fa;
+    //     font-weight: bold;
+    // }
 
-.json-data-table th,
-.json-data-table td {
-    border: 1px solid #000;
-    padding: 8px;
-    text-align: left;
-    background-color: #fff;
-}
 
-.json-data-table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-}
+    //     </style>`;
 
-.json-table-cell.editing {
-    background-color: #e3f2fd !important;
-    outline: 2px solid #007bff !important;
-}
+    //     // Inject CSS
+    //     if (!document.querySelector('#json-table-styles')) {
+    //         const styleElement = document.createElement('style');
+    //         styleElement.id = 'json-table-styles';
+    //         styleElement.innerHTML = tableCSS;
+    //         document.head.appendChild(styleElement);
+    //     }
 
-/* Formula cell styles */
-.formula-cell {
-    font-family: 'Courier New', monospace !important;
-    font-weight: bold;
-    background-color: #f0f8ff !important;
-}
 
-.formula-cell::before {
-    content: "f(x)";
-    position: absolute;
-    top: 1px;
-    left: 2px;
-    font-size: 8px;
-    color: #1976d2;
-    font-weight: bold;
-}
+    //     editor.DomComponents.addType('json-table-cell', {
+    //     isComponent: el => (el.tagName === 'TD' || el.tagName === 'TH') && 
+    //                       el.closest('.json-data-table'),
+    //     model: {
+    //         defaults: {
+    //             tagName: 'td',
+    //             selectable: true,
+    //             hoverable: true,
+    //             editable: true,
+    //             droppable: false,
+    //             draggable: false,
+    //             removable: false,
+    //             copyable: false,
+    //             resizable: false,
+    //             'custom-name': 'Table Cell'
+    //         },
 
-/* Enhanced highlighted cell styles */
-td[data-highlighted="true"], th[data-highlighted="true"] {
-    position: relative;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-    print-color-adjust: exact !important;
-}
+    //     },
 
-td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-    content: "★";
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    font-size: 10px;
-    color: #ff6b35;
-    font-weight: bold;
-    z-index: 1;
-}
+    //     view: {
+    //         events: {
+    //             'dblclick': 'startEditing'
+    //         },
 
-/* Print-specific styles */
+    //         startEditing(e) {
+    //             e.stopPropagation();
+    //             const cellEl = this.el;
+    //             const cellContent = cellEl.querySelector('div') || cellEl;
+    //             cellContent.focus();
+    //         },
 
-    </style>`;
+    //         onRender() {
+    //             // Restore calculated value if it exists after render
+    //             const cellEl = this.el;
+    //             const calculatedValue = cellEl.getAttribute('data-calculated-value');
+    //             const formula = cellEl.getAttribute('data-formula');
 
-    // Inject CSS
-    if (!document.querySelector('#json-table-styles')) {
-        const styleElement = document.createElement('style');
-        styleElement.id = 'json-table-styles';
-        styleElement.innerHTML = tableCSS;
-        document.head.appendChild(styleElement);
-    }
-
+    //             if (calculatedValue && formula) {
+    //                 setTimeout(() => {
+    //                     const cellContent = cellEl.querySelector('div');
+    //                     if (cellContent && cellContent.textContent !== calculatedValue) {
+    //                         cellContent.textContent = calculatedValue;
+    //                     }
+    //                 }, 10);
+    //             }
+    //         }
+    //     }
+    // })
 }

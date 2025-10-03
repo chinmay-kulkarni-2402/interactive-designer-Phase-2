@@ -33,6 +33,7 @@ const editor = InteractiveDesigner.init({
     addLiveLineChartComponent,
     linkTrackerPlugin,
     backgroundMusic,
+    customErrorLogger,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -112,10 +113,10 @@ const editor = InteractiveDesigner.init({
       "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
       "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
       "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
-"https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
-"https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js",
-"https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
-"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+      "https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
     ],
   },
 });
@@ -420,6 +421,23 @@ editor.Panels.addPanel({ id: "devices-c" })
       attributes: { title: "Bulk PDF Generation", id: "bulkpage" },
       command: "open-modal",
     },
+
+    {
+      id: "allTemplateList",
+      attributes: { title: "View All Template", id: "allTemplateList" },
+      className: "fa fa-list",
+    },
+    {
+      id: "allLogs",
+      attributes: { title: "View All Logs", id: "allLogs" },
+      className: "fa fa-envelope",
+    },
+    // {
+    //   id: "save-template",
+    //   className: "fa fa-save",
+    //   attributes: { title: "Save Template", id: "save-template" },
+    //   command: "save-template-to-api",
+    // },
     // {
     //   id: "filterTable",
     //   attributes: { title: "Report Parameter", id: "filterTable" },
@@ -436,9 +454,21 @@ var importPage = document.getElementById("importPage");
 importPage.addEventListener("click", importSinglePages, true);
 
 
+var viewAllPage = document.getElementById("allTemplateList");
+viewAllPage.addEventListener("click", viewAllTemplates, true);
 
+var viewAllLogsP = document.getElementById("allLogs");
+viewAllLogsP.addEventListener("click", viewAllLogsD, true);
 
-// 2️⃣ Modal command
+function viewAllTemplates() {
+  window.location.href = 'template.html';
+}
+
+function viewAllLogsD() {
+  window.location.href = 'logs.html';
+}
+
+let uploadedJsonFiles = [];
 // Updated modal command with hierarchical JSON key selection
 editor.Commands.add("open-modal", {
   run(editor) {
@@ -473,12 +503,51 @@ editor.Commands.add("open-modal", {
 
     const uploadedJsonStr = localStorage.getItem("common_json") || "{}";
     const uploadedJson = JSON.parse(uploadedJsonStr);
-    const topLevelKeys = Object.keys(uploadedJson); // Get top-level keys (languages)
 
     // State objects
     let fileNameSaved = [];      // array of { key, indexes }
     let passwordSaved = [];      // array of { key, indexes }
     let passwordCustom = "";     // string if custom password
+    uploadedJsonFiles = []; // Array of { name, content, fromLocal }
+
+
+
+// Load all JSON files from localStorage separately
+// Load all JSON files from localStorage separately
+for (let i = 0; i < localStorage.length; i++) {
+  const key = localStorage.key(i);
+  if (key.startsWith("common_json")) {
+    const content = localStorage.getItem(key);
+
+    try {
+      const parsed = JSON.parse(content);
+
+      // ✅ Only push if parsed is an object/array
+      if (typeof parsed === "object" && parsed !== null) {
+        console.log(`📂 Found JSON in localStorage [${key}]:`, parsed);
+
+        uploadedJsonFiles.push({
+          name: `${key}.json`,
+          content: content,
+          fromLocal: true,
+          storageKey: key
+        });
+      } else {
+        console.warn(`⚠️ Skipping ${key} because it’s not a JSON object/array:`, parsed);
+      }
+
+    } catch (err) {
+      console.warn(`⚠️ Failed to parse JSON from localStorage key: ${key}`, content);
+      // ❌ do not push invalid JSONs
+    }
+  }
+}
+
+// 🔹 Immediately render the list so it's shown in modal
+setTimeout(() => renderUploadedJsonList(), 0);
+
+// 🔹 Immediately render the list so it's shown in modal
+setTimeout(() => renderUploadedJsonList(), 0);
 
     // Modal HTML
     editor.Modal.open({
@@ -486,11 +555,21 @@ editor.Commands.add("open-modal", {
       content: `
       <div style="max-height:600px; overflow:auto;">
 
-        <h4>Payload Preview:</h4>
-        <pre id="payload-preview" style="max-height:150px; overflow:auto; background:#f5f5f5; padding:10px;">${JSON.stringify(inputJsonMappings, null, 2)}</pre>
+       <h4>Payload Preview:</h4>
+        <button id="payload-preview-btn" style="margin-bottom:10px;">View Payload Mappings</button>
+        <div id="payload-preview-container"></div>
 
+                <hr>
+                <h5>Upload JSON Files</h5>
+        <input type="file" id="json-upload-input" accept=".json" multiple />
+        <div id="uploaded-json-list" style="margin-top:10px; font-size:0.9em; color:#333;"></div>
         <hr>
 
+        <h5>Export Type</h5>
+        <select id="export-type-dropdown">
+          <option value="pdf">PDF</option>
+          <option value="html">HTML</option>
+        </select>
         <!-- File Name Section -->
         <h5>File Name</h5>
         <select id="file-name-mode">
@@ -551,6 +630,32 @@ editor.Commands.add("open-modal", {
       `,
       attributes: { class: "export-modal" }
     });
+    // Payload preview button handler
+    document.getElementById("payload-preview-btn").addEventListener("click", () => {
+      const container = document.getElementById("payload-preview-container");
+      container.innerHTML = '';
+
+      inputJsonMappings.forEach((mapping, index) => {
+        const [id, jsonPath] = Object.entries(mapping)[0];
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:5px; background:#f5f5f5; margin:3px 0; border-radius:3px;";
+        row.innerHTML = `
+      <span><strong>ID:</strong> ${id} → <strong>Field:</strong> ${jsonPath}</span>
+      <button class="remove-mapping-btn" data-index="${index}" style="background:#ff4444; color:white; border:none; padding:3px 8px; cursor:pointer; border-radius:3px;">Cancel</button>
+    `;
+        container.appendChild(row);
+      });
+
+      // Add event listeners for remove buttons
+      container.querySelectorAll(".remove-mapping-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const idx = parseInt(e.target.getAttribute("data-index"));
+          inputJsonMappings.splice(idx, 1);
+          // Refresh the preview
+          document.getElementById("payload-preview-btn").click();
+        });
+      });
+    });
 
     // Helper function to extract keys from nested object
     function extractMetaDataKeys(obj, prefix = '') {
@@ -573,12 +678,26 @@ editor.Commands.add("open-modal", {
     }
 
     // Populate language dropdowns
-    const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
-    const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
-    topLevelKeys.forEach(k => {
-      const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
-      const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
-    });
+// Populate language dropdowns - merge all JSON files
+const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
+const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
+
+// Merge all uploaded JSON files to get language keys
+const mergedJson = {};
+uploadedJsonFiles.forEach(f => {
+  try {
+    const jsonData = JSON.parse(f.content);
+    Object.assign(mergedJson, jsonData);
+  } catch (e) {
+    console.warn(`Failed to parse ${f.name}:`, e);
+  }
+});
+
+const topLevelKeys = Object.keys(mergedJson);
+topLevelKeys.forEach(k => {
+  const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
+  const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
+});
 
     // Mode change handlers
     document.getElementById("file-name-mode").addEventListener("change", e => {
@@ -601,33 +720,79 @@ editor.Commands.add("open-modal", {
       renderSaved(passwordSaved, "password-saved");
     });
 
-    // Language selection handlers
-    fileNameLanguageDropdown.addEventListener("change", e => {
-      const selectedLanguage = e.target.value;
-      const fileNameKeyDropdown = document.getElementById("file-name-key-dropdown");
-      const fileNameKeySection = document.getElementById("file-name-key-dropdown-section");
+    // Handle JSON file uploads
+document.getElementById("json-upload-input").addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    const text = await file.text();
+    uploadedJsonFiles.push({ name: file.name, content: text, fromLocal: false });
+  }
+  renderUploadedJsonList();
+  e.target.value = ""; // reset input
+});
 
-      if (selectedLanguage) {
-        // Clear existing options
-        fileNameKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
 
-        // Get keys for selected language
-        const languageData = uploadedJson[selectedLanguage];
-        if (languageData) {
-          const keys = extractMetaDataKeys(languageData);
-          keys.forEach(key => {
-            const opt = document.createElement("option");
-            opt.value = `${selectedLanguage}.${key}`;
-            opt.textContent = key;
-            fileNameKeyDropdown.appendChild(opt);
-          });
-        }
-        fileNameKeySection.style.display = "block";
-      } else {
-        fileNameKeySection.style.display = "none";
-      }
-      document.getElementById("file-name-index-section").style.display = "none";
+    // Render JSON file list
+function renderUploadedJsonList() {
+  const container = document.getElementById("uploaded-json-list");
+  container.innerHTML = "";
+  uploadedJsonFiles.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.style.cssText =
+      "display:flex; justify-content:space-between; align-items:center; padding:4px; background:#f9f9f9; margin:2px 0; border-radius:3px;";
+    row.innerHTML = `
+      <span>${f.name}${f.fromLocal ? " (localStorage)" : ""}</span>
+      <button data-index="${i}" style="background:#ff4444; color:white; border:none; padding:2px 6px; cursor:pointer; border-radius:3px;">✕</button>
+    `;
+    container.appendChild(row);
+  });
+  container.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const idx = parseInt(e.target.getAttribute("data-index"));
+      uploadedJsonFiles.splice(idx, 1);
+      renderUploadedJsonList();
     });
+  });
+}
+
+
+    // Language selection handlers
+// For file name language dropdown (line ~204):
+fileNameLanguageDropdown.addEventListener("change", e => {
+  const selectedLanguage = e.target.value;
+  const fileNameKeyDropdown = document.getElementById("file-name-key-dropdown");
+  const fileNameKeySection = document.getElementById("file-name-key-dropdown-section");
+
+  if (selectedLanguage) {
+    fileNameKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
+
+    // Merge all JSON files to get the language data
+    const mergedJson = {};
+    uploadedJsonFiles.forEach(f => {
+      try {
+        const jsonData = JSON.parse(f.content);
+        Object.assign(mergedJson, jsonData);
+      } catch (e) {
+        console.warn(`Failed to parse ${f.name}:`, e);
+      }
+    });
+
+    const languageData = mergedJson[selectedLanguage];
+    if (languageData) {
+      const keys = extractMetaDataKeys(languageData);
+      keys.forEach(key => {
+        const opt = document.createElement("option");
+        opt.value = `${selectedLanguage}.${key}`;
+        opt.textContent = key;
+        fileNameKeyDropdown.appendChild(opt);
+      });
+    }
+    fileNameKeySection.style.display = "block";
+  } else {
+    fileNameKeySection.style.display = "none";
+  }
+  document.getElementById("file-name-index-section").style.display = "none";
+});
 
     passwordLanguageDropdown.addEventListener("change", e => {
       const selectedLanguage = e.target.value;
@@ -708,13 +873,12 @@ editor.Commands.add("open-modal", {
     document.getElementById("send-api-btn").addEventListener("click", async () => {
       editor.Modal.close();
 
-      // In the "Send" button click handler, replace this section:
       let fileNamePayload;
       if (document.getElementById("file-name-mode").value === "json" && fileNameSaved.length) {
         fileNamePayload = fileNameSaved.map(o => {
           const keyWithoutLanguage = o.key.includes('.') ? o.key.split('.').slice(1).join('.') : o.key;
           return o.indexes ? `${keyWithoutLanguage}[${o.indexes}]` : keyWithoutLanguage;
-        }); // ❌ no .join()
+        });
       }
 
       let passwordPayload;
@@ -723,14 +887,12 @@ editor.Commands.add("open-modal", {
         passwordPayload = passwordSaved.map(o => {
           const keyWithoutLanguage = o.key.includes('.') ? o.key.split('.').slice(1).join('.') : o.key;
           return o.indexes ? `${keyWithoutLanguage}[${o.indexes}]` : keyWithoutLanguage;
-        }); // ❌ no .join()
+        });
       } else if (pwMode === "custom") {
         const val = document.getElementById("password-custom-input").value.trim();
-        if (val) passwordPayload = [val]; // still an array
+        if (val) passwordPayload = [val];
       }
 
-
-      // Build final payload array, only add non-empty objects
       const finalPayload = [...inputJsonMappings];
 
       if (fileNamePayload) {
@@ -742,23 +904,15 @@ editor.Commands.add("open-modal", {
       }
 
       try {
-        const files = await exportDesignAndSend(editor, finalPayload);
-        files.forEach(({ blob, filename }) => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = filename;
-          a.click();
-          URL.revokeObjectURL(url);
-        });
-        alert("✅ Export sent & all files downloaded successfully!");
+        const message = await exportDesignAndSend(editor, finalPayload);
+        alert("✅ " + message);
       } catch (err) {
         console.error(err);
+        alert("❌ Error: " + err.message);
       }
     });
   }
 });
-
 
 // 3️⃣ Helper: inject CSS into HTML
 function htmlWithCss(html, css) {
@@ -775,7 +929,6 @@ function htmlWithCss(html, css) {
   `;
 }
 // 🔹 Helper: Extract filename from response headers
-// 🔹 Helper: Extract filename from response headers
 function getFilenameFromResponse(response, fallback = "export.pdf") {
 
   console.log("🔍 response Raw Content-Disposition:", response);
@@ -785,7 +938,6 @@ function getFilenameFromResponse(response, fallback = "export.pdf") {
 
   if (!contentDisp) return fallback;
 
-  // Handles filename="chinmay.pdf" or filename=chinmay.pdf
   const match = contentDisp.match(/filename\*?=(?:UTF-8''|")?([^;\n"]+)/i);
   if (match && match[1]) {
     return decodeURIComponent(match[1].trim());
@@ -793,154 +945,99 @@ function getFilenameFromResponse(response, fallback = "export.pdf") {
   return fallback;
 }
 
-
-// 4️⃣ Export function: send files + payload to API and return blobs
 async function exportDesignAndSend(editor, inputJsonMappings) {
-  const apiUrl = "http://192.168.0.144:9998/jsonApi/upload";
+  // Get export type from modal dropdown
+  const exportType = document.getElementById("export-type-dropdown")?.value || "pdf";
+  const apiUrl =
+    exportType === "pdf"
+      ? "http://192.168.0.221:9998/jsonApi/uploadPdf"
+      : "http://192.168.0.221:9998/jsonApi/uploadHtml";
 
   const html = editor.getHtml();
   const css = editor.getCss();
-  const fullHtml = htmlWithCss(html, css);
+
+  let finalHtml;
+
+if (exportType === "pdf") {
+  // Remove IDs from elements with class="page-container" or class="page-content"
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = html;
+  
+  // Select both .page-container and .page-content elements
+  tempDiv.querySelectorAll(".page-container, .page-content").forEach(el => {
+    el.removeAttribute("id");
+  });
+
+  const cleanedHtml = tempDiv.innerHTML;
+  finalHtml = htmlWithCss(cleanedHtml, css);
+} else {
+  // For HTML export, send raw HTML with CSS, no cleanup
+  finalHtml = htmlWithCss(html, css);
+}
+
 
   const formData = new FormData();
-  formData.append("htmlFile", new Blob([fullHtml], { type: "text/html" }), "template.html");
+  formData.append("htmlFile", new Blob([finalHtml], { type: "text/html" }), "template.html");
 
-  const uploadedJson = localStorage.getItem("common_json");
-  if (uploadedJson) {
-    formData.append("files", new Blob([uploadedJson], { type: "application/json" }), "data.json");
-  }
+  // Append all uploaded JSONs (localStorage + frontend)
+uploadedJsonFiles.forEach((f, idx) => {
+  formData.append(
+    "jsonFile",
+    new Blob([f.content], { type: "application/json" }),
+    f.name || `data${idx + 1}.json`
+  );
+});
+
+
 
   formData.append("payload", JSON.stringify(inputJsonMappings));
 
+  // 🔍 Debug logs
+  console.log("🚀 Sending Export Request");
+  console.log("👉 API URL:", apiUrl);
+  console.log("👉 Export Type:", exportType);
+  console.log("👉 Payload (inputJsonMappings):", JSON.stringify(inputJsonMappings, null, 2));
+  console.log("👉 Final HTML being sent:\n", finalHtml);
+
+  // 🔽 Extra: download the same HTML being sent for debugging
+  try {
+    const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+    const debugLink = document.createElement("a");
+    debugLink.href = debugUrl;
+    debugLink.download = exportType === "pdf" ? "sent_to_api_pdf.html" : "sent_to_api_html.html";
+    debugLink.click();
+    URL.revokeObjectURL(debugUrl);
+    console.log("💾 Debug copy of HTML downloaded for verification");
+  } catch (err) {
+    console.warn("⚠️ Could not auto-download debug HTML:", err);
+  }
+
   const response = await fetch(apiUrl, { method: "POST", body: formData });
+
+  // Debug response headers
+  console.log("📩 Raw response headers:", [...response.headers.entries()]);
+
   if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
-  // just read the plain text log from backend
-  const message = await response.text();
-  console.log("📄 Backend response:", message);
-  alert(message);
+  // Always expect ZIP file
+  const blob = await response.blob();
+  const filename = getFilenameFromResponse(response, "export.zip");
 
-  // return message in case you want to use it elsewhere
-  return message;
+  console.log("📦 ZIP filename resolved:", filename);
+
+  // Download the ZIP file
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  return "Export sent & ZIP file downloaded successfully!";
 }
 
 
 
-
-
-
-
-
-// var filterBtn = document.getElementById("filterTable");
-// let filtersEnabled = false;
-// const activeFilters = new Map(); // Store active filters per table & column
-// filterBtn.addEventListener("click", () => {
-//   const canvasDoc = editor.Canvas.getDocument();
-//   const tables = canvasDoc.querySelectorAll('table');
-//   if (!tables.length) {
-//     alert('No table found in the canvas!');
-//     return;
-//   }
-//   if (!filtersEnabled) {
-//     tables.forEach((table, tableIndex) => {
-//       const headers = table.querySelectorAll('th');
-//       headers.forEach((th, colIndex) => {
-//         if (th.querySelector('.filter-icon')) return;
-//         const icon = document.createElement('i');
-//         icon.className = 'filter-icon fa fa-search';
-//         icon.style.cssText = 'cursor:pointer;position:absolute;right:15px;top:50%;transform:translateY(-50%);';
-//         icon.onclick = () => {
-//           showFilterModal(th.innerText.trim(), table, colIndex, tableIndex);
-//         };
-//         th.style.position = 'relative';
-//         th.appendChild(icon);
-//       });
-//     });
-//     filtersEnabled = true;
-//   } else {
-//     // Disable all filters & reset
-//     tables.forEach((table, tableIndex) => {
-//       table.querySelectorAll('th .filter-icon').forEach(i => i.remove());
-//       table.querySelectorAll('tbody tr').forEach(row => {
-//         row.style.display = '';
-//       });
-//     });
-//     activeFilters.clear();
-//     removeModal();
-//     filtersEnabled = false;
-//   }
-// }, true);
-// function showFilterModal(columnName, table, colIndex, tableIndex) {
-//   removeModal(); // remove existing modal if any
-//   const modal = document.createElement('div');
-//   modal.id = 'filterModal';
-//   modal.style.cssText = `
-//     position: fixed;
-//     top: 50%; left: 50%;
-//     transform: translate(-50%, -50%);
-//     background: white;
-//     border: 1px solid #ccc;
-//     padding: 20px;
-//     z-index: 1000;
-//     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-//     min-width: 298px;
-//     border-radius: 8px;
-//   `;
-//   // Get clean column name (remove any existing filter icons)
-//   const cleanColumnName = columnName;
-//   modal.innerHTML = `
-//     <h3 style="margin-top:0">Report Parameter</h3>
-//     <p style="margin: 10px 0;">${cleanColumnName}</p>
-//     <input type="text" id="filterValue" placeholder="Search..." style="width: 100%; padding: 5px; margin-bottom: 15px;">
-//     <div style="text-align: right;">
-//       <button id="filterOK" style="margin-right: 10px;">OK</button>
-//       <button id="filterCancel">Cancel</button>
-//     </div>
-//   `;
-//   document.body.appendChild(modal);
-//   document.getElementById('filterOK').onclick = () => {
-//     const value = document.getElementById('filterValue').value.trim().toLowerCase();
-//     const key = `${tableIndex}-${colIndex}`;
-//     if (value) {
-//       activeFilters.set(key, { value, table, colIndex });
-//     } else {
-//       activeFilters.delete(key);
-//     }
-//     applyAllFilters();
-//     removeModal();
-//   };
-//   document.getElementById('filterCancel').onclick = removeModal;
-// }
-// function removeModal() {
-//   const modal = document.getElementById('filterModal');
-//   if (modal) modal.remove();
-// }
-// function applyAllFilters() {
-//   // Reset all rows first
-//   const tableGroups = new Map();
-//   activeFilters.forEach(({ table, colIndex }) => {
-//     const rows = table.querySelectorAll('tbody tr');
-//     tableGroups.set(table, rows);
-//   });
-//   tableGroups.forEach((rows, table) => {
-//     rows.forEach(row => {
-//       row.style.display = ''; // Reset display
-//     });
-//   });
-//   // Apply filters cumulatively
-//   activeFilters.forEach(({ value, table, colIndex }) => {
-//     const rows = table.querySelectorAll('tbody tr');
-//     rows.forEach(row => {
-//       const cell = row.children[colIndex];
-//       const text = cell?.textContent.toLowerCase() || '';
-//       if (!text.includes(value)) {
-//         row.style.display = 'none';
-//       }
-//     });
-//   });
-// }
-
-// Enhanced PDF generation function with proper page break support
 function generatePrintDialog() {
 
   // Add this function before the try block in generatePrintDialog

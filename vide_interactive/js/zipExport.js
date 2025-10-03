@@ -7230,27 +7230,27 @@ const h = function (e, r) {
               enableTTS = 'No';
             }
                       
-            //START API CODE
-            editor.Modal.setTitle('Export Template');
-            editor.Modal.setContent(`<div class="new-table-form">
-            <div style="padding: 10px 0px;">
-              <label for="templateName">Template Name</label> 
-            </div>
-            <div>  
-              <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
-            </div>  
-            <input id="download-template-file" class="popupaddbtn" type="button" value="Save" data-component-id="c1006">
-            </div>
-            </div>
-            `); 
-            editor.Modal.open();   
-            console.log(googleTranslater,'googleTranslater');
-            console.log(enableTTS,'enableTTS');
+            // //START API CODE
+            // editor.Modal.setTitle('Export Template');
+            // editor.Modal.setContent(`<div class="new-table-form">
+            // <div style="padding: 10px 0px;">
+            //   <label for="templateName">Template Name</label> 
+            // </div>
+            // <div>  
+            //   <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
+            // </div>  
+            // <input id="download-template-file" class="popupaddbtn" type="button" value="Save" data-component-id="c1006">
+            // </div>
+            // </div>
+            // `); 
+            // editor.Modal.open();   
+            // console.log(googleTranslater,'googleTranslater');
+            // console.log(enableTTS,'enableTTS');
 
-            var downTemp = document.getElementById("download-template-file");
-            downTemp.addEventListener("click", downloadTemplate, true); 
+            // var downTemp = document.getElementById("download-template-file");
+            // downTemp.addEventListener("click", downloadTemplate, true); 
 
-            //END API CODE
+            // //END API CODE
 
             var data =`<!doctype html><html lang="en"><head><meta charset="utf-8">
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
@@ -7298,9 +7298,9 @@ const h = function (e, r) {
                 #main-nav-div .tab-container, #main-nav-div .tab{width:98%;}
               } 
               #google_translate_element{padding:5px !important;}
-              .VIpgJd-ZVi9od-ORHb-OEVmcd ,.goog-te-gadget-simple img{display:none !important;}
+              .VIpgJd-ZVi9od-ORHb-OEVmcd ,.goog-te-gadget-simple img
               .goog-te-gadget-simple .VIpgJd-ZVi9od-xl07Ob-lTBxed span{padding-right:5px}
-              .VIpgJd-yAWNEb-L7lbkb{display:none!important}
+              .VIpgJd-yAWNEb-L7lbkb
               body{ top:0px !important;}  
               .dataTables_scrollHeadInner{ width: 100% !important;} 
               
@@ -7752,8 +7752,7 @@ const h = function (e, r) {
                     }
                      function googleTranslateElementInit() {
                       new google.translate.TranslateElement({
-                        defaultLanguage:'hindi',
-                        pageLanguage: 'en',
+                        pageLanguage: 'auto',
                         includedLanguages: 'en,hi,mr,ta',  
                         layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
                         autoDisplay: false,
@@ -7862,7 +7861,7 @@ const h = function (e, r) {
                         alert('Template Name Required.');
                         return false
                       }     
-                      const apiUrl = 'http://localhost:9998/uploadFile'; 
+                      const apiUrl = 'https://192.168.0.221:9998/api/uploadFile'; 
                       // const apiUrl = 'http://localhost:9998/uploadFile'; 
                       const formData = new FormData(); 
                       formData.append('name', templateName); 
@@ -8031,6 +8030,88 @@ const h = function (e, r) {
                     });
                 }
               });
+                e.Panels.addButton('options', {
+    id: 'save-template-api',
+    className: 'fa fa-cloud-upload', // or fa-save
+    command: 'save-template-to-api',
+    attributes: { title: 'Save Template to Server' }
+  });
+
+  // Add this NEW command right after the main export command closes
+e.Commands.add('save-template-to-api', {
+  run: function (editor, sender, opts) {
+    var iframe = document.querySelector('#editor iframe'); 
+    var common_json = JSON.parse(localStorage.getItem("common_json")); 
+    let exportedJsonData = common_json ? JSON.stringify([common_json]) : '[]';
+    
+    // Build downloadable HTML (simplified version)
+    var htmlContent = editor.getHtml();
+    var cssContent = editor.getCss();
+    
+    var downloadableHtml = `<!doctype html><html lang="en"><head>
+      <meta charset="utf-8">
+      <!-- all your links -->
+      <style>${cssContent}</style>
+      </head><body>
+      <div id="AllBodyData">${htmlContent}</div>
+      <script>var jsonData1 = ${exportedJsonData};</script>
+      </body></html>`;
+    
+    var editableHtml = `<html><head><style>${cssContent}</style></head>
+      ${htmlContent}
+      </html>`;
+    
+    // Show modal
+    editor.Modal.setTitle('Save Template');
+    editor.Modal.setContent(`
+      <div class="new-table-form">
+        <div style="padding: 10px 0px;">
+          <label for="templateName">Template Name</label> 
+        </div>
+        <div>  
+          <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
+        </div>  
+        <input id="save-template-btn" class="popupaddbtn" type="button" value="Save">
+      </div>
+    `); 
+    editor.Modal.open();
+    
+    setTimeout(function() {
+      var saveBtn = document.getElementById("save-template-btn");
+      if(saveBtn) {
+        saveBtn.onclick = function() {
+          const templateName = document.getElementById("templateNameField").value; 
+          if(!templateName){
+            alert('Template Name Required.');
+            return;
+          }
+          
+          const apiUrl = 'http://192.168.0.221:9998/api/uploadFile'; 
+          const formData = new FormData(); 
+          formData.append('name', templateName); 
+          formData.append('editableHtml', new Blob([downloadableHtml], { type: 'text/html' }), 'downloadableHtml.html'); 
+          formData.append('downloadableHtml', new Blob([editableHtml], { type: 'text/html' }), 'editableHtml.html');
+          
+          fetch(apiUrl, {
+            method: 'POST',
+            body: formData,
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log('API Response:', data);
+            alert("Template saved successfully.");
+            document.getElementById("templateNameField").value = "";
+            editor.Modal.close();
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert("Error saving template.");
+          }); 
+        };
+      }
+    }, 100);
+  }
+});
           };
         })(),
         n

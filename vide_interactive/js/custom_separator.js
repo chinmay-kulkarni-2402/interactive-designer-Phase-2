@@ -56,8 +56,9 @@ function customSeparator(editor) {
         style: {
           "border-top": "1px solid #000000",
           "width": "100%",
-          "margin": "10px auto",
+          "margin": "5px auto",
           "display": "block",
+          "padding": "2.5px",
         },
       },
 
@@ -74,7 +75,7 @@ function customSeparator(editor) {
         const borderColor = this.get("border-color") || "#000000";
         const borderWidth = this.get("border-width-custom") || 1;
         const width = this.get("width") || "100%";
-        const margin = this.get("margin") || "10px auto";
+        const margin = this.get("margin") || "5px auto";
 
         this.addStyle({
           "border-top": `${borderWidth}px ${borderStyle} ${borderColor}`,

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Interactive Designer</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css" />
+  <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+    integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"
+    integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"
+    integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+    crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div class="container mt-4">
+    <div class="card">
+      <div class="card-body">
+        <div class="row" style="width: 100%; padding: 10px 0px; margin-left: 0px">
+          <div class="col-lg-6">
+            <h2>Logs Details</h2>
+          </div>
+          <div class="col-lg-6">
+            <a href="index.html" target="_blank" class="btn btn-primary float-right">
+              <i class="fa fa-plus"></i> Create New Template
+            </a>
+          </div>
+          <div class="col-lg-12">
+            <div class="row">
+              <div class="col-lg-4">
+                <label for="startDate">Start Date:</label>
+                <input type="date" class="form-control" id="startDate" name="startDate">
+              </div>
+              <div class="col-lg-4">
+                <label for="endDate">To Date:</label>
+                <input type="date" class="form-control" id="endDate" name="endDate">
+              </div>
+              <div class="col-lg-4 mt-4">
+                <button type="button" class="btn btn-primary mt-2" onclick="reset()">Reset</button>
+                <button type="button" class="btn btn-primary mt-2" onclick="submit()">Submit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <table class="table table-bordered" id="pageTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>User Id</th>
+            <th>Request Type</th>
+            <th>Error Message</th>
+            <th>Send Request Time</th>
+            <th>Output Request Time</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let allpage = [];
+    const apiUrl = "http://192.168.0.221:9998/api/getErrorLogs";
+
+    // Populate table
+    function populateTable() {
+      const tbody = document.querySelector("#pageTable tbody");
+      tbody.innerHTML = "";
+      allpage.forEach(item => {
+        const row = document.createElement("tr");
+        const errorMessageValue = item.error_message || '';
+        const typeRequestedValue = item.typeRequested || '';
+        row.innerHTML = `
+          <td>${item.id}</td>
+          <td>${item.user_id}</td>
+          <td>${typeRequestedValue}</td>
+          <td>${errorMessageValue}</td>
+          <td>${item.sendRequestTime}</td>
+          <td>${item.outputResponseTime}</td>
+          <td>${item.result}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Initial fetch all logs
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        allpage = data;
+        populateTable();
+      })
+      .catch(error => console.error("Error:", error));
+
+    // Submit with date filter
+    function submit() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+
+      if (!startDate || !endDate) {
+        alert("Please select both start and end date");
+        return;
+      }
+
+      const apiUrl2 = `http://192.168.0.221:9998/api/getErrorLogs?startDate=${startDate}&endDate=${endDate}`;
+
+      fetch(apiUrl2)
+        .then(response => response.json())
+        .then(data => {
+          allpage = data;
+          populateTable();
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+
+    // Reset form and reload all logs
+    function reset() {
+      document.getElementById("startDate").value = '';
+      document.getElementById("endDate").value = '';
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          allpage = data;
+          populateTable();
+        })
+        .catch(error => console.error("Error:", error));
+    }
+  </script>
+</body>
+
+</html>

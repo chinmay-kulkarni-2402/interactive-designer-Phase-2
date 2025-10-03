@@ -233,44 +233,30 @@ function addFormattedRichTextComponent(editor) {
 
       const str = String(textContent).trim();
 
-      // Handle Indonesian format (dots as thousands, comma as decimal)
-      // Example: "1.234.567,89" should become 1234567.89
-      if (str.includes('.') && str.includes(',')) {
-        // Check if this looks like Indonesian format
-        const lastComma = str.lastIndexOf(',');
-        const lastDot = str.lastIndexOf('.');
-
-        if (lastComma > lastDot) {
-          // Indonesian format: dots for thousands, comma for decimal
-          const cleanValue = str.replace(/\./g, '').replace(',', '.');
-          const parsed = parseFloat(cleanValue.replace(/[^\d.-]/g, ''));
-          return isNaN(parsed) ? 0 : parsed;
-        }
-      }
-
-      // Handle standard format or other edge cases
+      // Remove currency symbols and other non-numeric characters except dots, commas, and minus
       const cleanValue = str.replace(/[^\d.,-]/g, '');
 
-      // If there are multiple dots and no comma, assume dots are thousand separators
-      if (cleanValue.split('.').length > 2 && !cleanValue.includes(',')) {
-        // Remove all dots except the last one (if it's followed by 1-3 digits)
-        const parts = cleanValue.split('.');
-        const lastPart = parts[parts.length - 1];
+      // Handle Indonesian format (dots as thousands, comma as decimal)
+      // Example: "1.234.567,89" should become 1234567.89
+      if (cleanValue.includes('.') && cleanValue.includes(',')) {
+        const lastComma = cleanValue.lastIndexOf(',');
+        const lastDot = cleanValue.lastIndexOf('.');
 
-        if (lastPart.length <= 3) {
-          // Last dot is decimal separator
-          const wholePart = parts.slice(0, -1).join('');
-          const parsed = parseFloat(wholePart + '.' + lastPart);
-          return isNaN(parsed) ? 0 : parsed;
-        } else {
-          // All dots are thousand separators
-          const parsed = parseFloat(parts.join(''));
+        if (lastComma > lastDot) {
+          // Indonesian format: remove dots (thousands), replace comma with dot (decimal)
+          const parsed = parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'));
           return isNaN(parsed) ? 0 : parsed;
         }
       }
 
-      // Standard parsing for most formats
-      const standardClean = cleanValue.replace(/,/g, ''); // Remove commas (thousand separators)
+      // Handle comma as decimal separator (no dots present)
+      if (cleanValue.includes(',') && !cleanValue.includes('.')) {
+        const parsed = parseFloat(cleanValue.replace(',', '.'));
+        return isNaN(parsed) ? 0 : parsed;
+      }
+
+      // Standard parsing: remove commas (thousand separators), keep dots (decimal)
+      const standardClean = cleanValue.replace(/,/g, '');
       const parsed = parseFloat(standardClean);
       return isNaN(parsed) ? 0 : parsed;
     },
@@ -399,11 +385,38 @@ function addFormattedRichTextComponent(editor) {
     formatPercentage(value, pattern) {
       const num = this.parseNumber(value);
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
-      return num.toFixed(decimals) + '%';
+      const percentage = num * 100; // Multiply by 100 for percentage display
+      return percentage.toFixed(Math.max(0, decimals)) + '%';
     },
 
     formatDate(value, pattern) {
-      const date = this.parseDate(value);
+      const textContent = this.extractTextContent(value);
+      let date;
+
+      // Try to parse the date
+      if (textContent instanceof Date) {
+        date = textContent;
+      } else {
+        date = new Date(textContent);
+        // If invalid, try common formats
+        if (isNaN(date.getTime())) {
+          const parts = textContent.split(/[/-]/);
+          if (parts.length === 3) {
+            // Try MM/DD/YYYY
+            date = new Date(parts[2], parts[0] - 1, parts[1]);
+            if (isNaN(date.getTime())) {
+              // Try DD/MM/YYYY
+              date = new Date(parts[2], parts[1] - 1, parts[0]);
+            }
+          }
+        }
+      }
+
+      // If still invalid, use current date
+      if (isNaN(date.getTime())) {
+        date = new Date();
+      }
+
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
       const day = date.getDate();
@@ -454,19 +467,45 @@ function addFormattedRichTextComponent(editor) {
     },
     evaluateFormula(formulaString) {
       try {
-        // Clean the formula string
         const cleanFormula = formulaString.trim();
 
-        // Add the formula to the engine (row 0, col 0)
+        // Register custom functions if they don't exist
+        if (!formulaEngine.isItPossibleToAddSheet('temp_sheet')) {
+          formulaEngine.addSheet('temp_sheet');
+          formulaEngine.removeSheet(formulaEngine.getSheetId('temp_sheet'));
+        }
+
+        // Add a calculation sheet
         formulaEngine.addSheet('calculations');
         const sheetId = formulaEngine.getSheetId('calculations');
+
+        // Handle custom NUMTOWORD function
+        // Handle custom NUMTOWORD function
+        let processedFormula = cleanFormula;
+        const numToWordPattern = /NUMTOWORD\(([^)]+)\)/gi;
+
+        if (numToWordPattern.test(cleanFormula)) {
+          processedFormula = cleanFormula.replace(numToWordPattern, (match, value) => {
+            try {
+              const num = eval(value.replace(/=/g, ''));
+              // Use the external library
+              return `"${numberToWords.toWords(parseFloat(num))}"`;
+            } catch (e) {
+              return '"#ERROR: Invalid NUMTOWORD"';
+            }
+          });
+        }
+        // Handle percentage conversion
+        processedFormula = processedFormula.replace(/(\d+(?:\.\d+)?)\s*%/g, (match, num) => {
+          return (parseFloat(num) / 100).toString();
+        });
 
         // Set the formula in cell A1
         formulaEngine.setCellContents({
           row: 0,
           col: 0,
           sheet: sheetId
-        }, cleanFormula);
+        }, processedFormula);
 
         // Get the calculated value
         const result = formulaEngine.getCellValue({
@@ -483,6 +522,44 @@ function addFormattedRichTextComponent(editor) {
         console.error('Formula evaluation error:', error);
         return `#ERROR: ${error.message}`;
       }
+    },
+
+    // Add this new helper method for NUMTOWORD
+    numberToWords(num) {
+      const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+      const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+      const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+      if (num === 0) return 'Zero';
+      if (num < 0) return 'Minus ' + this.numberToWords(Math.abs(num));
+
+      let words = '';
+
+      if (num >= 1000000) {
+        words += this.numberToWords(Math.floor(num / 1000000)) + ' Million ';
+        num %= 1000000;
+      }
+      if (num >= 1000) {
+        words += this.numberToWords(Math.floor(num / 1000)) + ' Thousand ';
+        num %= 1000;
+      }
+      if (num >= 100) {
+        words += ones[Math.floor(num / 100)] + ' Hundred ';
+        num %= 100;
+      }
+      if (num >= 20) {
+        words += tens[Math.floor(num / 10)] + ' ';
+        num %= 10;
+      }
+      if (num >= 10) {
+        words += teens[num - 10] + ' ';
+        return words.trim();
+      }
+      if (num > 0) {
+        words += ones[num] + ' ';
+      }
+
+      return words.trim();
     },
 
     isFormula(content) {
@@ -792,9 +869,6 @@ function addFormattedRichTextComponent(editor) {
         droppable: false,
         editable: false,
         content: 'Insert your text here',
-        attributes: {
-          'data-gjs-type': 'formatted-rich-text'
-        },
         traits: [
           {
             type: 'checkbox',
@@ -814,12 +888,6 @@ function addFormattedRichTextComponent(editor) {
             name: 'format-pattern',
             label: 'Format Pattern',
             options: [{ value: 'None', label: 'None' }],
-            changeProp: 1
-          },
-          {
-            type: 'text',
-            name: 'my-input-json',
-            label: 'Json Path',
             changeProp: 1
           },
           {
@@ -878,12 +946,21 @@ function addFormattedRichTextComponent(editor) {
 
       handleFormatTypeChange() {
         const newFormatType = this.get('format-type');
+        const previousFormatType = this.previous('format-type');
         const rawContent = this.get('raw-content') || '';
 
         const validation = formatHelpers.validateFormat(rawContent, newFormatType);
 
         if (!validation.valid) {
           alert(validation.error);
+          // Revert to previous format type
+          this.set('format-type', previousFormatType, { silent: true });
+
+          // Force trait update to reflect reverted value
+          const trait = this.getTrait('format-type');
+          if (trait) {
+            trait.set('value', previousFormatType);
+          }
           return;
         }
 
@@ -1204,21 +1281,35 @@ function addFormattedRichTextComponent(editor) {
 
         let formattedContent;
 
-        // NEW: Process formula first if enabled
+        // Process formula first if enabled
         if (isFormulaEnabled) {
-          const formulaProcessed = formatHelpers.processFormulaContent(rawContent, true);
-          rawContent = formulaProcessed;
-        }
+          const textContent = formatHelpers.extractTextContent(rawContent);
 
-        // Then apply regular formatting
-        if (formatType === 'text' || pattern === 'None') {
-          formattedContent = rawContent;
-        } else {
-          try {
-            formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
-          } catch (error) {
-            console.warn('Format error:', error);
+          // If it's a formula, evaluate it
+          if (formatHelpers.isFormula(textContent)) {
+            const formulaResult = formatHelpers.evaluateFormula(textContent.trim());
+
+            // Store the formula result as formatted content
+            if (typeof formulaResult === 'string' && formulaResult.startsWith('#ERROR')) {
+              formattedContent = formatHelpers.preserveRichTextStructure(rawContent, `${textContent} → ${formulaResult}`);
+            } else {
+              formattedContent = formatHelpers.preserveRichTextStructure(rawContent, String(formulaResult));
+            }
+          } else {
+            // Not a formula, just use the raw content
             formattedContent = rawContent;
+          }
+        } else {
+          // Apply regular formatting (not formula mode)
+          if (formatType === 'text' || pattern === 'None') {
+            formattedContent = rawContent;
+          } else {
+            try {
+              formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
+            } catch (error) {
+              console.warn('Format error:', error);
+              formattedContent = rawContent;
+            }
           }
         }
 
@@ -1226,10 +1317,8 @@ function addFormattedRichTextComponent(editor) {
 
         if (finalContent !== previousContent) {
           this.set('content', finalContent);
-          // UPDATED: Handle raw-content updates with formula consideration
-          if (formatType !== 'text' && pattern !== 'None' && !isFormulaEnabled) {
-            this.set('raw-content', formatHelpers.extractTextContent(finalContent), { silent: true });
-          }
+          // CRITICAL FIX: Never overwrite raw-content automatically
+          // Raw content should only be updated by user editing
         }
       },
 
@@ -1382,7 +1471,7 @@ function addFormattedRichTextComponent(editor) {
           const content = this.model.get('content') || '';
           if (content.includes('class="hidden-word"') && content.includes('display: none')) {
             console.log('Content is hidden, cannot edit');
-            windows.alert("please remove hide word conditions first");
+            window.alert("please remove hide word conditions first");
             return;
           }
         }
@@ -1437,11 +1526,20 @@ function addFormattedRichTextComponent(editor) {
         });
 
         // FIXED: Proper content handling for editing
+        // FIXED: Proper content handling for editing
         const rawContent = this.model.get('raw-content') || '';
+        const isFormulaEnabled = this.model.get('formula-label') || false;
+        const content = this.model.get('content') || '';
         console.log('Raw content for editing:', rawContent);
 
-        // Set element content to raw content for editing
-        this.el.innerHTML = rawContent;
+        // Set element content based on formula mode
+        if (isFormulaEnabled) {
+          // In formula mode, show the raw formula (not the calculated result)
+          this.el.innerHTML = rawContent;
+        } else {
+          // In normal mode, show formatted content for editing
+          this.el.innerHTML = content;
+        }
 
         // FIXED: Make element editable BEFORE enabling RTE
         this.el.contentEditable = true;
@@ -1677,7 +1775,7 @@ function addFormattedRichTextComponent(editor) {
       },
 
       // FIXED: Use focusout instead of blur for better handling
-handleRTEExit() {
+      handleRTEExit() {
         console.log('=== RTE EXIT TRIGGERED ===');
 
         if (!this.rteActive) {
@@ -1692,58 +1790,56 @@ handleRTEExit() {
         const isFormulaEnabled = this.model.get('formula-label') || false;
         console.log('Format type:', formatType, 'Formula enabled:', isFormulaEnabled);
 
-        // FIXED: Always update raw content first
+        // CRITICAL: Always update raw content from editor
         console.log('Setting raw content:', content);
         this.model.set('raw-content', content, { silent: true });
 
-        // Then validate and update
+        // Validation and processing
         if (isFormulaEnabled) {
           const textContent = formatHelpers.extractTextContent(content);
           console.log('Extracted text for formula check:', textContent);
 
           if (formatHelpers.isFormula(textContent)) {
-            // For formulas, validate that it's a proper formula syntax
             try {
               const result = formatHelpers.evaluateFormula(textContent.trim());
               console.log('Formula evaluation result:', result);
-              
+
               if (typeof result === 'string' && result.startsWith('#ERROR')) {
                 console.log('Formula validation failed:', result);
                 alert(`Formula Error: ${result.replace('#ERROR: ', '')}`);
-                // Revert to previous content
-                const previousContent = this.model.get('content');
-                this.el.innerHTML = previousContent;
+                // Keep the formula visible, don't exit RTE
                 return;
               }
             } catch (error) {
               console.log('Formula validation error:', error);
               alert(`Formula Error: ${error.message}`);
-              // Revert to previous content
-              const previousContent = this.model.get('content');
-              this.el.innerHTML = previousContent;
               return;
             }
           }
 
+          // Update content to show formula result
           console.log('Formula content processed, updating');
           this.model.updateContent();
         } else {
-          // Existing validation for non-formula content
+          // Non-formula: validate format conversion
           const validation = formatHelpers.validateFormat(content, formatType);
 
           if (!validation.valid) {
             console.log('Validation failed:', validation.error);
             alert(validation.error);
-            // Revert to previous content
-            const previousContent = this.model.get('content');
-            this.el.innerHTML = previousContent;
+            // Restore previous content
+            const previousRawContent = this.model.previous('raw-content');
+            if (previousRawContent) {
+              this.el.innerHTML = previousRawContent;
+              this.model.set('raw-content', previousRawContent, { silent: true });
+            }
+            return; // Don't exit RTE
           } else {
             console.log('Validation passed, updating content');
             this.model.updateContent();
           }
         }
 
-        // Disable editing
         console.log('Disabling RTE from exit handler');
         this.model.disableRTE();
       },
@@ -1947,198 +2043,6 @@ handleRTEExit() {
       }, 100);
     }
   });
-  // Add component to blocks
-  // editor.BlockManager.add('formatted-rich-text', {
-  //   label: 'Text',
-  //   content: {
-  //     type: 'formatted-rich-text',
-  //     content: 'Double-click to edit rich text content'
-  //   },
-  //   category: 'Text',
-  //   attributes: {
-  //     class: 'gjs-block-formatted-rich-text'
-  //   }
-  // });
-
-  // Add custom styles using GrapesJS CSS classes for responsiveness
-  editor.addStyle(`
-    [data-gjs-type="formatted-rich-text"] {
-      min-height: 40px;
-      position: relative;
-      padding: 12px;
-      border: 1px solid transparent;
-      background: transparent;
-      transition: all 0.2s ease;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      cursor: pointer;
-    }
-    
-    [data-gjs-type="formatted-rich-text"]:hover {
-      background-color: rgba(0, 123, 255, 0.05);
-      border-color: rgba(0, 123, 255, 0.2);
-    }
-    
-    [data-gjs-type="formatted-rich-text"][contenteditable="true"] {
-      border: 2px dashed #007bff !important;
-      background-color: rgba(0, 123, 255, 0.1) !important;
-      cursor: text;
-      outline: none;
-    }
-    
-    [data-gjs-type="formatted-rich-text"][contenteditable="true"]:focus {
-      border-color: #0056b3 !important;
-      background-color: rgba(0, 123, 255, 0.15) !important;
-      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-    }
-    
-    .gjs-selected[data-gjs-type="formatted-rich-text"] {
-      outline: 2px solid #3498db !important;
-      background-color: rgba(52, 152, 219, 0.1);
-    }
-    
-    [data-gjs-type="formatted-rich-text"] a {
-      color: #007bff;
-      text-decoration: underline;
-    }
-    
-    [data-gjs-type="formatted-rich-text"] a:hover {
-      color: #0056b3;
-    }
-    
-    [data-gjs-type="formatted-rich-text"] b,
-    [data-gjs-type="formatted-rich-text"] strong {
-      font-weight: bold;
-    }
-    
-    [data-gjs-type="formatted-rich-text"] i,
-    [data-gjs-type="formatted-rich-text"] em {
-      font-style: italic;
-    }
-    
-    [data-gjs-type="formatted-rich-text"] u {
-      text-decoration: underline;
-    }
-    
-    [data-gjs-type="formatted-rich-text"] s {
-      text-decoration: line-through;
-    }
-    
-    /* Conditional formatting styles */
-    [data-gjs-type="formatted-rich-text"] .hidden-word {
-      display: none !important;
-    }
-    
-    [data-gjs-type="formatted-rich-text"] .highlighted-word {
-      border-radius: 2px;
-      transition: background-color 0.2s ease;
-    }
-    
-    
-    /* Loading state */
-    [data-gjs-type="formatted-rich-text"].loading {
-      opacity: 0.7;
-      pointer-events: none;
-    }
-    
-    [data-gjs-type="formatted-rich-text"].loading::after {
-      content: "Loading...";
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 12px;
-      color: #666;
-    }
-    
-    /* Responsive text sizes using GrapesJS responsive classes */
-    @media (max-width: 768px) {
-      [data-gjs-type="formatted-rich-text"] {
-        padding: 8px;
-        font-size: 0.9em;
-      }
-    }
-    
-    @media (max-width: 480px) {
-      [data-gjs-type="formatted-rich-text"] {
-        padding: 6px;
-        font-size: 0.85em;
-      }
-    }
-    
-    /* Block manager icon */
-    .gjs-block-formatted-rich-text {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-radius: 4px;
-      padding: 8px;
-      text-align: center;
-      font-weight: 500;
-      transition: transform 0.2s ease;
-    }
-    
-    .gjs-block-formatted-rich-text:hover {
-      transform: translateY(-2px);
-    }
-    
-    /* RTE Toolbar Enhancement */
-    .gjs-rte-toolbar {
-      z-index: 10000 !important;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      border-radius: 4px;
-    }
-    
-    .gjs-rte-action {
-      transition: all 0.2s ease;
-    }
-    
-    .gjs-rte-action:hover {
-      background-color: rgba(0, 123, 255, 0.1);
-    }
-    
-    /* Editing state indicator */
-    [data-gjs-type="formatted-rich-text"][contenteditable="true"]::before {
-      content: "✏️ Editing";
-      position: absolute;
-      top: -25px;
-      left: 0;
-      background: #007bff;
-      color: white;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 3px;
-      z-index: 1000;
-      white-space: nowrap;
-    }
-    
-    /* Better visual feedback */
-    [data-gjs-type="formatted-rich-text"].format-error {
-      border-color: #dc3545 !important;
-      background-color: rgba(220, 53, 69, 0.1) !important;
-    }
-    
-    [data-gjs-type="formatted-rich-text"].format-success {
-      border-color: #28a745 !important;
-      background-color: rgba(40, 167, 69, 0.1) !important;
-    }
-        [data-gjs-type="formatted-rich-text"][data-formula="true"]::after {
-    content: "ƒx";
-    position: absolute;
-    top: 2px;
-    right: 6px;
-    background: #28a745;
-    color: white;
-    font-size: 10px;
-    padding: 1px 4px;
-    border-radius: 2px;
-    z-index: 1000;
-    font-weight: bold;
-  }
-  
-  [data-gjs-type="formatted-rich-text"][data-formula="true"] {
-    border-left: 3px solid #28a745;
-  }
-  `);
 
   console.log('Text component initialized successfully!');
 

@@ -20,11 +20,11 @@ function backgroundMusic(editor) {
           .background-music .music-icon {
             cursor: pointer;
             display: inline-block;
-            width: 40px;   /* default width */
-            height: 40px;  /* default height */
+            width: 40px;  
+            height: 40px;
           }
           .background-music .music-icon::before {
-            font-size: 40px; /* default font-size */
+            font-size: 40px;
           }
         `,
         script: function () {
@@ -64,15 +64,13 @@ function backgroundMusic(editor) {
           if (icon) {
             icon.addEventListener('click', togglePlay);
 
-            // Create a unique style tag for this element
             const styleTag = document.createElement('style');
             document.head.appendChild(styleTag);
 
-            // Resize observer to adjust ::before font-size
             const resizeObserver = new ResizeObserver(entries => {
               for (let entry of entries) {
                 const { width, height } = entry.contentRect;
-                const newSize = Math.min(width, height); // font-size proportional to icon box
+                const newSize = Math.min(width, height); 
                 styleTag.textContent = `
                   .background-music .music-icon::before {
                     font-size: ${newSize}px !important;
@@ -87,7 +85,6 @@ function backgroundMusic(editor) {
     }
   });
 
-  // Add block in Block Manager
   editor.BlockManager.add('background-music', {
     label: 'Background Music',
     category: 'Basic',

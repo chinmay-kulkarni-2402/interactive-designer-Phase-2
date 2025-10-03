@@ -497,15 +497,18 @@ function customTable(editor) {
   }
 
   // Function to get available formulas
-  function getAvailableFormulas() {
-    try {
-      // Try to get formulas from hot-formula-parser
-      if (typeof window !== 'undefined' && window.formulaParser && window.formulaParser.SUPPORTED_FORMULAS) {
-        return window.formulaParser.SUPPORTED_FORMULAS.sort();
-      }
+  // Function to get available formulas
+function getAvailableFormulas() {
+  try {
+    const iframe = editor.getContainer().querySelector('iframe');
+    let formulas = [];
 
-      // Fallback list of common Excel formulas if hot-formula-parser is not available yet
-      return [
+    if (iframe && iframe.contentWindow && iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
+      // Get supported formulas from the loaded parser
+      formulas = [...iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS];
+    } else {
+      // Fallback list of common Excel formulas
+      formulas = [
         'ABS', 'ACOS', 'ACOSH', 'AND', 'ASIN', 'ASINH', 'ATAN', 'ATAN2', 'ATANH',
         'AVERAGE', 'AVERAGEA', 'AVERAGEIF', 'AVERAGEIFS', 'CEILING', 'CHOOSE',
         'CONCATENATE', 'COS', 'COSH', 'COUNT', 'COUNTA', 'COUNTBLANK', 'COUNTIF',
@@ -519,12 +522,25 @@ function customTable(editor) {
         'SUM', 'SUMIF', 'SUMIFS', 'SUMPRODUCT', 'TAN', 'TANH', 'TIME', 'TIMEVALUE',
         'TODAY', 'TRIM', 'TRUE', 'TRUNC', 'UPPER', 'VALUE', 'VLOOKUP', 'WEEKDAY',
         'YEAR'
-      ].sort();
-    } catch (error) {
-      console.warn('Error getting formulas:', error);
-      return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP'].sort();
+      ];
     }
+
+    // Add our custom formulas
+    const customFormulas = ['PERCENT', 'NUMTOWORDS', 'ABSOLUTE'];
+    customFormulas.forEach(f => {
+      if (!formulas.includes(f)) {
+        formulas.push(f);
+      }
+    });
+
+    return formulas.sort();
+
+  } catch (error) {
+    console.warn('Error getting formulas:', error);
+    return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'PERCENT', 'NUMTOWORDS', 'ABSOLUTE'].sort();
   }
+}
+
 
   // Function to show all formulas in modal
   function showAllFormulasModal() {
@@ -799,149 +815,145 @@ function customTable(editor) {
   });
 
   // Load CSS inside GrapesJS iframe
-  editor.on('load', () => {
-    const iframe = editor.getContainer().querySelector('iframe');
-    const head = iframe.contentDocument.head;
-    const style = document.createElement('style');
-    style.type = 'text/css';
-    style.innerHTML = `
-    a.dt-button { border: 1px solid #ccc !important; }
-    .dataTables_wrapper .dataTables_filter input {
-      border: 1px solid #ccc !important;
-    }
-    .dataTables_wrapper .dataTables_filter input:focus-visible { outline: 0px!important; }
-    .i_designer-dashed *[data-i_designer-highlightable] {
-      border: 1px solid #ccc !important;
-    }
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-      border: 1px solid #ccc !important;
-    }
-    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-      border: 1px solid #ccc !important;
-      background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
-    }
-    table.dataTable { border: 1px solid #ccc !important; }
-    table.dataTable thead th { border-bottom: 1px solid #ccc !important; }
+editor.on('load', () => {
+  const iframe = editor.getContainer().querySelector('iframe');
+  const head = iframe.contentDocument.head;
+  const style = document.createElement('style');
+  style.type = 'text/css';
+  style.innerHTML = `
+  a.dt-button { border: 1px solid #ccc !important; }
+  .dataTables_wrapper .dataTables_filter input {
+    border: 1px solid #ccc !important;
+  }
+  .dataTables_wrapper .dataTables_filter input:focus-visible { outline: 0px!important; }
+  .i_designer-dashed *[data-i_designer-highlightable] {
+    border: 1px solid #ccc !important;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    border: 1px solid #ccc !important;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    border: 1px solid #ccc !important;
+    background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
+  }
+  table.dataTable { border: 1px solid #ccc !important; }
+  table.dataTable thead th { border-bottom: 1px solid #ccc !important; }
 
-    /* Enhanced highlighted cell styles - applied to td/th instead of div */
-    td[data-highlighted="true"], th[data-highlighted="true"] {
-      position: relative;
-    }
-    td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-      content: "★";
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      font-size: 10px;
-      color: #ff6b35;
-      font-weight: bold;
-      z-index: 1;
-    }
+  /* Enhanced highlighted cell styles - applied to td/th instead of div */
+  td[data-highlighted="true"], th[data-highlighted="true"] {
+    position: relative;
+  }
+  td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+    content: "★";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 10px;
+    color: #ff6b35;
+    font-weight: bold;
+    z-index: 1;
+  }
 
-    /* Formula suggestions styling */
-    .formula-suggestions {
-      font-family: Arial, sans-serif !important;
-    }
-    .formula-suggestions div:hover {
-      background-color: #f0f0f0 !important;
-    }
+  /* Formula suggestions styling */
+  .formula-suggestions {
+    font-family: Arial, sans-serif !important;
+  }
+  .formula-suggestions div:hover {
+    background-color: #f0f0f0 !important;
+  }
 
-    /* Page-aware table styles */
-    .page-container .dataTables_wrapper {
-      max-width: 100%;
-      overflow: hidden;
-    }
-    
-    .main-content-area .dataTables_wrapper {
+  /* Page-aware table styles */
+  .page-container .dataTables_wrapper {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  .main-content-area .dataTables_wrapper {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  
+  /* Enhanced print styles for tables in pages with cell highlighting preservation */
+  @media print {
+    .page-container table.dataTable {
+      border-collapse: collapse !important;
       width: 100% !important;
-      box-sizing: border-box;
+      font-size: 10px !important;
+      page-break-inside: avoid !important;
     }
     
-    /* REMOVED: Running Total Cell Styling - No automatic styling */
-    
-    /* Enhanced print styles for tables in pages with cell highlighting preservation */
-    @media print {
-      .page-container table.dataTable {
-        border-collapse: collapse !important;
-        width: 100% !important;
-        font-size: 10px !important;
-        page-break-inside: avoid !important;
-      }
-      
-      .page-container .dataTables_wrapper .dataTables_length,
-      .page-container .dataTables_wrapper .dataTables_filter,
-      .page-container .dataTables_wrapper .dataTables_info,
-      .page-container .dataTables_wrapper .dataTables_paginate,
-      .page-container .dataTables_wrapper .dt-buttons {
-        display: none !important;
-      }
-      
-      .page-container table.dataTable thead th,
-      .page-container table.dataTable tbody td {
-        border: 1px solid #000 !important;
-        padding: 4px !important;
-        text-align: left !important;
-      }
-      
-      .page-container table.dataTable thead th {
-        background-color: #f5f5f5 !important;
-        font-weight: bold !important;
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      /* Preserve cell highlighting in print - critical for PDF generation */
-      td[data-highlighted="true"], th[data-highlighted="true"] {
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      
-      /* Ensure background colors are preserved in print/PDF */
-      * {
-        -webkit-print-color-adjust: exact !important;
-        color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      
-      /* Hide the star indicator in print to avoid clutter */
-      td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-        display: none !important;
-      }
+    .page-container .dataTables_wrapper .dataTables_length,
+    .page-container .dataTables_wrapper .dataTables_filter,
+    .page-container .dataTables_wrapper .dataTables_info,
+    .page-container .dataTables_wrapper .dataTables_paginate,
+    .page-container .dataTables_wrapper .dt-buttons {
+      display: none !important;
     }
-  `;
-    head.appendChild(style);
+    
+    .page-container table.dataTable thead th,
+    .page-container table.dataTable tbody td {
+      border: 1px solid #000 !important;
+      padding: 4px !important;
+      text-align: left !important;
+    }
+    
+    .page-container table.dataTable thead th {
+      background-color: #f5f5f5 !important;
+      font-weight: bold !important;
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
 
-    // Inject formula parser library into iframe
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
-    document.head.appendChild(script);
+    /* Preserve cell highlighting in print - critical for PDF generation */
+    td[data-highlighted="true"], th[data-highlighted="true"] {
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    /* Ensure background colors are preserved in print/PDF */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    /* Hide the star indicator in print to avoid clutter */
+    td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+      display: none !important;
+    }
+  }
+`;
+  head.appendChild(style);
 
-    // Wait for hot-formula-parser to load and then store supported formulas
-    script.onload = () => {
-      try {
-        if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
-          window.formulaParser = iframe.contentWindow.formulaParser;
+  // Inject formula parser library into iframe
+  const script = document.createElement('script');
+  script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+  script.crossOrigin = "anonymous";
+  
+  script.onload = () => {
+    // Wait a bit for the library to fully initialize
+    setTimeout(() => {
+      registerCustomFormulas();
+    }, 300);
+  };
 
-          // Initialize parser
-          window.HotFormulaParser = new window.formulaParser.Parser();
+  script.onerror = (error) => {
+    console.error('Failed to load hot-formula-parser:', error);
+  };
 
-          // ✅ Register custom formulas
-          registerCustomFormulas();
-        }
-      } catch (error) {
-        console.warn('Could not access formula parser:', error);
-      }
-    };
-    editor.Commands.add('open-table-condition-manager-local-table', {
-      run() {
-        console.log("ytreertyu")
-        const selected = editor.getSelected();
-        if (!selected || selected.get('type') !== 'enhanced-table') return;
+  // Append to iframe head instead of main document head
+  iframe.contentDocument.head.appendChild(script);
 
-        const conditions = selected.getHighlightConditions();
-        const highlightColor = selected.get('highlight-color') || '#ffff99';
+  // Add the table condition manager command
+  editor.Commands.add('open-table-condition-manager-local-table', {
+    run() {
+      const selected = editor.getSelected();
+      if (!selected || selected.get('type') !== 'enhanced-table') return;
+
+      const conditions = selected.getHighlightConditions();
+      const highlightColor = selected.get('highlight-color') || '#ffff99';
 
         const modalContent = `
         <div class="table-condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;">
@@ -1063,11 +1075,33 @@ function customTable(editor) {
       }
     });
     // ✅ Custom formula registration
-    function registerCustomFormulas() {
-      if (!window.HotFormulaParser) return;
+function registerCustomFormulas() {
+  try {
+    const iframe = editor.getContainer().querySelector('iframe');
+    if (!iframe || !iframe.contentWindow) {
+      console.warn('Iframe not available for formula registration');
+      setTimeout(registerCustomFormulas, 500);
+      return;
+    }
 
-      // PERCENT(base, percent)
-      window.HotFormulaParser.setFunction('PERCENT', function (params) {
+    const iframeWindow = iframe.contentWindow;
+    
+    // Wait for formulaParser to be available in iframe
+    if (!iframeWindow.formulaParser || !iframeWindow.formulaParser.Parser) {
+      console.warn('Formula parser not available in iframe, retrying...');
+      setTimeout(registerCustomFormulas, 500);
+      return;
+    }
+
+    // ✅ Store the parser constructor globally in iframe for enableFormulaEditing to use
+    if (!iframeWindow.globalFormulaParser) {
+      iframeWindow.globalFormulaParser = new iframeWindow.formulaParser.Parser();
+      
+      // ✅ Register custom formulas on the global parser instance
+      const parser = iframeWindow.globalFormulaParser;
+
+      // Register PERCENT formula: PERCENT(base, percent)
+      parser.setFunction('PERCENT', function (params) {
         if (params.length !== 2) return '#N/A';
         const base = parseFloat(params[0]);
         const percent = parseFloat(params[1]);
@@ -1075,29 +1109,129 @@ function customTable(editor) {
         return base * (percent / 100);
       });
 
-      // ABSOLUTE(number)
-      window.HotFormulaParser.setFunction('ABSOLUTE', function (params) {
+      // Register ABSOLUTE formula: ABSOLUTE(number)
+      parser.setFunction('ABSOLUTE', function (params) {
         if (params.length !== 1) return '#N/A';
         const num = parseFloat(params[0]);
         if (isNaN(num)) return '#VALUE!';
         return Math.abs(num);
       });
 
-      // NUMTOWORDS(number) → loads external library
-      const numScript = document.createElement('script');
-      numScript.src = "https://cdn.jsdelivr.net/npm/number-to-words/numberToWords.min.js";
-      numScript.onload = function () {
-        window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
-          if (params.length !== 1) return '#N/A';
-          const num = parseInt(params[0]);
-          if (isNaN(num)) return '#VALUE!';
-          return numberToWords.toWords(num);
-        });
-        console.log("NUMTOWORDS formula registered");
-      };
-      document.head.appendChild(numScript);
+      console.log('Custom formulas PERCENT and ABSOLUTE registered successfully');
+      
+      // ✅ Also register these formulas on the Parser constructor prototype
+      // so new instances will have them
+      if (iframeWindow.formulaParser.Parser.prototype.setFunction) {
+        iframeWindow.formulaParser.Parser.prototype.customFormulas = {
+          'PERCENT': function (params) {
+            if (params.length !== 2) return '#N/A';
+            const base = parseFloat(params[0]);
+            const percent = parseFloat(params[1]);
+            if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+            return base * (percent / 100);
+          },
+          'ABSOLUTE': function (params) {
+            if (params.length !== 1) return '#N/A';
+            const num = parseFloat(params[0]);
+            if (isNaN(num)) return '#VALUE!';
+            return Math.abs(num);
+          }
+        };
+      }
+
+      // Load number-to-words library
+      loadNumberToWords(parser, iframeWindow);
     }
 
+  } catch (error) {
+    console.error('Error registering custom formulas:', error);
+  }
+}
+
+function loadNumberToWords(parser, iframeWindow) {
+  try {
+    // Check if numberToWords is already available
+    if (iframeWindow.numberToWords) {
+      console.log("alrady available")
+      registerNumToWords(parser, iframeWindow);
+      return;
+    }
+
+    // Create script element in iframe document
+    const script = iframeWindow.document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
+    script.crossOrigin = "anonymous";
+    
+    script.onload = function () {
+      try {
+        // Give it a moment for the library to initialize
+        setTimeout(() => {
+          console.log("number to word script is oading")
+          registerNumToWords(parser, iframeWindow);
+        }, 100);
+      } catch (error) {
+        console.error('Error after loading number-to-words:', error);
+      }
+    };
+
+    script.onerror = function (error) {
+      console.error('Failed to load number-to-words library:', error);
+      
+      // Fallback: register a simple NUMTOWORDS that converts basic numbers
+      parser.setFunction('NUMTOWORDS', function (params) {
+        if (params.length !== 1) return '#N/A';
+        const num = parseInt(params[0]);
+        if (isNaN(num)) return '#VALUE!';
+        
+        // Simple fallback for numbers 0-20
+        const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+                      'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+        
+        if (num >= 0 && num <= 20) {
+          return words[num];
+        } else if (num < 100) {
+          const tens = Math.floor(num / 10);
+          const ones = num % 10;
+          const tensWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+          return ones === 0 ? tensWords[tens] : tensWords[tens] + '-' + words[ones];
+        } else {
+          return 'Number too large for fallback';
+        }
+      });
+      
+      console.log('NUMTOWORDS registered with fallback implementation');
+    };
+
+    // Append to iframe head
+    iframeWindow.document.head.appendChild(script);
+    
+  } catch (error) {
+    console.error('Error loading number-to-words library:', error);
+  }
+}
+function registerNumToWords(parser, iframeWindow) {
+  try {
+    if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords) {
+      parser.setFunction('NUMTOWORDS', function (params) {
+        if (params.length !== 1) return '#N/A';
+        const num = parseInt(params[0]);
+        if (isNaN(num)) return '#VALUE!';
+        
+        try {
+          return iframeWindow.numberToWords.toWords(num);
+        } catch (error) {
+          return '#ERROR';
+        }
+      });
+      
+      console.log('NUMTOWORDS formula registered successfully with number-to-words library');
+    } else {
+      console.warn('numberToWords library not properly loaded');
+    }
+  } catch (error) {
+    console.error('Error registering NUMTOWORDS:', error);
+  }
+}
   });
 
 
@@ -1429,13 +1563,6 @@ function customTable(editor) {
             command: 'open-table-condition-manager-local-table',
             changeProp: 1
           },
-          {
-            type: 'color',
-            name: 'highlight-color',
-            label: 'Highlight Color',
-            placeholder: '#ffff99',
-            changeProp: 1
-          }
         ],
         'custom-name': 'Enhanced Table',
         'highlight-conditions': [],
@@ -1645,220 +1772,401 @@ function customTable(editor) {
     createBtn.addEventListener("click", () => createTable(targetContainer), true);
   }
 
-  function createTable(container) {
-    let uniqueID = Math.floor(100 + Math.random() * 900);
-    let tblFileDownload = document.getElementById("tbl_file_download").checked;
-    let tblPagination = document.getElementById("tbl_pagination").checked;
-    let tblSearch = document.getElementById("tbl_Search").checked;
-    let tblFooter = document.getElementById("tbl_footer").checked;
-    let tblCaption = document.getElementById("tbl_caption").checked;
-    let tblHeader = true;
-    let downloadBtn = '[]';
+function createTable(container) {
+  let uniqueID = Math.floor(100 + Math.random() * 900);
+  let tblFileDownload = document.getElementById("tbl_file_download").checked;
+  let tblPagination = document.getElementById("tbl_pagination").checked;
+  let tblSearch = document.getElementById("tbl_Search").checked;
+  let tblFooter = document.getElementById("tbl_footer").checked;
+  let tblCaption = document.getElementById("tbl_caption").checked;
+  let tblHeader = true;
+  let downloadBtn = '[]';
 
-    if (tblFileDownload) {
-      downloadBtn = '["copy", "csv", "excel", "pdf", "print"]';
+  if (tblFileDownload) {
+    downloadBtn = '["copy", "csv", "excel", "pdf", "print"]';
+  }
+
+  const rows = parseInt(document.getElementById('nRows').value);
+  const cols = parseInt(document.getElementById('nColumns').value);
+  const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
+
+  // Check if target is within a page system
+  const isInPageSystem = container.closest('.page-container') ||
+    container.find('.page-container').length > 0 ||
+    container.getEl()?.closest('.page-container');
+
+  // Create a wrapper div for better page integration
+  let tableWrapper = document.createElement('div');
+  if (isInPageSystem) {
+    tableWrapper.style.cssText = `
+      padding: 10px 0px;
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
+    `;
+  }
+  tableWrapper.className = 'table-wrapper-' + uniqueID;
+
+  // Build table (same as before)
+  let table = document.createElement('table');
+  table.setAttribute('width', '100%');
+  table.setAttribute('class', 'table table-striped table-bordered');
+  table.setAttribute('id', 'table' + uniqueID);
+
+  if (tblCaption) {
+    let caption = document.createElement('caption');
+    caption.textContent = 'Caption Text';
+    caption.style.captionSide = 'top';
+    table.appendChild(caption);
+  }
+
+  let thead = document.createElement('thead');
+  for (let j = 0; j < cols; j++) {
+    let th = document.createElement('th');
+    th.innerHTML = `<div>Text</div>`;
+    thead.appendChild(th);
+  }
+  if (tblHeader) table.appendChild(thead);
+
+  let tbody = document.createElement('tbody');
+  for (let i = 0; i < rows; i++) {
+    let tr = document.createElement('tr');
+    for (let j = 0; j < cols; j++) {
+      let td = document.createElement('td');
+      td.innerHTML = `<div>Text</div>`;
+      tr.appendChild(td);
     }
+    tbody.appendChild(tr);
+  }
 
-    const rows = parseInt(document.getElementById('nRows').value);
-    const cols = parseInt(document.getElementById('nColumns').value);
-    const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
-
-    // Check if target is within a page system
-    const isInPageSystem = container.closest('.page-container') ||
-      container.find('.page-container').length > 0 ||
-      container.getEl()?.closest('.page-container');
-
-    // Create a wrapper div for better page integration
-    let tableWrapper = document.createElement('div');
-    if (isInPageSystem) {
-      tableWrapper.style.cssText = `
-        padding: 10px 0px;
-        position: relative;
-        width: 100%;
-        max-width: 100%;
-        overflow: hidden;
-        box-sizing: border-box;
-      `;
-    }
-    tableWrapper.className = 'table-wrapper-' + uniqueID;
-
-    // Build table
-    let table = document.createElement('table');
-    table.setAttribute('width', '100%');
-    table.setAttribute('class', 'table table-striped table-bordered');
-    table.setAttribute('id', 'table' + uniqueID);
-
-    if (tblCaption) {
-      let caption = document.createElement('caption');
-      caption.textContent = 'Caption Text';
-      caption.style.captionSide = 'top';
-      table.appendChild(caption);
-    }
-
-    let thead = document.createElement('thead');
+  if (tblFooter) {
+    let tr = document.createElement('tr');
     for (let j = 0; j < cols; j++) {
       let th = document.createElement('th');
+      th.style.fontWeight = '800';
       th.innerHTML = `<div>Text</div>`;
-      thead.appendChild(th);
+      tr.appendChild(th);
     }
-    if (tblHeader) table.appendChild(thead);
+    tbody.appendChild(tr);
+  }
 
-    let tbody = document.createElement('tbody');
-    for (let i = 0; i < rows; i++) {
-      let tr = document.createElement('tr');
-      for (let j = 0; j < cols; j++) {
-        let td = document.createElement('td');
-        td.innerHTML = `<div>Text</div>`;
-        tr.appendChild(td);
-      }
-      tbody.appendChild(tr);
-    }
+  table.appendChild(tbody);
 
-    if (tblFooter) {
-      let tr = document.createElement('tr');
-      for (let j = 0; j < cols; j++) {
-        let th = document.createElement('th');
-        th.style.fontWeight = '800';
-        th.innerHTML = `<div>Text</div>`;
-        tr.appendChild(th);
-      }
-      tbody.appendChild(tr);
-    }
+  // Append table to wrapper if in page system
+  if (isInPageSystem) {
+    tableWrapper.appendChild(table);
+  }
 
-    table.appendChild(tbody);
-
-    // Append table to wrapper if in page system
-    if (isInPageSystem) {
-      tableWrapper.appendChild(table);
-    }
-
-    // DataTables script with page system awareness
-    let tableScript = `
-      <script>
-        (function() {
-          // Wait for jQuery and DataTables to be available
-          function initTable() {
-            if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
-              setTimeout(initTable, 100);
-              return;
-            }
-            
-            const tableElement = document.getElementById('table${uniqueID}');
-            const isInPageSystem = tableElement && tableElement.closest('.page-container');
-            
-            // Configure DataTable options based on context
-            const dtOptions = {
-              dom: 'Bfrtip',
-              paging: ${tblPagination},
-              info: ${tblPagination},
-              lengthChange: true,
-              fixedHeader: ${!isInPageSystem}, // Disable for page system compatibility
-              scrollX: ${colsScroll < cols},
-              fixedColumns: ${colsScroll < cols},
-              searching: ${tblSearch},
-              buttons: ${downloadBtn},
-              drawCallback: function() {
-                // Re-enable formula editing after DataTable draw
-                setTimeout(() => enableFormulaEditing('table${uniqueID}'), 100);
-                
-                // Ensure table fits within page boundaries
-                if (isInPageSystem) {
-                  const wrapper = this.closest('.dataTables_wrapper');
-                  if (wrapper) {
-                    wrapper.style.maxWidth = '100%';
-                    wrapper.style.overflow = 'hidden';
-                  }
-                }
-              },
-              responsive: isInPageSystem ? {
-                details: {
-                  display: $.fn.dataTable.Responsive.display.childRowImmediate,
-                  type: 'none',
-                  target: ''
-                }
-              } : false
-            };
-            
-            $('#table${uniqueID}').DataTable(dtOptions);
+  // ✅ FIXED DataTables script - inject enableFormulaEditing function into iframe
+let tableScript = `
+  <script>
+    (function() {
+      window.enableFormulaEditing = function(tableId) {
+        try {
+          if (!window.formulaParser || !window.formulaParser.Parser) {
+            console.warn('Formula parser not available');
+            return;
           }
           
-          initTable();
-        })();
-      </script>
-    `;
+          let parser = window.globalFormulaParser;
+          
+          if (!parser) {
+            parser = new window.formulaParser.Parser();
+            window.globalFormulaParser = parser;
+            
+            // Register custom formulas
+            parser.setFunction('PERCENT', function (params) {
+              if (params.length !== 2) return '#N/A';
+              const base = parseFloat(params[0]);
+              const percent = parseFloat(params[1]);
+              if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+              const result = base * (percent / 100);
+              return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+            });
 
-    try {
-      // Add the table to the selected container
-      let tableComponent;
-      if (isInPageSystem) {
-        tableComponent = container.append(tableWrapper.outerHTML)[0];
-      } else {
-        tableComponent = container.append(`<div>${table.outerHTML}</div>${tableScript}`)[0];
-      }
+            parser.setFunction('ABSOLUTE', function (params) {
+              if (params.length !== 1) return '#N/A';
+              const num = parseFloat(params[0]);
+              if (isNaN(num)) return '#VALUE!';
+              const result = Math.abs(num);
+              return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+            });
 
-      // Set table wrapper properties for better integration
-      if (tableComponent && isInPageSystem) {
-        tableComponent.set({
-          draggable: false,
-          droppable: false,
-          editable: false,
-          selectable: false,
-          removable: false,
-          copyable: false,
-          'custom-name': `Table Wrapper ${uniqueID}`,
-          tagName: 'div'
-        });
-      }
-
-      // Add the script component for page system
-      if (isInPageSystem) {
-        const scriptComponent = container.append(tableScript)[0];
-      }
-
-      // Add the actual table component with enhanced-table type for traits
-      const actualTable = tableComponent.find('table')[0];
-      if (actualTable) {
-        actualTable.set({
-          type: 'enhanced-table',
-          'custom-name': `Enhanced Table ${uniqueID}`,
-          tagName: 'table',
-          selectable: true,
-          hoverable: true,
-          editable: true,
-          removable: true,
-          draggable: true,
-          attributes: {
-            id: `table${uniqueID}`,
-            class: 'table table-striped table-bordered',
-            width: '100%'
+            if (window.numberToWords && window.numberToWords.toWords) {
+              parser.setFunction('NUMTOWORDS', function (params) {
+                if (params.length !== 1) return '#N/A';
+                const num = parseFloat(params[0]);
+                if (isNaN(num)) return '#VALUE!';
+                
+                try {
+                  const integerPart = Math.floor(num);
+                  const decimalPart = num - integerPart;
+                  
+                  if (decimalPart === 0) {
+                    return window.numberToWords.toWords(integerPart);
+                  } else {
+                    const integerWords = window.numberToWords.toWords(integerPart);
+                    const decimalString = decimalPart.toFixed(10).replace(/0+$/, '').substring(2);
+                    return integerWords + ' point ' + decimalString.split('').map(d => window.numberToWords.toWords(parseInt(d))).join(' ');
+                  }
+                } catch (error) {
+                  return '#ERROR';
+                }
+              });
+            }
           }
-        });
-      }
+            
+            // Enhanced parser with range support
+            parser.on('callCellValue', function (cellCoord, done) {
+              let col = cellCoord.column.index;
+              let row = cellCoord.row.index;
+              let tableElem = document.getElementById(tableId);
+              let cell = tableElem.rows[row]?.cells[col];
+              if (cell) {
+                let val = cell.getAttribute('data-formula') || cell.innerText;
+                if (val.startsWith('=')) {
+                  try {
+                    let res = parser.parse(val.substring(1));
+                    done(res.result);
+                  } catch {
+                    done('#ERROR');
+                  }
+                } else {
+                  done(parseFloat(val) || val);
+                }
+              } else {
+                done(null);
+              }
+            });
 
-      editor.Modal.close();
+            // Enhanced parser for range support (A1:A5)
+            parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
+              let tableElem = document.getElementById(tableId);
+              let values = [];
 
-      // Enable formulas in cells
-      setTimeout(() => enableFormulaEditing(`table${uniqueID}`), 500);
+              let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+              let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+              let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+              let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
 
-      // Determine container type for success message
-      let containerType = 'container';
-      const pageContainer = container.closest('.page-container');
-      if (pageContainer) {
-        const pageIndex = pageContainer.getAttributes()['data-page-index'];
-        // containerType = `Page ${parseInt(pageIndex) + 1}`;
-      } else if (container.getEl()?.classList.contains('main-content-area')) {
-        containerType = 'content area';
-      } else if (container.get('tagName')) {
-        containerType = container.get('tagName');
-      }
+              for (let row = startRow; row <= endRow; row++) {
+                for (let col = startCol; col <= endCol; col++) {
+                  let cell = tableElem.rows[row]?.cells[col];
+                  if (cell) {
+                    let val = cell.getAttribute('data-formula') || cell.innerText;
+                    if (val.startsWith('=')) {
+                      try {
+                        let res = parser.parse(val.substring(1));
+                        values.push(res.result);
+                      } catch {
+                        values.push(0);
+                      }
+                    } else {
+                      values.push(parseFloat(val) || 0);
+                    }
+                  } else {
+                    values.push(0);
+                  }
+                }
+              }
+              done(values);
+            });
+            
+            // Attach cell listeners
+            const tableElem = document.getElementById(tableId);
+            if (!tableElem) return;
 
-      showToast(`Enhanced table with highlighting created successfully in ${containerType}!`, 'success');
+            tableElem.querySelectorAll('td, th').forEach(cell => {
+              if (cell.hasAttribute('data-formula-enabled')) return;
+              
+              cell.contentEditable = "true";
+              cell.setAttribute('data-formula-enabled', 'true');
 
-    } catch (error) {
-      console.error('Error creating table:', error);
-      showToast('Error creating table. Please try again.', 'error');
+              cell.addEventListener('focus', function() {
+                let formula = this.getAttribute('data-formula');
+                if (formula) this.innerText = formula;
+              });
+
+              cell.addEventListener('blur', function() {
+                const cell = this;
+                let val = cell.innerText.trim();
+
+                if (val.startsWith('=')) {
+                  cell.setAttribute('data-formula', val);
+                  try {
+                    const formulaContent = val.substring(1).trim();
+                    if (!formulaContent) throw new Error('Empty formula');
+
+                    const res = parser.parse(formulaContent);
+                    if (res.error) throw new Error(res.error);
+
+                    cell.innerText = (res.result !== undefined && res.result !== null) ? res.result : '#ERROR';
+                    cell.classList.remove('formula-error');
+
+                  } catch (error) {
+                    console.warn('Formula parsing error:', error);
+                    cell.innerText = '#ERROR';
+                    cell.classList.add('formula-error');
+                  }
+                } else {
+                  cell.removeAttribute('data-formula');
+                  cell.innerText = val;
+                  cell.classList.remove('formula-error');
+                }
+              });
+
+              // Tab navigation
+              cell.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  const table = this.closest('table');
+                  const allCells = Array.from(table.querySelectorAll('td, th'));
+                  const currentIndex = allCells.indexOf(this);
+
+                  let nextIndex;
+                  if (e.shiftKey) {
+                    nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+                  } else {
+                    nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+                  }
+                  allCells[nextIndex].focus();
+                }
+              });
+            });
+            
+          } catch (error) {
+            console.error('Error in enableFormulaEditing:', error);
+          }
+        };
+        
+        // Wait for jQuery and DataTables to be available
+        function initTable() {
+          if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+            setTimeout(initTable, 100);
+            return;
+          }
+          
+          const tableElement = document.getElementById('table${uniqueID}');
+          const isInPageSystem = tableElement && tableElement.closest('.page-container');
+          
+          // Configure DataTable options based on context
+          const dtOptions = {
+            dom: 'Bfrtip',
+            paging: ${tblPagination},
+            info: ${tblPagination},
+            lengthChange: true,
+            fixedHeader: ${!isInPageSystem},
+            scrollX: ${colsScroll < cols},
+            fixedColumns: ${colsScroll < cols},
+            searching: ${tblSearch},
+            buttons: ${downloadBtn},
+            drawCallback: function() {
+              // ✅ Now enableFormulaEditing is available in iframe context
+              setTimeout(() => enableFormulaEditing('table${uniqueID}'), 100);
+              
+              if (isInPageSystem) {
+                const wrapper = this.closest('.dataTables_wrapper');
+                if (wrapper) {
+                  wrapper.style.maxWidth = '100%';
+                  wrapper.style.overflow = 'hidden';
+                }
+              }
+            },
+            responsive: isInPageSystem ? {
+              details: {
+                display: $.fn.dataTable.Responsive.display.childRowImmediate,
+                type: 'none',
+                target: ''
+              }
+            } : false
+          };
+          
+          $('#table${uniqueID}').DataTable(dtOptions);
+        }
+        
+        initTable();
+      })();
+    </script>
+  `;
+
+  // Rest of the function remains the same...
+  try {
+    // Add the table to the selected container
+    let tableComponent;
+    if (isInPageSystem) {
+      tableComponent = container.append(tableWrapper.outerHTML)[0];
+    } else {
+      tableComponent = container.append(`<div>${table.outerHTML}</div>${tableScript}`)[0];
     }
+
+    // Set table wrapper properties for better integration
+    if (tableComponent && isInPageSystem) {
+      tableComponent.set({
+        draggable: false,
+        droppable: false,
+        editable: false,
+        selectable: false,
+        removable: false,
+        copyable: false,
+        'custom-name': `Table Wrapper ${uniqueID}`,
+        tagName: 'div'
+      });
+    }
+
+    // Add the script component for page system
+    if (isInPageSystem) {
+      const scriptComponent = container.append(tableScript)[0];
+    }
+
+    // Add the actual table component with enhanced-table type for traits
+    const actualTable = tableComponent.find('table')[0];
+    if (actualTable) {
+      actualTable.set({
+        type: 'enhanced-table',
+        'custom-name': `Enhanced Table ${uniqueID}`,
+        tagName: 'table',
+        selectable: true,
+        hoverable: true,
+        editable: true,
+        removable: true,
+        draggable: true,
+        attributes: {
+          id: `table${uniqueID}`,
+          class: 'table table-striped table-bordered',
+          width: '100%'
+        }
+      });
+    }
+
+    editor.Modal.close();
+
+    // ✅ Enable formulas with delay to ensure custom formulas are registered
+    setTimeout(() => {
+      const iframe = editor.getContainer().querySelector('iframe');
+      if (iframe && iframe.contentWindow && iframe.contentWindow.enableFormulaEditing) {
+        iframe.contentWindow.enableFormulaEditing(`table${uniqueID}`);
+      }
+    }, 1000); // Increased delay to ensure custom formulas are registered
+
+    let containerType = 'container';
+    const pageContainer = container.closest('.page-container');
+    if (pageContainer) {
+      const pageIndex = pageContainer.getAttributes()['data-page-index'];
+    } else if (container.getEl()?.classList.contains('main-content-area')) {
+      containerType = 'content area';
+    } else if (container.get('tagName')) {
+      containerType = container.get('tagName');
+    }
+
+    showToast(`Enhanced table with highlighting created successfully in ${containerType}!`, 'success');
+
+  } catch (error) {
+    console.error('Error creating table:', error);
+    showToast('Error creating table. Please try again.', 'error');
   }
+}
 
   function updateDataTableStructure(tableId) {
     try {
@@ -2178,198 +2486,144 @@ function customTable(editor) {
     }
   }
   // Enhanced Formula editing handler with range support and suggestions
-  function enableFormulaEditing(tableId) {
-    const iframeDoc = editor.Canvas.getDocument();
-    const parser = new iframeDoc.defaultView.formulaParser.Parser();
+function enableFormulaEditing(tableId) {
+  const iframeDoc = editor.Canvas.getDocument();
+  const iframeWindow = iframeDoc.defaultView;
+  
+  if (!iframeWindow.formulaParser || !iframeWindow.formulaParser.Parser) {
+    console.warn('Formula parser not available');
+    return;
+  }
 
-    // Enhanced parser with range support
-    parser.on('callCellValue', function (cellCoord, done) {
-      let col = cellCoord.column.index;
-      let row = cellCoord.row.index;
-      let tableElem = iframeDoc.getElementById(tableId);
-      let cell = tableElem.rows[row]?.cells[col];
-      if (cell) {
-        let val = cell.getAttribute('data-formula') || cell.innerText;
-        if (val.startsWith('=')) {
-          try {
-            let res = parser.parse(val.substring(1));
-            done(res.result);
-          } catch {
-            done('#ERROR');
-          }
-        } else {
-          done(parseFloat(val) || val);
-        }
-      } else {
-        done(null);
-      }
+  // ✅ Use global parser if available, otherwise create new one
+  let parser = iframeWindow.globalFormulaParser;
+  
+  if (!parser) {
+    parser = new iframeWindow.formulaParser.Parser();
+    iframeWindow.globalFormulaParser = parser;
+    
+    // ✅ Register custom formulas
+    parser.setFunction('PERCENT', function (params) {
+      if (params.length !== 2) return '#N/A';
+      const base = parseFloat(params[0]);
+      const percent = parseFloat(params[1]);
+      if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+      const result = base * (percent / 100);
+      // ✅ Maintain decimal precision
+      return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
     });
 
-    // Enhanced parser for range support (A1:A5)
-    parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
-      let tableElem = iframeDoc.getElementById(tableId);
-      let values = [];
+    parser.setFunction('ABSOLUTE', function (params) {
+      if (params.length !== 1) return '#N/A';
+      const num = parseFloat(params[0]);
+      if (isNaN(num)) return '#VALUE!';
+      const result = Math.abs(num);
+      // ✅ Maintain decimal precision
+      return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+    });
 
-      let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
-      let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
-      let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
-      let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
-
-      for (let row = startRow; row <= endRow; row++) {
-        for (let col = startCol; col <= endCol; col++) {
-          let cell = tableElem.rows[row]?.cells[col];
-          if (cell) {
-            let val = cell.getAttribute('data-formula') || cell.innerText;
-            if (val.startsWith('=')) {
-              try {
-                let res = parser.parse(val.substring(1));
-                values.push(res.result);
-              } catch {
-                values.push(0);
-              }
-            } else {
-              values.push(parseFloat(val) || 0);
-            }
+    // ✅ Register NUMTOWORDS if available
+    if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords) {
+      parser.setFunction('NUMTOWORDS', function (params) {
+        if (params.length !== 1) return '#N/A';
+        const num = parseFloat(params[0]); // ✅ Changed from parseInt to parseFloat
+        if (isNaN(num)) return '#VALUE!';
+        
+        try {
+          // ✅ Handle decimal numbers - convert to integer for word conversion
+          const integerPart = Math.floor(num);
+          const decimalPart = num - integerPart;
+          
+          if (decimalPart === 0) {
+            return iframeWindow.numberToWords.toWords(integerPart);
           } else {
-            values.push(0);
+            // For decimals, show integer part in words + decimal notation
+            const integerWords = iframeWindow.numberToWords.toWords(integerPart);
+            const decimalString = decimalPart.toFixed(10).replace(/0+$/, '').substring(2);
+            return `${integerWords} point ${decimalString.split('').map(d => iframeWindow.numberToWords.toWords(parseInt(d))).join(' ')}`;
           }
+        } catch (error) {
+          return '#ERROR';
         }
-      }
-
-      done(values);
-    });
-
-    // Function to attach event listeners to cells
-    function attachCellListeners() {
-      const tableElem = iframeDoc.getElementById(tableId);
-      if (!tableElem) return;
-
-      tableElem.querySelectorAll('td, th').forEach(cell => {
-        // Skip if already has listeners (check for a custom attribute)
-        if (cell.hasAttribute('data-formula-enabled')) return;
-
-        cell.contentEditable = "true";
-        cell.setAttribute('data-formula-enabled', 'true');
-
-        cell.addEventListener('focus', handleCellFocus);
-        cell.addEventListener('blur', handleCellBlur);
-        cell.addEventListener('input', handleCellInput);
-        cell.addEventListener('keydown', handleCellKeydown);
       });
     }
+  }
 
-    function handleCellFocus() {
+  // Enhanced parser with range support
+  parser.on('callCellValue', function (cellCoord, done) {
+    let col = cellCoord.column.index;
+    let row = cellCoord.row.index;
+    let tableElem = iframeDoc.getElementById(tableId);
+    let cell = tableElem.rows[row]?.cells[col];
+    if (cell) {
+      let val = cell.getAttribute('data-formula') || cell.innerText;
+      if (val.startsWith('=')) {
+        try {
+          let res = parser.parse(val.substring(1));
+          done(res.result);
+        } catch {
+          done('#ERROR');
+        }
+      } else {
+        const numVal = parseFloat(val);
+        done(isNaN(numVal) ? val : numVal);
+      }
+    } else {
+      done(null);
+    }
+  });
+
+  parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
+    let tableElem = iframeDoc.getElementById(tableId);
+    let values = [];
+
+    let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+    let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+    let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+    let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
+
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        let cell = tableElem.rows[row]?.cells[col];
+        if (cell) {
+          let val = cell.getAttribute('data-formula') || cell.innerText;
+          if (val.startsWith('=')) {
+            try {
+              let res = parser.parse(val.substring(1));
+              values.push(res.result);
+            } catch {
+              values.push(0);
+            }
+          } else {
+            values.push(parseFloat(val) || 0);
+          }
+        } else {
+          values.push(0);
+        }
+      }
+    }
+
+    done(values);
+  });
+
+  // Attach cell listeners
+  const tableElem = iframeDoc.getElementById(tableId);
+  if (!tableElem) return;
+
+  tableElem.querySelectorAll('td, th').forEach(cell => {
+    if (cell.hasAttribute('data-formula-enabled')) return;
+    
+    cell.contentEditable = "true";
+    cell.setAttribute('data-formula-enabled', 'true');
+
+    cell.addEventListener('focus', function() {
       let formula = this.getAttribute('data-formula');
       if (formula) this.innerText = formula;
-    }
+    });
 
-    function handleCellInput(e) {
-      const cell = this;
-      const currentText = cell.innerText;
-
-      // Show formula suggestions when typing after '='
-    }
-
-    function handleCellKeydown(e) {
-      // Handle Tab key for navigation
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const cell = this;
-        const table = cell.closest('table');
-        const allCells = Array.from(table.querySelectorAll('td, th'));
-        const currentIndex = allCells.indexOf(cell);
-
-        let nextIndex;
-        if (e.shiftKey) {
-          nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
-        } else {
-          nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
-        }
-
-        allCells[nextIndex].focus();
-      }
-    }
-
-    function updateAffectedRunningTotals(changedCell) {
-      try {
-        const table = changedCell.closest('table');
-        if (!table) return;
-
-        // Get the GrapesJS table component
-        const tableComponent = editor.getWrapper().find('table')[0];
-
-        if (!tableComponent) return;
-
-        const row = changedCell.parentNode;
-        const cellIndex = Array.from(row.children).indexOf(changedCell);
-
-        // Check if there's a running total column for this cell's column
-        const runningTotalColumn = table.querySelector(`[data-running-total-for="${cellIndex}"]`);
-        if (!runningTotalColumn) return;
-
-        // Recalculate all running totals for this column
-        const bodyRows = table.querySelectorAll('tbody tr');
-        let runningSum = 0;
-
-        // Update both DOM and GrapesJS components
-        const tbodyComponent = tableComponent.find('tbody')[0];
-        const bodyRowComponents = tbodyComponent ? tbodyComponent.find('tr') : [];
-
-        bodyRows.forEach((currentRow, rowIndex) => {
-          const sourceDataCell = currentRow.children[cellIndex];
-          const runningTotalCell = currentRow.querySelector(`[data-running-total-for="${cellIndex}"]`);
-          const rowComponent = bodyRowComponents[rowIndex];
-
-          if (sourceDataCell && runningTotalCell && rowComponent) {
-            const cellValue = getCellValue(sourceDataCell);
-            const numericValue = parseFloat(cellValue);
-
-            if (!isNaN(numericValue) && isFinite(numericValue)) {
-              runningSum += numericValue;
-            }
-
-            const newValue = runningSum.toFixed(2);
-
-            // Update DOM
-            const targetDiv = runningTotalCell.querySelector('div');
-            if (targetDiv) {
-              targetDiv.textContent = newValue;
-            } else {
-              runningTotalCell.innerHTML = `<div>${newValue}</div>`;
-            }
-            runningTotalCell.setAttribute('data-running-total-value', runningSum.toString());
-
-            // Update GrapesJS component
-            const cellComponents = rowComponent.components().models;
-            const runningTotalCellComponent = cellComponents.find(comp => {
-              const attrs = comp.getAttributes();
-              return attrs['data-running-total-for'] === cellIndex.toString();
-            });
-
-            if (runningTotalCellComponent) {
-              runningTotalCellComponent.set('content', `<div>${newValue}</div>`);
-              const attrs = runningTotalCellComponent.getAttributes();
-              attrs['data-running-total-value'] = runningSum.toString();
-              runningTotalCellComponent.setAttributes(attrs);
-            }
-          }
-        });
-
-        // Force GrapesJS to recognize the changes
-        editor.trigger('component:update', tableComponent);
-
-      } catch (error) {
-        console.warn('Error updating running totals:', error);
-      }
-    }
-
-    function handleCellBlur() {
+    cell.addEventListener('blur', function() {
       const cell = this;
       let val = cell.innerText.trim();
-
-      // Remove existing suggestions
-      const iframeDoc = editor.Canvas.getDocument();
-      iframeDoc.querySelectorAll('.formula-suggestions').forEach(s => s.remove());
 
       if (val.startsWith('=')) {
         cell.setAttribute('data-formula', val);
@@ -2377,89 +2631,48 @@ function customTable(editor) {
           const formulaContent = val.substring(1).trim();
           if (!formulaContent) throw new Error('Empty formula');
 
-          // Optional: naive parentheses check
-          const openParens = (formulaContent.match(/\(/g) || []).length;
-          const closeParens = (formulaContent.match(/\)/g) || []).length;
-          if (openParens !== closeParens) throw new Error('Mismatched parentheses');
-
-          // Parse formula
           const res = parser.parse(formulaContent);
-
           if (res.error) throw new Error(res.error);
 
-          // Use string or number result
-          cell.innerText = (res.result !== undefined && res.result !== null) ? res.result : '#ERROR';
+          // ✅ Format result based on type
+          let result = res.result;
+          if (typeof result === 'number') {
+            result = Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+          }
+          
+          cell.innerText = (result !== undefined && result !== null) ? result : '#ERROR';
           cell.classList.remove('formula-error');
 
         } catch (error) {
           console.warn('Formula parsing error:', error);
           cell.innerText = '#ERROR';
           cell.classList.add('formula-error');
-
-          // Show temporary tooltip
-          const errorTooltip = iframeDoc.createElement('div');
-          Object.assign(errorTooltip.style, {
-            position: 'absolute',
-            background: '#ff4444',
-            color: 'white',
-            padding: '4px 8px',
-            borderRadius: '3px',
-            fontSize: '11px',
-            zIndex: 10002,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-          });
-          errorTooltip.textContent = 'Invalid formula syntax';
-
-          const cellRect = cell.getBoundingClientRect();
-          const canvasRect = editor.Canvas.getFrameEl().getBoundingClientRect();
-          errorTooltip.style.left = (cellRect.left - canvasRect.left) + 'px';
-          errorTooltip.style.top = (cellRect.top - canvasRect.top - 25) + 'px';
-          iframeDoc.body.appendChild(errorTooltip);
-
-          setTimeout(() => {
-            errorTooltip.remove();
-          }, 2000);
         }
       } else {
         cell.removeAttribute('data-formula');
         cell.innerText = val;
         cell.classList.remove('formula-error');
       }
+    });
 
-      // Update totals
-      updateAffectedRunningTotals(cell);
-      updateComponentContent(cell.closest('table').id);
-    }
+    cell.addEventListener('keydown', function(e) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const table = this.closest('table');
+        const allCells = Array.from(table.querySelectorAll('td, th'));
+        const currentIndex = allCells.indexOf(this);
 
-    // Function to update component content without destroying DOM structure
-    function updateComponentContent(tableId) {
-      // We don't need to sync back to GrapesJS component for formula calculations
-      // The visual updates in the iframe are sufficient for user interaction
-      // GrapesJS will capture the final state when the user saves or exports
-      return;
-    }
-
-    // Initial attachment of listeners
-    attachCellListeners();
-
-    // Re-attach listeners when component is updated/re-rendered
-    editor.on('component:update', (component) => {
-      if (component.getId() === tableId || component.find(`#${tableId}`).length > 0) {
-        // Small delay to ensure DOM is updated
-        setTimeout(() => {
-          attachCellListeners();
-        }, 100);
+        let nextIndex;
+        if (e.shiftKey) {
+          nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+        } else {
+          nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+        }
+        allCells[nextIndex].focus();
       }
     });
-
-    // Also listen for canvas updates
-    editor.on('canvas:frame:load', () => {
-      setTimeout(() => {
-        attachCellListeners();
-      }, 100);
-    });
-  }
+  });
+}
 
   // Enhanced event listener for table selection to apply highlighting traits
   editor.on('component:selected', function (component) {
