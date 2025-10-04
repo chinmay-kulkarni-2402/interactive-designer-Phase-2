@@ -45,7 +45,7 @@ function registerCustomShapes(editor) {
   blockManager.add('line', {
     label: 'Line',
     content: { type: 'line' },
-    category: 'Shapes',
+    category: 'Drawing Tools',
     media: lineIcon,
   });
 
@@ -74,7 +74,7 @@ function registerCustomShapes(editor) {
   blockManager.add('rectangle', {
     label: 'Rectangle',
     content: { type: 'rectangle' },
-    category: 'Shapes',
+    category: 'Drawing Tools',
     media: rectangleIcon,
   });
 
@@ -103,7 +103,7 @@ function registerCustomShapes(editor) {
   blockManager.add('circle', {
     label: 'Circle',
     content: { type: 'circle' },
-    category: 'Shapes',
+    category: 'Drawing Tools',
     media: circleIcon,
   });
 }

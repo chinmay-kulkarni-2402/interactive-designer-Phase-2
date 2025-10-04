@@ -88,7 +88,7 @@ function backgroundMusic(editor) {
   editor.BlockManager.add('background-music', {
     label: 'Background Music',
     category: 'Basic',
-    attributes: { class: 'fas fa-music' },
+    attributes: { class: 'fa fa-music' },
     content: { type: 'background-music' }
   });
 }

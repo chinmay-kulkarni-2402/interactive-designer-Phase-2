@@ -558,13 +558,9 @@ function getAvailableFormulas() {
 
     let modalContent = `
       <div class="formulas-modal" style="font-family: Arial, sans-serif;">
-        <h3 style="margin-top: 0; color: #333; font-size: 18px;">Available Formulas (${availableFormulas.length} total)</h3>
         <div style="margin-bottom: 15px;">
-          <input type="text" id="formula-search" placeholder="Search formulas..." 
+          <input type="text" id="formula-search" placeholder="Search formula..." 
                  style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 10px; color: #666; font-size: 12px;">
-          Click any formula to insert it into the currently focused cell
         </div>
         <div id="formulas-container" style="max-height: 350px; overflow-y: auto; border: 1px solid #eee; padding: 15px; background: #fafafa;">
     `;
@@ -602,7 +598,7 @@ function getAvailableFormulas() {
       </div>
     `;
 
-    editor.Modal.setTitle('Formula Reference');
+    editor.Modal.setTitle('Formula');
     editor.Modal.setContent(modalContent);
     editor.Modal.open();
 
@@ -1665,7 +1661,7 @@ function registerNumToWords(parser, iframeWindow) {
   });
 
   editor.DomComponents.addType('enhanced-table-cell', {
-    isComponent: el => (el.tagName === 'TD' || el.tagName === 'TH') &&
+    isComponent: el => ( el.tagName === 'TH') &&
       el.closest('table') &&
       el.closest('table').id &&
       el.closest('table').id.startsWith('table'),
@@ -1815,6 +1811,7 @@ function createTable(container) {
   table.setAttribute('class', 'table table-striped table-bordered');
   table.setAttribute('id', 'table' + uniqueID);
 
+
   if (tblCaption) {
     let caption = document.createElement('caption');
     caption.textContent = 'Caption Text';
@@ -1883,14 +1880,6 @@ let tableScript = `
               const percent = parseFloat(params[1]);
               if (isNaN(base) || isNaN(percent)) return '#VALUE!';
               const result = base * (percent / 100);
-              return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
-            });
-
-            parser.setFunction('ABSOLUTE', function (params) {
-              if (params.length !== 1) return '#N/A';
-              const num = parseFloat(params[0]);
-              if (isNaN(num)) return '#VALUE!';
-              const result = Math.abs(num);
               return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
             });
 
@@ -2062,6 +2051,8 @@ let tableScript = `
             fixedColumns: ${colsScroll < cols},
             searching: ${tblSearch},
             buttons: ${downloadBtn},
+            ordering: false,
+            order: [], 
             drawCallback: function() {
               // ✅ Now enableFormulaEditing is available in iframe context
               setTimeout(() => enableFormulaEditing('table${uniqueID}'), 100);
@@ -2168,45 +2159,23 @@ let tableScript = `
   }
 }
 
-  function updateDataTableStructure(tableId) {
-    try {
-      const canvasDoc = editor.Canvas.getDocument();
-      const win = canvasDoc.defaultView;
+function updateDataTableStructure(tableId) {
+  try {
+    const canvasDoc = editor.Canvas.getDocument();
+    const win = canvasDoc.defaultView;
 
-      if (win.$ && win.$.fn.DataTable) {
-        // Check if DataTable exists for this table
-        const tableElement = canvasDoc.getElementById(tableId);
-        if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
-          // Destroy existing DataTable
-          win.$(tableElement).DataTable().destroy();
-
-          // Reinitialize DataTable with updated structure
-          setTimeout(() => {
-            try {
-              const dtOptions = {
-                dom: 'Bfrtip',
-                paging: true,
-                info: true,
-                lengthChange: true,
-                scrollX: true,
-                searching: true,
-                buttons: [],
-                drawCallback: function () {
-                  setTimeout(() => enableFormulaEditing(tableId), 100);
-                }
-              };
-
-              win.$(tableElement).DataTable(dtOptions);
-            } catch (error) {
-              console.warn('Error reinitializing DataTable:', error);
-            }
-          }, 100);
-        }
+    if (win.$ && win.$.fn.DataTable) {
+      const tableElement = canvasDoc.getElementById(tableId);
+      if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
+        // Just trigger a simple redraw without destroying
+        const dt = win.$(tableElement).DataTable();
+        dt.columns.adjust().draw(false); // false = no page reset
       }
-    } catch (error) {
-      console.warn('Error updating DataTable structure:', error);
     }
+  } catch (error) {
+    console.warn('Error updating DataTable structure:', error);
   }
+}
 
   function addRunningTotalColumn(tableId, sourceCell) {
     try {
@@ -2395,9 +2364,40 @@ let tableScript = `
           }
         }
       });
-
+// Apply equal width to all columns
+      const totalColumns = headerRow.children.length;
+      const columnWidth = `${100 / totalColumns}%`;
+      
+      // Set width for all header cells
+      Array.from(headerRow.children).forEach(th => {
+        th.style.width = columnWidth;
+      });
+      
+      // Set width for all data cells in body rows
+      bodyRows.forEach(row => {
+        Array.from(row.children).forEach(td => {
+          td.style.width = columnWidth;
+        });
+      });
+      
+      // Ensure table layout is fixed
       // Update DataTable if it exists
-      updateDataTableStructure(tableId);
+// Update DataTable without destroying it
+      try {
+        const canvasDoc = editor.Canvas.getDocument();
+        const win = canvasDoc.defaultView;
+        
+        if (win.$ && win.$.fn.DataTable) {
+          const tableElement = canvasDoc.getElementById(tableId);
+          if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
+            const dt = win.$(tableElement).DataTable();
+            // Just adjust columns without redraw to preserve layout
+            dt.columns.adjust();
+          }
+        }
+      } catch (error) {
+        console.warn('Error adjusting DataTable columns:', error);
+      }
 
       // Force GrapesJS to recognize the changes
       editor.trigger('component:update', tableComponent);
@@ -2470,10 +2470,41 @@ let tableScript = `
         const runningTotalCells = row.querySelectorAll(`[data-running-total-for="${sourceCellIndex}"]`);
         runningTotalCells.forEach(cell => cell.remove());
       });
-
+// Apply equal width to all columns
+      const totalColumns = headerRow.children.length;
+      const columnWidth = `${100 / totalColumns}%`;
+      
+      // Set width for all header cells
+      Array.from(headerRow.children).forEach(th => {
+        th.style.width = columnWidth;
+      });
+      
+      // Set width for all data cells in body rows
+      bodyRows.forEach(row => {
+        Array.from(row.children).forEach(td => {
+          td.style.width = columnWidth;
+        });
+      });
+      
+      // Ensure table layout is fixed
       // Update DataTable if it exists
-      updateDataTableStructure(tableId);
+// Update DataTable without destroying it
+      try {
+        const canvasDoc = editor.Canvas.getDocument();
+        const win = canvasDoc.defaultView;
+        
+        if (win.$ && win.$.fn.DataTable) {
+          const tableElement = canvasDoc.getElementById(tableId);
+          if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
+            const dt = win.$(tableElement).DataTable();
+            dt.columns.adjust();
+          }
+        }
+      } catch (error) {
+        console.warn('Error adjusting DataTable columns:', error);
+      }
 
+      // Force GrapesJS to recognize the changes
       // Force GrapesJS to recognize the changes
       editor.trigger('component:update', tableComponent);
       editor.trigger('change:canvasOffset');

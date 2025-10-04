@@ -405,6 +405,7 @@ function jsontablecustom(editor) {
                         const fontFamily = conditions[0].fontFamily || '';
 
                         td.style.backgroundColor = bgColor;
+                        td.style.border = '1px solid #000';
                         if (textColor) td.style.color = textColor;
                         if (fontFamily) td.style.fontFamily = fontFamily;
                         td.setAttribute('data-highlighted', 'true');
@@ -415,6 +416,8 @@ function jsontablecustom(editor) {
                             if (comp) {
                                 const styles = {
                                     'background-color': bgColor,
+                                    'border': '1px solid #000',
+                                    'box-sizing': 'border-box',
                                     '-webkit-print-color-adjust': 'exact',
                                     'color-adjust': 'exact',
                                     'print-color-adjust': 'exact'
@@ -616,8 +619,9 @@ function jsontablecustom(editor) {
                         label: 'Table Type',
                         options: [
                             { value: 'standard', name: 'Standard Table' },
-                            { value: 'crosstab', name: 'Crosstab/Pivot Table' }
+                            { value: 'crosstab', name: 'Crosstab Table' }
                         ],
+                        default: "standard",
                         changeProp: 1
                     },
                     {
@@ -635,27 +639,27 @@ function jsontablecustom(editor) {
                         full: true,
                         command: 'open-json-table-suggestion'
                     },
-{
-    type: 'select',
-    name: 'filter-column',
-    label: 'Filter Column',
-    options: [{ value: "", name: "First enter JSON path" }],
-    changeProp: 1,
-    // Update this section
-    attributes: {
-        style: 'display: none;'  // Hidden by default
-    }
-},
-{
-    type: 'text',
-    name: 'filter-value',
-    label: 'Filter Value',
-    placeholder: 'Enter filter value or "=" for all data',
-    changeProp: 1,
-    attributes: {
-        style: 'display: none;'  // Hidden by default
-    }
-},
+                    {
+                        type: 'select',
+                        name: 'filter-column',
+                        label: 'Preview Column',
+                        options: [{ value: "", name: "First enter JSON path" }],
+                        changeProp: 1,
+                        // Update this section
+                        attributes: {
+                            style: 'display: block;'  // Hidden by default
+                        }
+                    },
+                    {
+                        type: 'text',
+                        name: 'filter-value',
+                        label: 'Preview Value',
+                        placeholder: 'Enter preview value',
+                        changeProp: 1,
+                        attributes: {
+                            style: 'display: block;'  // Hidden by default
+                        }
+                    },
                     // {
                     //     type: 'checkbox',
                     //     name: 'show-row-totals',
@@ -678,24 +682,24 @@ function jsontablecustom(editor) {
                     {
                         type: 'button',
                         name: 'manage-highlight-conditions',
-                        label: 'Manage Highlight Conditions',
-                        text: 'Add/Edit Conditions',
+                        label: ' Highlight',
+                        text: 'Highlight Conditions',
                         full: true,
                         command: 'open-table-condition-manager-json-table'
                     },
                     {
                         type: 'button',
                         name: 'reorder-columns-btn',
-                        label: 'Reorder Columns',
-                        text: 'Manage Column Order',
+                        label: 'Columns',
+                        text: 'Column Order',
                         full: true,
                         command: 'open-column-reorder-manager'
                     },
                     {
                         type: 'button',
                         name: 'manage-running-totals-btn',
-                        label: 'Manage Running Totals',
-                        text: 'Configure Running Totals',
+                        label: 'Running Total',
+                        text: 'Add Running Total',
                         full: true,
                         command: 'open-running-total-manager'
                     },
@@ -799,38 +803,38 @@ function jsontablecustom(editor) {
                         }
                     }, 100);
                 });
-this.on('change:table-type', () => {
-    const tableType = this.get('table-type');
-    
-    // Show/hide filter traits based on table type
-    setTimeout(() => {
-        const filterColumnTrait = this.getTrait('filter-column');
-        const filterValueTrait = this.getTrait('filter-value');
-        
-        if (filterColumnTrait && filterColumnTrait.view) {
-            const display = tableType === 'crosstab' ? 'none' : 'block';
-            filterColumnTrait.view.el.style.display = display;
-        }
-        if (filterValueTrait && filterValueTrait.view) {
-            const display = tableType === 'crosstab' ? 'none' : 'block';
-            filterValueTrait.view.el.style.display = display;
-        }
-    }, 100);
-    
-    // Clear filters when switching to crosstab
-    if (tableType === 'crosstab') {
-        this.set('filter-column', '');
-        this.set('filter-value', '');
-        this.set('custom-headers', null);
-        this.set('custom-data', null);
-    }
+                this.on('change:table-type', () => {
+                    const tableType = this.get('table-type');
 
-    // Re-process the table if json-path exists
-    const jsonPath = this.get('json-path');
-    if (jsonPath) {
-        this.updateTableFromJson();
-    }
-});
+                    // Show/hide filter traits based on table type
+                    setTimeout(() => {
+                        const filterColumnTrait = this.getTrait('filter-column');
+                        const filterValueTrait = this.getTrait('filter-value');
+
+                        if (filterColumnTrait && filterColumnTrait.view) {
+                            const display = tableType === 'crosstab' ? 'none' : 'block';
+                            filterColumnTrait.view.el.style.display = display;
+                        }
+                        if (filterValueTrait && filterValueTrait.view) {
+                            const display = tableType === 'crosstab' ? 'none' : 'block';
+                            filterValueTrait.view.el.style.display = display;
+                        }
+                    }, 100);
+
+                    // Clear filters when switching to crosstab
+                    if (tableType === 'crosstab') {
+                        this.set('filter-column', '');
+                        this.set('filter-value', '');
+                        this.set('custom-headers', null);
+                        this.set('custom-data', null);
+                    }
+
+                    // Re-process the table if json-path exists
+                    const jsonPath = this.get('json-path');
+                    if (jsonPath) {
+                        this.updateTableFromJson();
+                    }
+                });
                 this.on('change:selected-running-total-columns', () => {
                     this.updateRunningTotals();
                 });
@@ -920,82 +924,82 @@ this.on('change:table-type', () => {
                     }, 100);
                 }
             },
-loadFilteredData() {
-    const filterColumn = this.get('filter-column');
-    const filterValue = this.get('filter-value');
-    const originalHeaders = this.get('table-headers');
-    const originalData = this.get('table-data');
+            loadFilteredData() {
+                const filterColumn = this.get('filter-column');
+                const filterValue = this.get('filter-value');
+                const originalHeaders = this.get('table-headers');
+                const originalData = this.get('table-data');
 
-    if (!originalHeaders || !originalData) {
-        console.warn('Cannot load data: missing table data');
-        return;
-    }
+                if (!originalHeaders || !originalData) {
+                    console.warn('Cannot load data: missing table data');
+                    return;
+                }
 
-    // Handle "none" option - load all data without filtering
-    if (filterColumn === "none") {
-        const allData = [...originalData];
-        
-        this.set('custom-headers', { ...originalHeaders });
-        this.set('custom-data', allData);
-        this.set('show-placeholder', false);
-        
-        // Clear filter value when none is selected
-        this.set('filter-value', '');
-        const filterValueTrait = this.getTrait('filter-value');
-        if (filterValueTrait) {
-            filterValueTrait.set('value', '');
-        }
-        
-        this.updateTableHTML();
-        console.log(`Loaded all ${allData.length} rows without filtering`);
-        return;
-    }
+                // Handle "none" option - load all data without filtering
+                if (filterColumn === "none") {
+                    const allData = [...originalData];
 
-    // Regular filtering logic
-    if (!filterColumn || !filterValue || filterColumn === '') {
-        console.warn('Cannot load data: missing filter criteria');
-        return;
-    }
+                    this.set('custom-headers', { ...originalHeaders });
+                    this.set('custom-data', allData);
+                    this.set('show-placeholder', false);
 
-    let filteredData;
-    
-    if (filterValue === '=') {
-        // Load all data for this column
-        filteredData = [...originalData];
-    } else {
-        // Filter data based on column and value (case-insensitive partial match)
-        filteredData = originalData.filter(row => {
-            const cellValue = String(row[filterColumn] || '').toLowerCase();
-            const searchValue = String(filterValue).toLowerCase();
-            return cellValue.includes(searchValue);
-        });
-    }
+                    // Clear filter value when none is selected
+                    this.set('filter-value', '');
+                    const filterValueTrait = this.getTrait('filter-value');
+                    if (filterValueTrait) {
+                        filterValueTrait.set('value', '');
+                    }
 
-    // Set the filtered data as custom data
-    this.set('custom-headers', { ...originalHeaders });
-    this.set('custom-data', filteredData);
-    this.set('show-placeholder', false);
+                    this.updateTableHTML();
+                    console.log(`Loaded all ${allData.length} rows without filtering`);
+                    return;
+                }
 
-    // Preserve filter values in the traits
-    const filterColumnTrait = this.getTrait('filter-column');
-    const filterValueTrait = this.getTrait('filter-value');
+                // Regular filtering logic
+                if (!filterColumn || !filterValue || filterColumn === '') {
+                    console.warn('Cannot load data: missing filter criteria');
+                    return;
+                }
 
-    if (filterColumnTrait) {
-        filterColumnTrait.set('value', filterColumn);
-    }
-    if (filterValueTrait) {
-        filterValueTrait.set('value', filterValue);
-    }
+                let filteredData;
 
-    this.updateTableHTML();
+                if (filterValue === '=') {
+                    // Load all data for this column
+                    filteredData = [...originalData];
+                } else {
+                    // Filter data based on column and value (case-insensitive partial match)
+                    filteredData = originalData.filter(row => {
+                        const cellValue = String(row[filterColumn] || '').toLowerCase();
+                        const searchValue = String(filterValue).toLowerCase();
+                        return cellValue.includes(searchValue);
+                    });
+                }
 
-    console.log(`Loaded ${filteredData.length} rows based on filter: ${filterColumn} contains "${filterValue}"`);
+                // Set the filtered data as custom data
+                this.set('custom-headers', { ...originalHeaders });
+                this.set('custom-data', filteredData);
+                this.set('show-placeholder', false);
 
-    // Show message if no results
-    if (filteredData.length === 0) {
-        alert('No data matches the filter criteria');
-    }
-},
+                // Preserve filter values in the traits
+                const filterColumnTrait = this.getTrait('filter-column');
+                const filterValueTrait = this.getTrait('filter-value');
+
+                if (filterColumnTrait) {
+                    filterColumnTrait.set('value', filterColumn);
+                }
+                if (filterValueTrait) {
+                    filterValueTrait.set('value', filterValue);
+                }
+
+                this.updateTableHTML();
+
+                console.log(`Loaded ${filteredData.length} rows based on filter: ${filterColumn} contains "${filterValue}"`);
+
+                // Show message if no results
+                if (filteredData.length === 0) {
+                    alert('No data matches the filter criteria');
+                }
+            },
             reorderColumns(newColumnOrder) {
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const data = this.get('custom-data') || this.get('table-data') || [];
@@ -1120,20 +1124,20 @@ loadFilteredData() {
                     }
                 }
                 // Show filter traits for standard tables
-setTimeout(() => {
-    const tableType = this.get('table-type') || 'standard';
-    if (tableType === 'standard') {
-        const filterColumnTrait = this.getTrait('filter-column');
-        const filterValueTrait = this.getTrait('filter-value');
-        
-        if (filterColumnTrait && filterColumnTrait.view) {
-            filterColumnTrait.view.el.style.display = 'block';
-        }
-        if (filterValueTrait && filterValueTrait.view) {
-            filterValueTrait.view.el.style.display = 'block';
-        }
-    }
-}, 200);
+                setTimeout(() => {
+                    const tableType = this.get('table-type') || 'standard';
+                    if (tableType === 'standard') {
+                        const filterColumnTrait = this.getTrait('filter-column');
+                        const filterValueTrait = this.getTrait('filter-value');
+
+                        if (filterColumnTrait && filterColumnTrait.view) {
+                            filterColumnTrait.view.el.style.display = 'block';
+                        }
+                        if (filterValueTrait && filterValueTrait.view) {
+                            filterValueTrait.view.el.style.display = 'block';
+                        }
+                    }
+                }, 200);
             },
             updateRunningTotalColumnOptions() {
                 try {
@@ -1712,9 +1716,9 @@ setTimeout(() => {
                     });
 
                     // Add row headers with merges
-// Add row headers with merges
-const rowHeadersData = row.rowHeaders || row.headers || [];
-rowHeadersData.forEach((header, headerIdx) => {
+                    // Add row headers with merges
+                    const rowHeadersData = row.rowHeaders || row.headers || [];
+                    rowHeadersData.forEach((header, headerIdx) => {
                         if (header.skipFirst) return; // Skip if this header cell is merged from previous row
 
                         const attributes = {
@@ -2339,13 +2343,8 @@ rowHeadersData.forEach((header, headerIdx) => {
             fixedColumns: ${colCount > 5},
             searching: ${search === 'yes'},
             buttons: ${downloadBtn},
-            ordering: true,
-            order: [], // No default sorting
-            columnDefs: [
-                {
-                    targets: '_all',
-                    orderable: true
-                }
+            ordering: false,
+            order: [], 
             ],
             drawCallback: function() {
                 // Restore formula data after DataTable draw
@@ -2388,16 +2387,6 @@ rowHeadersData.forEach((header, headerIdx) => {
                 }
             } : false
         };
-        
-        const dt = $(tableElement).DataTable(dtOptions);
-        
-        // Add custom sorting arrows after DataTable initialization
-        setTimeout(() => {
-            const event = new CustomEvent('datatableInitialized', {
-                detail: { tableId: '${tableId}', dataTable: dt }
-            });
-            document.dispatchEvent(event);
-        }, 200);
     }
     
     initTable();
@@ -2425,13 +2414,6 @@ rowHeadersData.forEach((header, headerIdx) => {
                         setTimeout(() => {
                             this.reattachAllCellHandlers(tableId);
                         }, 150);
-                    }
-                });
-
-                // Listen for original order reset
-                document.addEventListener('resetToOriginalOrder', (e) => {
-                    if (e.detail.tableId === tableId) {
-                        this.resetToOriginalOrder();
                     }
                 });
 
@@ -2862,42 +2844,22 @@ rowHeadersData.forEach((header, headerIdx) => {
                 const filterValue = this.get('filter-value');
                 const tableType = this.get('table-type') || 'standard';
 
-                let placeholderMessage = 'Add JSON path from the properties panel to display table data';
-                let placeholderIcon = '📊';
-
-                if (tableType === 'crosstab') {
-                    placeholderMessage = 'Select JSON path with crosstab data structure to render pivot table';
-                    placeholderIcon = '📊';
-                } else if (tableHeaders && Object.keys(tableHeaders).length > 0) {
-                    if (!filterColumn || filterColumn === '') {
-                        placeholderMessage = 'Select a column from "Filter Column" dropdown or choose "None" to load all data<br><small style="color: #666;">Headers are loaded and ready for filtering</small>';
-                        placeholderIcon = '🎯';
-                    } else if (filterColumn !== 'none' && (!filterValue || filterValue === '')) {
-                        placeholderMessage = 'Enter a filter value to load data<br><small style="color: #666;">Enter "=" to load all data for this column</small>';
-                        placeholderIcon = '✏️';
-                    }
-                }
-
                 this.components().add({
                     type: 'default',
                     tagName: 'json-table',
                     selectable: false,
                     classes: ['json-table-placeholder'],
                     content: `
-            <div style="font-size: 48px; margin-bottom: 20px; color: #007bff;">${placeholderIcon}</div>
-            <h3 style="margin: 0 0 10px 0; color: #495057;">JSON Table Data</h3>
-            <p style="margin: 0; font-size: 14px;">${placeholderMessage}</p>
+            <h3 style="margin: 0 0 10px 0; color: #495057;">JSON Table</h3>
         `,
                     style: {
                         'width': '100%',
-                        'min-height': '200px',
-                        'border': '2px dashed #007bff',
-                        'border-radius': '8px',
+                        'min-height': '70px',
+                        'padding': '15px',
                         'display': 'flex',
                         'flex-direction': 'column',
                         'align-items': 'center',
                         'justify-content': 'center',
-                        'background-color': '#f8f9fa',
                         'color': '#6c757d',
                         'text-align': 'center',
                         'font-family': 'Arial, sans-serif',
@@ -3262,6 +3224,8 @@ rowHeadersData.forEach((header, headerIdx) => {
 }
 td[data-highlighted="true"], th[data-highlighted="true"] {
     position: relative;
+    box-sizing: border-box !important;
+    border: 1px solid #000 !important;
     -webkit-print-color-adjust: exact !important;
     color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -3288,22 +3252,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     color: #1976d2 !important;
     font-family: 'Courier New', monospace !important;
 }
-    @media print {
-  table.json-data-table {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-    width: 100% !important;
-
-  }
-
-  table.json-data-table th,
-  table.json-data-table td {
-    border: 1px solid #000 !important;
-    padding: 6px !important;
-    background: #fff !important;
-    color: #000 !important;
-    text-align: left !important;
-  }
 }
 
         `
@@ -3680,10 +3628,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
             const modalContent = `
 <div class="column-reorder-manager" style="padding: 20px; max-width: 500px;">
-    <h3 style="margin-top: 0; margin-bottom: 20px;">Reorder Table Columns</h3>
-    <p style="font-size: 14px; margin-bottom: 15px;">
-        Drag and drop to reorder columns. The first column will appear leftmost in the table.
-    </p>
     
     <div id="column-list" style="border: 1px solid #ddd; border-radius: 5px; ">
         ${columnKeys.map((key, index) => `
@@ -3692,7 +3636,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 padding: 12px 15px; 
                 border-radius: 3px; 
                 cursor: move; 
-                border-left: 4px solid #007bff;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -3722,23 +3665,16 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 </div>
 
 <style>
-.column-item:hover {
-    box-shadow: 0 2px 8px rgba(0,123,255,0.2);
-    transform: translateY(-1px);
-}
 
 .column-item.dragging {
     opacity: 0.5;
     transform: rotate(5deg);
 }
 
-.column-item.drag-over {
-    border-top: 3px solid #28a745;
-}
 </style>`;
 
             const modal = editor.Modal;
-            modal.setTitle('Column Reorder Manager');
+            modal.setTitle('Reorder Table Columns');
             modal.setContent(modalContent);
             modal.open();
 
@@ -3778,8 +3714,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
             const modalContent = `
 <div class="running-total-manager" style="padding: 20px; max-width: 500px;">
-    <h3 style="margin-top: 0; margin-bottom: 20px;">Configure Running Total Columns</h3>
-    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Only columns containing numeric data are shown below:</p>
     
     <div class="column-checkboxes" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
         ${Object.entries(numericHeaders).map(([key, name]) => `
@@ -3800,7 +3734,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 </div>`;
 
             const modal = editor.Modal;
-            modal.setTitle('Running Total Configuration');
+            modal.setTitle('Running Total');
             modal.setContent(modalContent);
             modal.open();
 
@@ -4032,12 +3966,9 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             const columnList = document.getElementById('column-list');
             columnList.innerHTML = originalOrder.map(key => `
             <div class="column-item" data-key="${key}" draggable="true" style="
-                background: white; 
                 margin: 2px; 
                 padding: 12px 15px; 
-                border-radius: 3px; 
                 cursor: move; 
-                border-left: 4px solid #007bff;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;

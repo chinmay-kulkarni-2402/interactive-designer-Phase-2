@@ -325,7 +325,7 @@ editor.BlockManager.add('drawing-canvas-block', {
         </svg>
         Drawing Canvas
     `,
-    category: 'Basic',
+    category: 'Drawing Tools',
     content: {
         type: 'drawing-canvas'
     }

@@ -42,12 +42,12 @@ function addFormattedRichTextComponent(editor) {
       icon: '💰'
     },
 
-    percentage: {
-      label: 'Percentage',
-      patterns: ['0%', '0.0%', '0.00%'],
-      defaultPattern: '0.00%',
-      icon: '📊'
-    },
+    // percentage: {
+    //   label: 'Percentage',
+    //   patterns: ['0%', '0.0%', '0.00%'],
+    //   defaultPattern: '0.00%',
+    //   icon: '📊'
+    // },
     date: {
       label: 'Date',
       patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY'],
@@ -644,44 +644,44 @@ function addFormattedRichTextComponent(editor) {
         return rte.exec("strikeThrough");
       }
     },
-    {
-      name: "link",
-      icon: `<svg viewBox="0 0 24 24" style="width:14px;height:14px;">
-        <path fill="currentColor" d="M3.9,12C3.9,10.29 5.29,8.9 7,8.9H11V7H7A5,5 0 0,0 2,12A5,5 0 0,0 7,17H11V15.1H7C5.29,15.1 3.9,13.71 3.9,12M8,13H16V11H8V13M17,7H13V8.9H17C18.71,8.9 20.1,10.29 20.1,12C20.1,13.71 18.71,15.1 17,15.1H13V17H17A5,5 0 0,0 22,12A5,5 0 0,0 17,7Z" />
-      </svg>`,
-      attributes: {
-        style: "font-size:1.4rem;padding:0 4px 2px;",
-        title: "Link"
-      },
-      state: function (rte) {
-        const selection = rte && rte.selection();
-        if (!selection) return 0;
-        const anchorNode = selection.anchorNode;
-        const focusNode = selection.focusNode;
-        const anchorParent = anchorNode?.parentNode;
-        const focusParent = focusNode?.parentNode;
-        return (anchorParent?.nodeName === 'A' || focusParent?.nodeName === 'A') ? 1 : 0;
-      },
-      result: function (rte) {
-        const selection = rte.selection();
-        if (!selection) return;
+    // {
+    //   name: "link",
+    //   icon: `<svg viewBox="0 0 24 24" style="width:14px;height:14px;">
+    //     <path fill="currentColor" d="M3.9,12C3.9,10.29 5.29,8.9 7,8.9H11V7H7A5,5 0 0,0 2,12A5,5 0 0,0 7,17H11V15.1H7C5.29,15.1 3.9,13.71 3.9,12M8,13H16V11H8V13M17,7H13V8.9H17C18.71,8.9 20.1,10.29 20.1,12C20.1,13.71 18.71,15.1 17,15.1H13V17H17A5,5 0 0,0 22,12A5,5 0 0,0 17,7Z" />
+    //   </svg>`,
+    //   attributes: {
+    //     style: "font-size:1.4rem;padding:0 4px 2px;",
+    //     title: "Link"
+    //   },
+    //   state: function (rte) {
+    //     const selection = rte && rte.selection();
+    //     if (!selection) return 0;
+    //     const anchorNode = selection.anchorNode;
+    //     const focusNode = selection.focusNode;
+    //     const anchorParent = anchorNode?.parentNode;
+    //     const focusParent = focusNode?.parentNode;
+    //     return (anchorParent?.nodeName === 'A' || focusParent?.nodeName === 'A') ? 1 : 0;
+    //   },
+    //   result: function (rte) {
+    //     const selection = rte.selection();
+    //     if (!selection) return;
 
-        const anchorNode = selection.anchorNode;
-        const focusNode = selection.focusNode;
-        const anchorParent = anchorNode?.parentNode;
-        const focusParent = focusNode?.parentNode;
-        const hasLink = anchorParent?.nodeName === 'A' || focusParent?.nodeName === 'A';
+    //     const anchorNode = selection.anchorNode;
+    //     const focusNode = selection.focusNode;
+    //     const anchorParent = anchorNode?.parentNode;
+    //     const focusParent = focusNode?.parentNode;
+    //     const hasLink = anchorParent?.nodeName === 'A' || focusParent?.nodeName === 'A';
 
-        if (hasLink) {
-          rte.exec("unlink");
-        } else {
-          const selectedText = selection.toString();
-          if (selectedText) {
-            rte.insertHTML(`<a href="" data-selectme>${selectedText}</a>`, { select: true });
-          }
-        }
-      }
-    }
+    //     if (hasLink) {
+    //       rte.exec("unlink");
+    //     } else {
+    //       const selectedText = selection.toString();
+    //       if (selectedText) {
+    //         rte.insertHTML(`<a href="" data-selectme>${selectedText}</a>`, { select: true });
+    //       }
+    //     }
+    //   }
+    // }
   ];
 
   function initializeConditionManager(component, initialConditions) {
@@ -904,12 +904,6 @@ function addFormattedRichTextComponent(editor) {
             text: 'Add/Edit Conditions',
             full: true,
             command: 'open-condition-manager',
-            changeProp: 1
-          },
-          {
-            type: 'color',
-            name: 'highlight-color',
-            label: 'Highlight Color',
             changeProp: 1
           },
         ],

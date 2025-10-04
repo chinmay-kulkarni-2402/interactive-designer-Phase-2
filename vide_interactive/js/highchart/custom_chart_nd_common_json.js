@@ -2752,629 +2752,629 @@ function customChartCommonJson(editor) {
     }
 
 
-    function customTable2(editor) {
-        const props_test_table = (i) => i;
-        const id_Trait = {
-            name: "id",
-            label: "Id",
-        };
+    // function customTable2(editor) {
+    //     const props_test_table = (i) => i;
+    //     const id_Trait = {
+    //         name: "id",
+    //         label: "Id",
+    //     };
 
-        const title_Trait = {
-            name: "title",
-            label: "Title",
-        };
+    //     const title_Trait = {
+    //         name: "title",
+    //         label: "Title",
+    //     };
 
-        const test_chart_Props = {
-            name: "Table",
-            jsonpath: "",
-            pageLength: 5,
-            FileDownload: `["copy", "csv", "excel", "pdf", "print","msword"]`,
-            filterColumn: "",
-            filterValue: "",
-        };
+    //     const test_chart_Props = {
+    //         name: "Table",
+    //         jsonpath: "",
+    //         pageLength: 5,
+    //         FileDownload: `["copy", "csv", "excel", "pdf", "print","msword"]`,
+    //         filterColumn: "",
+    //         filterValue: "",
+    //     };
 
-        const name_Trait = {
-            changeProp: 1,
-            type: "text",
-            name: "name",
-            label: "name",
-            placeholder: "Chart Name",
-        };
+    //     const name_Trait = {
+    //         changeProp: 1,
+    //         type: "text",
+    //         name: "name",
+    //         label: "name",
+    //         placeholder: "Chart Name",
+    //     };
 
-        const Footer_Trait = ["Footer"].map((name) => ({
-            changeProp: 1,
-            type: "select",
-            options: [
-                { value: true, label: 'Yes' },
-                { value: false, label: 'No' },
-            ],
-            name,
-        }));
+    //     const Footer_Trait = ["Footer"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "select",
+    //         options: [
+    //             { value: true, label: 'Yes' },
+    //             { value: false, label: 'No' },
+    //         ],
+    //         name,
+    //     }));
 
-        const File_Download_Trait = ["FileDownload"].map((name) => ({
-            changeProp: 1,
-            type: "text",
-            label: "File Download",
-            default: `["copy", "csv", "excel", "pdf", "print"]`,
-            name,
-        }));
+    //     const File_Download_Trait = ["FileDownload"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "text",
+    //         label: "File Download",
+    //         default: `["copy", "csv", "excel", "pdf", "print"]`,
+    //         name,
+    //     }));
 
-        const Pagination_Trait = ["Pagination"].map((name) => ({
-            changeProp: 1,
-            type: "select",
-            label: "Pagination",
-            options: [
-                { value: true, label: 'Yes' },
-                { value: false, label: 'No' },
-            ],
-            name,
-        }));
+    //     const Pagination_Trait = ["Pagination"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "select",
+    //         label: "Pagination",
+    //         options: [
+    //             { value: true, label: 'Yes' },
+    //             { value: false, label: 'No' },
+    //         ],
+    //         name,
+    //     }));
 
-        const PageLength_Trait = ["pageLength"].map((name) => ({
-            changeProp: 1,
-            type: "number",
-            label: "Page Length",
-            name,
-            default: 5,
-            placeholder: "Enter page length"
-        }));
+    //     const PageLength_Trait = ["pageLength"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "number",
+    //         label: "Page Length",
+    //         name,
+    //         default: 5,
+    //         placeholder: "Enter page length"
+    //     }));
 
-        const Search_Trait = ["Search"].map((name) => ({
-            changeProp: 1,
-            type: "select",
-            options: [
-                { value: true, label: 'Yes' },
-                { value: false, label: 'No' },
-            ],
-            name,
-        }));
+    //     const Search_Trait = ["Search"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "select",
+    //         options: [
+    //             { value: true, label: 'Yes' },
+    //             { value: false, label: 'No' },
+    //         ],
+    //         name,
+    //     }));
 
-        const Caption_Trait = ["Caption"].map((name) => ({
-            changeProp: 1,
-            type: "select",
-            options: [
-                { value: true, label: 'Yes' },
-                { value: false, label: 'No' },
-            ],
-            name,
-        }));
+    //     const Caption_Trait = ["Caption"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "select",
+    //         options: [
+    //             { value: true, label: 'Yes' },
+    //             { value: false, label: 'No' },
+    //         ],
+    //         name,
+    //     }));
 
 
-        const CaptionAlign_Trait = ["CaptionAlign"].map((name) => ({
-            changeProp: 1,
-            type: "select",
-            label: "Caption Align",
-            options: [
-                { value: 'left', label: 'Left' },
-                { value: 'right', label: 'Right' },
-                { value: 'center', label: 'Center' },
-            ],
-            name,
-        }));
+    //     const CaptionAlign_Trait = ["CaptionAlign"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "select",
+    //         label: "Caption Align",
+    //         options: [
+    //             { value: 'left', label: 'Left' },
+    //             { value: 'right', label: 'Right' },
+    //             { value: 'center', label: 'Center' },
+    //         ],
+    //         name,
+    //     }));
 
-        const json_path_Trait = ["jsonpath"].map((name) => ({
-            changeProp: 1,
-            type: "text",
-            label: "Json Path",
-            placeholder: "Enter Json Path",
-            name,
-        }));
+    //     const json_path_Trait = ["jsonpath"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "text",
+    //         label: "Json Path",
+    //         placeholder: "Enter Json Path",
+    //         name,
+    //     }));
 
-        const json_button_sugesstionTrait = ["jsonButtonSugesstionTrait"].map((name) => ({
-            changeProp: 1,
-            type: "button",
-            label: "Json Suggestion",
-            placeholder: "Json Suggestion",
-            name,
-            id: "json-suggestion-btn",
-            text: "Suggestion",
-            class: "json-suggestion-btn",
-        }));
+    //     const json_button_sugesstionTrait = ["jsonButtonSugesstionTrait"].map((name) => ({
+    //         changeProp: 1,
+    //         type: "button",
+    //         label: "Json Suggestion",
+    //         placeholder: "Json Suggestion",
+    //         name,
+    //         id: "json-suggestion-btn",
+    //         text: "Suggestion",
+    //         class: "json-suggestion-btn",
+    //     }));
 
-        const filter_column_trait = {
-            changeProp: 1,
-            type: "select",
-            name: "filterColumn",
-            label: "Filter Column",
-            options: [{ value: "", label: "First enter JSON path" }],
-        };
+    //     const filter_column_trait = {
+    //         changeProp: 1,
+    //         type: "select",
+    //         name: "filterColumn",
+    //         label: "Filter Column",
+    //         options: [{ value: "", label: "First enter JSON path" }],
+    //     };
 
-        const filter_value_trait = {
-            changeProp: 1,
-            type: "text",
-            name: "filterValue",
-            label: "Filter Value",
-            placeholder: "Enter filter value or '=' for all data",
-        };
+    //     const filter_value_trait = {
+    //         changeProp: 1,
+    //         type: "text",
+    //         name: "filterValue",
+    //         label: "Filter Value",
+    //         placeholder: "Enter filter value or '=' for all data",
+    //     };
 
-        const all_Traits = [
-            name_Trait,
-            ...Footer_Trait,
-            ...File_Download_Trait,
-            ...Pagination_Trait,
-            ...PageLength_Trait,
-            ...Search_Trait,
-            ...Caption_Trait,
-            ...CaptionAlign_Trait,
-            ...json_path_Trait,
-            ...json_button_sugesstionTrait,
-            filter_column_trait,
-            filter_value_trait
-        ];
+    //     const all_Traits = [
+    //         name_Trait,
+    //         ...Footer_Trait,
+    //         ...File_Download_Trait,
+    //         ...Pagination_Trait,
+    //         ...PageLength_Trait,
+    //         ...Search_Trait,
+    //         ...Caption_Trait,
+    //         ...CaptionAlign_Trait,
+    //         ...json_path_Trait,
+    //         ...json_button_sugesstionTrait,
+    //         filter_column_trait,
+    //         filter_value_trait
+    //     ];
 
-        let jsonData = [];
-        let common_json = JSON.parse(localStorage.getItem("common_json"));
-        if (common_json !== null) {
-            jsonData.length = 0;
-            jsonData.push(common_json);
-            jsonData = JSON.stringify(jsonData);
-        }
+    //     let jsonData = [];
+    //     let common_json = JSON.parse(localStorage.getItem("common_json"));
+    //     if (common_json !== null) {
+    //         jsonData.length = 0;
+    //         jsonData.push(common_json);
+    //         jsonData = JSON.stringify(jsonData);
+    //     }
 
-        editor.Components.addType("custom_table", {
-            model: {
-                defaults: props_test_table({
-                    ...test_chart_Props,
-                    tagName: "div",
-                    resizable: 1,
-                    droppable: 0,
-                    attributes: { 'data-i_designer-type': 'custom_table' },
-                    custom_line_chartsrc: "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
-                    stylable: 1,
-                    traits: [id_Trait, title_Trait, ...all_Traits],
-                    style: {
-                        padding: "10px 0px",
-                        minHeight: "50px",
-                    },
-                    script: function () {
-                        if (this.tableInitialized) return;
-                        this.tableInitialized = true;
+    //     editor.Components.addType("custom_table", {
+    //         model: {
+    //             defaults: props_test_table({
+    //                 ...test_chart_Props,
+    //                 tagName: "div",
+    //                 resizable: 1,
+    //                 droppable: 0,
+    //                 attributes: { 'data-i_designer-type': 'custom_table' },
+    //                 custom_line_chartsrc: "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+    //                 stylable: 1,
+    //                 traits: [id_Trait, title_Trait, ...all_Traits],
+    //                 style: {
+    //                     padding: "10px 0px",
+    //                     minHeight: "50px",
+    //                 },
+    //                 script: function () {
+    //                     if (this.tableInitialized) return;
+    //                     this.tableInitialized = true;
 
-                        const init1 = () => {
-                            const ctx = this.id;
-                            let uniqueID = Math.floor(100 + Math.random() * 900);
-                            const divElement = document.getElementById(ctx);
-                            let JsonPath1 = "{[ jsonpath ]}";
-                            let filterColumn = "{[ filterColumn ]}";
-                            let filterValue = "{[ filterValue ]}";
+    //                     const init1 = () => {
+    //                         const ctx = this.id;
+    //                         let uniqueID = Math.floor(100 + Math.random() * 900);
+    //                         const divElement = document.getElementById(ctx);
+    //                         let JsonPath1 = "{[ jsonpath ]}";
+    //                         let filterColumn = "{[ filterColumn ]}";
+    //                         let filterValue = "{[ filterValue ]}";
 
-                            divElement.innerHTML = "";
+    //                         divElement.innerHTML = "";
 
-                            if (!JsonPath1 || JsonPath1.trim() === "") {
-                                return;
-                            }
+    //                         if (!JsonPath1 || JsonPath1.trim() === "") {
+    //                             return;
+    //                         }
 
-                            if (!filterValue || filterValue.trim() === "") {
-                                return;
-                            }
+    //                         if (!filterValue || filterValue.trim() === "") {
+    //                             return;
+    //                         }
 
-                            let custom_language = localStorage.getItem('language') || 'english';
-                            const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+    //                         let custom_language = localStorage.getItem('language') || 'english';
+    //                         const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
 
-                            if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][JsonPath1]) {
-                                divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid JSON path or data not found</div>`;
-                                return;
-                            }
+    //                         if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][JsonPath1]) {
+    //                             divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid JSON path or data not found</div>`;
+    //                             return;
+    //                         }
 
-                            const str = jsonDataN[custom_language][JsonPath1];
-                            const tableData = eval(str);
+    //                         const str = jsonDataN[custom_language][JsonPath1];
+    //                         const tableData = eval(str);
 
-                            if (!tableData || !tableData.heading || !tableData.data) {
-                                divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid table data structure</div>`;
-                                return;
-                            }
+    //                         if (!tableData || !tableData.heading || !tableData.data) {
+    //                             divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid table data structure</div>`;
+    //                             return;
+    //                         }
 
-                            const objectKeys = Object.keys(tableData.heading);
+    //                         const objectKeys = Object.keys(tableData.heading);
 
-                            let filteredData = tableData.data;
-                            if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
-                                if (filterValue === "=") {
-                                    filteredData = tableData.data;
-                                } else {
-                                    filteredData = tableData.data.filter(row => {
-                                        const cellValue = String(row[filterColumn] || "").toLowerCase();
-                                        const searchValue = String(filterValue).toLowerCase();
-                                        return cellValue.includes(searchValue);
-                                    });
-                                }
-                            }
+    //                         let filteredData = tableData.data;
+    //                         if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
+    //                             if (filterValue === "=") {
+    //                                 filteredData = tableData.data;
+    //                             } else {
+    //                                 filteredData = tableData.data.filter(row => {
+    //                                     const cellValue = String(row[filterColumn] || "").toLowerCase();
+    //                                     const searchValue = String(filterValue).toLowerCase();
+    //                                     return cellValue.includes(searchValue);
+    //                                 });
+    //                             }
+    //                         }
 
-                            const table = document.createElement('table');
-                            table.setAttribute('width', '100%');
-                            table.style.borderCollapse = "collapse";
-                            table.style.border = "1px solid #000";
-                            table.setAttribute('id', 'table' + ctx);
+    //                         const table = document.createElement('table');
+    //                         table.setAttribute('width', '100%');
+    //                         table.style.borderCollapse = "collapse";
+    //                         table.style.border = "1px solid #000";
+    //                         table.setAttribute('id', 'table' + ctx);
 
-                            const thead = document.createElement('thead');
-                            const headerRow = document.createElement('tr');
+    //                         const thead = document.createElement('thead');
+    //                         const headerRow = document.createElement('tr');
 
-                            objectKeys.forEach((key, i) => {
-                                const th = document.createElement('th');
-                                th.setAttribute("class", "col" + ctx + i);
-                                th.style.padding = "8px";
-                                th.style.textAlign = "left";
-                                th.style.border = "1px solid #000";
-                                th.style.fontWeight = "bold";
+    //                         objectKeys.forEach((key, i) => {
+    //                             const th = document.createElement('th');
+    //                             th.setAttribute("class", "col" + ctx + i);
+    //                             th.style.padding = "8px";
+    //                             th.style.textAlign = "left";
+    //                             th.style.border = "1px solid #000";
+    //                             th.style.fontWeight = "bold";
 
-                                const labelDiv = document.createElement('div');
-                                labelDiv.textContent = tableData.heading[key];
+    //                             const labelDiv = document.createElement('div');
+    //                             labelDiv.textContent = tableData.heading[key];
 
-                                th.appendChild(labelDiv);
-                                headerRow.appendChild(th);
-                            });
+    //                             th.appendChild(labelDiv);
+    //                             headerRow.appendChild(th);
+    //                         });
 
-                            thead.appendChild(headerRow);
-                            table.appendChild(thead);
+    //                         thead.appendChild(headerRow);
+    //                         table.appendChild(thead);
 
-                            const tbody = document.createElement('tbody');
-                            tbody.setAttribute("id", "tbody" + ctx);
+    //                         const tbody = document.createElement('tbody');
+    //                         tbody.setAttribute("id", "tbody" + ctx);
 
-                            if (filteredData.length === 0) {
-                                const noDataRow = document.createElement('tr');
-                                const noDataCell = document.createElement('td');
-                                noDataCell.setAttribute('colspan', objectKeys.length);
-                                noDataCell.textContent = 'No data found';
-                                noDataCell.style.textAlign = 'center';
-                                noDataCell.style.padding = '20px';
-                                noDataCell.style.border = "1px solid #000";
-                                noDataRow.appendChild(noDataCell);
-                                tbody.appendChild(noDataRow);
-                            } else {
-                                filteredData.forEach((row, rowIndex) => {
-                                    const tr = document.createElement('tr');
+    //                         if (filteredData.length === 0) {
+    //                             const noDataRow = document.createElement('tr');
+    //                             const noDataCell = document.createElement('td');
+    //                             noDataCell.setAttribute('colspan', objectKeys.length);
+    //                             noDataCell.textContent = 'No data found';
+    //                             noDataCell.style.textAlign = 'center';
+    //                             noDataCell.style.padding = '20px';
+    //                             noDataCell.style.border = "1px solid #000";
+    //                             noDataRow.appendChild(noDataCell);
+    //                             tbody.appendChild(noDataRow);
+    //                         } else {
+    //                             filteredData.forEach((row, rowIndex) => {
+    //                                 const tr = document.createElement('tr');
 
-                                    objectKeys.forEach((key, j) => {
-                                        const td = document.createElement('td');
-                                        td.className = `col${uniqueID}`;
-                                        td.setAttribute("class", "col" + ctx + j);
-                                        td.style.padding = "8px";
-                                        td.style.textAlign = "left";
-                                        td.style.border = "1px solid #000";
+    //                                 objectKeys.forEach((key, j) => {
+    //                                     const td = document.createElement('td');
+    //                                     td.className = `col${uniqueID}`;
+    //                                     td.setAttribute("class", "col" + ctx + j);
+    //                                     td.style.padding = "8px";
+    //                                     td.style.textAlign = "left";
+    //                                     td.style.border = "1px solid #000";
 
-                                        const rawVal = row[key];
-                                        let displayVal = rawVal;
+    //                                     const rawVal = row[key];
+    //                                     let displayVal = rawVal;
 
-                                        const colLetter = String.fromCharCode(65 + j);
-                                        const cellRef = colLetter + (rowIndex + 1);
+    //                                     const colLetter = String.fromCharCode(65 + j);
+    //                                     const cellRef = colLetter + (rowIndex + 1);
 
-                                        if (!window.globalFormulaParser) {
-                                            window.globalFormulaParser = new formulaParser.Parser();
-                                        }
-                                        const parser = window.globalFormulaParser;
+    //                                     if (!window.globalFormulaParser) {
+    //                                         window.globalFormulaParser = new formulaParser.Parser();
+    //                                     }
+    //                                     const parser = window.globalFormulaParser;
 
-                                        if (!window.globalCellMap) {
-                                            window.globalCellMap = {};
-                                        }
-                                        const cellMap = window.globalCellMap;
+    //                                     if (!window.globalCellMap) {
+    //                                         window.globalCellMap = {};
+    //                                     }
+    //                                     const cellMap = window.globalCellMap;
 
-                                        parser.on('callCellValue', function (cellCoord, done) {
-                                            const label = cellCoord.label;
-                                            done(cellMap[label] || 0);
-                                        });
+    //                                     parser.on('callCellValue', function (cellCoord, done) {
+    //                                         const label = cellCoord.label;
+    //                                         done(cellMap[label] || 0);
+    //                                     });
 
-                                        if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
-                                            const res = parser.parse(rawVal.trim().substring(1));
-                                            displayVal = res.error ? '#ERR' : res.result;
-                                        }
-                                        cellMap[cellRef] = isNaN(displayVal) ? 0 : displayVal;
+    //                                     if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
+    //                                         const res = parser.parse(rawVal.trim().substring(1));
+    //                                         displayVal = res.error ? '#ERR' : res.result;
+    //                                     }
+    //                                     cellMap[cellRef] = isNaN(displayVal) ? 0 : displayVal;
 
-                                        const displaySpan = document.createElement('span');
-                                        displaySpan.className = 'cell-display';
-                                        displaySpan.textContent = displayVal || '';
-                                        displaySpan.style.display = 'block';
+    //                                     const displaySpan = document.createElement('span');
+    //                                     displaySpan.className = 'cell-display';
+    //                                     displaySpan.textContent = displayVal || '';
+    //                                     displaySpan.style.display = 'block';
 
-                                        const editInput = document.createElement('input');
-                                        editInput.type = 'text';
-                                        editInput.className = 'cell-input';
-                                        editInput.value = rawVal || '';
-                                        editInput.style.display = 'none';
-                                        editInput.style.width = '100%';
-                                        editInput.style.border = 'none';
-                                        editInput.style.outline = 'none';
-                                        editInput.style.background = 'transparent';
-                                        editInput.style.font = 'inherit';
+    //                                     const editInput = document.createElement('input');
+    //                                     editInput.type = 'text';
+    //                                     editInput.className = 'cell-input';
+    //                                     editInput.value = rawVal || '';
+    //                                     editInput.style.display = 'none';
+    //                                     editInput.style.width = '100%';
+    //                                     editInput.style.border = 'none';
+    //                                     editInput.style.outline = 'none';
+    //                                     editInput.style.background = 'transparent';
+    //                                     editInput.style.font = 'inherit';
 
-                                        td.appendChild(displaySpan);
-                                        td.appendChild(editInput);
+    //                                     td.appendChild(displaySpan);
+    //                                     td.appendChild(editInput);
 
-                                        td.setAttribute("data-formula", rawVal);
-                                        td.setAttribute("data-cell-ref", cellRef);
-                                        td.setAttribute("data-display-value", displayVal || '');
+    //                                     td.setAttribute("data-formula", rawVal);
+    //                                     td.setAttribute("data-cell-ref", cellRef);
+    //                                     td.setAttribute("data-display-value", displayVal || '');
 
-                                        td.addEventListener("click", function () {
-                                            if (td.isEditing) return;
+    //                                     td.addEventListener("click", function () {
+    //                                         if (td.isEditing) return;
 
-                                            td.isEditing = true;
-                                            displaySpan.style.display = 'none';
-                                            editInput.style.display = 'block';
-                                            editInput.focus();
-                                            editInput.select();
+    //                                         td.isEditing = true;
+    //                                         displaySpan.style.display = 'none';
+    //                                         editInput.style.display = 'block';
+    //                                         editInput.focus();
+    //                                         editInput.select();
 
-                                            const finishEdit = () => {
-                                                const userInput = editInput.value.trim();
-                                                let newVal = userInput;
+    //                                         const finishEdit = () => {
+    //                                             const userInput = editInput.value.trim();
+    //                                             let newVal = userInput;
 
-                                                if (userInput.startsWith('=')) {
-                                                    const result = parser.parse(userInput.substring(1));
-                                                    newVal = result.error ? "#ERR" : result.result;
-                                                }
+    //                                             if (userInput.startsWith('=')) {
+    //                                                 const result = parser.parse(userInput.substring(1));
+    //                                                 newVal = result.error ? "#ERR" : result.result;
+    //                                             }
 
-                                                cellMap[cellRef] = isNaN(newVal) ? 0 : newVal;
-                                                td.setAttribute("data-formula", userInput);
-                                                td.setAttribute("data-display-value", newVal || '');
-                                                displaySpan.textContent = newVal || '';
+    //                                             cellMap[cellRef] = isNaN(newVal) ? 0 : newVal;
+    //                                             td.setAttribute("data-formula", userInput);
+    //                                             td.setAttribute("data-display-value", newVal || '');
+    //                                             displaySpan.textContent = newVal || '';
 
-                                                editInput.style.display = 'none';
-                                                displaySpan.style.display = 'block';
-                                                td.isEditing = false;
-                                            };
+    //                                             editInput.style.display = 'none';
+    //                                             displaySpan.style.display = 'block';
+    //                                             td.isEditing = false;
+    //                                         };
 
-                                            editInput.addEventListener("blur", finishEdit);
-                                            editInput.addEventListener("keypress", function (e) {
-                                                if (e.key === 'Enter') {
-                                                    finishEdit();
-                                                }
-                                            });
-                                        });
-                                        tr.appendChild(td);
-                                    });
-                                    tbody.appendChild(tr);
-                                });
-                            }
+    //                                         editInput.addEventListener("blur", finishEdit);
+    //                                         editInput.addEventListener("keypress", function (e) {
+    //                                             if (e.key === 'Enter') {
+    //                                                 finishEdit();
+    //                                             }
+    //                                         });
+    //                                     });
+    //                                     tr.appendChild(td);
+    //                                 });
+    //                                 tbody.appendChild(tr);
+    //                             });
+    //                         }
 
-                            table.appendChild(tbody);
-                            divElement.appendChild(table);
+    //                         table.appendChild(tbody);
+    //                         divElement.appendChild(table);
 
-                            const printStyles = document.createElement('style');
-                            printStyles.textContent = `
-      @media print {
-        #${ctx} table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-          page-break-inside: auto !important;
-          font-size: 11px !important;
-          margin: 0 !important;
-        }
+    //                         const printStyles = document.createElement('style');
+    //                         printStyles.textContent = `
+    //   @media print {
+    //     #${ctx} table {
+    //       width: 100% !important;
+    //       border-collapse: collapse !important;
+    //       page-break-inside: auto !important;
+    //       font-size: 11px !important;
+    //       margin: 0 !important;
+    //     }
         
-        #${ctx} table th,
-        #${ctx} table td {
-          padding: 6px 8px !important;
-          border: 1px solid #000 !important;
-          word-wrap: break-word !important;
-          page-break-inside: avoid !important;
-          vertical-align: top !important;
-          position: relative !important;
-        }
+    //     #${ctx} table th,
+    //     #${ctx} table td {
+    //       padding: 6px 8px !important;
+    //       border: 1px solid #000 !important;
+    //       word-wrap: break-word !important;
+    //       page-break-inside: avoid !important;
+    //       vertical-align: top !important;
+    //       position: relative !important;
+    //     }
         
-        #${ctx} table th {
-          font-weight: bold !important;
-          background-color: #e0e0e0 !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
+    //     #${ctx} table th {
+    //       font-weight: bold !important;
+    //       background-color: #e0e0e0 !important;
+    //       -webkit-print-color-adjust: exact !important;
+    //       print-color-adjust: exact !important;
+    //     }
         
-        #${ctx} table td {
-          background-color: #fff !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
+    //     #${ctx} table td {
+    //       background-color: #fff !important;
+    //       -webkit-print-color-adjust: exact !important;
+    //       print-color-adjust: exact !important;
+    //     }
         
-        /* Hide input elements completely in print */
-        #${ctx} .cell-input {
-          display: none !important;
-          visibility: hidden !important;
-        }
+    //     /* Hide input elements completely in print */
+    //     #${ctx} .cell-input {
+    //       display: none !important;
+    //       visibility: hidden !important;
+    //     }
         
-        /* Ensure display spans are visible and contain the actual data */
-        #${ctx} .cell-display {
-          display: block !important;
-          visibility: visible !important;
-          width: 100% !important;
-          color: #000 !important;
-        }
+    //     /* Ensure display spans are visible and contain the actual data */
+    //     #${ctx} .cell-display {
+    //       display: block !important;
+    //       visibility: visible !important;
+    //       width: 100% !important;
+    //       color: #000 !important;
+    //     }
         
-        /* Fallback: Use data attributes if spans fail */
-        #${ctx} td::after {
-          content: attr(data-display-value) !important;
-          display: block !important;
-          position: absolute !important;
-          top: 6px !important;
-          left: 8px !important;
-          right: 8px !important;
-          bottom: 6px !important;
-          background: white !important;
-          color: #000 !important;
-          z-index: 1000 !important;
-        }
+    //     /* Fallback: Use data attributes if spans fail */
+    //     #${ctx} td::after {
+    //       content: attr(data-display-value) !important;
+    //       display: block !important;
+    //       position: absolute !important;
+    //       top: 6px !important;
+    //       left: 8px !important;
+    //       right: 8px !important;
+    //       bottom: 6px !important;
+    //       background: white !important;
+    //       color: #000 !important;
+    //       z-index: 1000 !important;
+    //     }
         
-        /* Override the pseudo-element if display span exists and has content */
-        #${ctx} td:has(.cell-display:not(:empty))::after {
-          display: none !important;
-        }
+    //     /* Override the pseudo-element if display span exists and has content */
+    //     #${ctx} td:has(.cell-display:not(:empty))::after {
+    //       display: none !important;
+    //     }
         
-        @page {
-          margin: 0.5in;
-          size: landscape;
-        }
+    //     @page {
+    //       margin: 0.5in;
+    //       size: landscape;
+    //     }
         
-        /* Ensure no other styles interfere */
-        #${ctx} * {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-      }
-    `;
+    //     /* Ensure no other styles interfere */
+    //     #${ctx} * {
+    //       -webkit-print-color-adjust: exact !important;
+    //       print-color-adjust: exact !important;
+    //     }
+    //   }
+    // `;
 
-                            if (!document.getElementById('table-print-styles-' + ctx)) {
-                                printStyles.id = 'table-print-styles-' + ctx;
-                                document.head.appendChild(printStyles);
-                            }
+    //                         if (!document.getElementById('table-print-styles-' + ctx)) {
+    //                             printStyles.id = 'table-print-styles-' + ctx;
+    //                             document.head.appendChild(printStyles);
+    //                         }
 
-                            const beforePrintHandler = () => {
-                                const cells = divElement.querySelectorAll('td[data-display-value]');
-                                cells.forEach(cell => {
-                                    const displaySpan = cell.querySelector('.cell-display');
-                                    const displayValue = cell.getAttribute('data-display-value');
-                                    if (displaySpan && displayValue !== null) {
-                                        displaySpan.textContent = displayValue;
-                                        displaySpan.style.display = 'block';
-                                    }
-                                    const input = cell.querySelector('.cell-input');
-                                    if (input) {
-                                        input.style.display = 'none';
-                                    }
-                                });
-                            };
+    //                         const beforePrintHandler = () => {
+    //                             const cells = divElement.querySelectorAll('td[data-display-value]');
+    //                             cells.forEach(cell => {
+    //                                 const displaySpan = cell.querySelector('.cell-display');
+    //                                 const displayValue = cell.getAttribute('data-display-value');
+    //                                 if (displaySpan && displayValue !== null) {
+    //                                     displaySpan.textContent = displayValue;
+    //                                     displaySpan.style.display = 'block';
+    //                                 }
+    //                                 const input = cell.querySelector('.cell-input');
+    //                                 if (input) {
+    //                                     input.style.display = 'none';
+    //                                 }
+    //                             });
+    //                         };
 
-                            window.addEventListener('beforeprint', beforePrintHandler);
+    //                         window.addEventListener('beforeprint', beforePrintHandler);
 
-                            divElement._printHandler = beforePrintHandler;
-                        };
+    //                         divElement._printHandler = beforePrintHandler;
+    //                     };
 
-                        const loadScriptsAndInit = () => {
-                            if (!window.jQuery) {
-                                const jqueryScript = document.createElement("script");
-                                jqueryScript.src = "{[ custom_line_chartsrc ]}";
-                                jqueryScript.onload = () => loadFormulaParser();
-                                document.head.appendChild(jqueryScript);
-                            } else {
-                                loadFormulaParser();
-                            }
-                        };
+    //                     const loadScriptsAndInit = () => {
+    //                         if (!window.jQuery) {
+    //                             const jqueryScript = document.createElement("script");
+    //                             jqueryScript.src = "{[ custom_line_chartsrc ]}";
+    //                             jqueryScript.onload = () => loadFormulaParser();
+    //                             document.head.appendChild(jqueryScript);
+    //                         } else {
+    //                             loadFormulaParser();
+    //                         }
+    //                     };
 
-                        const loadFormulaParser = () => {
-                            if (!window.formulaParserLoaded) {
-                                const fScript = document.createElement("script");
-                                fScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
-                                fScript.onload = () => {
-                                    window.formulaParserLoaded = true;
-                                    init1();
-                                };
-                                document.head.appendChild(fScript);
-                            } else {
-                                init1();
-                            }
-                        };
+    //                     const loadFormulaParser = () => {
+    //                         if (!window.formulaParserLoaded) {
+    //                             const fScript = document.createElement("script");
+    //                             fScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
+    //                             fScript.onload = () => {
+    //                                 window.formulaParserLoaded = true;
+    //                                 init1();
+    //                             };
+    //                             document.head.appendChild(fScript);
+    //                         } else {
+    //                             init1();
+    //                         }
+    //                     };
 
-                        loadScriptsAndInit();
+    //                     loadScriptsAndInit();
 
-                        this.on('removed', function () {
-                            this.tableInitialized = false;
-                            const printStyleEl = document.getElementById('table-print-styles-' + this.id);
-                            if (printStyleEl) {
-                                printStyleEl.remove();
-                            }
-                            const divElement = document.getElementById(this.id);
-                            if (divElement && divElement._printHandler) {
-                                window.removeEventListener('beforeprint', divElement._printHandler);
-                            }
-                        });
-                    },
-                }),
-                init() {
-                    this.on('change:jsonpath', () => {
-                        this.updateFilterColumnOptions();
-                        this.set('filterColumn', '');
-                        this.set('filterValue', '');
-                    });
+    //                     this.on('removed', function () {
+    //                         this.tableInitialized = false;
+    //                         const printStyleEl = document.getElementById('table-print-styles-' + this.id);
+    //                         if (printStyleEl) {
+    //                             printStyleEl.remove();
+    //                         }
+    //                         const divElement = document.getElementById(this.id);
+    //                         if (divElement && divElement._printHandler) {
+    //                             window.removeEventListener('beforeprint', divElement._printHandler);
+    //                         }
+    //                     });
+    //                 },
+    //             }),
+    //             init() {
+    //                 this.on('change:jsonpath', () => {
+    //                     this.updateFilterColumnOptions();
+    //                     this.set('filterColumn', '');
+    //                     this.set('filterValue', '');
+    //                 });
 
-                    this.on('change:filterValue', () => {
-                        this.tableInitialized = false;
-                        this.trigger("change:script");
-                    });
+    //                 this.on('change:filterValue', () => {
+    //                     this.tableInitialized = false;
+    //                     this.trigger("change:script");
+    //                 });
 
-                    this.on('change:filterColumn', () => {
-                        if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
-                            this.tableInitialized = false;
-                            this.trigger("change:script");
-                        }
-                    });
+    //                 this.on('change:filterColumn', () => {
+    //                     if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
+    //                         this.tableInitialized = false;
+    //                         this.trigger("change:script");
+    //                     }
+    //                 });
 
-                    const otherTraits = all_Traits
-                        .filter((i) => !["jsonpath", "filterColumn", "filterValue"].includes(i.name))
-                        .map((i) => `change:${i.name}`)
-                        .join(" ");
+    //                 const otherTraits = all_Traits
+    //                     .filter((i) => !["jsonpath", "filterColumn", "filterValue"].includes(i.name))
+    //                     .map((i) => `change:${i.name}`)
+    //                     .join(" ");
 
-                    if (otherTraits) {
-                        this.on(otherTraits, () => {
-                            if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
-                                this.tableInitialized = false;
-                                this.trigger("change:script");
-                            }
-                        });
-                    }
-                },
+    //                 if (otherTraits) {
+    //                     this.on(otherTraits, () => {
+    //                         if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
+    //                             this.tableInitialized = false;
+    //                             this.trigger("change:script");
+    //                         }
+    //                     });
+    //                 }
+    //             },
 
-                updateFilterColumnOptions() {
-                    try {
-                        const jsonPath = this.get('jsonpath');
-                        if (!jsonPath || jsonPath.trim() === "") {
-                            const filterColumnTrait = this.getTrait('filterColumn');
-                            if (filterColumnTrait) {
-                                filterColumnTrait.set('options', [{ value: "", label: "First enter JSON path" }]);
-                            }
-                            return;
-                        }
+    //             updateFilterColumnOptions() {
+    //                 try {
+    //                     const jsonPath = this.get('jsonpath');
+    //                     if (!jsonPath || jsonPath.trim() === "") {
+    //                         const filterColumnTrait = this.getTrait('filterColumn');
+    //                         if (filterColumnTrait) {
+    //                             filterColumnTrait.set('options', [{ value: "", label: "First enter JSON path" }]);
+    //                         }
+    //                         return;
+    //                     }
 
-                        let custom_language = localStorage.getItem('language') || 'english';
-                        const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
+    //                     let custom_language = localStorage.getItem('language') || 'english';
+    //                     const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
 
-                        if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
-                            const filterColumnTrait = this.getTrait('filterColumn');
-                            if (filterColumnTrait) {
-                                filterColumnTrait.set('options', [{ value: "", label: "Invalid JSON path" }]);
-                            }
-                            return;
-                        }
+    //                     if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
+    //                         const filterColumnTrait = this.getTrait('filterColumn');
+    //                         if (filterColumnTrait) {
+    //                             filterColumnTrait.set('options', [{ value: "", label: "Invalid JSON path" }]);
+    //                         }
+    //                         return;
+    //                     }
 
-                        const str = jsonDataN[custom_language][jsonPath];
-                        const tableData = eval(str);
+    //                     const str = jsonDataN[custom_language][jsonPath];
+    //                     const tableData = eval(str);
 
-                        if (!tableData || !tableData.heading) {
-                            const filterColumnTrait = this.getTrait('filterColumn');
-                            if (filterColumnTrait) {
-                                filterColumnTrait.set('options', [{ value: "", label: "Invalid data structure" }]);
-                            }
-                            return;
-                        }
+    //                     if (!tableData || !tableData.heading) {
+    //                         const filterColumnTrait = this.getTrait('filterColumn');
+    //                         if (filterColumnTrait) {
+    //                             filterColumnTrait.set('options', [{ value: "", label: "Invalid data structure" }]);
+    //                         }
+    //                         return;
+    //                     }
 
-                        const objectKeys = Object.keys(tableData.heading);
-                        const filterColumnTrait = this.getTrait('filterColumn');
+    //                     const objectKeys = Object.keys(tableData.heading);
+    //                     const filterColumnTrait = this.getTrait('filterColumn');
 
-                        if (filterColumnTrait) {
-                            const options = [
-                                { value: "", label: "Select Column to Filter" },
-                                ...objectKeys.map(key => ({
-                                    value: key,
-                                    label: tableData.heading[key]
-                                }))
-                            ];
+    //                     if (filterColumnTrait) {
+    //                         const options = [
+    //                             { value: "", label: "Select Column to Filter" },
+    //                             ...objectKeys.map(key => ({
+    //                                 value: key,
+    //                                 label: tableData.heading[key]
+    //                             }))
+    //                         ];
 
-                            filterColumnTrait.set('options', options);
-                        }
-                    } catch (error) {
-                        console.log('Error updating filter options:', error);
-                        const filterColumnTrait = this.getTrait('filterColumn');
-                        if (filterColumnTrait) {
-                            filterColumnTrait.set('options', [{ value: "", label: "Error loading headers" }]);
-                        }
-                    }
-                }
-            },
-        });
+    //                         filterColumnTrait.set('options', options);
+    //                     }
+    //                 } catch (error) {
+    //                     console.log('Error updating filter options:', error);
+    //                     const filterColumnTrait = this.getTrait('filterColumn');
+    //                     if (filterColumnTrait) {
+    //                         filterColumnTrait.set('options', [{ value: "", label: "Error loading headers" }]);
+    //                     }
+    //                 }
+    //             }
+    //         },
+    //     });
 
-        editor.Blocks.add("custom_table", {
-            label: "JSON Table",
-            category: "Extra",
-            attributes: {
-                class: "fa fa-table",
-            },
-            content: {
-                type: "custom_table",
-            },
-        });
-    }
+    //     editor.Blocks.add("custom_table", {
+    //         label: "JSON Table",
+    //         category: "Extra",
+    //         attributes: {
+    //             class: "fa fa-table",
+    //         },
+    //         content: {
+    //             type: "custom_table",
+    //         },
+    //     });
+    // }
 
-    customTable2(editor);
+    // customTable2(editor);
     // =================================
     setTimeout(() => {
         var language = document.getElementById("multiLanguage");

@@ -33,7 +33,7 @@ function customCarousel(editor) {
     var el = document.getElementById("table-button-create-new");
     el.addEventListener("click", createCarousel, true);
 
-    // remove placeholder <carousel> element
+    // Remove placeholder <carousel> element
     editor.DomComponents.getComponents().forEach((component) => {
       if (component.get("tagName") === "carousel") {
         component.remove("content", "");
@@ -47,24 +47,27 @@ function customCarousel(editor) {
       let dataInterval = parseInt(document.getElementById("nRows").value);
       if (dataInterval < 1000) dataInterval = 1000;
 
-      // build carousel-inner
+      // Build carousel-inner
       const innerHtml = document.createElement("div");
       innerHtml.classList.add("carousel-inner");
 
       for (let i = 0; i < sliderCount; i++) {
         const carouselItem = document.createElement("div");
-        carouselItem.classList.add("carousel-item");
+        carouselItem.classList.add("carousel-item", "d-flex", "justify-content-center"); // center fix
         if (i === 0) carouselItem.classList.add("active");
 
         const carouselA = document.createElement("a");
         carouselA.classList.add("d-inline-block");
         carouselA.style.width = "100%";
 
+        const imageNum = i + 1;
         const carouselImg = document.createElement("img");
-        carouselImg.src = "https://via.placeholder.com/800x400.png?text=Slide+" + (i + 1);
+        carouselImg.src = "https://via.placeholder.com/800x400.png?text=Slide+" + imageNum;
         carouselImg.style.width = "100%";
-        carouselImg.style.margin = "5px 190px";
+        carouselImg.style.margin = "5px 0px";
         carouselImg.style.height = "300px";
+        carouselImg.style.objectFit = "cover";
+        carouselImg.style.display = "block";
 
         carouselA.append(carouselImg);
         carouselItem.append(carouselA);
@@ -73,7 +76,7 @@ function customCarousel(editor) {
 
       const uniqueID = Math.floor(100 + Math.random() * 900);
 
-      // correct Bootstrap markup
+      // Correct Bootstrap markup
       const carousel = `
         <div id="Carousel${uniqueID}" class="carousel slide" data-ride="carousel" data-interval="${dataInterval}" style="padding:5px 0px">
           ${innerHtml.outerHTML}
@@ -85,22 +88,21 @@ function customCarousel(editor) {
             <span class="carousel-control-next-icon" aria-hidden="true"></span>
             <span class="sr-only">Next</span>
           </a>
-        </div>`;
+        </div>
+      `;
 
-      // insert into GrapesJS DOM (works in plain canvas or page section)
-      // find the placeholder <carousel> element in the editor
-const comps = editor.DomComponents.getWrapper().find('carousel');
-if (comps.length > 0) {
-  comps[0].replaceWith(carousel);   // replace placeholder with actual carousel HTML
-} else {
-  // fallback: add to root if no placeholder found
-  editor.DomComponents.addComponent(carousel);
-}
-
+      // Replace placeholder <carousel> element
+      const comps = editor.DomComponents.getWrapper().find("carousel");
+      if (comps.length > 0) {
+        comps[0].replaceWith(carousel);
+      } else {
+        // fallback: add to root if no placeholder found
+        editor.DomComponents.addComponent(carousel);
+      }
 
       editor.Modal.close();
 
-      // optional: force Bootstrap to initialize carousel JS
+      // Initialize Bootstrap carousel after insert
       setTimeout(() => {
         if (window.jQuery && $("#Carousel" + uniqueID).carousel) {
           $("#Carousel" + uniqueID).carousel();
