@@ -526,7 +526,7 @@ function getAvailableFormulas() {
     }
 
     // Add our custom formulas
-    const customFormulas = ['PERCENT', 'NUMTOWORDS', 'ABSOLUTE'];
+    const customFormulas = ['PERCENT', 'NUMTOWORDS'];
     customFormulas.forEach(f => {
       if (!formulas.includes(f)) {
         formulas.push(f);
@@ -537,7 +537,7 @@ function getAvailableFormulas() {
 
   } catch (error) {
     console.warn('Error getting formulas:', error);
-    return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'PERCENT', 'NUMTOWORDS', 'ABSOLUTE'].sort();
+    return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'PERCENT', 'NUMTOWORDS'].sort();
   }
 }
 

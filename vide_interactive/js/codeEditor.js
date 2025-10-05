@@ -687,7 +687,7 @@
                         /^#/.test(e) && (r += e);
                       }),
                       (i += "<style>".concat(r, "</style>")),
-                      "wrapper" === n.attributes.type
+                      !n || "wrapper" === n.attributes.type
                         ? t.setComponents(i)
                         : t.select(n.replaceWith(i));
                   }

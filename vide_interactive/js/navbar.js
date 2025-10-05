@@ -707,7 +707,7 @@
             return "\n        ."
               .concat(
                 t.classTab,
-                " {\n            padding: 7px 14px;\n            display: inline-block;\n            border-radius: 3px;\n            margin-right: 10px;\n        }\n\n        ."
+                " {\n            padding: 7px 14px;\n            display: inline-block;\n            border-radius: 3px;\n            margin-right: 10px;\n      cursor:pointer;\n  }\n\n        ."
               )
               .concat(
                 t.classTab,

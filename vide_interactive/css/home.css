@@ -1265,6 +1265,7 @@ span.CodeMirror-selectedtext {
   position: relative;
   box-sizing: border-box;
   height: 100%;
+  overflow: hidden;
 }
 .i_designer-freezed,
 .i_designer-freezed {

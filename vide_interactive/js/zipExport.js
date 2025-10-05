@@ -7423,6 +7423,119 @@ const h = function (e, r) {
                     let customReadMode = false;
                     let speechSynthesis = window.speechSynthesis;
                     let currentUtterance = null;
+                    let availableVoices = [];
+                    
+                    function loadVoices() {
+                      availableVoices = speechSynthesis.getVoices();
+                    }
+                    
+                    loadVoices();
+                    if (speechSynthesis.onvoiceschanged !== undefined) {
+                      speechSynthesis.onvoiceschanged = loadVoices;
+                    }
+                    
+                    function detectLanguage(text) {
+                      const langPatterns = {
+                        'hi': /[\u0900-\u097F]/,
+                        'mr': /[\u0900-\u097F]/,
+                        'ta': /[\u0B80-\u0BFF]/,
+                        'ur': /[\u0600-\u06FF]/,
+                        'ar': /[\u0600-\u06FF\u0750-\u077F]/,
+                        'ru': /[\u0400-\u04FF]/,
+                        'zh': /[\u4E00-\u9FFF]/,
+                        'ja': /[\u3040-\u309F\u30A0-\u30FF]/,
+                        'ko': /[\uAC00-\uD7AF]/,
+                        'th': /[\u0E00-\u0E7F]/,
+                        'bn': /[\u0980-\u09FF]/,
+                        'gu': /[\u0A80-\u0AFF]/,
+                        'kn': /[\u0C80-\u0CFF]/,
+                        'ml': /[\u0D00-\u0D7F]/,
+                        'pa': /[\u0A00-\u0A7F]/,
+                        'te': /[\u0C00-\u0C7F]/,
+                        'el': /[\u0370-\u03FF]/,
+                        'he': /[\u0590-\u05FF]/,
+                        'fa': /[\u0600-\u06FF]/,
+                        'vi': /[\u1EA0-\u1EFF]/,
+                        'tr': /[ğĞıİöÖüÜşŞçÇ]/,
+                        'pl': /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/,
+                        'cs': /[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/,
+                        'hu': /[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/,
+                        'ro': /[ăâîșțĂÂÎȘȚ]/,
+                        'sv': /[åäöÅÄÖ]/,
+                        'no': /[æøåÆØÅ]/,
+                        'da': /[æøåÆØÅ]/,
+                        'fi': /[äöåÄÖÅ]/,
+                        'nl': /[ëïĳËÏĲ]/,
+                        'pt': /[áàâãçéêíóôõúüÁÀÂÃÇÉÊÍÓÔÕÚÜ]/,
+                        'es': /[áéíóúüñ¿¡ÁÉÍÓÚÜÑ]/,
+                        'fr': /[àâæçéèêëïîôùûüÿœÀÂÆÇÉÈÊËÏÎÔÙÛÜŸŒ]/,
+                        'de': /[äöüßÄÖÜ]/,
+                        'it': /[àèéìíîòóùúÀÈÉÌÍÎÒÓÙÚ]/
+                      };
+                      
+                      for (let lang in langPatterns) {
+                        if (langPatterns[lang].test(text)) {
+                          return lang;
+                        }
+                      }
+                      
+                      return 'en';
+                    }
+                    
+                    function getVoiceForLanguage(lang) {
+                      const langMappings = {
+                        'hi': ['hi-IN', 'hi'],
+                        'mr': ['mr-IN', 'mr'],
+                        'ta': ['ta-IN', 'ta'],
+                        'ur': ['ur-PK', 'ur-IN', 'ur'],
+                        'ar': ['ar-SA', 'ar-EG', 'ar'],
+                        'ru': ['ru-RU', 'ru'],
+                        'zh': ['zh-CN', 'zh-TW', 'zh-HK', 'zh'],
+                        'ja': ['ja-JP', 'ja'],
+                        'ko': ['ko-KR', 'ko'],
+                        'th': ['th-TH', 'th'],
+                        'bn': ['bn-IN', 'bn-BD', 'bn'],
+                        'gu': ['gu-IN', 'gu'],
+                        'kn': ['kn-IN', 'kn'],
+                        'ml': ['ml-IN', 'ml'],
+                        'pa': ['pa-IN', 'pa'],
+                        'te': ['te-IN', 'te'],
+                        'el': ['el-GR', 'el'],
+                        'he': ['he-IL', 'he'],
+                        'fa': ['fa-IR', 'fa'],
+                        'vi': ['vi-VN', 'vi'],
+                        'tr': ['tr-TR', 'tr'],
+                        'pl': ['pl-PL', 'pl'],
+                        'cs': ['cs-CZ', 'cs'],
+                        'hu': ['hu-HU', 'hu'],
+                        'ro': ['ro-RO', 'ro'],
+                        'sv': ['sv-SE', 'sv'],
+                        'no': ['no-NO', 'nb-NO', 'no'],
+                        'da': ['da-DK', 'da'],
+                        'fi': ['fi-FI', 'fi'],
+                        'nl': ['nl-NL', 'nl-BE', 'nl'],
+                        'pt': ['pt-BR', 'pt-PT', 'pt'],
+                        'es': ['es-ES', 'es-MX', 'es-AR', 'es'],
+                        'fr': ['fr-FR', 'fr-CA', 'fr'],
+                        'de': ['de-DE', 'de-AT', 'de'],
+                        'it': ['it-IT', 'it'],
+                        'en': ['en-US', 'en-GB', 'en-AU', 'en']
+                      };
+                      
+                      const targetLangs = langMappings[lang] || ['en-US', 'en'];
+                      
+                      for (let targetLang of targetLangs) {
+                        const voice = availableVoices.find(v => v.lang.startsWith(targetLang));
+                        if (voice) return voice;
+                      }
+                      
+                      for (let targetLang of targetLangs) {
+                        const voice = availableVoices.find(v => v.lang.includes(lang));
+                        if (voice) return voice;
+                      }
+                      
+                      return null;
+                    }
                     
                     const ttsToggle = document.getElementById('ttsToggle');
                     const ttsMenu = document.getElementById('ttsMenu');
@@ -7458,11 +7571,22 @@ const h = function (e, r) {
                       textToRead = textToRead.replace(/TTS|Read All Content|Read on Click|Stop Reading/g, '');
                       
                       if (textToRead && textToRead.length > 0) {
+                        const detectedLang = detectLanguage(textToRead);
+                        const voice = getVoiceForLanguage(detectedLang);
+                        
+                        if (!voice) {
+                          alert('Text-to-speech not available for this language');
+                          stopReading();
+                          return;
+                        }
+                        
                         if (currentUtterance) {
                           speechSynthesis.cancel();
                         }
                         
                         currentUtterance = new SpeechSynthesisUtterance(textToRead);
+                        currentUtterance.voice = voice;
+                        currentUtterance.lang = voice.lang;
                         currentUtterance.rate = 0.8;
                         currentUtterance.pitch = 1;
                         currentUtterance.volume = 1;
@@ -7612,12 +7736,20 @@ const h = function (e, r) {
                       }
                       
                       if (textToRead && textToRead.length > 3) {
+                        const detectedLang = detectLanguage(textToRead);
+                        const voice = getVoiceForLanguage(detectedLang);
+                        
+                        if (!voice) {
+                          alert('Text-to-speech not available for this language');
+                          return;
+                        }
+                        
                         if (currentUtterance) {
                           speechSynthesis.cancel();
                         }
                         
                         const chunks = splitTextIntoChunks(textToRead, 500); 
-                        speakChunks(chunks, 0);
+                        speakChunks(chunks, 0, voice);
                       }
                     }
                     
@@ -7658,7 +7790,7 @@ const h = function (e, r) {
                       return chunks;
                     }
                     
-                    function speakChunks(chunks, index) {
+                    function speakChunks(chunks, index, voice) {
                       if (!customReadMode || index >= chunks.length) {
                         ttsStatus.textContent = 'Click to Read';
                         return;
@@ -7666,6 +7798,8 @@ const h = function (e, r) {
                       
                       const chunk = chunks[index];
                       currentUtterance = new SpeechSynthesisUtterance(chunk);
+                      currentUtterance.voice = voice;
+                      currentUtterance.lang = voice.lang;
                       currentUtterance.rate = 0.8;
                       currentUtterance.pitch = 1;
                       currentUtterance.volume = 1;
@@ -7676,14 +7810,14 @@ const h = function (e, r) {
                       
                       currentUtterance.onend = function() {
                         setTimeout(() => {
-                          speakChunks(chunks, index + 1);
+                          speakChunks(chunks, index + 1, voice);
                         }, 100);
                       };
                       
                       currentUtterance.onerror = function(event) {
                         console.error('TTS error:', event);
                         setTimeout(() => {
-                          speakChunks(chunks, index + 1);
+                          speakChunks(chunks, index + 1, voice);
                         }, 500);
                       };
                       
