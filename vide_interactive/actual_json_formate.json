@@ -999,382 +999,931 @@
         ]
       }
     },
-
-  "crosstabTable1": {
-    "type": "crosstab",
-    "structure": {
-      "columnHeaderLevels": 2,
-      "rowHeaderLevels": 2
-    },
-    "columnHeaders": [
-      [
-        { "value": "", "colspan": 2, "rowspan": 2 },
-        { "value": "merged column header 1", "colspan": 2, "rowspan": 1 },
-        { "value": "merged column header 2", "colspan": 3, "rowspan": 1 },
-        { "value": "merged column header 3", "colspan": 1, "rowspan": 2 }
+    "crosstabTable1": {
+      "type": "crosstab",
+      "structure": {
+        "columnHeaderLevels": 2,
+        "rowHeaderLevels": 2
+      },
+      "columnHeaders": [
+        [
+          {
+            "value": "",
+            "colspan": 2,
+            "rowspan": 2
+          },
+          {
+            "value": "merged column header 1",
+            "colspan": 2,
+            "rowspan": 1
+          },
+          {
+            "value": "merged column header 2",
+            "colspan": 3,
+            "rowspan": 1
+          },
+          {
+            "value": "merged column header 3",
+            "colspan": 1,
+            "rowspan": 2
+          }
+        ],
+        [
+          {
+            "value": "column header 1",
+            "colspan": 1
+          },
+          {
+            "value": "column header 2",
+            "colspan": 1
+          },
+          {
+            "value": "column header 3",
+            "colspan": 1
+          },
+          {
+            "value": "column header 4",
+            "colspan": 1
+          },
+          {
+            "value": "column header 5",
+            "colspan": 1
+          }
+        ]
       ],
-      [
-        { "value": "column header 1", "colspan": 1 },
-        { "value": "column header 2", "colspan": 1 },
-        { "value": "column header 3", "colspan": 1 },
-        { "value": "column header 4", "colspan": 1 },
-        { "value": "column header 5", "colspan": 1 }
+      "rows": [
+        {
+          "rowHeaders": [
+            {
+              "value": "merged row header 1",
+              "rowspan": 2,
+              "level": 0
+            },
+            {
+              "value": "row header 1",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            "sample row 1 column 1",
+            "sample row 1 column 2",
+            "sample row 1 column 3",
+            "sample row 1 column 4",
+            "sample row 1 column 5",
+            "sample row 1 column 6"
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "row header 2",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            "sample row 2 column 1",
+            "sample row 2 column 2",
+            "sample row 2 column 3",
+            "sample row 2 column 4",
+            "sample row 2 column 5",
+            "sample row 2 column 6"
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "merged row header 1",
+              "rowspan": 1,
+              "level": 0
+            },
+            {
+              "value": "row header 3",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            "sample row 3 column 1",
+            "sample row 3 column 2",
+            "sample row 3 column 3",
+            "sample row 3 column 4",
+            "sample row 3 column 5",
+            "sample row 3 column 6"
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "merged row header 2",
+              "rowspan": 2,
+              "level": 0
+            },
+            {
+              "value": "row header 4",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            "sample row 4 column 1",
+            "sample row 4 column 2",
+            "sample row 4 column 3",
+            "sample row 4 column 4",
+            "sample row 4 column 5",
+            "sample row 4 column 6"
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "row header 5",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            "sample row 5 column 1",
+            "sample row 5 column 2",
+            "sample row 5 column 3",
+            "sample row 5 column 4",
+            "sample row 5 column 5",
+            "sample row 5 column 6"
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "merged row header 3",
+              "rowspan": 1,
+              "level": 0
+            },
+            {
+              "value": "row header 6",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            "sample row 6 column 1",
+            "sample row 6 column 2",
+            "sample row 6 column 3",
+            "sample row 6 column 4",
+            "sample row 6 column 5",
+            "sample row 6 column 6"
+          ]
+        }
       ]
-    ],
-    "rows": [
-      {
-        "rowHeaders": [
-          { "value": "merged row header 1", "rowspan": 2, "level": 0 },
-          { "value": "row header 1", "rowspan": 1, "level": 1 }
-        ],
-        "cells": ["sample row 1 column 1", "sample row 1 column 2", "sample row 1 column 3", "sample row 1 column 4", "sample row 1 column 5", "sample row 1 column 6"]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "row header 2", "rowspan": 1, "level": 1 }
-        ],
-        "cells": ["sample row 2 column 1", "sample row 2 column 2", "sample row 2 column 3", "sample row 2 column 4", "sample row 2 column 5", "sample row 2 column 6"]
-      },
-      {
-        "rowHeaders": [
-          { "value": "merged row header 1", "rowspan": 1, "level": 0 },
-          { "value": "row header 3", "rowspan": 1, "level": 1 }
-        ],
-        "cells": ["sample row 3 column 1", "sample row 3 column 2", "sample row 3 column 3", "sample row 3 column 4", "sample row 3 column 5", "sample row 3 column 6"]
-      },
-      {
-        "rowHeaders": [
-          { "value": "merged row header 2", "rowspan": 2, "level": 0 },
-          { "value": "row header 4", "rowspan": 1, "level": 1 }
-        ],
-        "cells": ["sample row 4 column 1", "sample row 4 column 2", "sample row 4 column 3", "sample row 4 column 4", "sample row 4 column 5", "sample row 4 column 6"]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "row header 5", "rowspan": 1, "level": 1 }
-        ],
-        "cells": ["sample row 5 column 1", "sample row 5 column 2", "sample row 5 column 3", "sample row 5 column 4", "sample row 5 column 5", "sample row 5 column 6"]
-      },
-      {
-        "rowHeaders": [
-          { "value": "merged row header 3", "rowspan": 1, "level": 0 },
-          { "value": "row header 6", "rowspan": 1, "level": 1 }
-        ],
-        "cells": ["sample row 6 column 1", "sample row 6 column 2", "sample row 6 column 3", "sample row 6 column 4", "sample row 6 column 5", "sample row 6 column 6"]
-      }
-    ]
-  },
-
-  "crosstabTable2": {
-    "type": "crosstab",
-    "structure": {
-      "columnHeaderLevels": 3,
-      "rowHeaderLevels": 3
     },
-    "columnHeaders": [
-      [
-        { "value": "", "colspan": 3, "rowspan": 3 },
-        { "value": "2023", "colspan": 4, "rowspan": 1 },
-        { "value": "2024", "colspan": 2, "rowspan": 1 }
+    "crosstabTable2": {
+      "type": "crosstab",
+      "structure": {
+        "columnHeaderLevels": 3,
+        "rowHeaderLevels": 3
+      },
+      "columnHeaders": [
+        [
+          {
+            "value": "",
+            "colspan": 3,
+            "rowspan": 3
+          },
+          {
+            "value": "2023",
+            "colspan": 4,
+            "rowspan": 1
+          },
+          {
+            "value": "2024",
+            "colspan": 2,
+            "rowspan": 1
+          }
+        ],
+        [
+          {
+            "value": "Q1",
+            "colspan": 2,
+            "rowspan": 1
+          },
+          {
+            "value": "Q2",
+            "colspan": 2,
+            "rowspan": 1
+          },
+          {
+            "value": "Q1",
+            "colspan": 2,
+            "rowspan": 1
+          }
+        ],
+        [
+          {
+            "value": "Target",
+            "colspan": 1
+          },
+          {
+            "value": "Actual",
+            "colspan": 1
+          },
+          {
+            "value": "Target",
+            "colspan": 1
+          },
+          {
+            "value": "Actual",
+            "colspan": 1
+          },
+          {
+            "value": "Target",
+            "colspan": 1
+          },
+          {
+            "value": "Actual",
+            "colspan": 1
+          }
+        ]
       ],
-      [
-        { "value": "Q1", "colspan": 2, "rowspan": 1 },
-        { "value": "Q2", "colspan": 2, "rowspan": 1 },
-        { "value": "Q1", "colspan": 2, "rowspan": 1 }
-      ],
-      [
-        { "value": "Target", "colspan": 1 },
-        { "value": "Actual", "colspan": 1 },
-        { "value": "Target", "colspan": 1 },
-        { "value": "Actual", "colspan": 1 },
-        { "value": "Target", "colspan": 1 },
-        { "value": "Actual", "colspan": 1 }
+      "rows": [
+        {
+          "rowHeaders": [
+            {
+              "value": "North America",
+              "rowspan": 6,
+              "level": 0
+            },
+            {
+              "value": "Electronics",
+              "rowspan": 3,
+              "level": 1
+            },
+            {
+              "value": "Laptops",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            1000,
+            1050,
+            1100,
+            1080,
+            1200,
+            1250
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Phones",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            800,
+            820,
+            850,
+            870,
+            900,
+            920
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Tablets",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            500,
+            480,
+            520,
+            540,
+            550,
+            560
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Furniture",
+              "rowspan": 3,
+              "level": 1
+            },
+            {
+              "value": "Desks",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            300,
+            310,
+            320,
+            315,
+            330,
+            340
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Chairs",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            400,
+            420,
+            440,
+            450,
+            460,
+            470
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Cabinets",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            200,
+            195,
+            210,
+            215,
+            220,
+            225
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Europe",
+              "rowspan": 4,
+              "level": 0
+            },
+            {
+              "value": "Electronics",
+              "rowspan": 2,
+              "level": 1
+            },
+            {
+              "value": "Laptops",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            900,
+            920,
+            950,
+            970,
+            1000,
+            1020
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Phones",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            700,
+            710,
+            730,
+            750,
+            780,
+            800
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Furniture",
+              "rowspan": 2,
+              "level": 1
+            },
+            {
+              "value": "Desks",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            250,
+            260,
+            270,
+            275,
+            290,
+            295
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Chairs",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            350,
+            360,
+            370,
+            380,
+            390,
+            400
+          ]
+        }
       ]
-    ],
-    "rows": [
-      {
-        "rowHeaders": [
-          { "value": "North America", "rowspan": 6, "level": 0 },
-          { "value": "Electronics", "rowspan": 3, "level": 1 },
-          { "value": "Laptops", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [1000, 1050, 1100, 1080, 1200, 1250]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Phones", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [800, 820, 850, 870, 900, 920]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Tablets", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [500, 480, 520, 540, 550, 560]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Furniture", "rowspan": 3, "level": 1 },
-          { "value": "Desks", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [300, 310, 320, 315, 330, 340]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Chairs", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [400, 420, 440, 450, 460, 470]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Cabinets", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [200, 195, 210, 215, 220, 225]
-      },
-      {
-        "rowHeaders": [
-          { "value": "Europe", "rowspan": 4, "level": 0 },
-          { "value": "Electronics", "rowspan": 2, "level": 1 },
-          { "value": "Laptops", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [900, 920, 950, 970, 1000, 1020]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Phones", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [700, 710, 730, 750, 780, 800]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Furniture", "rowspan": 2, "level": 1 },
-          { "value": "Desks", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [250, 260, 270, 275, 290, 295]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Chairs", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [350, 360, 370, 380, 390, 400]
-      }
-    ]
-  },
-
-  "crosstabTable3": {
-    "type": "crosstab",
-    "structure": {
-      "columnHeaderLevels": 2,
-      "rowHeaderLevels": 2
     },
-    "columnHeaders": [
-      [
-        { "value": "", "colspan": 2, "rowspan": 2 },
-        { "value": "Semester 1", "colspan": 3, "rowspan": 1 },
-        { "value": "Semester 2", "colspan": 3, "rowspan": 1 }
+    "crosstabTable3": {
+      "type": "crosstab",
+      "structure": {
+        "columnHeaderLevels": 2,
+        "rowHeaderLevels": 2
+      },
+      "columnHeaders": [
+        [
+          {
+            "value": "",
+            "colspan": 2,
+            "rowspan": 2
+          },
+          {
+            "value": "Semester 1",
+            "colspan": 3,
+            "rowspan": 1
+          },
+          {
+            "value": "Semester 2",
+            "colspan": 3,
+            "rowspan": 1
+          }
+        ],
+        [
+          {
+            "value": "Math",
+            "colspan": 1
+          },
+          {
+            "value": "Science",
+            "colspan": 1
+          },
+          {
+            "value": "English",
+            "colspan": 1
+          },
+          {
+            "value": "Math",
+            "colspan": 1
+          },
+          {
+            "value": "Science",
+            "colspan": 1
+          },
+          {
+            "value": "English",
+            "colspan": 1
+          }
+        ]
       ],
-      [
-        { "value": "Math", "colspan": 1 },
-        { "value": "Science", "colspan": 1 },
-        { "value": "English", "colspan": 1 },
-        { "value": "Math", "colspan": 1 },
-        { "value": "Science", "colspan": 1 },
-        { "value": "English", "colspan": 1 }
+      "rows": [
+        {
+          "rowHeaders": [
+            {
+              "value": "Grade 10",
+              "rowspan": 3,
+              "level": 0
+            },
+            {
+              "value": "Class A",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            85,
+            88,
+            82,
+            87,
+            90,
+            84
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Class B",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            82,
+            85,
+            80,
+            84,
+            87,
+            82
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Class C",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            78,
+            80,
+            76,
+            80,
+            82,
+            78
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Grade 11",
+              "rowspan": 2,
+              "level": 0
+            },
+            {
+              "value": "Class A",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            88,
+            90,
+            86,
+            90,
+            92,
+            88
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Class B",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            84,
+            86,
+            82,
+            86,
+            88,
+            84
+          ]
+        }
       ]
-    ],
-    "rows": [
-      {
-        "rowHeaders": [
-          { "value": "Grade 10", "rowspan": 3, "level": 0 },
-          { "value": "Class A", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [85, 88, 82, 87, 90, 84]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Class B", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [82, 85, 80, 84, 87, 82]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Class C", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [78, 80, 76, 80, 82, 78]
-      },
-      {
-        "rowHeaders": [
-          { "value": "Grade 11", "rowspan": 2, "level": 0 },
-          { "value": "Class A", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [88, 90, 86, 90, 92, 88]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Class B", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [84, 86, 82, 86, 88, 84]
-      }
-    ]
-  },
-
-  "crosstabTable4": {
-    "type": "crosstab",
-    "structure": {
-      "columnHeaderLevels": 2,
-      "rowHeaderLevels": 3
     },
-    "columnHeaders": [
-      [
-        { "value": "", "colspan": 3, "rowspan": 2 },
-        { "value": "Week 1", "colspan": 3, "rowspan": 1 },
-        { "value": "Week 2", "colspan": 3, "rowspan": 1 }
+    "crosstabTable4": {
+      "type": "crosstab",
+      "structure": {
+        "columnHeaderLevels": 2,
+        "rowHeaderLevels": 3
+      },
+      "columnHeaders": [
+        [
+          {
+            "value": "Week 1",
+            "colspan": 3,
+            "rowspan": 1
+          },
+          {
+            "value": "Week 2",
+            "colspan": 3,
+            "rowspan": 1
+          }
+        ],
+        [
+          {
+            "value": "Morning",
+            "colspan": 1
+          },
+          {
+            "value": "Evening",
+            "colspan": 1
+          },
+          {
+            "value": "Night",
+            "colspan": 1
+          },
+          {
+            "value": "Morning",
+            "colspan": 1
+          },
+          {
+            "value": "Evening",
+            "colspan": 1
+          },
+          {
+            "value": "Night",
+            "colspan": 1
+          }
+        ]
       ],
-      [
-        { "value": "Morning", "colspan": 1 },
-        { "value": "Evening", "colspan": 1 },
-        { "value": "Night", "colspan": 1 },
-        { "value": "Morning", "colspan": 1 },
-        { "value": "Evening", "colspan": 1 },
-        { "value": "Night", "colspan": 1 }
+      "rows": [
+        {
+          "rowHeaders": [
+            {
+              "value": "Plant A",
+              "rowspan": 4,
+              "level": 0
+            },
+            {
+              "value": "Production Line 1",
+              "rowspan": 2,
+              "level": 1
+            },
+            {
+              "value": "Product X",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            450,
+            440,
+            430,
+            460,
+            455,
+            445
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Product Y",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            320,
+            310,
+            300,
+            330,
+            325,
+            315
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Production Line 2",
+              "rowspan": 2,
+              "level": 1
+            },
+            {
+              "value": "Product X",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            480,
+            470,
+            460,
+            490,
+            485,
+            475
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Product Z",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            280,
+            275,
+            270,
+            290,
+            285,
+            280
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Plant B",
+              "rowspan": 2,
+              "level": 0
+            },
+            {
+              "value": "Production Line 1",
+              "rowspan": 2,
+              "level": 1
+            },
+            {
+              "value": "Product X",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            420,
+            415,
+            410,
+            430,
+            425,
+            420
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Product Y",
+              "rowspan": 1,
+              "level": 2
+            }
+          ],
+          "cells": [
+            300,
+            295,
+            290,
+            310,
+            305,
+            300
+          ]
+        }
       ]
-    ],
-    "rows": [
-      {
-        "rowHeaders": [
-          { "value": "Plant A", "rowspan": 4, "level": 0 },
-          { "value": "Production Line 1", "rowspan": 2, "level": 1 },
-          { "value": "Product X", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [450, 440, 430, 460, 455, 445]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Product Y", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [320, 310, 300, 330, 325, 315]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Production Line 2", "rowspan": 2, "level": 1 },
-          { "value": "Product X", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [480, 470, 460, 490, 485, 475]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Product Z", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [280, 275, 270, 290, 285, 280]
-      },
-      {
-        "rowHeaders": [
-          { "value": "Plant B", "rowspan": 2, "level": 0 },
-          { "value": "Production Line 1", "rowspan": 2, "level": 1 },
-          { "value": "Product X", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [420, 415, 410, 430, 425, 420]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "", "skip": true, "level": 1 },
-          { "value": "Product Y", "rowspan": 1, "level": 2 }
-        ],
-        "cells": [300, 295, 290, 310, 305, 300]
-      }
-    ]
-  },
-
-  "crosstabTable5": {
-    "type": "crosstab",
-    "structure": {
-      "columnHeaderLevels": 2,
-      "rowHeaderLevels": 2
     },
-    "columnHeaders": [
-      [
-        { "value": "", "colspan": 2, "rowspan": 2 },
-        { "value": "FY 2023", "colspan": 4, "rowspan": 1 },
-        { "value": "Total", "colspan": 1, "rowspan": 2 }
+    "crosstabTable5": {
+      "type": "crosstab",
+      "structure": {
+        "columnHeaderLevels": 2,
+        "rowHeaderLevels": 2
+      },
+      "columnHeaders": [
+        [
+          {
+            "value": "",
+            "colspan": 2,
+            "rowspan": 2
+          },
+          {
+            "value": "FY 2023",
+            "colspan": 4,
+            "rowspan": 1
+          },
+          {
+            "value": "Total",
+            "colspan": 1,
+            "rowspan": 2
+          }
+        ],
+        [
+          {
+            "value": "Q1",
+            "colspan": 1
+          },
+          {
+            "value": "Q2",
+            "colspan": 1
+          },
+          {
+            "value": "Q3",
+            "colspan": 1
+          },
+          {
+            "value": "Q4",
+            "colspan": 1
+          }
+        ]
       ],
-      [
-        { "value": "Q1", "colspan": 1 },
-        { "value": "Q2", "colspan": 1 },
-        { "value": "Q3", "colspan": 1 },
-        { "value": "Q4", "colspan": 1 }
+      "rows": [
+        {
+          "rowHeaders": [
+            {
+              "value": "Revenue",
+              "rowspan": 3,
+              "level": 0
+            },
+            {
+              "value": "Product Sales",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            150000,
+            165000,
+            180000,
+            195000,
+            690000
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Service Sales",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            45000,
+            50000,
+            55000,
+            60000,
+            210000
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Other Income",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            5000,
+            5500,
+            6000,
+            6500,
+            23000
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Expenses",
+              "rowspan": 2,
+              "level": 0
+            },
+            {
+              "value": "Operating Costs",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            80000,
+            85000,
+            90000,
+            95000,
+            350000
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Marketing",
+              "rowspan": 1,
+              "level": 1
+            }
+          ],
+          "cells": [
+            20000,
+            22000,
+            24000,
+            26000,
+            92000
+          ]
+        },
+        {
+          "rowHeaders": [
+            {
+              "value": "Net Profit",
+              "rowspan": 1,
+              "level": 0
+            }
+          ],
+          "cells": [
+            100000,
+            113500,
+            127000,
+            140500,
+            481000
+          ]
+        }
       ]
-    ],
-    "rows": [
-      {
-        "rowHeaders": [
-          { "value": "Revenue", "rowspan": 3, "level": 0 },
-          { "value": "Product Sales", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [150000, 165000, 180000, 195000, 690000]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Service Sales", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [45000, 50000, 55000, 60000, 210000]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Other Income", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [5000, 5500, 6000, 6500, 23000]
-      },
-      {
-        "rowHeaders": [
-          { "value": "Expenses", "rowspan": 2, "level": 0 },
-          { "value": "Operating Costs", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [80000, 85000, 90000, 95000, 350000]
-      },
-      {
-        "rowHeaders": [
-          { "value": "", "skip": true, "level": 0 },
-          { "value": "Marketing", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [20000, 22000, 24000, 26000, 92000]
-      },
-      {
-        "rowHeaders": [
-          { "value": "Net Profit", "rowspan": 1, "level": 0 },
-          { "value": "", "rowspan": 1, "level": 1 }
-        ],
-        "cells": [100000, 113500, 127000, 140500, 481000]
-      }
-    ]
-  },
-
+    },
     "table1": {
       "heading": {
         "AccountType": "Account Type",
@@ -1414,7 +1963,6 @@
         }
       ]
     },
-
     "transactions1Tbl": {
       "heading": {
         "Date": "Date",

@@ -506,6 +506,15 @@ function jsontablecustom(editor) {
         }
         return result;
     }
+
+    function hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+    }
     function getJsonFileOptions() {
         const storedFileNames = localStorage.getItem('common_json_files');
         const options = [{ id: '0', name: 'Select File' }];
@@ -681,6 +690,14 @@ function jsontablecustom(editor) {
                     // Add highlighting traits from custom table
                     {
                         type: 'button',
+                        name: 'manage-table-styles',
+                        label: 'Table Styles',
+                        text: 'Customize Table Styles',
+                        full: true,
+                        command: 'open-table-style-manager'
+                    },
+                    {
+                        type: 'button',
                         name: 'manage-highlight-conditions',
                         label: ' Highlight',
                         text: 'Highlight Conditions',
@@ -751,6 +768,15 @@ function jsontablecustom(editor) {
                 'highlight-text-color': '',
                 'highlight-font-family': '',
                 'show-placeholder': true,
+                'table-border-style': 'solid',
+                'table-border-width': '1',
+                'table-border-color': '#000000',
+                'table-border-opacity': '100',
+                'table-bg-color': '#ffffff',
+                'table-text-color': '#000000',
+                'table-font-family': 'Arial, sans-serif',
+                'table-text-align': 'left',
+                'table-vertical-align': 'middle',
             },
 
             init() {
@@ -900,9 +926,107 @@ function jsontablecustom(editor) {
 
                 // Keep highlight changes separate
                 this.on('change:highlight-conditions change:highlight-color', this.handleHighlightChange);
+                this.on('change:table-border-style change:table-border-width change:table-border-color change:table-border-opacity change:table-bg-color change:table-text-color change:table-font-family change:table-text-align change:table-vertical-align', this.applyTableStyles);
 
                 this.set('show-placeholder', true);
                 this.updateTableHTML();
+            },
+
+            applyTableStyles() {
+                const tableId = this.cid ? `json-table-${this.cid}` : null;
+                if (!tableId) return;
+
+                const canvasDoc = editor.Canvas.getDocument();
+                const tableElement = canvasDoc.getElementById(tableId);
+                if (!tableElement) return;
+
+                const borderStyle = this.get('table-border-style') || 'solid';
+                const borderWidth = this.get('table-border-width') || '1';
+                const borderColor = this.get('table-border-color') || '#000000';
+                const borderOpacity = this.get('table-border-opacity') || '100';
+                const bgColor = this.get('table-bg-color') || '#ffffff';
+                const textColor = this.get('table-text-color') || '#000000';
+                const fontFamily = this.get('table-font-family') || 'Arial, sans-serif';
+                const textAlign = this.get('table-text-align') || 'left';
+                const verticalAlign = this.get('table-vertical-align') || 'middle';
+
+                // Convert opacity to rgba
+                const opacity = parseInt(borderOpacity) / 100;
+                const rgbBorder = hexToRgb(borderColor);
+                const borderColorWithOpacity = `rgba(${rgbBorder.r}, ${rgbBorder.g}, ${rgbBorder.b}, ${opacity})`;
+
+                // Apply to table
+                tableElement.style.backgroundColor = bgColor;
+                tableElement.style.borderCollapse = 'collapse';
+
+                // Apply to all cells in DOM
+                const allCells = tableElement.querySelectorAll('td, th');
+                allCells.forEach(cell => {
+                    cell.style.border = `${borderWidth}px ${borderStyle} ${borderColorWithOpacity}`;
+                    cell.style.color = textColor;
+                    cell.style.fontFamily = fontFamily;
+                    cell.style.backgroundColor = bgColor;
+
+                    // Apply alignment to the div inside cell
+                    const cellContent = cell.querySelector('div');
+                    if (cellContent) {
+                        cellContent.style.textAlign = textAlign;
+                        cellContent.style.verticalAlign = verticalAlign;
+                        cellContent.style.display = 'flex';
+                        cellContent.style.alignItems = verticalAlign === 'top' ? 'flex-start' :
+                            verticalAlign === 'bottom' ? 'flex-end' : 'center';
+                        cellContent.style.justifyContent = textAlign === 'left' ? 'flex-start' :
+                            textAlign === 'right' ? 'flex-end' : 'center';
+                        cellContent.style.minHeight = '100%';
+                    }
+                });
+
+                // Apply to GrapesJS components - this ensures styles persist
+                const wrapper = editor.DomComponents.getWrapper();
+                const tableComp = wrapper.find(`#${tableId}`)[0];
+                if (tableComp) {
+                    tableComp.addStyle({
+                        'background-color': bgColor,
+                        '-webkit-print-color-adjust': 'exact',
+                        'print-color-adjust': 'exact'
+                    });
+
+                    const cells = tableComp.find('td, th');
+                    cells.forEach(cellComp => {
+                        const cellId = cellComp.getId();
+
+                        // Apply styles to cell component
+                        cellComp.addStyle({
+                            'border': `${borderWidth}px ${borderStyle} ${borderColorWithOpacity}`,
+                            'color': textColor,
+                            'font-family': fontFamily,
+                            'background-color': bgColor,
+                            '-webkit-print-color-adjust': 'exact',
+                            'print-color-adjust': 'exact'
+                        });
+
+                        // Apply alignment to the div inside
+                        const divComp = cellComp.find('div')[0];
+                        if (divComp) {
+                            divComp.addStyle({
+                                'text-align': textAlign,
+                                'display': 'flex',
+                                'align-items': verticalAlign === 'top' ? 'flex-start' :
+                                    verticalAlign === 'bottom' ? 'flex-end' : 'center',
+                                'justify-content': textAlign === 'left' ? 'flex-start' :
+                                    textAlign === 'right' ? 'flex-end' : 'center',
+                                'min-height': '100%',
+                                'width': '100%'
+                            });
+                        }
+                    });
+                }
+
+                // Store table styles for later reference
+                this.set('table-styles-applied', {
+                    borderStyle, borderWidth, borderColor, borderOpacity,
+                    bgColor, textColor, fontFamily, textAlign, verticalAlign
+                });
             },
             updateDataTableSettings() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
@@ -1684,17 +1808,31 @@ function jsontablecustom(editor) {
                             attributes.rowspan = header.rowspan.toString();
                         }
 
+                        const tableStyles = this.get('table-styles-applied');
+                        const cellStyles = tableStyles ? {
+                            'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
+                            'color': tableStyles.textColor,
+                            'font-family': tableStyles.fontFamily,
+                            'background-color': tableStyles.bgColor
+                        } : {
+                            'border': '1px solid #000',
+                            'font-weight': 'bold'
+                        };
+
+                        const alignStyles = tableStyles ? `display: flex; align-items: ${tableStyles.verticalAlign === 'top' ? 'flex-start' : tableStyles.verticalAlign === 'bottom' ? 'flex-end' : 'center'}; justify-content: ${tableStyles.textAlign === 'left' ? 'flex-start' : tableStyles.textAlign === 'right' ? 'flex-end' : 'center'}; min-height: 100%; width: 100%;` : '';
+
                         headerRowComponent.components().add({
                             type: 'json-table-cell',
                             tagName: 'th',
-                            content: `<div>${header.value || ''}</div>`,
+                            content: `<div style="${alignStyles}">${header.value || ''}</div>`,
                             selectable: true,
                             attributes,
                             style: {
+                                ...cellStyles,
                                 'padding': '8px',
-                                'border': '1px solid #000',
-                                'font-weight': 'bold',
-                                'text-align': 'center'
+                                'text-align': 'center',
+                                '-webkit-print-color-adjust': 'exact',
+                                'print-color-adjust': 'exact'
                             }
                         });
                     });
@@ -2947,11 +3085,25 @@ function jsontablecustom(editor) {
                     const headerId = `${tableId}-header-${key}`;
                     const storedHeader = this.get(`header-content-${key}`) || header;
 
+                    const tableStyles = this.get('table-styles-applied');
+                    const cellStyles = tableStyles ? {
+                        'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
+                        'color': tableStyles.textColor,
+                        'font-family': tableStyles.fontFamily,
+                        'background-color': tableStyles.bgColor,
+                        '-webkit-print-color-adjust': 'exact',
+                        'print-color-adjust': 'exact'
+                    } : {
+                        'padding': '8px',
+                        'border': '1px solid #000000ff',
+                        'font-weight': 'bold'
+                    };
+
                     const headerCellComponent = headerRowComponent.components().add({
                         type: 'json-table-cell',
                         tagName: 'th',
                         contenteditable: true,
-                        content: `<div>${storedHeader}</div>`,
+                        content: `<div style="display: flex; align-items: ${tableStyles ? (tableStyles.verticalAlign === 'top' ? 'flex-start' : tableStyles.verticalAlign === 'bottom' ? 'flex-end' : 'center') : 'center'}; justify-content: ${tableStyles ? (tableStyles.textAlign === 'left' ? 'flex-start' : tableStyles.textAlign === 'right' ? 'flex-end' : 'center') : 'flex-start'}; min-height: 100%; width: 100%;">${storedHeader}</div>`,
                         selectable: true,
                         contentEditable: true,
                         classes: ['json-table-cell', 'cell-content', 'editable-header'],
@@ -2961,13 +3113,11 @@ function jsontablecustom(editor) {
                             'data-gjs-hoverable': 'true',
                         },
                         style: {
-                            'padding': '8px',
+                            ...cellStyles,
                             'width': 'auto',
                             'height': '100%',
                             'text-align': 'left',
                             'box-sizing': 'border-box',
-                            'border': '1px solid #000000ff',
-                            'font-weight': 'bold',
                             'position': 'relative'
                         }
                     });
@@ -3017,12 +3167,35 @@ function jsontablecustom(editor) {
                         const cellStyles = this.getCellStyle(rowIndex, key);
                         const displayValue = row[key] || '';
 
+                        const tableStyles = this.get('table-styles-applied');
+                        const appliedCellStyles = tableStyles ? {
+                            'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
+                            'color': tableStyles.textColor,
+                            'font-family': tableStyles.fontFamily,
+                            'background-color': tableStyles.bgColor,
+                            '-webkit-print-color-adjust': 'exact',
+                            'print-color-adjust': 'exact'
+                        } : {
+                            'padding': '8px',
+                            'border': '1px solid #000'
+                        };
+
+                        const alignStyles = tableStyles ? {
+                            display: 'flex',
+                            alignItems: tableStyles.verticalAlign === 'top' ? 'flex-start' :
+                                tableStyles.verticalAlign === 'bottom' ? 'flex-end' : 'center',
+                            justifyContent: tableStyles.textAlign === 'left' ? 'flex-start' :
+                                tableStyles.textAlign === 'right' ? 'flex-end' : 'center',
+                            minHeight: '100%',
+                            width: '100%'
+                        } : { textAlign: 'left' };
+
                         const cellComponent = rowComponent.components().add({
                             type: 'json-table-cell',
                             tagName: 'td',
                             selectable: true,
                             contenteditable: true,
-                            content: `<div style="text-align: left;">${displayValue}</div>`,
+                            content: `<div style="display: ${alignStyles.display || 'block'}; align-items: ${alignStyles.alignItems || 'flex-start'}; justify-content: ${alignStyles.justifyContent || 'flex-start'}; min-height: 100%; width: 100%;">${displayValue}</div>`,
                             classes: ['json-table-cell', 'cell-content', 'editable-cell'],
                             attributes: {
                                 id: cellId,
@@ -3031,8 +3204,7 @@ function jsontablecustom(editor) {
                                 'data-gjs-hoverable': 'true'
                             },
                             style: {
-                                'padding': '8px',
-                                'border': '1px solid #000',
+                                ...appliedCellStyles,
                                 'position': 'relative',
                                 'width': 'auto',
                                 'height': '100%',
@@ -3252,6 +3424,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     color: #1976d2 !important;
     font-family: 'Courier New', monospace !important;
 }
+    
 }
 
         `
@@ -3753,6 +3926,166 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             }, 100);
         }
     });
+    editor.Commands.add('open-table-style-manager', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
+
+            const modalContent = `
+<div class="table-style-manager" style="padding: 20px; max-width: 600px;">
+    
+    <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+        <h4 style="margin-top: 0;">Border Settings</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Style:</label>
+                <select id="border-style" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="solid">Solid</option>
+                    <option value="double">Double</option>
+                    <option value="dashed">Dashed</option>
+                    <option value="dotted">Dotted</option>
+                    <option value="groove">Groove</option>
+                    <option value="ridge">Ridge</option>
+                    <option value="inset">Inset</option>
+                    <option value="outset">Outset</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Width (px):</label>
+                <input type="number" id="border-width" min="0" max="10" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Color:</label>
+                <input type="color" id="border-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Opacity (%):</label>
+                <input type="range" id="border-opacity" min="0" max="100" value="100" style="width: 100%;">
+                <span id="opacity-value">100%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+        <h4 style="margin-top: 0;">Colors & Font</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
+                <input type="color" id="bg-color" value="#ffffff" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
+                <input type="color" id="text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
+                <select id="font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="Verdana, sans-serif">Verdana</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
+                    <option value="Georgia, serif">Georgia</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                    <option value="Tahoma, sans-serif">Tahoma</option>
+                    <option value="Helvetica, sans-serif">Helvetica</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+        <h4 style="margin-top: 0;">Alignment</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Horizontal Align:</label>
+                <select id="text-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                </select>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Vertical Align:</label>
+                <select id="vertical-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="top">Top</option>
+                    <option value="middle">Middle</option>
+                    <option value="bottom">Bottom</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: right;">
+        <button id="reset-styles" style="background: #ffc107; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Reset to Default</button>
+        <button id="cancel-styles" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
+        <button id="apply-styles" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Styles</button>
+    </div>
+</div>`;
+
+            const modal = editor.Modal;
+            modal.setTitle('Customize Table Styles');
+            modal.setContent(modalContent);
+            modal.open();
+
+            setTimeout(() => {
+                initializeTableStyleManager(selected);
+            }, 100);
+        }
+    });
+
+    function initializeTableStyleManager(component) {
+        // Load current values
+        document.getElementById('border-style').value = component.get('table-border-style') || 'solid';
+        document.getElementById('border-width').value = component.get('table-border-width') || '1';
+        document.getElementById('border-color').value = component.get('table-border-color') || '#000000';
+        document.getElementById('border-opacity').value = component.get('table-border-opacity') || '100';
+        document.getElementById('bg-color').value = component.get('table-bg-color') || '#ffffff';
+        document.getElementById('text-color').value = component.get('table-text-color') || '#000000';
+        document.getElementById('font-family').value = component.get('table-font-family') || 'Arial, sans-serif';
+        document.getElementById('text-align').value = component.get('table-text-align') || 'left';
+        document.getElementById('vertical-align').value = component.get('table-vertical-align') || 'middle';
+
+        // Opacity slider
+        const opacitySlider = document.getElementById('border-opacity');
+        const opacityValue = document.getElementById('opacity-value');
+        opacitySlider.addEventListener('input', function () {
+            opacityValue.textContent = this.value + '%';
+        });
+
+        // Apply button
+        document.getElementById('apply-styles').addEventListener('click', function () {
+            component.set('table-border-style', document.getElementById('border-style').value);
+            component.set('table-border-width', document.getElementById('border-width').value);
+            component.set('table-border-color', document.getElementById('border-color').value);
+            component.set('table-border-opacity', document.getElementById('border-opacity').value);
+            component.set('table-bg-color', document.getElementById('bg-color').value);
+            component.set('table-text-color', document.getElementById('text-color').value);
+            component.set('table-font-family', document.getElementById('font-family').value);
+            component.set('table-text-align', document.getElementById('text-align').value);
+            component.set('table-vertical-align', document.getElementById('vertical-align').value);
+
+            component.applyTableStyles();
+            editor.Modal.close();
+        });
+
+        // Reset button
+        document.getElementById('reset-styles').addEventListener('click', function () {
+            document.getElementById('border-style').value = 'solid';
+            document.getElementById('border-width').value = '1';
+            document.getElementById('border-color').value = '#000000';
+            document.getElementById('border-opacity').value = '100';
+            document.getElementById('bg-color').value = '#ffffff';
+            document.getElementById('text-color').value = '#000000';
+            document.getElementById('font-family').value = 'Arial, sans-serif';
+            document.getElementById('text-align').value = 'left';
+            document.getElementById('vertical-align').value = 'middle';
+            opacityValue.textContent = '100%';
+        });
+
+        // Cancel button
+        document.getElementById('cancel-styles').addEventListener('click', function () {
+            editor.Modal.close();
+        });
+    }
     function initializeTableConditionManager(component, conditions) {
         const conditionTypeSelect = document.getElementById('condition-type');
         const conditionValueInput = document.getElementById('condition-value');
