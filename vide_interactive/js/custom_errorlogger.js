@@ -46,7 +46,14 @@ function customErrorLogger(editor) {
       console.error(`%c[${level}] ${context}: ${errorMessage}`, color, err);
     }
 
-    updateErrorModal();
+    // ✅ Highlight the bug icon instead of auto-opening modal
+    if (editor && editor.Panels) {
+      const btn = editor.Panels.getButton('devices-c', 'error-logger-btn');
+      if (btn && btn.view && btn.view.el) {
+        btn.view.el.style.color = 'red';
+        btn.set('attributes', { title: 'New Errors Logged!' });
+      }
+    }
   }
 
   // Modal renderer
@@ -87,7 +94,7 @@ function customErrorLogger(editor) {
 
         html += `
           <div style="margin-bottom:8px; padding:6px; border:1px solid #ddd; border-radius:5px">
-            <strong>#${i + 1} [${log.level}] - ${log.time}</strong><br/>
+            <strong style="color:${color}">#${i + 1} [${log.level}] - ${log.time}</strong><br/>
             <b>Context:</b> ${log.context}<br/>
             <b>Message:</b> ${log.message}<br/>
             ${config.showFullTrace ? `<pre style="white-space: pre-wrap; font-size: 11px;">${log.stack}</pre>` : ""}
@@ -121,6 +128,7 @@ function customErrorLogger(editor) {
     }, 0);
   }
 
+  // Add button to GrapesJS top panel
   editor.on("load", () => {
     const devicesPanel = editor.Panels.getPanel("devices-c");
 
@@ -132,18 +140,24 @@ function customErrorLogger(editor) {
         className: "fa fa-bug",
         command: "open-error-logger",
         attributes: {
-          title: "View Errorss"
+          title: "View Errors"
         }
       }]);
     }
   });
 
-
-  // Command
+  // Command to open error modal
   editor.Commands.add("open-error-logger", {
     run() {
       updateErrorModal();
       modal.open();
+
+      // Reset highlight on open
+      const btn = editor.Panels.getButton('devices-c', 'error-logger-btn');
+      if (btn && btn.view && btn.view.el) {
+        btn.view.el.style.color = '';
+        btn.set('attributes', { title: 'View Errors' });
+      }
     },
   });
 

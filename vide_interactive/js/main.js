@@ -551,11 +551,11 @@ setTimeout(() => renderUploadedJsonList(), 0);
 
     // Modal HTML
     editor.Modal.open({
-      title: "Export and Send",
+      title: "Bulk Export",
       content: `
       <div style="max-height:600px; overflow:auto;">
 
-       <h4>Payload Preview:</h4>
+       <div>Payload Preview:</div>
         <button id="payload-preview-btn" style="margin-bottom:10px;">View Payload Mappings</button>
         <div id="payload-preview-container"></div>
 
@@ -591,7 +591,7 @@ setTimeout(() => renderUploadedJsonList(), 0);
           <button id="file-name-add-btn">Add</button>
         </div>
 
-        <div id="file-name-saved" style="margin-top:5px; font-size:0.9em; color:#333;"></div>
+        <div id="file-name-saved" style="margin-top:5px; font-size:0.9em;"></div>
 
         <hr>
 
@@ -618,12 +618,13 @@ setTimeout(() => renderUploadedJsonList(), 0);
           <button id="password-add-btn">Add</button>
         </div>
 
-        <!-- Password Custom -->
-        <div id="password-custom-section" style="display:none; margin-top:5px;">
-          <input type="text" id="password-custom-input" placeholder="Enter custom password" style="width:100%">
-        </div>
+<!-- Password Custom -->
+<div id="password-custom-section" style="display:none; margin-top:5px;">
+  <input type="text" id="password-custom-input" placeholder="Enter custom password" style="width:70%">
+  <button id="password-custom-add-btn">Add</button>
+</div>
 
-        <div id="password-saved" style="margin-top:5px; font-size:0.9em; color:#333;"></div>
+        <div id="password-saved" style="margin-top:5px; font-size:0.9em;"></div>
 
         <button id="send-api-btn" style="margin-top:15px;">Send</button>
       </div>
@@ -733,13 +734,14 @@ document.getElementById("json-upload-input").addEventListener("change", async (e
 
 
     // Render JSON file list
+// Render JSON file list
 function renderUploadedJsonList() {
   const container = document.getElementById("uploaded-json-list");
   container.innerHTML = "";
   uploadedJsonFiles.forEach((f, i) => {
     const row = document.createElement("div");
     row.style.cssText =
-      "display:flex; justify-content:space-between; align-items:center; padding:4px; background:#f9f9f9; margin:2px 0; border-radius:3px;";
+      "display:flex; justify-content:space-between; align-items:center; padding:4px; color:white; margin:2px 0; border-radius:3px;";
     row.innerHTML = `
       <span>${f.name}${f.fromLocal ? " (localStorage)" : ""}</span>
       <button data-index="${i}" style="background:#ff4444; color:white; border:none; padding:2px 6px; cursor:pointer; border-radius:3px;">✕</button>
@@ -751,8 +753,45 @@ function renderUploadedJsonList() {
       const idx = parseInt(e.target.getAttribute("data-index"));
       uploadedJsonFiles.splice(idx, 1);
       renderUploadedJsonList();
+      
+      // ✅ Refresh language dropdowns after deletion
+      refreshLanguageDropdowns();
     });
   });
+}
+
+// ✅ Add new function to refresh language dropdowns
+function refreshLanguageDropdowns() {
+  const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
+  const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
+  
+  // Clear existing options
+  fileNameLanguageDropdown.innerHTML = '<option value="">--Select Language--</option>';
+  passwordLanguageDropdown.innerHTML = '<option value="">--Select Language--</option>';
+  
+  // Merge all remaining JSON files
+  const mergedJson = {};
+  uploadedJsonFiles.forEach(f => {
+    try {
+      const jsonData = JSON.parse(f.content);
+      Object.assign(mergedJson, jsonData);
+    } catch (e) {
+      console.warn(`Failed to parse ${f.name}:`, e);
+    }
+  });
+  
+  // Re-populate dropdowns
+  const topLevelKeys = Object.keys(mergedJson);
+  topLevelKeys.forEach(k => {
+    const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
+    const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
+  });
+  
+  // Hide key selection sections
+  document.getElementById("file-name-key-dropdown-section").style.display = "none";
+  document.getElementById("password-key-dropdown-section").style.display = "none";
+  document.getElementById("file-name-index-section").style.display = "none";
+  document.getElementById("password-index-section").style.display = "none";
 }
 
 
@@ -794,32 +833,41 @@ fileNameLanguageDropdown.addEventListener("change", e => {
   document.getElementById("file-name-index-section").style.display = "none";
 });
 
-    passwordLanguageDropdown.addEventListener("change", e => {
-      const selectedLanguage = e.target.value;
-      const passwordKeyDropdown = document.getElementById("password-key-dropdown");
-      const passwordKeySection = document.getElementById("password-key-dropdown-section");
+passwordLanguageDropdown.addEventListener("change", e => {
+  const selectedLanguage = e.target.value;
+  const passwordKeyDropdown = document.getElementById("password-key-dropdown");
+  const passwordKeySection = document.getElementById("password-key-dropdown-section");
 
-      if (selectedLanguage) {
-        // Clear existing options
-        passwordKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
+  if (selectedLanguage) {
+    passwordKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
 
-        // Get keys for selected language
-        const languageData = uploadedJson[selectedLanguage];
-        if (languageData) {
-          const keys = extractMetaDataKeys(languageData);
-          keys.forEach(key => {
-            const opt = document.createElement("option");
-            opt.value = `${selectedLanguage}.${key}`;
-            opt.textContent = key;
-            passwordKeyDropdown.appendChild(opt);
-          });
-        }
-        passwordKeySection.style.display = "block";
-      } else {
-        passwordKeySection.style.display = "none";
+    // Merge all JSON files to get the language data
+    const mergedJson = {};
+    uploadedJsonFiles.forEach(f => {
+      try {
+        const jsonData = JSON.parse(f.content);
+        Object.assign(mergedJson, jsonData);
+      } catch (e) {
+        console.warn(`Failed to parse ${f.name}:`, e);
       }
-      document.getElementById("password-index-section").style.display = "none";
     });
+
+    const languageData = mergedJson[selectedLanguage];
+    if (languageData) {
+      const keys = extractMetaDataKeys(languageData);
+      keys.forEach(key => {
+        const opt = document.createElement("option");
+        opt.value = `${selectedLanguage}.${key}`;
+        opt.textContent = key;
+        passwordKeyDropdown.appendChild(opt);
+      });
+    }
+    passwordKeySection.style.display = "block";
+  } else {
+    passwordKeySection.style.display = "none";
+  }
+  document.getElementById("password-index-section").style.display = "none";
+});
 
     // File name key selection
     document.getElementById("file-name-key-dropdown").addEventListener("change", e => {
@@ -852,17 +900,26 @@ fileNameLanguageDropdown.addEventListener("change", e => {
       }
     });
 
-    document.getElementById("password-add-btn").addEventListener("click", () => {
-      const key = document.getElementById("password-key-dropdown").value;
-      const idx = document.getElementById("password-index-input").value.trim();
-      if (key) {
-        passwordSaved.push({ key, indexes: idx });
-        renderSaved(passwordSaved, "password-saved");
-        document.getElementById("password-index-input").value = "";
-        document.getElementById("password-key-dropdown").value = "";
-        document.getElementById("password-index-section").style.display = "none";
-      }
-    });
+document.getElementById("password-add-btn").addEventListener("click", () => {
+  const key = document.getElementById("password-key-dropdown").value;
+  const idx = document.getElementById("password-index-input").value.trim();
+  if (key) {
+    passwordSaved.push({ key, indexes: idx });
+    renderSaved(passwordSaved, "password-saved");
+    document.getElementById("password-index-input").value = "";
+    document.getElementById("password-key-dropdown").value = "";
+    document.getElementById("password-index-section").style.display = "none";
+  }
+});
+
+// Add listener for custom password button
+document.getElementById("password-custom-add-btn").addEventListener("click", () => {
+  const val = document.getElementById("password-custom-input").value.trim();
+  if (val) {
+    passwordCustom = val;
+    document.getElementById("password-saved").innerHTML = `Custom: ${val}`;
+  }
+});
 
     function renderSaved(arr, containerId) {
       const div = document.getElementById(containerId);
@@ -871,6 +928,11 @@ fileNameLanguageDropdown.addEventListener("change", e => {
 
     // Send button
     document.getElementById("send-api-btn").addEventListener("click", async () => {
+  // ✅ Validate payload mappings
+  if (inputJsonMappings.length === 0) {
+    alert("⚠️ No payload mappings found. Please add at least one mapping before sending.");
+    return;
+  }
       editor.Modal.close();
 
       let fileNamePayload;
@@ -956,20 +1018,32 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   const html = editor.getHtml();
   const css = editor.getCss();
 
-  let finalHtml;
+let finalHtml;
 
 if (exportType === "pdf") {
-  // Remove IDs from elements with class="page-container" or class="page-content"
+  // Remove margin from .page-container in CSS
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = html;
   
-  // Select both .page-container and .page-content elements
-  tempDiv.querySelectorAll(".page-container, .page-content").forEach(el => {
-    el.removeAttribute("id");
+  // Find all elements with class "page-container"
+  const pageContainers = tempDiv.querySelectorAll(".page-container");
+  const idsToClean = [];
+  
+  pageContainers.forEach(el => {
+    if (el.id) {
+      idsToClean.push(el.id);
+    }
   });
-
-  const cleanedHtml = tempDiv.innerHTML;
-  finalHtml = htmlWithCss(cleanedHtml, css);
+  
+  // Remove margin property from those IDs in CSS
+  let cleanedCss = css;
+  idsToClean.forEach(id => {
+    // Match #id { ... } block and remove margin property
+    const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, 'g');
+    cleanedCss = cleanedCss.replace(idRegex, '$1');
+  });
+  
+  finalHtml = htmlWithCss(html, cleanedCss);
 } else {
   // For HTML export, send raw HTML with CSS, no cleanup
   finalHtml = htmlWithCss(html, css);
@@ -2555,47 +2629,64 @@ function savePage() {
   el.addEventListener("click", downloadPage, true);
 }
 
-function downloadPage() {
-  const pageName = document.getElementById("singleSavePageName").value;
-  if (!pageName) {
-    alert("Page name required");
+function downloadPage(){
+  pageName = document.getElementById('singleSavePageName').value; 
+  if(pageName === null ||pageName ===undefined || pageName ===''){
+    alert('Page name required');
     return false;
   }
-
-  const html = editor.getHtml();
-  const css = editor.getCss();
-  const components = editor.getComponents();
-  const style = editor.getStyle();
-
-  const pageData = {
-    html,
-    css,
-    components: components.toJSON(),
-    style: style.toJSON(),
-    traits: {},
-  };
-
-  editor
-    .getWrapper()
-    .find("[data-i_designer-type]")
-    .forEach((comp) => {
-      pageData.traits[comp.cid] = comp.getTraits().map((trait) => ({
-        name: trait.attributes.name,
-        value: trait.get("value"),
-      }));
-    });
-
-  const dataStr =
-    "data:text/json;charset=utf-8," +
-    encodeURIComponent(JSON.stringify(pageData));
-  const downloadAnchorNode = document.createElement("a");
-  downloadAnchorNode.setAttribute("href", dataStr);
-  downloadAnchorNode.setAttribute("download", pageName + ".json");
-  document.body.appendChild(downloadAnchorNode);
-  downloadAnchorNode.click();
-  downloadAnchorNode.remove();
-  editor.Modal.close();
-}
+  var htmlContent = editor.getHtml();
+  var cssContent = editor.getCss();
+  htmlContent =
+    "<html><head><style>" +
+    cssContent + `  .navbar-div .hamburger-menu { display: none !important;  text-align: right;
+      font-size: 30px; padding: 10px; color: #472e90; cursor: pointer;
+    }  @media (max-width: 991px) {  .navbar-div .hamburger-menu { display: block !important; }
+      .navbar-div .tab-container, .navbar-div .tab{ width:99%; text-align:center; }
+     .navbar-div .tab-container{display:none}
+    } 
+    @media (max-width: 767px){ .navbar-div .hamburger-menu {   display: block !important; }
+     .navbar-div .tab-container, .navbar-div .tab{
+       width:98%; } 
+    .navbar-div .tab-container{display:none}
+    }` +
+    "</style></head>" + 
+    htmlContent + `<script>
+    var hamburgerMenu = document.getElementById("hamburgerMenu"); 
+        if(hamburgerMenu !==null){
+          var tabContainer = document.querySelector(".tab-container");  
+          hamburgerMenu.addEventListener("click", function() {
+              if (tabContainer.style.display === "block") {
+                tabContainer.style.display = "none";
+              } else {
+                tabContainer.style.display = "block";
+              }
+            });   
+          function  updateView(){   
+            const viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0); 
+            const tabContainer = document.querySelector(".tab-container");  
+            if (viewportWidth >= 991) {  
+              tabContainer.style.display = "block";
+            } else{
+              tabContainer.style.display = "none";
+            } 
+          }  
+          window.addEventListener('resize', updateView); 
+        }
+    </script>` +
+    "</html>";  
+    localStorage.setItem('single-page',  JSON.stringify(htmlContent)); 
+    var blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});  
+    var url = URL.createObjectURL(blob);  
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = pageName+".html";  
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link); 
+    URL.revokeObjectURL(url);
+    editor.Modal.close();   
+} 
 
 // *********start resize and drag code ***********
 
@@ -2784,47 +2875,36 @@ function importSinglePages() {
   el.addEventListener("click", importFile, true);
 }
 
-function importFile() {
+function importFile(){
   const input = document.getElementById('importSinglePageInput');
   const file = input.files[0];
-  if (!file) {
-    alert('No file selected');
-    return;
-  }
+  if (file) { 
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const code = e.target.result;  
+      localStorage.setItem('single-page', JSON.stringify(code)); 
+      editor.setComponents(code); 
+      editor.Modal.close(); 
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    const content = e.target.result;
-    const pageData = JSON.parse(content);
-
-    editor.setComponents(pageData.components);
-    editor.setStyle(pageData.style);
-
-    // Apply HTML and CSS separately to ensure complete restoration
-    const wrapper = editor.getWrapper();
-    wrapper.set('content', '');
-    wrapper.components(pageData.html);
-    editor.addStyle(pageData.css);
-
-    // Restore custom traits' values
-    for (const cid in pageData.traits) {
-      if (pageData.traits.hasOwnProperty(cid)) {
-        const comp = wrapper.find(`#${cid}`)[0];
-        if (comp) {
-          pageData.traits[cid].forEach(traitData => {
-            const trait = comp.getTrait(traitData.name);
-            if (trait) {
-              trait.set('value', traitData.value);
-            }
-          });
+      // ✅ Run embedded scripts manually
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = code;
+      tempDiv.querySelectorAll('script').forEach(scr => {
+        const newScript = document.createElement('script');
+        if (scr.src) {
+          newScript.src = scr.src;
+        } else {
+          newScript.textContent = scr.innerHTML;
         }
-      }
+        document.body.appendChild(newScript);
+      });
     }
-    editor.Modal.close();
-    updateComponentsWithNewJson(editor);
-  };
-  reader.readAsText(file);
+    reader.readAsText(file);
+  } else {
+    alert('No file selected'); 
+  } 
 }
+
 function importMultipleFiles() {
   const input = document.getElementById("importMultiplePageInput");
   const files = Array.from(input.files);

@@ -7460,7 +7460,7 @@ setupEditorPages() {
   }
 
   // Alternative method to periodically check and add sections if needed
-  checkAndAddSections() {
+checkAndAddSections() {
     const sectionsRequiredBlocks = [
       "column1", "column2", "column3", "column3-7", "text",
       "separator", "Dynamic Header Footer", "link", "image",
@@ -7498,158 +7498,37 @@ setupEditorPages() {
 
   addSectionsContainerToAllPages() {
     try {
-      console.log("🚀 Starting to add sections-container to all pages...");
-
       const wrapper = this.editor.getWrapper();
       const allPageComponents = wrapper.find('.page-container');
 
-      console.log(`📊 Found ${allPageComponents.length} pages to process`);
+      console.log(`Found ${allPageComponents.length} pages`);
 
-      if (!allPageComponents || allPageComponents.length === 0) {
-        console.error("❌ No page containers found!");
-        return;
-      }
-
-      let pagesProcessed = 0;
-      let pagesSkipped = 0;
-
-      // Process each page
       for (let i = 0; i < allPageComponents.length; i++) {
         const pageComponent = allPageComponents[i];
+        const mainContentArea = pageComponent.find('.main-content-area')[0];
 
-        try {
-          const pageIndex = pageComponent.getAttributes()['data-page-index'] || i;
-          console.log(`🔄 Processing page ${parseInt(pageIndex) + 1}...`);
+        if (!mainContentArea) continue;
 
-          const mainContentArea = pageComponent.find('.main-content-area')[0];
+        const existingSections = mainContentArea.find('.sections-container');
 
-          if (!mainContentArea) {
-            console.warn(`⚠️ No main-content-area found on page ${parseInt(pageIndex) + 1}`);
-            continue;
-          }
-
-          // Check if sections-container already exists
-          const existingSections = mainContentArea.find('.sections-container');
-
-          if (existingSections && existingSections.length > 0) {
-            console.log(`✅ Sections-container already exists on page ${parseInt(pageIndex) + 1}`);
-            pagesSkipped++;
-            continue;
-          }
-
-          console.log(`➕ Adding sections-container to page ${parseInt(pageIndex) + 1}`);
-
-          // Create sections-container using GrapesJS components
-          const sectionsComponent = mainContentArea.append([{
-            tagName: 'div',
-            classes: ['sections-container'],
-            components: [
-              {
-                tagName: 'div',
-                classes: ['section-header', 'gjs-editor-header'],
-                attributes: { 'data-gjs-name': 'Header' }
-              },
-              {
-                tagName: 'div',
-                classes: ['section-content', 'gjs-editor-content'],
-                attributes: { 'data-gjs-name': 'Content' }
-              },
-              {
-                tagName: 'div',
-                classes: ['section-footer', 'gjs-editor-footer'],
-                attributes: { 'data-gjs-name': 'Footer' }
-              }
-            ],
-            styles: {
-              'width': '100%',
-              'height': '100%',
-              'display': 'flex',
-              'flex-direction': 'column',
-              'position': 'relative'
-            }
-          }])[0];
-
-          if (sectionsComponent) {
-            // Configure sections components
-            sectionsComponent.set({
-              droppable: true,
-              editable: false,
-              selectable: true,
-              removable: false,
-              "custom-name": "Sections Container"
-            });
-
-            // Configure individual sections
-            setTimeout(() => {
-              const sectionHeader = sectionsComponent.find(".section-header")[0];
-              if (sectionHeader) {
-                sectionHeader.setStyle({
-                  'flex-shrink': '0',
-                  'min-height': '50px',
-                  'border': '1px dashed #dee2e6',
-                  'margin-bottom': '10px',
-                  'box-sizing': 'border-box'
-                });
-                sectionHeader.set({
-                  droppable: true,
-                  editable: true,
-                  selectable: true,
-                  "custom-name": "Section Header"
-                });
-              }
-
-              const sectionContent = sectionsComponent.find(".section-content")[0];
-              if (sectionContent) {
-                sectionContent.setStyle({
-                  'flex': '1',
-                  'border': '1px dashed #dee2e6',
-                  'margin-bottom': '10px',
-                  'box-sizing': 'border-box',
-                  'min-height': '100px'
-                });
-                sectionContent.set({
-                  droppable: true,
-                  editable: true,
-                  selectable: true,
-                  "custom-name": "Section Content"
-                });
-              }
-
-              const sectionFooter = sectionsComponent.find(".section-footer")[0];
-              if (sectionFooter) {
-                sectionFooter.setStyle({
-                  'flex-shrink': '0',
-                  'min-height': '50px',
-                  'border': '1px dashed #dee2e6',
-                  'box-sizing': 'border-box'
-                });
-                sectionFooter.set({
-                  droppable: true,
-                  editable: true,
-                  selectable: true,
-                  "custom-name": "Section Footer"
-                });
-              }
-            }, 100);
-
-            pagesProcessed++;
-            console.log(`✅ Successfully added sections-container to page ${parseInt(pageIndex) + 1}`);
-          } else {
-            console.error(`❌ Failed to create sections-container on page ${parseInt(pageIndex) + 1}`);
-          }
-
-        } catch (pageError) {
-          console.error(`❌ Error processing page ${i + 1}:`, pageError);
+        if (existingSections && existingSections.length > 0) {
+          console.log(`Page ${i + 1} already has sections`);
+          continue;
         }
+
+        console.log(`Adding Dynamic Header Footer to page ${i + 1}`);
+
+        // Use the registered component type
+        mainContentArea.append({
+          type: 'Dynamic Header Footer'
+        });
+
+        console.log(`Added to page ${i + 1}`);
       }
 
-      console.log(`🎉 Sections-container processing complete! ${pagesProcessed} added, ${pagesSkipped} skipped, ${allPageComponents.length} total pages`);
-
-      // Trigger editor refresh
       this.editor.trigger('change:canvasOffset');
-
     } catch (error) {
-      console.error("❌ Error in addSectionsContainerToAllPages:", error);
+      console.error("Error adding sections:", error);
     }
   }
 
@@ -7712,8 +7591,6 @@ setupEditorPages() {
     this.editor.off('block:drag:stop.sections');
     this.editor.off('canvas:drop.sections');
   }
-
-
 
   forceSectionsToAllPages() {
     console.log("🔧 Manually forcing sections to all pages...");
@@ -9488,6 +9365,10 @@ renderPageNumbers() {
 
   //////////////////////////////////section header workiing code from here///////////////////////////////////////
   // 🔹 Register dynamic header/footer
+  _originalHeaderContent = '';
+  _originalFooterContent = '';
+
+  // 🔹 Register dynamic header/footer
   registerDynamicHeaderFooter() {
     this.editor.Components.addType("Dynamic Header Footer", {
       model: {
@@ -9530,7 +9411,7 @@ renderPageNumbers() {
               tagName: "div",
               name: "Content",
               attributes: { class: "section-content gjs-editor-content", 'data-gjs-name': 'Content' },
-              style: { flex: "1", padding: "10px", position: "relative" }
+              style: { flex: "1", padding: "10px", position: "relative", "min-height": "260px"}
             },
             {
               tagName: "div",
@@ -9565,7 +9446,7 @@ renderPageNumbers() {
             display: "flex",
             "flex-direction": "column",
             width: "100%",
-            "min-height": "50vh",
+            //"min-height": "400px",
             margin: "10px 0",
             padding: "5px"
           }
@@ -9573,36 +9454,74 @@ renderPageNumbers() {
       }
     });
 
-    // 🔹 Event binding: whenever traits change, update all pages
+    // Listen for content changes to capture header/footer text
+    this.editor.on('component:update', (component) => {
+      const parent = component.parent();
+      if (!parent) return;
+
+      const parentName = parent.get('name');
+
+      // Capture header content
+      if (parentName === 'Header') {
+        const content = component.get('content');
+        if (content && content.trim()) {
+          this._originalHeaderContent = content;
+          console.log('Captured header content:', content);
+        }
+      }
+
+      // Capture footer content
+      if (parentName === 'Footer') {
+        const content = component.get('content');
+        if (content && content.trim()) {
+          this._originalFooterContent = content;
+          console.log('Captured footer content:', content);
+        }
+      }
+    });
+
+    // Event binding for trait changes
     this.editor.on('trait:update', (eventData) => {
       const { trait, component } = eventData;
-
       const traitName = trait.get('name');
       const traitValue = trait.get('value');
       const componentName = component.get('name');
 
-      console.log(`🔧 Trait update: ${traitName} = ${traitValue} on component: ${componentName}`);
+      console.log(`Trait update: ${traitName} = ${traitValue} on ${componentName}`);
 
-      // Check if it's a header or footer trait change
       if (componentName === 'Header' && (traitName === 'headerApplyMode' || traitName === 'headerCustomRange')) {
+        // Capture current content before applying filter
+        const rteComp = component.find('[data-gjs-type="formatted-rich-text"]')[0];
+        if (rteComp) {
+          const content = rteComp.get('content');
+          if (content && content.trim()) {
+            this._originalHeaderContent = content;
+            console.log('Saved header before filter:', content);
+          }
+        }
+
         const mode = component.get('headerApplyMode');
-        const range = component.get('headerCustomRange');
-        console.log(`📋 Header trait changed: mode=${mode}, range=${range}`);
+        const range = component.get('headerCustomRange') || '';
 
         this.syncHeaderTraitsAcrossPages(component, mode, range);
 
-        // Update content after sync
         setTimeout(() => {
           this.updateAllSectionHeadersFooters();
         }, 50);
       } else if (componentName === 'Footer' && (traitName === 'footerApplyMode' || traitName === 'footerCustomRange')) {
+        const rteComp = component.components().at(0);
+        if (rteComp) {
+          const content = rteComp.get('content');
+          if (content && content.trim()) {
+            this._originalFooterContent = content;
+          }
+        }
+
         const mode = component.get('footerApplyMode');
-        const range = component.get('footerCustomRange');
-        console.log(`📋 Footer trait changed: mode=${mode}, range=${range}`);
+        const range = component.get('footerCustomRange') || '';
 
         this.syncFooterTraitsAcrossPages(component, mode, range);
 
-        // Update content after sync
         setTimeout(() => {
           this.updateAllSectionHeadersFooters();
         }, 50);
@@ -9613,7 +9532,7 @@ renderPageNumbers() {
   // 🔹 Sync header traits across all pages
   syncHeaderTraitsAcrossPages(sourceComponent, newMode, newRange) {
     const allPages = this.editor.getWrapper().find('.page-container');
-    console.log(`🔄 Syncing header traits: mode=${newMode}, range=${newRange} across ${allPages.length} pages`);
+    console.log(`Syncing header traits: mode=${newMode}, range=${newRange} across ${allPages.length} pages`);
 
     allPages.forEach((pageComponent, i) => {
       const sectionContainer = pageComponent.find('.sections-container')[0];
@@ -9622,11 +9541,9 @@ renderPageNumbers() {
       const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
       if (!headerComp) return;
 
-      // Update both properties on the component
       headerComp.set('headerApplyMode', newMode);
       headerComp.set('headerCustomRange', newRange);
 
-      // Update the trait UI
       const modeTrait = headerComp.getTrait('headerApplyMode');
       const rangeTrait = headerComp.getTrait('headerCustomRange');
 
@@ -9646,7 +9563,7 @@ renderPageNumbers() {
         }
       }
 
-      console.log(`   ✅ Page ${i + 1} header synced: mode=${headerComp.get('headerApplyMode')}, range=${headerComp.get('headerCustomRange')}`);
+      console.log(`Page ${i + 1} header synced: mode=${headerComp.get('headerApplyMode')}`);
     });
   }
 
@@ -9727,6 +9644,7 @@ renderPageNumbers() {
     return true;
   }
 
+
   // 🔹 Update header per page
   updateSectionHeader(pageComponent, pageIndex) {
     const sectionContainer = pageComponent.find('.sections-container')[0];
@@ -9788,61 +9706,76 @@ renderPageNumbers() {
   // 🔹 Update all pages
   updateAllSectionHeadersFooters() {
     const allPages = this.editor.getWrapper().find('.page-container');
-    console.log(`🔄 Updating all section headers and footers (${allPages.length} pages)`);
+    console.log(`Updating headers/footers (${allPages.length} pages)`);
+    console.log(`Original header content: "${this._originalHeaderContent}"`);
 
     allPages.forEach((pageComponent, i) => {
-      console.log(`\n📄 Processing Page ${i + 1}`);
-
       const sectionContainer = pageComponent.find('.sections-container')[0];
       if (!sectionContainer) return;
 
       const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
-      const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
 
-      // 🔹 For header: get mode/range from the component
       if (headerComp) {
         const mode = headerComp.get('headerApplyMode') || 'all';
         const range = headerComp.get('headerCustomRange') || '';
         const show = this.checkSectionApplyMode(mode, range, i);
 
-        const rteComp = headerComp.components().find(c => c.get('attributes')['data-gjs-type'] === 'formatted-rich-text');
-        if (rteComp) {
-          if (show) {
-            console.log(`✅ Showing header text (page ${i + 1})`);
-            rteComp.set('content', `Header for page ${i + 1}`);
-          } else {
-            console.log(`❌ Clearing header text (page ${i + 1})`);
-            rteComp.set('content', '');
-          }
-          if (rteComp.view) rteComp.view.render();
+        console.log(`Page ${i + 1}: mode=${mode}, show=${show}`);
+
+        // Find or create rich text component
+        let rteComp = headerComp.find('[data-gjs-type="formatted-rich-text"]')[0];
+
+        if (!rteComp) {
+          rteComp = headerComp.append({
+            tagName: 'div',
+            attributes: { 'data-gjs-type': 'formatted-rich-text' },
+            content: ''
+          })[0];
         }
 
-        console.log(`   Header trait synced: mode=${mode}, range=${range}`);
+        if (rteComp) {
+          if (show && this._originalHeaderContent) {
+            console.log(`Showing content on page ${i + 1}: "${this._originalHeaderContent}"`);
+            rteComp.set('content', this._originalHeaderContent);
+          } else {
+            console.log(`Clearing content on page ${i + 1}`);
+            rteComp.set('content', ''); // Just clear the text, don't hide header
+          }
+
+          if (rteComp.view) rteComp.view.render();
+        }
       }
 
-      // 🔹 For footer: similar logic
+      // Same for footer
+      const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
       if (footerComp) {
         const mode = footerComp.get('footerApplyMode') || 'all';
         const range = footerComp.get('footerCustomRange') || '';
         const show = this.checkSectionApplyMode(mode, range, i);
 
-        const rteComp = footerComp.components().at(0);
-        if (rteComp) {
-          if (show) {
-            console.log(`✅ Showing footer text (page ${i + 1})`);
-            rteComp.set('content', `Footer for page ${i + 1}`);
-          } else {
-            console.log(`❌ Clearing footer text (page ${i + 1})`);
-            rteComp.set('content', '');
-          }
-          if (rteComp.view) rteComp.view.render();
+        let rteComp = footerComp.components().at(0);
+
+        if (!rteComp) {
+          rteComp = footerComp.append({
+            tagName: 'div',
+            attributes: { 'data-gjs-type': 'formatted-rich-text' },
+            content: ''
+          })[0];
         }
 
-        console.log(`   Footer trait synced: mode=${mode}, range=${range}`);
+        if (rteComp) {
+          if (show && this._originalFooterContent) {
+            rteComp.set('content', this._originalFooterContent);
+          } else {
+            rteComp.set('content', ''); // Just clear the text
+          }
+
+          if (rteComp.view) rteComp.view.render();
+        }
       }
     });
 
-    console.log('✅ All section headers and footers updated.\n');
+    console.log('All headers/footers updated');
   }
   /////////////////////////////////////////section header footer code end here////////////////////////////////////////////
 

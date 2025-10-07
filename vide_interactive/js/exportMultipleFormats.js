@@ -7,7 +7,7 @@ function exportPlugin(editor) {
     if (devicesPanel) {
       devicesPanel.get("buttons").add([{
         id: "export-plugin",
-        className: "fa fa-download",
+        className: "fa fa-external-link",
         command: "open-export-modal",
         attributes: { title: "Export" }
       }]);
@@ -17,7 +17,7 @@ function exportPlugin(editor) {
   // Open modal
   editor.Commands.add('open-export-modal', {
     run() {
-      modal.setTitle('Export Project');
+      modal.setTitle('Export');
       modal.setContent(`
         <style>
           .exp-container {

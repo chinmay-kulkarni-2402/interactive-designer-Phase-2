@@ -2483,7 +2483,6 @@ function jsontablecustom(editor) {
             buttons: ${downloadBtn},
             ordering: false,
             order: [], 
-            ],
             drawCallback: function() {
                 // Restore formula data after DataTable draw
                 setTimeout(() => {
@@ -3423,8 +3422,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 .running-total-column .cell-content {
     color: #1976d2 !important;
     font-family: 'Courier New', monospace !important;
-}
-    
 }
 
         `
