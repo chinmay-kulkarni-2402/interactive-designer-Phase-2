@@ -1782,7 +1782,6 @@ function jsontablecustom(editor) {
                     type: 'default',
                     tagName: 'thead',
                     style: {
-                        'background-color': '#f8f9fa',
                         'border': '1px solid #000'
                     }
                 });
@@ -1879,7 +1878,6 @@ function jsontablecustom(editor) {
                                 'padding': '8px',
                                 'border': '1px solid #000',
                                 'font-weight': 'bold',
-                                'background-color': '#f8f9fa'
                             }
                         });
                     });

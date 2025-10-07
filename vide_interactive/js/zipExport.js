@@ -7995,7 +7995,7 @@
                           alert('Template Name Required.');
                           return false
                         }
-                        const apiUrl = 'https://192.168.0.221:9998/api/uploadFile';
+                        const apiUrl = 'https://localhost:8080/api/uploadFile';
                         // const apiUrl = 'http://localhost:9998/uploadFile'; 
                         const formData = new FormData();
                         formData.append('name', templateName);
@@ -8231,7 +8231,7 @@
                         return;
                       }
 
-                      const apiUrl = 'http://192.168.0.221:9998/api/uploadFile';
+                      const apiUrl = 'http://localhost:8080/api/uploadFile';
                       const formData = new FormData();
                       formData.append('name', templateName);
                       formData.append('editableHtml', new Blob([downloadableHtml], { type: 'text/html' }), 'downloadableHtml.html');

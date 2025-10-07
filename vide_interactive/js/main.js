@@ -1012,8 +1012,8 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   const exportType = document.getElementById("export-type-dropdown")?.value || "pdf";
   const apiUrl =
     exportType === "pdf"
-      ? "http://192.168.0.221:9998/jsonApi/uploadPdf"
-      : "http://192.168.0.221:9998/jsonApi/uploadHtml";
+      ? "http://localhost:8080/jsonApi/uploadPdf"
+      : "http://localhost:8080/jsonApi/uploadHtml";
 
   const html = editor.getHtml();
   const css = editor.getCss();

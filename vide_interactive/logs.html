@@ -70,7 +70,7 @@
 
   <script>
     let allpage = [];
-    const apiUrl = "http://192.168.0.221:9998/api/getErrorLogs";
+    const apiUrl = "http://localhost:8080/api/getErrorLogs";
 
     // Populate table
     function populateTable() {
@@ -112,7 +112,7 @@
         return;
       }
 
-      const apiUrl2 = `http://192.168.0.221:9998/api/getErrorLogs?startDate=${startDate}&endDate=${endDate}`;
+      const apiUrl2 = `http://localhost:8080/api/getErrorLogs?startDate=${startDate}&endDate=${endDate}`;
 
       fetch(apiUrl2)
         .then(response => response.json())
