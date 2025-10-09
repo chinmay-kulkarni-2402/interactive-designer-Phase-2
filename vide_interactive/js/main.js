@@ -3,6 +3,7 @@ const editor = InteractiveDesigner.init({
   container: "#editor",
   fromElement: 1,
   allowScripts: 1,
+  telemetry: false,
   showOffsets: true,
   fromElement: true,
   noticeOnUnload: false,
@@ -553,13 +554,10 @@ setTimeout(() => renderUploadedJsonList(), 0);
     editor.Modal.open({
       title: "Bulk Export",
       content: `
-      <div style="max-height:600px; overflow:auto;">
+      <div style="height:100%; overflow:auto;">
 
-       <div>Payload Preview:</div>
-        <button id="payload-preview-btn" style="margin-bottom:10px;">View Payload Mappings</button>
+        <button id="payload-preview-btn" style="margin-bottom:10px; display: none;">View Payload Mappings</button>
         <div id="payload-preview-container"></div>
-
-                <hr>
                 <h5>Upload JSON Files</h5>
         <input type="file" id="json-upload-input" accept=".json" multiple />
         <div id="uploaded-json-list" style="margin-top:10px; font-size:0.9em; color:#333;"></div>
@@ -570,6 +568,7 @@ setTimeout(() => renderUploadedJsonList(), 0);
           <option value="pdf">PDF</option>
           <option value="html">HTML</option>
         </select>
+        <hr>
         <!-- File Name Section -->
         <h5>File Name</h5>
         <select id="file-name-mode">

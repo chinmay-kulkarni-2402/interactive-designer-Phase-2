@@ -163,7 +163,7 @@ editor.BlockManager.add('custom-heading', {
   label: 'Heading',
   category: 'Basic',
   content: { type: 'custom-heading' },
-  media: '<i class="fa fa-heading"></i>',
+  media: '<i class="fa fa-font fa-2x"></i>',
 });
 
  
@@ -249,7 +249,7 @@ domc.addType('toc-block', {
     label: 'Table of Contents',
     category: 'Basic',
     content: { type: 'toc-block' },
-    media: '<i class="fa fa-list"></i>', // Font Awesome list icon
+    media: '<i class="fa fa-list fa-2x"></i>', // Font Awesome list icon
   });
 
   // ✅ Generate unique ID helper function

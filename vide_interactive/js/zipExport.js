@@ -7995,7 +7995,7 @@
                           alert('Template Name Required.');
                           return false
                         }
-                        const apiUrl = 'https://localhost:8080/api/uploadFile';
+                        const apiUrl = 'http://localhost:8080/api/uploadFile';
                         // const apiUrl = 'http://localhost:9998/uploadFile'; 
                         const formData = new FormData();
                         formData.append('name', templateName);
@@ -8189,22 +8189,36 @@
                 var common_json = JSON.parse(localStorage.getItem("common_json"));
                 let exportedJsonData = common_json ? JSON.stringify([common_json]) : '[]';
 
-                // Build downloadable HTML (simplified version)
+                // Build downloadable HTML
                 var htmlContent = editor.getHtml();
                 var cssContent = editor.getCss();
 
                 var downloadableHtml = `<!doctype html><html lang="en"><head>
-      <meta charset="utf-8">
-      <!-- all your links -->
-      <style>${cssContent}</style>
-      </head><body>
-      <div id="AllBodyData">${htmlContent}</div>
-      <script>var jsonData1 = ${exportedJsonData};</script>
-      </body></html>`;
+<meta charset="utf-8">
+<style>${cssContent}</style>
+</head><body>
+<div id="AllBodyData">${htmlContent}</div>
+<script>var jsonData1 = ${exportedJsonData};</script>
+</body></html>`;
 
                 var editableHtml = `<html><head><style>${cssContent}</style></head>
-      ${htmlContent}
-      </html>`;
+${htmlContent}
+</html>`;
+
+                // Check localStorage for edit mode
+                const editTemplateId = localStorage.getItem('editTemplateId');
+                const editTemplateName = localStorage.getItem('editTemplateName');
+
+                let checkboxHTML = '';
+                if (editTemplateId && editTemplateName) {
+                  checkboxHTML = `
+        <div style="padding: 10px 0px;">
+          <label>
+            <input type="checkbox" id="replaceOriginalCheckbox" checked> Replace Original
+          </label>
+        </div>
+      `;
+                }
 
                 // Show modal
                 editor.Modal.setTitle('Save Template');
@@ -8216,26 +8230,69 @@
         <div>  
           <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
         </div>  
+        ${checkboxHTML}
         <input id="save-template-btn" class="popupaddbtn" type="button" value="Save">
       </div>
     `);
                 editor.Modal.open();
 
                 setTimeout(function () {
-                  var saveBtn = document.getElementById("save-template-btn");
+                  const saveBtn = document.getElementById("save-template-btn");
+                  const templateInput = document.getElementById("templateNameField");
+                  const replaceCheckbox = document.getElementById("replaceOriginalCheckbox");
+
+                  // If checkbox exists, handle change
+                  if (replaceCheckbox) {
+                    const setTemplateValue = () => {
+                      if (replaceCheckbox.checked) {
+                        templateInput.value = editTemplateName;
+                        templateInput.disabled = true;
+                      } else {
+                        templateInput.value = '';
+                        templateInput.disabled = false;
+                      }
+                    };
+
+                    // Set initial state based on default checked
+                    setTemplateValue();
+
+                    replaceCheckbox.addEventListener('change', setTemplateValue);
+                  }
+
                   if (saveBtn) {
                     saveBtn.onclick = function () {
-                      const templateName = document.getElementById("templateNameField").value;
+                      const templateName = templateInput.value;
                       if (!templateName) {
                         alert('Template Name Required.');
                         return;
                       }
 
-                      const apiUrl = 'http://localhost:8080/api/uploadFile';
+                      // Determine API URL
+                      let apiUrl = 'http://localhost:8080/api/uploadFile';
+                      if (replaceCheckbox && replaceCheckbox.checked && editTemplateId) {
+                        apiUrl += `/${editTemplateId}`; // edit mode
+                      }
+
                       const formData = new FormData();
                       formData.append('name', templateName);
                       formData.append('editableHtml', new Blob([downloadableHtml], { type: 'text/html' }), 'downloadableHtml.html');
                       formData.append('downloadableHtml', new Blob([editableHtml], { type: 'text/html' }), 'editableHtml.html');
+
+                      // Log FormData entries (optional)
+                      console.log('---- FormData Entries ----');
+                      for (let [key, value] of formData.entries()) {
+                        if (value instanceof Blob) {
+                          console.log(`${key}: [Blob]`, {
+                            name: value.name,
+                            type: value.type,
+                            size: value.size,
+                          });
+                          value.text().then(text => console.log(`📄 ${key} content preview:\n`, text.slice(0, 500)));
+                        } else {
+                          console.log(`${key}:`, value);
+                        }
+                      }
+                      console.log('--------------------------');
 
                       fetch(apiUrl, {
                         method: 'POST',
@@ -8245,8 +8302,18 @@
                         .then(data => {
                           console.log('API Response:', data);
                           alert("Template saved successfully.");
-                          document.getElementById("templateNameField").value = "";
+
+                          // Cleanup localStorage if in edit mode
+                          if (replaceCheckbox && replaceCheckbox.checked) {
+                            localStorage.removeItem('editTemplateName');
+                            localStorage.removeItem('editTemplateId');
+                            localStorage.removeItem('single-page');
+                          }
+
+                          templateInput.value = "";
+                          templateInput.disabled = false;
                           editor.Modal.close();
+                          window.location.reload();
                         })
                         .catch(error => {
                           console.error('Error:', error);
@@ -8257,6 +8324,7 @@
                 }, 100);
               }
             });
+
           };
         })(),
         n
