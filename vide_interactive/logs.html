@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <title>Interactive Designer - Logs</title>
   <meta charset="utf-8" />
@@ -8,44 +7,56 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css" />
   <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" />
-  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
-    integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"
-    integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
-    crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"
-    integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
-    crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"></script>
 
-  <!-- ✅ Add Day.js for date formatting -->
+  <!-- ✅ Add Day.js and XLSX -->
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+    }
+    .pagination {
+      justify-content: center;
+    }
+  </style>
 </head>
 
 <body>
   <div class="container mt-4">
     <div class="card">
       <div class="card-body">
-        <div class="row" style="width: 100%; padding: 10px 0px; margin-left: 0px">
+        <div class="row align-items-center" style="width: 100%; padding: 10px 0px; margin-left: 0px">
           <div class="col-lg-6">
-            <h2>Logs Details</h2>
+            <h2>API Logs Details</h2>
           </div>
-          <div class="col-lg-6">
-            <a href="index.html" class="btn btn-primary float-right">
-              <i class="fa fa-plus"></i> Create New Template
-            </a>
+          <div class="col-lg-6 text-right">
+            <button type="button" class="btn btn-success" onclick="downloadExcel()">
+              <i class="fa fa-file-excel-o"></i> Download Excel
+            </button>
           </div>
+
           <div class="col-lg-12 mt-3">
             <div class="row">
-              <div class="col-lg-4">
+              <div class="col-lg-3">
                 <label for="startDate">Start Date:</label>
                 <input type="date" class="form-control" id="startDate" name="startDate">
               </div>
-              <div class="col-lg-4">
+              <div class="col-lg-3">
                 <label for="endDate">To Date:</label>
                 <input type="date" class="form-control" id="endDate" name="endDate">
               </div>
-              <div class="col-lg-4 mt-4">
+              <div class="col-lg-3">
+                <label for="resultFilter">Result:</label>
+                <select class="form-control" id="resultFilter" onchange="applyFilters()">
+                  <option value="ALL">All</option>
+                  <option value="SUCCESS">SUCCESS</option>
+                  <option value="FAILURE">FAILURE</option>
+                </select>
+              </div>
+              <div class="col-lg-3 mt-4">
                 <button type="button" class="btn btn-primary mt-2" onclick="reset()">Reset</button>
                 <button type="button" class="btn btn-primary mt-2" onclick="submit()">Submit</button>
               </div>
@@ -54,11 +65,11 @@
         </div>
       </div>
 
-      <!-- ✅ Updated Table -->
+      <!-- ✅ Table -->
       <table class="table table-bordered" id="pageTable">
         <thead>
           <tr>
-            <th>Sr. No</th>
+            <th>ID</th>
             <th>Error Message</th>
             <th>Send Request Time</th>
             <th>Output Response Time</th>
@@ -67,51 +78,111 @@
         </thead>
         <tbody></tbody>
       </table>
+
+      <!-- ✅ Pagination -->
+      <nav>
+        <ul class="pagination" id="pagination"></ul>
+      </nav>
     </div>
   </div>
 
   <script>
     let allpage = [];
-    const apiUrl = "http://localhost:8080/api/getErrorLogs";
+    let filteredLogs = [];
+    const apiUrl = "http://192.168.0.221:9998/api/getErrorLogs";
+    const logsPerPage = 10;
+    let currentPage = 1;
 
-    // ✅ Helper function to safely format date
     function formatDate(dateStr) {
       if (!dateStr) return '';
-      return dayjs(dateStr).format('DD-MM-YYYY hh:mm A'); // example: 08-10-2025 03:20 PM
+      return dayjs(dateStr).format('DD-MM-YYYY hh:mm A');
     }
 
-    // ✅ Populate table
     function populateTable() {
       const tbody = document.querySelector("#pageTable tbody");
       tbody.innerHTML = "";
-      allpage.forEach((item, index) => {
-        const errorMessageValue = item.error_message || '';
+
+      const startIndex = (currentPage - 1) * logsPerPage;
+      const paginatedLogs = filteredLogs.slice(startIndex, startIndex + logsPerPage);
+
+      paginatedLogs.forEach((item, index) => {
         const sendTime = formatDate(item.sendRequestTime);
         const outputTime = formatDate(item.outputResponseTime);
-
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${index + 1}</td> <!-- Serial Number -->
-          <td>${errorMessageValue}</td>
+          <td>${item.id}</td>
+          <td>${item.error_message || ''}</td>
           <td>${sendTime}</td>
           <td>${outputTime}</td>
           <td>${item.result || ''}</td>
-          <td style="display:none;">${item.id}</td> <!-- Hidden ID -->
         `;
         tbody.appendChild(row);
       });
+
+      renderPagination();
     }
 
-    // ✅ Initial fetch
-    fetch(apiUrl)
-      .then(response => response.json())
-      .then(data => {
-        allpage = data;
-        populateTable();
-      })
-      .catch(error => console.error("Error:", error));
+    function renderPagination() {
+      const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+      const pagination = document.getElementById("pagination");
+      pagination.innerHTML = "";
 
-    // ✅ Submit with date filter
+      for (let i = 1; i <= totalPages; i++) {
+        const li = document.createElement("li");
+        li.className = `page-item ${i === currentPage ? "active" : ""}`;
+        li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+        li.addEventListener("click", () => {
+          currentPage = i;
+          populateTable();
+        });
+        pagination.appendChild(li);
+      }
+    }
+
+    function applyFilters() {
+      const resultFilter = document.getElementById("resultFilter").value;
+
+      if (resultFilter === "ALL") {
+        filteredLogs = [...allpage];
+      } else {
+        filteredLogs = allpage.filter(item => item.result === resultFilter);
+      }
+
+      currentPage = 1;
+      populateTable();
+    }
+
+    function downloadExcel() {
+      if (filteredLogs.length === 0) {
+        alert("No logs to download");
+        return;
+      }
+
+      const data = filteredLogs.map((item, index) => ({
+        "Sr. No": index + 1,
+        "Error Message": item.error_message || "",
+        "Send Request Time": formatDate(item.sendRequestTime),
+        "Output Response Time": formatDate(item.outputResponseTime),
+        "Result": item.result || ""
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Logs");
+      XLSX.writeFile(wb, "Logs.xlsx");
+    }
+
+    function fetchLogs(url = apiUrl) {
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          allpage = data.sort((a, b) => new Date(b.sendRequestTime) - new Date(a.sendRequestTime)); // newest first
+          filteredLogs = [...allpage];
+          applyFilters();
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
     function submit() {
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
@@ -122,32 +193,18 @@
       }
 
       const apiUrl2 = `${apiUrl}?startDate=${startDate}&endDate=${endDate}`;
-
-      fetch(apiUrl2)
-        .then(response => response.json())
-        .then(data => {
-          allpage = data;
-          populateTable();
-        })
-        .catch(error => console.error("Error:", error));
+      fetchLogs(apiUrl2);
     }
 
-    // ✅ Reset
     function reset() {
       document.getElementById("startDate").value = '';
       document.getElementById("endDate").value = '';
-      fetch(apiUrl)
-        .then(response => response.json())
-        .then(data => {
-          allpage = data;
-          populateTable();
-        })
-        .catch(error => console.error("Error:", error));
+      document.getElementById("resultFilter").value = 'ALL';
+      fetchLogs();
     }
-    document.querySelectorAll('button').forEach(btn => {
-  btn.addEventListener('click', () => btn.blur());
-});
+
+    // Initial load
+    fetchLogs();
   </script>
 </body>
-
 </html>

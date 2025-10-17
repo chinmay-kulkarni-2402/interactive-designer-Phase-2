@@ -403,11 +403,13 @@ function jsontablecustom(editor) {
                         const bgColor = highlightColor || '#ffff99';
                         const textColor = conditions[0].textColor || '';
                         const fontFamily = conditions[0].fontFamily || '';
+                        const fontSize = conditions[0].fontSize || '';
 
                         td.style.backgroundColor = bgColor;
                         td.style.border = '1px solid #000';
                         if (textColor) td.style.color = textColor;
                         if (fontFamily) td.style.fontFamily = fontFamily;
+                        if (fontSize) td.style.fontSize = fontSize + 'px';
                         td.setAttribute('data-highlighted', 'true');
 
                         const id = td.id;
@@ -424,6 +426,7 @@ function jsontablecustom(editor) {
                                 };
                                 if (textColor) styles.color = textColor;
                                 if (fontFamily) styles['font-family'] = fontFamily;
+                                if (fontSize) styles['font-size'] = fontSize + 'px';
 
                                 comp.addStyle(styles);
                             }
@@ -669,6 +672,14 @@ function jsontablecustom(editor) {
                             style: 'display: block;'  // Hidden by default
                         }
                     },
+                    {
+                        type: 'button',
+                        name: 'table-settings-btn',
+                        label: 'Table Settings',
+                        text: 'Table Settings',
+                        full: true,
+                        command: 'open-table-settings-modal'
+                    },
                     // {
                     //     type: 'checkbox',
                     //     name: 'show-row-totals',
@@ -712,46 +723,46 @@ function jsontablecustom(editor) {
                         full: true,
                         command: 'open-column-reorder-manager'
                     },
-                    {
-                        type: 'button',
-                        name: 'manage-running-totals-btn',
-                        label: 'Running Total',
-                        text: 'Add Running Total',
-                        full: true,
-                        command: 'open-running-total-manager'
-                    },
-                    {
-                        type: 'button',
-                        name: 'add-row-btn',
-                        label: 'Add Row',
-                        text: 'Add Row',
-                        full: true,
-                        command: 'add-table-row'
-                    },
-                    {
-                        type: 'button',
-                        name: 'add-column-btn',
-                        label: 'Add Column',
-                        text: 'Add Column',
-                        full: true,
-                        command: 'add-table-column'
-                    },
-                    {
-                        type: 'button',
-                        name: 'remove-row-btn',
-                        label: 'Remove Row',
-                        text: 'Remove Last Row',
-                        full: true,
-                        command: 'remove-table-row'
-                    },
-                    {
-                        type: 'button',
-                        name: 'remove-column-btn',
-                        label: 'Remove Column',
-                        text: 'Remove Last Column',
-                        full: true,
-                        command: 'remove-table-column'
-                    }
+                    // {
+                    //     type: 'button',
+                    //     name: 'manage-running-totals-btn',
+                    //     label: 'Running Total',
+                    //     text: 'Add Running Total',
+                    //     full: true,
+                    //     command: 'open-running-total-manager'
+                    // },
+                    // {
+                    //     type: 'button',
+                    //     name: 'add-row-btn',
+                    //     label: 'Add Row',
+                    //     text: 'Add Row',
+                    //     full: true,
+                    //     command: 'add-table-row'
+                    // },
+                    // {
+                    //     type: 'button',
+                    //     name: 'add-column-btn',
+                    //     label: 'Add Column',
+                    //     text: 'Add Column',
+                    //     full: true,
+                    //     command: 'add-table-column'
+                    // },
+                    // {
+                    //     type: 'button',
+                    //     name: 'remove-row-btn',
+                    //     label: 'Remove Row',
+                    //     text: 'Remove Last Row',
+                    //     full: true,
+                    //     command: 'remove-table-row'
+                    // },
+                    // {
+                    //     type: 'button',
+                    //     name: 'remove-column-btn',
+                    //     label: 'Remove Column',
+                    //     text: 'Remove Last Column',
+                    //     full: true,
+                    //     command: 'remove-table-column'
+                    // }
                 ],
                 'json-path': '',
                 'table-data': null,
@@ -760,7 +771,6 @@ function jsontablecustom(editor) {
                 'custom-headers': null,
                 'cell-styles': {},
                 'selected-cell': null,
-                // Add highlighting properties
                 'highlight-conditions': [],
                 'highlight-condition-type': '',
                 'highlight-words': '',
@@ -777,6 +787,22 @@ function jsontablecustom(editor) {
                 'table-font-family': 'Arial, sans-serif',
                 'table-text-align': 'left',
                 'table-vertical-align': 'middle',
+                'grouping-fields': [],
+                'summary-fields': [],
+                'sort-order': 'ascending',
+                'top-n': 'none',
+                'define-named-group': false,
+                'summarize-group': false,
+                'page-break-after-group': false,
+                'summary-percentage': 'none',
+                'merge-group-cells': false,
+                'group-header-inplace': true,
+                'hide-subtotal-single-row': false,
+                'show-summary-only': false,
+                'keep-group-hierarchy': false,
+                'grand-total': true,
+                'grand-total-label': '',
+                'summary-label': ''
             },
 
             init() {
@@ -919,9 +945,10 @@ function jsontablecustom(editor) {
                         this.updateTableFromJson();
                     }
                 });
-                // REPLACE these lines that cause full table rebuilds:
-                // OLD: this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateTableHTML);
-                // NEW: Only update DataTable settings, not entire HTML
+
+                this.on('change:grouping-fields change:summary-fields change:sort-order change:top-n change:summarize-group change:merge-group-cells change:show-summary-only change:grand-total', () => {
+                    this.applyGroupingAndSummary();
+                });
                 this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateDataTableSettings);
 
                 // Keep highlight changes separate
@@ -2338,13 +2365,14 @@ function jsontablecustom(editor) {
                     classes: ['json-data-table', 'table', 'table-striped', 'table-bordered'],
                     attributes: {
                         id: tableId,
-                        width: '100%'
+                        width: '100%',
                     },
                     style: {
                         'width': '100%',
                         'border-collapse': 'collapse',
                         'border': '1px solid #ddd',
-                        'font-family': 'Arial, sans-serif'
+                        'font-family': 'Arial, sans-serif',
+                        'my-input-json': this.get('json-path') || ''
                     }
                 });
 
@@ -2399,7 +2427,251 @@ function jsontablecustom(editor) {
                 }, 500);
             },
 
+            applyGroupingAndSummary() {
+                const groupingFields = this.get('grouping-fields') || [];
+                const data = this.get('table-data') || [];
 
+                if (groupingFields.length === 0) {
+                    // No grouping, reset to original data
+                    this.set('custom-data', null);
+                    this.updateTableHTML();
+                    return;
+                }
+
+                // Apply grouping logic
+                const groupedData = this.groupData(data, groupingFields);
+
+                // Update custom data with processed data
+                this.set('custom-data', groupedData);
+                this.updateTableHTML();
+            },
+
+            groupData(data, groupingFields) {
+                if (!groupingFields || groupingFields.length === 0) return data;
+
+                // SAFETY CHECK: Ensure data is valid
+                if (!Array.isArray(data) || data.length === 0) {
+                    console.warn('Invalid or empty data for grouping');
+                    return data;
+                }
+
+                const grouped = {};
+                const sortOrder = this.get('sort-order') || 'ascending';
+                const topN = this.get('top-n') || 'none';
+                const topNValue = parseInt(this.get('top-n-value')) || 10;
+                const summarizeGroup = this.get('summarize-group') || false;
+                const showSummaryOnly = this.get('show-summary-only') || false;
+                const mergeGroupCells = this.get('merge-group-cells') || false;
+                const hideSubtotalSingleRow = this.get('hide-subtotal-single-row') || false;
+                const namedGroups = this.get('named-groups') || {};
+                const defineNamedGroup = this.get('define-named-group') || false;
+
+                // Apply Named Groups if enabled
+                let processedData = data;
+                if (defineNamedGroup && namedGroups[groupingFields[0].key]) {
+                    processedData = this.applyNamedGroups(data, groupingFields[0].key, namedGroups[groupingFields[0].key]);
+                }
+
+                // Group data - ADD SAFETY CHECK
+                processedData.forEach(row => {
+                    if (!row || typeof row !== 'object') return; // Skip invalid rows
+
+                    const groupKey = groupingFields.map(field => row[field.key] || '').join('|');
+                    if (!grouped[groupKey]) {
+                        grouped[groupKey] = {
+                            key: groupKey,
+                            values: groupingFields.map(field => row[field.key] || ''),
+                            rows: []
+                        };
+                    }
+                    grouped[groupKey].rows.push(row);
+                });
+
+                // Check if any groups were created
+                if (Object.keys(grouped).length === 0) {
+                    console.warn('No groups created from data');
+                    return data; // Return original data if grouping failed
+                }
+
+                // Sort groups
+                let sortedGroupKeys = Object.keys(grouped);
+                if (sortOrder === 'ascending') {
+                    sortedGroupKeys.sort();
+                } else if (sortOrder === 'descending') {
+                    sortedGroupKeys.sort().reverse();
+                }
+                // For 'original' order, keep as is
+
+                // Apply Top/N filtering - ONLY limit the number of groups shown
+                if (topN !== 'none' && topN !== 'sort-all' && topNValue > 0) {
+                    if (topN === 'top') {
+                        sortedGroupKeys = sortedGroupKeys.slice(0, topNValue);
+                    } else if (topN === 'bottom') {
+                        sortedGroupKeys = sortedGroupKeys.slice(-topNValue);
+                    }
+                }
+
+                // Flatten back to array with group markers
+                const result = [];
+
+                sortedGroupKeys.forEach((groupKey, groupIndex) => {
+                    const group = grouped[groupKey];
+
+                    if (showSummaryOnly) {
+                        // Only add summary row
+                        if (summarizeGroup) {
+                            const summaryRow = this.createSummaryRow(group.rows, groupKey);
+                            summaryRow._isSummary = true;
+                            summaryRow._groupIndex = groupIndex;
+                            result.push(summaryRow);
+                        } else if (this.get('keep-group-hierarchy')) {
+                            // Show just the first row as representative
+                            const firstRow = { ...group.rows[0] };
+                            firstRow._groupIndex = groupIndex;
+                            result.push(firstRow);
+                        }
+                    } else {
+                        // Add all rows in group
+                        group.rows.forEach((row, rowIdx) => {
+                            const newRow = { ...row };
+
+                            // Mark first row of group for potential merging
+                            if (mergeGroupCells && rowIdx === 0) {
+                                newRow._groupStart = true;
+                                newRow._groupSize = group.rows.length;
+                                newRow._groupIndex = groupIndex;
+                                groupingFields.forEach(field => {
+                                    newRow[`_merge_${field.key}`] = true;
+                                });
+                            }
+
+                            result.push(newRow);
+                        });
+
+                        // Add summary row if needed
+                        if (summarizeGroup && !(hideSubtotalSingleRow && group.rows.length === 1)) {
+                            const summaryRow = this.createSummaryRow(group.rows, groupKey);
+                            summaryRow._isSummary = true;
+                            summaryRow._groupIndex = groupIndex;
+                            result.push(summaryRow);
+                        }
+                    }
+                });
+
+                // Add grand total if enabled
+                if (this.get('grand-total')) {
+                    const grandTotalRow = this.createGrandTotalRow(showSummaryOnly ? result.filter(r => !r._isSummary) : result.filter(r => !r._isSummary && !r._isGrandTotal));
+                    grandTotalRow._isGrandTotal = true;
+                    result.push(grandTotalRow);
+                }
+
+                return result;
+            },
+
+            applyNamedGroups(data, fieldKey, namedGroupsConfig) {
+                return data.map(row => {
+                    const currentValue = row[fieldKey];
+
+                    // Find which named group this value belongs to
+                    for (const group of namedGroupsConfig) {
+                        if (group.values.includes(currentValue)) {
+                            return {
+                                ...row,
+                                [fieldKey]: group.name // Replace with group name
+                            };
+                        }
+                    }
+
+                    // If no named group found, keep original value
+                    return row;
+                });
+            },
+
+            createSummaryRow(groupRows, groupKey) {
+                const summaryFields = this.get('summary-fields') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const summaryLabel = this.get('summary-label') || 'Subtotal';
+
+                const summaryRow = {};
+
+                // Initialize with first row values for non-summary fields
+                Object.keys(headers).forEach(key => {
+                    summaryRow[key] = '';
+                });
+
+                // Set label in first column
+                const firstKey = Object.keys(headers)[0];
+                summaryRow[firstKey] = summaryLabel;
+
+                // Calculate summaries
+                summaryFields.forEach(field => {
+                    const values = groupRows.map(row => parseFloat(row[field.key]) || 0);
+
+                    switch (field.function) {
+                        case 'sum':
+                            summaryRow[field.key] = values.reduce((a, b) => a + b, 0).toFixed(2);
+                            break;
+                        case 'average':
+                            summaryRow[field.key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
+                            break;
+                        case 'count':
+                            summaryRow[field.key] = values.length;
+                            break;
+                        case 'min':
+                            summaryRow[field.key] = Math.min(...values).toFixed(2);
+                            break;
+                        case 'max':
+                            summaryRow[field.key] = Math.max(...values).toFixed(2);
+                            break;
+                    }
+                });
+
+                return summaryRow;
+            },
+
+            createGrandTotalRow(data) {
+                const summaryFields = this.get('summary-fields') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const grandTotalLabel = this.get('grand-total-label') || 'Grand Total';
+
+                const grandTotalRow = {};
+
+                Object.keys(headers).forEach(key => {
+                    grandTotalRow[key] = '';
+                });
+
+                const firstKey = Object.keys(headers)[0];
+                grandTotalRow[firstKey] = grandTotalLabel;
+
+                summaryFields.forEach(field => {
+                    const values = data.map(row => parseFloat(row[field.key]) || 0);
+
+                    switch (field.function) {
+                        case 'sum':
+                            grandTotalRow[field.key] = values.reduce((a, b) => a + b, 0).toFixed(2);
+                            break;
+                        case 'average':
+                            grandTotalRow[field.key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
+                            break;
+                        case 'count':
+                            grandTotalRow[field.key] = values.length;
+                            break;
+                        case 'min':
+                            grandTotalRow[field.key] = Math.min(...values).toFixed(2);
+                            break;
+                        case 'max':
+                            grandTotalRow[field.key] = Math.max(...values).toFixed(2);
+                            break;
+                    }
+                });
+
+                return grandTotalRow;
+            },
+
+            processSummary(data, summaryFields) {
+                // Additional processing if needed
+                return data;
+            },
             createDataTableScript(tableId, pagination, pageLength, search, fileDownload, colCount) {
                 let downloadBtn = '[]';
                 if (fileDownload) {
@@ -3077,7 +3349,7 @@ function jsontablecustom(editor) {
                     type: 'default',
                     tagName: 'tr'
                 });
-
+                const jsonPath = this.get('json-path') || '';
                 Object.entries(headers).forEach(([key, header]) => {
                     const headerId = `${tableId}-header-${key}`;
                     const storedHeader = this.get(`header-content-${key}`) || header;
@@ -3115,7 +3387,8 @@ function jsontablecustom(editor) {
                             'height': '100%',
                             'text-align': 'left',
                             'box-sizing': 'border-box',
-                            'position': 'relative'
+                            'position': 'relative',
+                            'my-input-json': `${this.get('json-path')}.heading.${key}`,
                         }
                     });
                 });
@@ -3149,7 +3422,14 @@ function jsontablecustom(editor) {
                     return;
                 }
 
+                const jsonPath = this.get('json-path') || '';
+
                 data.forEach((row, rowIndex) => {
+                    const isSummary = row._isSummary;
+                    const isGrandTotal = row._isGrandTotal;
+                    const isGroupStart = row._groupStart;
+                    const groupSize = row._groupSize || 1;
+
                     const rowComponent = tbodyComponent.components().add({
                         type: 'default',
                         tagName: 'tr',
@@ -3160,8 +3440,12 @@ function jsontablecustom(editor) {
                     });
 
                     Object.keys(headers).forEach(key => {
+                        // Check if this cell should be skipped due to rowspan
+                        if (row[`_skip_${key}`]) {
+                            return;
+                        }
+
                         const cellId = `${tableId}-cell-${rowIndex}-${key}`;
-                        const cellStyles = this.getCellStyle(rowIndex, key);
                         const displayValue = row[key] || '';
 
                         const tableStyles = this.get('table-styles-applied');
@@ -3187,26 +3471,40 @@ function jsontablecustom(editor) {
                             width: '100%'
                         } : { textAlign: 'left' };
 
+                        const attributes = {
+                            id: cellId,
+                            'data-row': rowIndex.toString(),
+                            'data-column-key': key,
+                            'data-gjs-hoverable': 'true',
+                        };
+
+                        // Add rowspan if this cell should be merged
+                        if (isGroupStart && row[`_merge_${key}`]) {
+                            attributes.rowspan = groupSize.toString();
+
+                            // Mark following rows to skip this column
+                            for (let i = 1; i < groupSize; i++) {
+                                if (data[rowIndex + i]) {
+                                    data[rowIndex + i][`_skip_${key}`] = true;
+                                }
+                            }
+                        }
+
                         const cellComponent = rowComponent.components().add({
                             type: 'json-table-cell',
                             tagName: 'td',
                             selectable: true,
-                            contenteditable: true,
+                            contenteditable: !(isSummary || isGrandTotal),
                             content: `<div style="display: ${alignStyles.display || 'block'}; align-items: ${alignStyles.alignItems || 'flex-start'}; justify-content: ${alignStyles.justifyContent || 'flex-start'}; min-height: 100%; width: 100%;">${displayValue}</div>`,
-                            classes: ['json-table-cell', 'cell-content', 'editable-cell'],
-                            attributes: {
-                                id: cellId,
-                                'data-row': rowIndex.toString(),
-                                'data-column-key': key,
-                                'data-gjs-hoverable': 'true'
-                            },
+                            classes: ['json-table-cell', 'cell-content', (isSummary || isGrandTotal) ? 'readonly-cell' : 'editable-cell'],
+                            attributes,
                             style: {
                                 ...appliedCellStyles,
                                 'position': 'relative',
                                 'width': 'auto',
                                 'height': '100%',
                                 'box-sizing': 'border-box',
-                                ...cellStyles
+                                'my-input-json': `${jsonPath}.data[${rowIndex}].${key}`,
                             }
                         });
                     });
@@ -3671,21 +3969,26 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 <div class="condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;">
 
     <!-- Highlight Style Settings -->
-    <div class="highlight-styles" style=" padding: 10px 15px 15px 0; border-radius: 5px;">
-        <h4 style="margin-top: 0;">Highlight Styles</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
-                <input type="color" id="highlight-bg-color" value="#ffff99" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
-                <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
+<div class="highlight-styles" style="padding: 10px 15px 15px 0; border-radius: 5px;">
+    <h4 style="margin-top: 0;">Highlight Styles</h4>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
+            <input type="color" id="highlight-bg-color" value="#ffff99" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
+            <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+        </div>
+        <div style="display: none;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Size (px):</label>
+            <input type="number" id="highlight-font-size" value="14" min="8" max="72" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        <div>
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
             <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                 <option value="">Default</option>
+                <option value="Arial, sans-serif">Arial</option>
                 <option value="Verdana, sans-serif">Verdana</option>
                 <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
                 <option value="'Times New Roman', serif">Times New Roman</option>
@@ -3698,11 +4001,10 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
                 <option value="'Brush Script MT', cursive">Brush Script MT</option>
                 <option value="'Arial Black', sans-serif">Arial Black</option>
-                <option value="Arial, sans-serif">Arial</option>
             </select>
-            </div>
         </div>
     </div>
+</div>
     
     <div class="add-condition-form">
         <h4 style="margin-top: 10px;  margin-bottom: 20px;">Add New Condition</h4>
@@ -4026,7 +4328,361 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             }, 100);
         }
     });
+    editor.Commands.add('open-table-settings-modal', {
+        run(editor) {
+            const selected = editor.getSelected();
+            if (!selected || selected.get('type') !== 'json-table') return;
 
+            const headers = selected.get('custom-headers') || selected.get('table-headers') || {};
+            const availableFields = Object.entries(headers).map(([key, name]) => ({
+                key, name
+            }));
+
+const modalContent = `
+<div class="table-settings-modal" style="width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+    <!-- Navbar -->
+    <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
+        <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; background: white; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
+        <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
+        <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
+    </div>
+
+    <!-- Tab Content with individual scrolling -->
+    <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-pane active">
+            <!-- Keep existing content -->
+        </div>
+
+        <!-- Grouping & Summary Tab with INDIVIDUAL SCROLLING -->
+        <div id="grouping-tab" class="tab-pane" style="display: none;">
+            <div style="display: grid; grid-template-columns: 200px 1fr; gap: 20px; height: 100%;">
+                <!-- Left Panel with scroll -->
+                <div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; max-height: calc(90vh - 200px);">
+                    <!-- Available/Selected/Query Fields -->
+                </div>
+
+                <!-- Right Panel with scroll -->
+                <div style="overflow-y: auto; max-height: calc(90vh - 200px);">
+                    <!-- Grouping & Summary Options -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Options Tab -->
+        <div id="options-tab" class="tab-pane" style="display: none;">
+            <!-- Keep existing content -->
+        </div>
+    </div>
+
+    <!-- Footer Buttons - FIXED AT BOTTOM -->
+    <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background: white;">
+        <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+        <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+    </div>
+</div>
+`;
+
+            const modal = editor.Modal;
+            modal.setTitle('Table Settings');
+            modal.setContent(modalContent);
+            modal.open();
+
+            setTimeout(() => {
+                initializeTableSettingsModal(selected, availableFields);
+            }, 100);
+        }
+    });
+
+    function initializeTableSettingsModal(component, availableFields) {
+        // Tab switching
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+
+                this.classList.add('active');
+                const tabId = this.getAttribute('data-tab') + '-tab';
+                document.getElementById(tabId).style.display = 'block';
+            });
+        });
+
+        // === SETTINGS TAB HANDLERS ===
+
+        // Populate Running Total columns
+const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        // Running Total Apply
+        document.getElementById('apply-running-total').addEventListener('click', function () {
+            const checkboxes = document.querySelectorAll('.running-total-checkbox:checked');
+            const selectedColumns = Array.from(checkboxes).map(cb => cb.value);
+            component.set('selected-running-total-columns', selectedColumns);
+            alert(`Running total applied to ${selectedColumns.length} column(s)`);
+        });
+
+        // Add Rows
+        document.getElementById('add-rows').addEventListener('click', function () {
+            const count = parseInt(document.getElementById('row-count').value) || 1;
+            for (let i = 0; i < count; i++) {
+                component.addRow();
+            }
+            alert(`Added ${count} row(s)`);
+        });
+
+        // Remove Rows
+        document.getElementById('remove-rows').addEventListener('click', function () {
+            const count = parseInt(document.getElementById('row-count').value) || 1;
+            const currentData = component.get('custom-data') || component.get('table-data') || [];
+
+            if (currentData.length <= count) {
+                alert('Cannot remove all rows. At least one row must remain.');
+                return;
+            }
+
+            for (let i = 0; i < count; i++) {
+                component.removeRow();
+            }
+            alert(`Removed ${count} row(s)`);
+        });
+
+        // Add Columns
+        document.getElementById('add-columns').addEventListener('click', function () {
+            const count = parseInt(document.getElementById('column-count').value) || 1;
+            for (let i = 0; i < count; i++) {
+                component.addColumn();
+            }
+            alert(`Added ${count} column(s)`);
+        });
+
+        // Remove Columns
+        document.getElementById('remove-columns').addEventListener('click', function () {
+            const count = parseInt(document.getElementById('column-count').value) || 1;
+            const currentHeaders = component.get('custom-headers') || component.get('table-headers') || {};
+
+            if (Object.keys(currentHeaders).length <= count) {
+                alert('Cannot remove all columns. At least one column must remain.');
+                return;
+            }
+
+            for (let i = 0; i < count; i++) {
+                component.removeColumn();
+            }
+            alert(`Removed ${count} column(s)`);
+        });
+
+        // === GROUPING & SUMMARY TAB HANDLERS ===
+
+        const savedGroupingFields = component.get('grouping-fields') || [];
+        const savedSummaryFields = component.get('summary-fields') || [];
+
+        selectedGroupingFields = [...savedGroupingFields];
+        selectedSummaryFields = [...savedSummaryFields]; // Add this
+        updateSelectedFields();
+        updateSummaryFieldsList(); // Add this function call
+
+        // Load other saved options
+        document.getElementById('sort-order').value = component.get('sort-order') || 'ascending';
+        document.getElementById('top-n').value = component.get('top-n') || 'none';
+        document.getElementById('top-n-value').value = component.get('top-n-value') || '10';
+        document.getElementById('summarize-group').checked = component.get('summarize-group') || false;
+        document.getElementById('page-break-after-group').checked = component.get('page-break-after-group') || false;
+        document.getElementById('summary-percentage').value = component.get('summary-percentage') || 'none';
+        document.getElementById('merge-group-cells').checked = component.get('merge-group-cells') || false;
+        document.getElementById('group-header-inplace').checked = component.get('group-header-inplace') !== false;
+        document.getElementById('hide-subtotal-single-row').checked = component.get('hide-subtotal-single-row') || false;
+        document.getElementById('keep-group-hierarchy').checked = component.get('keep-group-hierarchy') || false;
+        document.getElementById('grand-total').checked = component.get('grand-total') !== false;
+        document.getElementById('grand-total-label').value = component.get('grand-total-label') || '';
+        document.getElementById('summary-label').value = component.get('summary-label') || '';
+
+        if (component.get('show-summary-only')) {
+            document.querySelector('input[name="grouping-type"][value="summary"]').checked = true;
+        }
+
+        // Grouping field selection
+        document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const fieldItem = this.closest('.field-item');
+                const fieldKey = fieldItem.getAttribute('data-key');
+                const fieldName = fieldItem.querySelector('span').textContent;
+
+                if (this.checked) {
+                    selectedGroupingFields.push({ key: fieldKey, name: fieldName });
+                    updateSelectedFields();
+                }
+            });
+        });
+
+        function updateSelectedFields() {
+            const selectedFieldsDiv = document.getElementById('selected-fields');
+            if (selectedGroupingFields.length === 0) {
+                selectedFieldsDiv.innerHTML = '<p style="color: #999; padding: 10px; text-align: center; font-size: 12px;">No fields selected</p>';
+            } else {
+                selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
+                <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <span>${field.name}</span>
+                    <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+                </div>
+            `).join('');
+
+                if (selectedGroupingFields.length > 0) {
+                    document.getElementById('grouping-field-display').innerHTML =
+                        `<span style="color: #000;">${selectedGroupingFields[0].name}</span>`;
+                }
+
+                // Add remove functionality
+                selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
+                        const fieldKey = selectedGroupingFields[idx].key;
+                        selectedGroupingFields.splice(idx, 1);
+                        updateSelectedFields();
+
+                        const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
+                        if (availableCheckbox) availableCheckbox.checked = false;
+                    });
+                });
+            }
+        }
+
+        // Add this new function for summary fields
+        function updateSummaryFieldsList() {
+            const queryFields = document.getElementById('query-fields');
+            if (!queryFields) return;
+
+            queryFields.innerHTML = selectedSummaryFields.map((field, idx) => `
+            <div class="field-item" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                <span>${availableFields.find(f => f.key === field.key)?.name || field.key} (${field.function})</span>
+                <button class="remove-summary-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+            </div>
+        `).join('');
+
+            // Add remove functionality
+            queryFields.querySelectorAll('.remove-summary-field').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
+                    selectedSummaryFields.splice(idx, 1);
+                    updateSummaryFieldsList();
+                });
+            });
+        }
+
+        // Summary field addition - Update this section
+        const summaryAddBtn = document.createElement('button');
+        summaryAddBtn.textContent = 'Add Summary';
+        summaryAddBtn.style.cssText = 'margin-top: 10px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;';
+        document.getElementById('summary-function').parentElement.parentElement.appendChild(summaryAddBtn);
+
+        summaryAddBtn.addEventListener('click', function () {
+            const summaryField = document.getElementById('summary-field').value;
+            const summaryFunction = document.getElementById('summary-function').value;
+
+            if (!summaryField) {
+                alert('Please select a field');
+                return;
+            }
+
+            if (selectedSummaryFields.find(f => f.key === summaryField)) {
+                alert('This field is already added');
+                return;
+            }
+
+            selectedSummaryFields.push({
+                key: summaryField,
+                function: summaryFunction
+            });
+
+            updateSummaryFieldsList();
+            document.getElementById('summary-field').value = '';
+        });
+
+        // Sort buttons
+        document.getElementById('sort-asc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+            items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+            const container = document.getElementById('available-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
+        document.getElementById('sort-desc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+            items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+            const container = document.getElementById('available-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
+        // Define Named Group checkbox
+        document.getElementById('define-named-group').addEventListener('change', function () {
+            const btn = document.getElementById('open-named-group');
+            const list = document.getElementById('named-groups-list');
+            btn.disabled = !this.checked;
+            btn.style.cursor = this.checked ? 'pointer' : 'not-allowed';
+            btn.style.background = this.checked ? 'white' : '#f0f0f0';
+            list.style.display = this.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('open-named-group').addEventListener('click', function () {
+            if (this.disabled) return;
+
+            if (selectedGroupingFields.length === 0) {
+                alert('Please select a grouping field first');
+                return;
+            }
+
+            const groupField = selectedGroupingFields[0];
+            showNamedGroupModal(component, groupField);
+        });
+
+        // Predefined Named Group checkbox
+        document.getElementById('predefined-named-group').addEventListener('change', function () {
+            document.getElementById('predefined-group-select').disabled = !this.checked;
+            document.getElementById('predefined-group-select').style.background = this.checked ? 'white' : '#f0f0f0';
+        });
+
+        // Show Summary Only radio
+        document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                const keepHierarchy = document.getElementById('keep-group-hierarchy');
+                keepHierarchy.disabled = this.value !== 'summary';
+            });
+        });
+
+        // Cancel button
+        document.getElementById('cancel-settings').addEventListener('click', () => {
+            editor.Modal.close();
+        });
+
+        // Apply button - FIX: Save selectedSummaryFields
+        document.getElementById('apply-settings').addEventListener('click', () => {
+            // Validate grouping before applying
+            if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
+                alert('Please select at least one grouping field before adding summaries');
+                return;
+            }
+
+            // Save all settings
+            component.set('grouping-fields', selectedGroupingFields);
+            component.set('summary-fields', selectedSummaryFields); // Use the tracked selectedSummaryFields
+            component.set('sort-order', document.getElementById('sort-order').value);
+            component.set('top-n', document.getElementById('top-n').value);
+            component.set('top-n-value', document.getElementById('top-n-value').value);
+            component.set('define-named-group', document.getElementById('define-named-group').checked);
+            component.set('summarize-group', document.getElementById('summarize-group').checked);
+            component.set('page-break-after-group', document.getElementById('page-break-after-group').checked);
+            component.set('summary-percentage', document.getElementById('summary-percentage').value);
+            component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+            component.set('group-header-inplace', document.getElementById('group-header-inplace').checked);
+            component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
+            component.set('show-summary-only', document.querySelector('input[name="grouping-type"]:checked').value === 'summary');
+            component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
+            component.set('grand-total', document.getElementById('grand-total').checked);
+            component.set('grand-total-label', document.getElementById('grand-total-label').value);
+            component.set('summary-label', document.getElementById('summary-label').value);
+
+            editor.Modal.close();
+        });
+    }
     function initializeTableStyleManager(component) {
         // Load current values
         document.getElementById('border-style').value = component.get('table-border-style') || 'solid';
@@ -4038,6 +4694,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         document.getElementById('font-family').value = component.get('table-font-family') || 'Arial, sans-serif';
         document.getElementById('text-align').value = component.get('table-text-align') || 'left';
         document.getElementById('vertical-align').value = component.get('table-vertical-align') || 'middle';
+        document.getElementById('top-n-value').value = component.get('top-n-value') || '10';
 
         // Opacity slider
         const opacitySlider = document.getElementById('border-opacity');
@@ -4103,6 +4760,9 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         bgColorInput.value = component.get('highlight-color') || '#ffff99';
         textColorInput.value = component.get('highlight-text-color') || '#000000';
         fontFamilySelect.value = component.get('highlight-font-family') || '';
+        const fontSizeInput = document.getElementById('highlight-font-size');
+        fontSizeInput.value = component.get('highlight-font-size') || '14';
+
 
         // Handle condition type change
         conditionTypeSelect.addEventListener('change', function () {
@@ -4136,7 +4796,8 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 type,
                 caseSensitive: caseSensitiveCheckbox.checked,
                 textColor: textColorInput.value,
-                fontFamily: fontFamilySelect.value
+                fontFamily: fontFamilySelect.value,
+                fontSize: fontSizeInput.value
             };
 
             if (type === 'between') {
@@ -4184,6 +4845,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             component.set('highlight-color', bgColorInput.value);
             component.set('highlight-text-color', textColorInput.value);
             component.set('highlight-font-family', fontFamilySelect.value);
+            component.set('highlight-font-size', fontSizeInput.value);
             component.handleHighlightChange();
             editor.Modal.close();
         });
@@ -4549,83 +5211,4 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         }
         return keys;
     }
-
-
-    //     // Add CSS for better styling
-    //     const tableCSS = `
-    // <style>
-
-    // .json-data-table th,
-    // .json-data-table td {
-    //     border: 1px solid #000;
-    //     padding: 8px;
-    //     text-align: left;
-    //     background-color: #fff;
-    // }
-
-    // .json-data-table th {
-    //     background-color: #f8f9fa;
-    //     font-weight: bold;
-    // }
-
-
-    //     </style>`;
-
-    //     // Inject CSS
-    //     if (!document.querySelector('#json-table-styles')) {
-    //         const styleElement = document.createElement('style');
-    //         styleElement.id = 'json-table-styles';
-    //         styleElement.innerHTML = tableCSS;
-    //         document.head.appendChild(styleElement);
-    //     }
-
-
-    //     editor.DomComponents.addType('json-table-cell', {
-    //     isComponent: el => (el.tagName === 'TD' || el.tagName === 'TH') && 
-    //                       el.closest('.json-data-table'),
-    //     model: {
-    //         defaults: {
-    //             tagName: 'td',
-    //             selectable: true,
-    //             hoverable: true,
-    //             editable: true,
-    //             droppable: false,
-    //             draggable: false,
-    //             removable: false,
-    //             copyable: false,
-    //             resizable: false,
-    //             'custom-name': 'Table Cell'
-    //         },
-
-    //     },
-
-    //     view: {
-    //         events: {
-    //             'dblclick': 'startEditing'
-    //         },
-
-    //         startEditing(e) {
-    //             e.stopPropagation();
-    //             const cellEl = this.el;
-    //             const cellContent = cellEl.querySelector('div') || cellEl;
-    //             cellContent.focus();
-    //         },
-
-    //         onRender() {
-    //             // Restore calculated value if it exists after render
-    //             const cellEl = this.el;
-    //             const calculatedValue = cellEl.getAttribute('data-calculated-value');
-    //             const formula = cellEl.getAttribute('data-formula');
-
-    //             if (calculatedValue && formula) {
-    //                 setTimeout(() => {
-    //                     const cellContent = cellEl.querySelector('div');
-    //                     if (cellContent && cellContent.textContent !== calculatedValue) {
-    //                         cellContent.textContent = calculatedValue;
-    //                     }
-    //                 }, 10);
-    //             }
-    //         }
-    //     }
-    // })
 }

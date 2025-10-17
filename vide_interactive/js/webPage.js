@@ -128,8 +128,13 @@
             },
             stop: function () {},
           }),
-          l.add(i, function (e) {
-            return confirm(s) && e.runCommand("core:canvas-clear");
+ l.add(i, function (e) {
+            if (confirm(s)) {
+              e.runCommand("core:canvas-clear");
+
+              // Dispatch a custom event
+              document.dispatchEvent(new CustomEvent('canvasCleared'));
+            }
           });
       };
       var s =

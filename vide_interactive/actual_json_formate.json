@@ -7,7 +7,7 @@
     "loans": "loans data",
     "Invesment": "Invesment data",
     "contact us": "contact us data",
-    "videoLink": "",
+    "videoLink": "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.istockphoto.com%2Fstock-photos%2Fnature-and-landscapes&psig=AOvVaw06kWXmJZRuKP8xq3RM7ZC9&ust=1760162801442000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCOC9stj7mJADFQAAAAAdAAAAABAE",
     "SA": [
       "Chinmay",
       "Vishal",
@@ -3200,45 +3200,55 @@
         ]
       }
     },
-    "table1": {
-      "heading": {
-        "AccountType": "Account Type",
-        "Currency": "Currency",
-        "Amount": "Amount"
-      },
-      "data": [
-        {
-          "AccountType": "Savings",
-          "Currency": "GBP",
-          "Amount": "1771.42"
-        },
-        {
-          "AccountType": "Current",
-          "Currency": "GBP",
-          "Amount": "7830.00"
-        },
-        {
-          "AccountType": "Recurring Deposite",
-          "Currency": "GBP",
-          "Amount": "22730.11"
-        },
-        {
-          "AccountType": "Term Deposite",
-          "Currency": "GBP",
-          "Amount": "103000.00"
-        },
-        {
-          "AccountType": "Wealth",
-          "Currency": "GBP",
-          "Amount": "10000.00"
-        },
-        {
-          "AccountType": "Credit Card",
-          "Currency": "GBP",
-          "Amount": "98.00"
-        }
-      ]
+  "testtable1": {
+    "heading": {
+      "AccountType": "Account Type",
+      "Currency": "Currency",
+      "Amount": "Amount"
     },
+    "data": [
+      { "AccountType": "Savings", "Currency": "GBP", "Amount": "1725.45" },
+      { "AccountType": "Savings", "Currency": "GBP", "Amount": "2430.10" },
+      { "AccountType": "Savings", "Currency": "USD", "Amount": "1950.75" },
+      { "AccountType": "Savings", "Currency": "EUR", "Amount": "2100.30" },
+
+      { "AccountType": "Current", "Currency": "GBP", "Amount": "8200.00" },
+      { "AccountType": "Current", "Currency": "USD", "Amount": "5250.55" },
+      { "AccountType": "Current", "Currency": "EUR", "Amount": "6100.10" },
+      { "AccountType": "Current", "Currency": "GBP", "Amount": "4750.25" },
+
+      { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "22100.50" },
+      { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "30350.20" },
+      { "AccountType": "Recurring Deposit", "Currency": "USD", "Amount": "18750.75" },
+
+      { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "101500.00" },
+      { "AccountType": "Term Deposit", "Currency": "USD", "Amount": "50500.25" },
+      { "AccountType": "Term Deposit", "Currency": "EUR", "Amount": "66200.10" },
+      { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "89000.00" },
+
+      { "AccountType": "Wealth", "Currency": "GBP", "Amount": "9700.00" },
+      { "AccountType": "Wealth", "Currency": "USD", "Amount": "11350.45" },
+      { "AccountType": "Wealth", "Currency": "EUR", "Amount": "9400.25" },
+
+      { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "125.80" },
+      { "AccountType": "Credit Card", "Currency": "USD", "Amount": "98.00" },
+      { "AccountType": "Credit Card", "Currency": "EUR", "Amount": "155.40" },
+      { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "210.60" },
+
+      { "AccountType": "Loan", "Currency": "GBP", "Amount": "45200.00" },
+      { "AccountType": "Loan", "Currency": "USD", "Amount": "37850.90" },
+      { "AccountType": "Loan", "Currency": "EUR", "Amount": "40100.00" },
+
+      { "AccountType": "Mortgage", "Currency": "GBP", "Amount": "225000.00" },
+      { "AccountType": "Mortgage", "Currency": "USD", "Amount": "180000.50" },
+      { "AccountType": "Mortgage", "Currency": "EUR", "Amount": "199500.00" },
+
+      { "AccountType": "Investment", "Currency": "GBP", "Amount": "15500.00" },
+      { "AccountType": "Investment", "Currency": "USD", "Amount": "14450.75" },
+      { "AccountType": "Investment", "Currency": "EUR", "Amount": "16780.30" }
+    ]
+  },
+
     "transactions1Tbl": {
       "heading": {
         "Date": "Date",

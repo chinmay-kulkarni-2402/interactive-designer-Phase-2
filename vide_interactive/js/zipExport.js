@@ -7205,14 +7205,39 @@
                     "index.html": function (e) {
                       var iframe = document.querySelector('#editor iframe');
                       var iframeContent = iframe.contentDocument.body.innerHTML;
-                      let exportedJsonData = [];
-                      var common_json = JSON.parse(localStorage.getItem("common_json"));
-                      if (common_json !== null) {
-                        exportedJsonData.length = 0;
-                        exportedJsonData.push(common_json);
-                        exportedJsonData = JSON.stringify(exportedJsonData);
-                      }
+  // Step 1: Merge all localStorage JSONs starting with "common_json" (excluding "common_json_files")
+let mergedCommonJson = {};
 
+for (let i = 0; i < localStorage.length; i++) {
+  const key = localStorage.key(i);
+
+  if (key.startsWith("common_json") && key !== "common_json_files") {
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+
+      if (Array.isArray(data)) {
+        if (!Array.isArray(mergedCommonJson)) mergedCommonJson = [];
+        mergedCommonJson = mergedCommonJson.concat(data);
+      } else if (typeof data === "object" && data !== null) {
+        mergedCommonJson = { ...mergedCommonJson, ...data };
+      }
+    } catch (e) {
+      console.warn(`Skipping invalid JSON in ${key}`, e);
+    }
+  }
+}
+
+// Step 2: Save merged result as "common_json"
+localStorage.setItem("common_json", JSON.stringify(mergedCommonJson));
+
+// Step 3: Prepare for export
+var exportedJsonData = [];
+var common_json = JSON.parse(localStorage.getItem("common_json"));
+if (common_json !== null) {
+  exportedJsonData.push(common_json);
+  exportedJsonData = JSON.stringify(exportedJsonData);
+}
+    localStorage.removeItem("common_json");
                       let googleTranslater = '';
                       let enableTTS = '';
                       var result = confirm("Do you want to add the google translator?");
@@ -7995,7 +8020,7 @@
                           alert('Template Name Required.');
                           return false
                         }
-                        const apiUrl = 'http://localhost:8080/api/uploadFile';
+                        const apiUrl = 'http://192.168.0.221:9998/api/uploadFile';
                         // const apiUrl = 'http://localhost:9998/uploadFile'; 
                         const formData = new FormData();
                         formData.append('name', templateName);
@@ -8268,7 +8293,7 @@ ${htmlContent}
                       }
 
                       // Determine API URL
-                      let apiUrl = 'http://localhost:8080/api/uploadFile';
+                      let apiUrl = 'http://192.168.0.221:9998/api/uploadFile';
                       if (replaceCheckbox && replaceCheckbox.checked && editTemplateId) {
                         apiUrl += `/${editTemplateId}`; // edit mode
                       }
