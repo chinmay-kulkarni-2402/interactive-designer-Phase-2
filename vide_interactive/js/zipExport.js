@@ -8332,7 +8332,7 @@ ${htmlContent}
                           if (replaceCheckbox && replaceCheckbox.checked) {
                             localStorage.removeItem('editTemplateName');
                             localStorage.removeItem('editTemplateId');
-                            localStorage.removeItem('single-page');
+                            sessionStorage.removeItem('single-page');
                           }
 
                           templateInput.value = "";

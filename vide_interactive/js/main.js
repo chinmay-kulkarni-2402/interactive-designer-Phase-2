@@ -123,10 +123,10 @@ const editor = InteractiveDesigner.init({
   },
 });
 
-window.addEventListener("load", () => {
-  initNotificationsPlugin(editor); // sets up plugin, commands, navbar
-  console.log("hrhrhrhrhrhr")
-});
+// window.addEventListener("load", () => {
+//   initNotificationsPlugin(editor); // sets up plugin, commands, navbar
+//   console.log("hrhrhrhrhrhr")
+// });
 
 // Listen to component name or trait updates
 // Update layer name when component is selected, updated, or attributes change
@@ -2467,27 +2467,97 @@ async function generatePrintDialog() {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
 
-    // Remove margins from .page-container elements
-    const pageContainers = tempDiv.querySelectorAll(".page-container");
-    const idsToClean = [];
+    // 🧹 Remove IDs from specific classes
+    const classesToClean = [
+      "page-container",
+      "page-content",
+      "header-wrapper",
+      "page-header-element",
+      "content-wrapper",
+      "main-content-area",
+      "footer-wrapper",
+      "page-footer-element",
+    ];
 
-    pageContainers.forEach(el => {
-      if (el.id) idsToClean.push(el.id);
+    classesToClean.forEach((cls) => {
+      const elements = tempDiv.querySelectorAll(`.${cls}`);
+      elements.forEach((el) => {
+        if (el.hasAttribute("id")) {
+          el.removeAttribute("id");
+        }
+      });
     });
 
-    let cleanedCss = css;
-    idsToClean.forEach(id => {
-      const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
-      cleanedCss = cleanedCss.replace(idRegex, "$1");
-    });
+    // --- Add external CSS and JS resources ---
+    const canvasResources = {
+      styles: [
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
+        "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
+        "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+        "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
+        "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
+        "https://fonts.googleapis.com/icon?family=Material+Icons",
+        "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
+        "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
+      ],
+      scripts: [
+        "https://code.jquery.com/jquery-3.3.1.slim.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+        "https://code.jquery.com/jquery-2.1.1.min.js",
+        "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
+        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
+        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
+        "https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
+        "https://code.highcharts.com/stock/highstock.js",
+        "https://code.highcharts.com/highcharts-3d.js",
+        "https://code.highcharts.com/highcharts-more.js",
+        "https://code.highcharts.com/modules/data.js",
+        "https://code.highcharts.com/modules/exporting.js",
+        "https://code.highcharts.com/modules/accessibility.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
+        "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
+        "https://code.highcharts.com/modules/drilldown.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+        "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js",
+        "https://code.jquery.com/jquery-3.6.0.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+        "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
+        "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
+        "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
+        "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+        "https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+        "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+      ]
+    };
 
-    // Combine HTML + CSS into full document
+    const externalStyles = canvasResources.styles
+      .map((url) => `<link rel="stylesheet" href="${url}">`)
+      .join("\n");
+
+    const externalScripts = canvasResources.scripts
+      .map((url) => `<script src="${url}" defer></script>`)
+      .join("\n");
+
+    // Combine everything into full HTML
     const finalHtml = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8" />
-          <style>${cleanedCss}</style>
+          ${externalStyles}
+          <style>${css}</style>
+          ${externalScripts}
         </head>
         <body>${tempDiv.innerHTML}</body>
       </html>
@@ -2545,6 +2615,8 @@ async function generatePrintDialog() {
   }
 }
 
+
+
 // Attach event listener to button
 var el = document.getElementById("exportPDF");
 if (el) {
@@ -2552,7 +2624,7 @@ if (el) {
 }
 
 // Preserve all existing functionality
-var singlePageData = JSON.parse(localStorage.getItem("single-page")) || {};
+var singlePageData = JSON.parse(sessionStorage.getItem("single-page")) || {};
 if (Object.keys(singlePageData).length > 0) {
   editor.setComponents(singlePageData);
 }
@@ -2619,7 +2691,7 @@ function downloadPage(){
         }
     </script>` +
     "</html>";  
-    localStorage.setItem('single-page',  JSON.stringify(htmlContent)); 
+    sessionStorage.setItem('single-page',  JSON.stringify(htmlContent)); 
     var blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});  
     var url = URL.createObjectURL(blob);  
     var link = document.createElement("a");
@@ -2826,7 +2898,7 @@ function importFile(){
     const reader = new FileReader();
     reader.onload = function(e) {
       const code = e.target.result;  
-      localStorage.setItem('single-page', JSON.stringify(code)); 
+      sessionStorage.setItem('single-page', JSON.stringify(code)); 
       editor.setComponents(code); 
       editor.Modal.close(); 
 
