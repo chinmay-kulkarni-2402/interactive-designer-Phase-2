@@ -1,170 +1,5 @@
 function jsontablecustom(editor) {
 
-    function enableFormulaEditing(tableId) {
-        const iframeDoc = editor.Canvas.getDocument();
-        const parser = new iframeDoc.defaultView.formulaParser.Parser();
-
-        // Enhanced parser with range support
-        parser.on('callCellValue', function (cellCoord, done) {
-            let col = cellCoord.column.index;
-            let row = cellCoord.row.index;
-            let tableElem = iframeDoc.getElementById(tableId);
-            let cell = tableElem.rows[row]?.cells[col];
-            if (cell) {
-                let val = cell.getAttribute('data-formula') || cell.innerText;
-                if (val.startsWith('=')) {
-                    try {
-                        let res = parser.parse(val.substring(1));
-                        done(res.result);
-                    } catch {
-                        done('#ERROR');
-                    }
-                } else {
-                    done(parseFloat(val) || val);
-                }
-            } else {
-                done(null);
-            }
-        });
-
-        // Enhanced parser for range support (A1:A5)
-        parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
-            let tableElem = iframeDoc.getElementById(tableId);
-            let values = [];
-
-            let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
-            let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
-            let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
-            let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
-
-            for (let row = startRow; row <= endRow; row++) {
-                for (let col = startCol; col <= endCol; col++) {
-                    let cell = tableElem.rows[row]?.cells[col];
-                    if (cell) {
-                        let val = cell.getAttribute('data-formula') || cell.innerText;
-                        if (val.startsWith('=')) {
-                            try {
-                                let res = parser.parse(val.substring(1));
-                                values.push(res.result);
-                            } catch {
-                                values.push(0);
-                            }
-                        } else {
-                            values.push(parseFloat(val) || 0);
-                        }
-                    } else {
-                        values.push(0);
-                    }
-                }
-            }
-
-            done(values);
-        });
-
-        // Function to attach event listeners to cells
-        function attachCellListeners() {
-            const tableElem = iframeDoc.getElementById(tableId);
-            if (!tableElem) return;
-
-            tableElem.querySelectorAll('td, th').forEach(cell => {
-                // Skip if already has listeners
-                if (cell.hasAttribute('data-formula-enabled')) return;
-
-                cell.contentEditable = "true";
-                cell.setAttribute('data-formula-enabled', 'true');
-
-                cell.addEventListener('focus', handleCellFocus);
-                cell.addEventListener('blur', handleCellBlur);
-                cell.addEventListener('input', handleCellInput);
-                cell.addEventListener('keydown', handleCellKeydown);
-            });
-        }
-
-        function handleCellFocus() {
-            let formula = this.getAttribute('data-formula');
-            if (formula) this.innerText = formula;
-        }
-
-        function handleCellInput(e) {
-            const cell = this;
-            const currentText = cell.innerText;
-            // Show formula suggestions when typing after '='
-        }
-
-        function handleCellKeydown(e) {
-            // Handle Tab key for navigation
-            if (e.key === 'Tab') {
-                e.preventDefault();
-                const cell = this;
-                const table = cell.closest('table');
-                const allCells = Array.from(table.querySelectorAll('td, th'));
-                const currentIndex = allCells.indexOf(cell);
-
-                let nextIndex;
-                if (e.shiftKey) {
-                    nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
-                } else {
-                    nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
-                }
-
-                allCells[nextIndex].focus();
-            }
-        }
-
-        function handleCellBlur() {
-            const cell = this;
-            let val = cell.innerText.trim();
-
-            // Remove existing suggestions
-            const iframeDoc = editor.Canvas.getDocument();
-            iframeDoc.querySelectorAll('.formula-suggestions').forEach(s => s.remove());
-
-            if (val.startsWith('=')) {
-                cell.setAttribute('data-formula', val);
-                try {
-                    const formulaContent = val.substring(1).trim();
-                    if (!formulaContent) throw new Error('Empty formula');
-
-                    // Parse formula
-                    const res = parser.parse(formulaContent);
-                    if (res.error) throw new Error(res.error);
-
-                    // Use string or number result
-                    cell.innerText = (res.result !== undefined && res.result !== null) ? res.result : '#ERROR';
-                    cell.classList.remove('formula-error');
-
-                } catch (error) {
-                    console.warn('Formula parsing error:', error);
-                    cell.innerText = '#ERROR';
-                    cell.classList.add('formula-error');
-                }
-            } else {
-                cell.removeAttribute('data-formula');
-                cell.innerText = val;
-                cell.classList.remove('formula-error');
-            }
-
-            updateComponentContent(cell.closest('table').id);
-        }
-
-        function updateComponentContent(tableId) {
-            // We don't need to sync back to GrapesJS component for formula calculations
-            return;
-        }
-
-        // Initial attachment of listeners
-        attachCellListeners();
-
-        // Re-attach listeners when component is updated/re-rendered
-        editor.on('component:update', (component) => {
-            if (component.getId() === tableId || component.find(`#${tableId}`).length > 0) {
-                setTimeout(() => {
-                    attachCellListeners();
-                }, 100);
-            }
-        });
-    }
-
     editor.on('load', () => {
         const iframe = editor.getContainer().querySelector('iframe');
         if (iframe && iframe.contentDocument) {
@@ -231,133 +66,6 @@ function jsontablecustom(editor) {
         }
     });
 
-    function loadNumberToWords() {
-        const iframe = editor.getContainer().querySelector('iframe');
-        if (!iframe || !iframe.contentWindow) {
-            setTimeout(loadNumberToWords, 500);
-            return;
-        }
-
-        const iframeWindow = iframe.contentWindow;
-
-        // Check if already loaded
-        if (iframeWindow.numberToWords) {
-            registerNumToWords(iframeWindow);
-            return;
-        }
-
-        // Create script element in iframe document
-        const script = iframeWindow.document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
-        script.crossOrigin = "anonymous";
-
-        script.onload = function () {
-            setTimeout(() => {
-                registerNumToWords(iframeWindow);
-            }, 100);
-        };
-
-        script.onerror = function () {
-            console.error('Failed to load number-to-words library');
-
-            // Fallback implementation
-            if (window.HotFormulaParser) {
-                window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
-                    if (params.length !== 1) return '#N/A';
-                    const num = parseInt(params[0]);
-                    if (isNaN(num)) return '#VALUE!';
-
-                    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-                        'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
-
-                    if (num >= 0 && num <= 20) {
-                        return words[num];
-                    } else if (num < 100) {
-                        const tens = Math.floor(num / 10);
-                        const ones = num % 10;
-                        const tensWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-                        return ones === 0 ? tensWords[tens] : tensWords[tens] + '-' + words[ones];
-                    }
-                    return 'Number too large';
-                });
-            }
-        };
-
-        iframeWindow.document.head.appendChild(script);
-    }
-
-    function loadNumberToWords() {
-        const iframe = editor.getContainer().querySelector('iframe');
-        if (!iframe || !iframe.contentWindow) {
-            setTimeout(loadNumberToWords, 500);
-            return;
-        }
-
-        const iframeWindow = iframe.contentWindow;
-
-        // Check if already loaded
-        if (iframeWindow.numberToWords) {
-            registerNumToWords(iframeWindow);
-            return;
-        }
-
-        // Create script element in iframe document
-        const script = iframeWindow.document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
-        script.crossOrigin = "anonymous";
-
-        script.onload = function () {
-            setTimeout(() => {
-                registerNumToWords(iframeWindow);
-            }, 100);
-        };
-
-        script.onerror = function () {
-            console.error('Failed to load number-to-words library');
-
-            // Fallback implementation
-            if (window.HotFormulaParser) {
-                window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
-                    if (params.length !== 1) return '#N/A';
-                    const num = parseInt(params[0]);
-                    if (isNaN(num)) return '#VALUE!';
-
-                    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-                        'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
-
-                    if (num >= 0 && num <= 20) {
-                        return words[num];
-                    } else if (num < 100) {
-                        const tens = Math.floor(num / 10);
-                        const ones = num % 10;
-                        const tensWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-                        return ones === 0 ? tensWords[tens] : tensWords[tens] + '-' + words[ones];
-                    }
-                    return 'Number too large';
-                });
-            }
-        };
-
-        iframeWindow.document.head.appendChild(script);
-    }
-
-    function registerNumToWords(iframeWindow) {
-        if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords && window.HotFormulaParser) {
-            window.HotFormulaParser.setFunction('NUMTOWORDS', function (params) {
-                if (params.length !== 1) return '#N/A';
-                const num = parseInt(params[0]);
-                if (isNaN(num)) return '#VALUE!';
-
-                try {
-                    return iframeWindow.numberToWords.toWords(num);
-                } catch (error) {
-                    return '#ERROR';
-                }
-            });
-
-            console.log('NUMTOWORDS formula registered successfully');
-        }
-    }
     // Add highlighting function from custom table
     function applyHighlighting(tableId, conditions, highlightColor) {
         try {
@@ -490,24 +198,6 @@ function jsontablecustom(editor) {
             default:
                 return false;
         }
-    }
-    // Helper function to convert column letters to index (A=0, B=1, etc.)
-    function columnLetterToIndex(letters) {
-        let result = 0;
-        for (let i = 0; i < letters.length; i++) {
-            result = result * 26 + (letters.charCodeAt(i) - 65 + 1);
-        }
-        return result - 1;
-    }
-
-    // Helper function to convert index to column letters
-    function indexToColumnLetter(index) {
-        let result = '';
-        while (index >= 0) {
-            result = String.fromCharCode(65 + (index % 26)) + result;
-            index = Math.floor(index / 26) - 1;
-        }
-        return result;
     }
 
     function hexToRgb(hex) {
@@ -680,24 +370,6 @@ function jsontablecustom(editor) {
                         full: true,
                         command: 'open-table-settings-modal'
                     },
-                    // {
-                    //     type: 'checkbox',
-                    //     name: 'show-row-totals',
-                    //     label: 'Show Row Totals',
-                    //     changeProp: 1
-                    // },
-                    // {
-                    //     type: 'checkbox',
-                    //     name: 'show-column-totals',
-                    //     label: 'Show Column Totals',
-                    //     changeProp: 1
-                    // },
-                    // {
-                    //     type: 'checkbox',
-                    //     name: 'show-grand-total',
-                    //     label: 'Show Grand Total',
-                    //     changeProp: 1
-                    // },
                     // Add highlighting traits from custom table
                     {
                         type: 'button',
@@ -715,54 +387,6 @@ function jsontablecustom(editor) {
                         full: true,
                         command: 'open-table-condition-manager-json-table'
                     },
-                    {
-                        type: 'button',
-                        name: 'reorder-columns-btn',
-                        label: 'Columns',
-                        text: 'Column Order',
-                        full: true,
-                        command: 'open-column-reorder-manager'
-                    },
-                    // {
-                    //     type: 'button',
-                    //     name: 'manage-running-totals-btn',
-                    //     label: 'Running Total',
-                    //     text: 'Add Running Total',
-                    //     full: true,
-                    //     command: 'open-running-total-manager'
-                    // },
-                    // {
-                    //     type: 'button',
-                    //     name: 'add-row-btn',
-                    //     label: 'Add Row',
-                    //     text: 'Add Row',
-                    //     full: true,
-                    //     command: 'add-table-row'
-                    // },
-                    // {
-                    //     type: 'button',
-                    //     name: 'add-column-btn',
-                    //     label: 'Add Column',
-                    //     text: 'Add Column',
-                    //     full: true,
-                    //     command: 'add-table-column'
-                    // },
-                    // {
-                    //     type: 'button',
-                    //     name: 'remove-row-btn',
-                    //     label: 'Remove Row',
-                    //     text: 'Remove Last Row',
-                    //     full: true,
-                    //     command: 'remove-table-row'
-                    // },
-                    // {
-                    //     type: 'button',
-                    //     name: 'remove-column-btn',
-                    //     label: 'Remove Column',
-                    //     text: 'Remove Last Column',
-                    //     full: true,
-                    //     command: 'remove-table-column'
-                    // }
                 ],
                 'json-path': '',
                 'table-data': null,
@@ -957,6 +581,54 @@ function jsontablecustom(editor) {
 
                 this.set('show-placeholder', true);
                 this.updateTableHTML();
+
+                // Add this in the model's init() function
+                editor.on('component:update', (component) => {
+                    // Preserve json-table components when code is updated
+                    if (component.get('type') === 'json-table') {
+                        const jsonPath = component.get('json-path');
+                        const customData = component.get('custom-data');
+                        const customHeaders = component.get('custom-headers');
+
+                        // Store critical data
+                        if (jsonPath) {
+                            component.set('_preserved_json_path', jsonPath);
+                        }
+                        if (customData) {
+                            component.set('_preserved_custom_data', customData);
+                        }
+                        if (customHeaders) {
+                            component.set('_preserved_custom_headers', customHeaders);
+                        }
+                    }
+                });
+
+                // Restore after code update
+                editor.on('run:core:open-code:after', () => {
+                    const wrapper = editor.DomComponents.getWrapper();
+                    const jsonTables = wrapper.find('[data-gjs-type="json-table"]');
+
+                    jsonTables.forEach(table => {
+                        const preservedPath = table.get('_preserved_json_path');
+                        const preservedData = table.get('_preserved_custom_data');
+                        const preservedHeaders = table.get('_preserved_custom_headers');
+
+                        if (preservedPath) {
+                            table.set('json-path', preservedPath);
+                        }
+                        if (preservedData) {
+                            table.set('custom-data', preservedData);
+                        }
+                        if (preservedHeaders) {
+                            table.set('custom-headers', preservedHeaders);
+                        }
+
+                        // Force re-render
+                        setTimeout(() => {
+                            table.updateTableHTML();
+                        }, 100);
+                    });
+                });
             },
 
             applyTableStyles() {
@@ -4338,7 +4010,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 key, name
             }));
 
-const modalContent = `
+            const modalContent = `
 <div class="table-settings-modal" style="width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
     <!-- Navbar -->
     <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
@@ -4351,36 +4023,283 @@ const modalContent = `
     <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
         <!-- Settings Tab -->
         <div id="settings-tab" class="tab-pane active">
-            <!-- Keep existing content -->
-        </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
+                    <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
+                    <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
+                </div>
+            </fieldset>
 
-        <!-- Grouping & Summary Tab with INDIVIDUAL SCROLLING -->
-        <div id="grouping-tab" class="tab-pane" style="display: none;">
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
+                    <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
+                    <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
+                </div>
+            </fieldset>
+        </div>
+<div>
+    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+        <legend style="font-weight: bold; padding: 0 10px;">Running Total</legend>
+        <div style="margin-bottom: 10px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Select Columns for Running Total:</label>
+            <div id="running-total-columns" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+        <button id="apply-running-total" style="width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">Apply Running Total</button>
+    </fieldset>
+
+    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+        <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
+        <button id="reorder-columns-btn" style="width: 100%; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Reorder Columns</button>
+    </fieldset>
+</div>
+    </div>
+</div>
+
+        <!-- Grouping & Summary Tab -->
+ <div id="grouping-tab" class="tab-pane" style="display: none;">
             <div style="display: grid; grid-template-columns: 200px 1fr; gap: 20px; height: 100%;">
                 <!-- Left Panel with scroll -->
                 <div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; max-height: calc(90vh - 200px);">
-                    <!-- Available/Selected/Query Fields -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Available Columns</label>
+                        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
+                            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                                <button id="sort-asc" title="Sort A-Z" style="flex: 1; padding: 5px; border: 1px solid #ddd; cursor: pointer;">A↓Z</button>
+                                <button id="sort-desc" title="Sort Z-A" style="flex: 1; padding: 5px; border: 1px solid #ddd; cursor: pointer;">Z↓A</button>
+                            </div>
+                            <div id="available-fields" style="max-height: 150px; overflow-y: auto; ">
+                                ${availableFields.map(field => `
+                                    <div class="field-item" data-key="${field.key}" style="padding: 5px; cursor: pointer; border-bottom: 1px solid #eee;">
+                                        <input type="checkbox" class="field-checkbox" data-type="available" style="margin-right: 5px;">
+                                        <span>${field.name}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Selected Fields</label>
+                        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
+                            <div id="selected-fields" style="max-height: 150px; overflow-y: auto; min-height: 50px;">
+                                <p style="color: #999; padding: 10px; text-align: center; font-size: 12px;">No fields selected</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Query Fields</label>
+                        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
+                            <div id="query-fields" style="max-height: 100px; overflow-y: auto; ">
+                                ${availableFields.map(field => `
+                                    <div class="field-item" data-key="${field.key}" style="padding: 5px; border-bottom: 1px solid #eee;">
+                                        <input type="checkbox" class="field-checkbox" data-type="query" style="margin-right: 5px;">
+                                        <span>${field.name}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Right Panel with scroll -->
-                <div style="overflow-y: auto; max-height: calc(90vh - 200px);">
-                    <!-- Grouping & Summary Options -->
+                <!-- Right Panel: Grouping & Summary Options -->
+                 <div style="overflow-y: auto; max-height: calc(90vh - 200px);">
+                    <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                        <label style="font-weight: bold; margin-bottom: 10px; display: block;">Grouping</label>
+                        <div id="grouping-field-display" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 20px; margin-bottom: 10px;">
+                            <span style="color: #999;">Select a field to group by</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 5px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-size: 12px;">Sort</label>
+                                <select id="sort-order" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="ascending">Ascending</option>
+                                    <option value="descending">Descending</option>
+                                    <option value="original">Original Order</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-size: 12px;">Top/N</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <select id="top-n" style="flex: 2; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <option value="none">None</option>
+                                        <option value="top">Top</option>
+                                        <option value="bottom">Bottom</option>
+                                        <option value="sort-all">Sort All</option>
+                                    </select>
+                                    <input type="number" id="top-n-value" min="1" value="10" style="flex: 1; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" placeholder="N">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-size: 12px;">Option</label>
+                                <div>
+                                    <label style="display: block; font-size: 12px;">
+                                        <input type="checkbox" id="summarize-group"> Summarize Group
+                                    </label>
+                                    <label style="display: block; font-size: 12px;">
+                                        <input type="checkbox" id="page-break-after-group"> Page Break After Group
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 5px;">
+                            <label style="display: flex; align-items: center; margin-bottom: 5px;">
+                                <input type="checkbox" id="define-named-group" style="margin-right: 8px;">
+                                <span style="font-weight: bold;">Define Named Group</span>
+                            </label>
+                            <button id="open-named-group" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; margin-bottom: 5px;">
+                                Configure Named Groups
+                            </button>
+                            <div id="named-groups-list" style="display: none; border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 150px; overflow-y: auto;">
+                                <!-- Named groups will be listed here -->
+                            </div>
+                        </div>
+
+                        <div style= "display: none;">
+                            <label style="display: block; margin-bottom: 5px;">
+                                <input type="checkbox" id="predefined-named-group" style="margin-right: 8px;">
+                                <span style="font-weight: bold;">Predefined Named Group</span>
+                            </label>
+                            <select id="predefined-group-select" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f0f0f0;">
+                                <option value="">Select predefined group...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-top: 15px;">
+                        <label style="font-weight: bold; margin-bottom: 10px; display: block;">Summary</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <select id="summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                                    <option value="">Select field...</option>
+                                    ${availableFields.map(field => `<option value="${field.key}">${field.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <select id="summary-function" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                                    <option value="sum">Sum</option>
+                                    <option value="average">Average</option>
+                                    <option value="count">Count</option>
+                                    <option value="min">Min</option>
+                                    <option value="max">Max</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 12px;">Percentage:</label>
+                            <select id="summary-percentage" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                                <option value="none">None</option>
+                                <option value="total">Total</option>
+                                <option value="grandtotal">GrandTotal</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Options Tab -->
         <div id="options-tab" class="tab-pane" style="display: none;">
-            <!-- Keep existing content -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                        <legend style="font-weight: bold; padding: 0 10px;">Display Options</legend>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="merge-group-cells">
+                            <span>Merge Group Cells</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="group-header-inplace" checked>
+                            <span>Group Header In-place</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="hide-subtotal-single-row">
+                            <span>Hide Subtotal for a Single Row</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="repeat-group-header">
+                            <span>Repeat Group Header</span>
+                        </label>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="show-group-column">
+                            <span>Show Group Column</span>
+                        </label>
+                    </fieldset>
+
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <legend style="font-weight: bold; padding: 0 10px;">Grouping Options</legend>
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
+                            <span>Normal Grouping</span>
+                        </label>
+                        <label style="display: flex; align-items: center;">
+                            <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
+                            <span>Show Summary Only</span>
+                        </label>
+                        <label style="display: block; margin-top: 10px; margin-left: 24px;">
+                            <input type="checkbox" id="keep-group-hierarchy">
+                            <span style="font-size: 12px;">Keep Group Hierarchy</span>
+                        </label>
+                    </fieldset>
+                </div>
+
+                <div>
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                        <legend style="font-weight: bold; padding: 0 10px;">Summary Labels</legend>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 12px;">Summary Label:</label>
+                            <input type="text" id="summary-label" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: flex; align-items: center; margin-bottom: 5px;">
+                                <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
+                                <span style="font-weight: bold;">Grand Total</span>
+                            </label>
+                            <label style="display: block; margin-bottom: 5px; font-size: 12px; margin-left: 24px;">Grand Total Label:</label>
+                            <input type="text" id="grand-total-label" style="width: calc(95% - 24px); margin-left: 24px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Footer Buttons - FIXED AT BOTTOM -->
-    <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background: white;">
+    <!-- Footer Buttons -->
+    <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
         <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
         <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
     </div>
 </div>
+
+<style>
+.nav-tab.active {
+    background: white !important;
+    border-bottom: 3px solid #007bff !important;
+    font-weight: bold;
+}
+.field-item:hover {
+    background: #f0f0f0;
+}
+.field-item.selected {
+    background: #e3f2fd;
+}
+</style>
 `;
 
             const modal = editor.Modal;
@@ -4407,10 +4326,69 @@ const modalContent = `
             });
         });
 
-        // === SETTINGS TAB HANDLERS ===
+        // Populate Running Total columns - STRICT numeric check
+        const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        const data = component.get('custom-data') || component.get('table-data') || [];
+        const selectedColumns = component.get('selected-running-total-columns') || [];
 
-        // Populate Running Total columns
-const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        const runningTotalContainer = document.getElementById('running-total-columns');
+        const numericHeaders = {};
+
+        Object.entries(headers).forEach(([key, name]) => {
+            const isStrictlyNumeric = data.every(row => {
+                let value = row[key];
+                if (value === '' || value === null || value === undefined) return true;
+
+                // Convert to string and trim spaces
+                value = String(value).trim();
+
+                // Handle accounting-style negatives: (123.45) → -123.45
+                if (/^\(.*\)$/.test(value)) {
+                    value = '-' + value.slice(1, -1);
+                }
+
+                // Remove currency symbols and spaces
+                value = value.replace(/[$£€₹,\s]/g, '');
+
+                // Detect if it’s a European-style number (comma as decimal)
+                // e.g., "1200,50" → "1200.50"
+                if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                    value = value.replace(/\./g, '').replace(',', '.');
+                }
+
+                // Check if final cleaned string is a valid number
+                const numValue = Number(value);
+                return typeof numValue === 'number' && !isNaN(numValue);
+            });
+
+            if (
+                isStrictlyNumeric &&
+                data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)
+            ) {
+                numericHeaders[key] = name;
+            }
+        });
+
+
+        if (Object.keys(numericHeaders).length === 0) {
+            runningTotalContainer.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No columns with purely numeric data available</p>';
+        } else {
+            runningTotalContainer.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
+        <div style="margin-bottom: 8px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" value="${key}" ${selectedColumns.includes(key) ? 'checked' : ''} 
+                       class="running-total-checkbox" style="margin-right: 8px; width: 16px; height: 16px;">
+                <span>${name}</span>
+            </label>
+        </div>
+    `).join('');
+        }
+
+        // Add Reorder Columns button handler
+        document.getElementById('reorder-columns-btn').addEventListener('click', function () {
+            editor.Commands.run('open-column-reorder-manager');
+        });
+
         // Running Total Apply
         document.getElementById('apply-running-total').addEventListener('click', function () {
             const checkboxes = document.querySelectorAll('.running-total-checkbox:checked');
@@ -4660,7 +4638,50 @@ const headers = component.get('custom-headers') || component.get('table-headers'
                 alert('Please select at least one grouping field before adding summaries');
                 return;
             }
+            // Options Tab - Make all checkboxes functional
+            document.querySelectorAll('#options-tab input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const id = this.id;
+                    const isChecked = this.checked;
 
+                    // Handle each checkbox
+                    switch (id) {
+                        case 'merge-group-cells':
+                            component.set('merge-group-cells', isChecked);
+                            break;
+                        case 'group-header-inplace':
+                            component.set('group-header-inplace', isChecked);
+                            break;
+                        case 'hide-subtotal-single-row':
+                            component.set('hide-subtotal-single-row', isChecked);
+                            break;
+                        case 'repeat-group-header':
+                            component.set('repeat-group-header', isChecked);
+                            break;
+                        case 'show-group-column':
+                            component.set('show-group-column', isChecked);
+                            break;
+                        case 'keep-group-hierarchy':
+                            component.set('keep-group-hierarchy', isChecked);
+                            break;
+                        case 'grand-total':
+                            const grandTotalLabel = document.getElementById('grand-total-label');
+                            grandTotalLabel.disabled = !isChecked;
+                            grandTotalLabel.style.background = isChecked ? 'white' : '#f0f0f0';
+                            component.set('grand-total', isChecked);
+                            break;
+                    }
+                });
+            });
+
+            // Grouping type radio buttons
+            document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
+                radio.addEventListener('change', function () {
+                    const isSummaryOnly = this.value === 'summary';
+                    document.getElementById('keep-group-hierarchy').disabled = !isSummaryOnly;
+                    component.set('show-summary-only', isSummaryOnly);
+                });
+            });
             // Save all settings
             component.set('grouping-fields', selectedGroupingFields);
             component.set('summary-fields', selectedSummaryFields); // Use the tracked selectedSummaryFields

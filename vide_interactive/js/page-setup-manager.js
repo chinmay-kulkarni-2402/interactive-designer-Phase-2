@@ -793,6 +793,7 @@ class PageSetupManager {
   ////////////////////////////////// auto-pagtination ////////////////////////////////////////////////////
 
   handleAutoPagination(pageIndex) {
+    console.log("handleautopagination")
     this.handlePageBreak(pageIndex);
 
     if (this.paginationInProgress) {
@@ -1092,6 +1093,7 @@ class PageSetupManager {
 
 
   moveComponentsToPage(components, targetPageIndex) {
+    console.log("movecomponentto new page")
     try {
       const targetPageComponent = this.editor.getWrapper().find(`[data-page-index="${targetPageIndex}"]`)[0];
       if (!targetPageComponent) {
@@ -1189,6 +1191,7 @@ class PageSetupManager {
   }
 
   setupPageObserver(pageIndex) {
+    console.log("setuppGEOBSERVER")
     const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
     if (!pageComponent) {
       console.warn(`❌ Page component not found for index ${pageIndex}`);
@@ -1210,7 +1213,7 @@ class PageSetupManager {
     if (this.pageObservers.has(pageIndex)) {
       this.pageObservers.get(pageIndex).disconnect();
     }
-
+console.log("observer return")
 
     let lastContentHeight = contentEl.scrollHeight;
 
@@ -1275,6 +1278,7 @@ class PageSetupManager {
   }
 
   checkPageForOverflow(pageIndex) {
+    console.log("checkpageoverflow")
     this.handlePageBreak(pageIndex);
 
     const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
@@ -2127,11 +2131,6 @@ class PageSetupManager {
       contentArea.style.maxHeight = `${availableHeight}mm`;
       contentArea.style.overflow = 'hidden';
 
-      // Monitor content changes
-      const observer = new MutationObserver(() => {
-        this.checkContentOverflow(contentArea, index);
-      });
-
       observer.observe(contentArea, {
         childList: true,
         subtree: true,
@@ -2165,83 +2164,84 @@ class PageSetupManager {
     
   }
 
-  enforceContentBoundaries() {
-    if (!this.isInitialized) return
+  // enforceContentBoundaries() {
+  //   if (!this.isInitialized) return
 
-    const canvasBody = this.editor.Canvas.getBody()
-    const pageElements = canvasBody.querySelectorAll(".page-container")
+  //   const canvasBody = this.editor.Canvas.getBody()
+  //   const pageElements = canvasBody.querySelectorAll(".page-container")
 
-    // Check for content outside all pages
-    const allComponents = this.editor.getWrapper().components()
+  //   // Check for content outside all pages
+  //   const allComponents = this.editor.getWrapper().components()
 
-    allComponents.forEach((component) => {
-      const componentEl = component.getEl()
-      if (!componentEl || componentEl.classList.contains("page-container")) return
+  //   allComponents.forEach((component) => {
+  //     const componentEl = component.getEl()
+  //     if (!componentEl || componentEl.classList.contains("page-container")) return
 
-      let isInsidePage = false
-      pageElements.forEach((pageElement) => {
-        const pageRect = pageElement.getBoundingClientRect()
-        const componentRect = componentEl.getBoundingClientRect()
+  //     let isInsidePage = false
+  //     pageElements.forEach((pageElement) => {
+  //       const pageRect = pageElement.getBoundingClientRect()
+  //       const componentRect = componentEl.getBoundingClientRect()
 
-        if (
-          componentRect.left >= pageRect.left &&
-          componentRect.right <= pageRect.right &&
-          componentRect.top >= pageRect.top &&
-          componentRect.bottom <= pageRect.bottom
-        ) {
-          isInsidePage = true
-        }
-      })
+  //       if (
+  //         componentRect.left >= pageRect.left &&
+  //         componentRect.right <= pageRect.right &&
+  //         componentRect.top >= pageRect.top &&
+  //         componentRect.bottom <= pageRect.bottom
+  //       ) {
+  //         isInsidePage = true
+  //       }
+  //     })
 
-      if (!isInsidePage) {
-        // Show error and remove component
-        this.showBoundaryError()
-        component.remove()
-        return
-      }
-    })
+  //     if (!isInsidePage) {
+  //       // Show error and remove component
+  //       this.showBoundaryError()
+  //       component.remove()
+  //       return
+  //     }
+  //   })
 
-    pageElements.forEach((pageElement, pageIndex) => {
-      const pageContent = pageElement.querySelector(".main-content-area")
-      if (pageContent) {
-        // Get all child elements in the main content area
-        const children = pageContent.querySelectorAll("*")
-        children.forEach((child) => {
-          const rect = child.getBoundingClientRect()
-          const pageRect = pageContent.getBoundingClientRect()
+  //   pageElements.forEach((pageElement, pageIndex) => {
+  //     const pageContent = pageElement.querySelector(".main-content-area")
+  //     if (pageContent) {
+  //       // Get all child elements in the main content area
+  //       const children = pageContent.querySelectorAll("*")
+  //       children.forEach((child) => {
+  //         const rect = child.getBoundingClientRect()
+  //         const pageRect = pageContent.getBoundingClientRect()
 
-          // Check if element is outside page boundaries
-          if (
-            rect.right > pageRect.right ||
-            rect.bottom > pageRect.bottom ||
-            rect.left < pageRect.left ||
-            rect.top < pageRect.top
-          ) {
-            // Show error and adjust element position to stay within boundaries
-            this.showBoundaryError()
+  //         // Check if element is outside page boundaries
+  //         if (
+  //           rect.right > pageRect.right ||
+  //           rect.bottom > pageRect.bottom ||
+  //           rect.left < pageRect.left ||
+  //           rect.top < pageRect.top
+  //         ) {
+  //           // Show error and adjust element position to stay within boundaries
+  //           this.showBoundaryError()
 
-            const style = window.getComputedStyle(child)
-            const left = Number.parseInt(style.left) || 0
-            const top = Number.parseInt(style.top) || 0
+  //           const style = window.getComputedStyle(child)
+  //           const left = Number.parseInt(style.left) || 0
+  //           const top = Number.parseInt(style.top) || 0
 
-            if (rect.right > pageRect.right) {
-              child.style.left = Math.max(0, left - (rect.right - pageRect.right)) + "px"
-            }
-            if (rect.bottom > pageRect.bottom) {
-              child.style.top = Math.max(0, top - (rect.bottom - pageRect.bottom)) + "px"
-            }
-            if (rect.left < pageRect.left) {
-              child.style.left = Math.max(0, left + (pageRect.left - rect.left)) + "px"
-            }
-            if (rect.top < pageRect.top) {
-              child.style.top = Math.max(0, top + (pageRect.top - rect.top)) + "px"
-            }
-          }
-        })
-      }
-    })
-  }
+  //           if (rect.right > pageRect.right) {
+  //             child.style.left = Math.max(0, left - (rect.right - pageRect.right)) + "px"
+  //           }
+  //           if (rect.bottom > pageRect.bottom) {
+  //             child.style.top = Math.max(0, top - (rect.bottom - pageRect.bottom)) + "px"
+  //           }
+  //           if (rect.left < pageRect.left) {
+  //             child.style.left = Math.max(0, left + (pageRect.left - rect.left)) + "px"
+  //           }
+  //           if (rect.top < pageRect.top) {
+  //             child.style.top = Math.max(0, top + (pageRect.top - rect.top)) + "px"
+  //           }
+  //         }
+  //       })
+  //     }
+  //   })
+  // }
 
+   enforceContentBoundaries(){}
   setupStrictBoundaryEnforcement() {
     const editor = this.editor;
     const domc = editor.DomComponents;
