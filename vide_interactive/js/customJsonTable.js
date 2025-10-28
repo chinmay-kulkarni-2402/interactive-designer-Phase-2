@@ -424,6 +424,7 @@ function jsontablecustom(editor) {
                 'hide-subtotal-single-row': false,
                 'show-summary-only': false,
                 'keep-group-hierarchy': false,
+                'running-totals': [],
                 'grand-total': true,
                 'grand-total-label': '',
                 'summary-label': ''
@@ -3095,6 +3096,7 @@ function jsontablecustom(editor) {
                 }
 
                 const jsonPath = this.get('json-path') || '';
+                const runningTotals = this.get('running-totals') || [];
 
                 data.forEach((row, rowIndex) => {
                     const isSummary = row._isSummary;
@@ -3120,6 +3122,9 @@ function jsontablecustom(editor) {
                         const cellId = `${tableId}-cell-${rowIndex}-${key}`;
                         const displayValue = row[key] || '';
 
+                                    // Check if this is a running total column
+            const isRunningTotal = key.endsWith('_running_total');
+            const rtConfig = isRunningTotal ? runningTotals.find(rt => `${rt.columnKey}_running_total` === key) : null;
                         const tableStyles = this.get('table-styles-applied');
                         const appliedCellStyles = tableStyles ? {
                             'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
@@ -3133,6 +3138,22 @@ function jsontablecustom(editor) {
                             'border': '1px solid #000'
                         };
 
+                                    // Override with running total styles if applicable
+            if (isRunningTotal && rtConfig) {
+                appliedCellStyles = {
+                    ...appliedCellStyles,
+                    'background-color': rtConfig.bgColor,
+                    'color': rtConfig.textColor,
+                    'font-family': rtConfig.fontFamily || appliedCellStyles['font-family'],
+                    'font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : appliedCellStyles['font-size'],
+                    'font-weight': 'bold',
+                    'border-left': '3px solid #007bff',
+                    '--rt-bg-color': rtConfig.bgColor,
+                    '--rt-text-color': rtConfig.textColor,
+                    '--rt-font-family': rtConfig.fontFamily || 'inherit',
+                    '--rt-font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : 'inherit'
+                };
+            }
                         const alignStyles = tableStyles ? {
                             display: 'flex',
                             alignItems: tableStyles.verticalAlign === 'top' ? 'flex-start' :
@@ -3150,6 +3171,9 @@ function jsontablecustom(editor) {
                             'data-gjs-hoverable': 'true',
                         };
 
+                                    if (isRunningTotal) {
+                attributes['data-running-total'] = 'true';
+            }
                         // Add rowspan if this cell should be merged
                         if (isGroupStart && row[`_merge_${key}`]) {
                             attributes.rowspan = groupSize.toString();
@@ -3166,9 +3190,9 @@ function jsontablecustom(editor) {
                             type: 'json-table-cell',
                             tagName: 'td',
                             selectable: true,
-                            contenteditable: !(isSummary || isGrandTotal),
+                            contenteditable: !(isSummary || isGrandTotal || isRunningTotal),
                             content: `<div style="display: ${alignStyles.display || 'block'}; align-items: ${alignStyles.alignItems || 'flex-start'}; justify-content: ${alignStyles.justifyContent || 'flex-start'}; min-height: 100%; width: 100%;">${displayValue}</div>`,
-                            classes: ['json-table-cell', 'cell-content', (isSummary || isGrandTotal) ? 'readonly-cell' : 'editable-cell'],
+                            classes: ['json-table-cell', 'cell-content', (isSummary || isGrandTotal|| isRunningTotal) ? 'readonly-cell' : 'editable-cell'],
                             attributes,
                             style: {
                                 ...appliedCellStyles,
@@ -3311,11 +3335,11 @@ function jsontablecustom(editor) {
                 });
             },
 
-            addStylesComponent(parentComponent) {
-                parentComponent.components().add({
-                    type: 'default',
-                    tagName: 'style',
-                    content: `
+addStylesComponent(parentComponent) {
+    parentComponent.components().add({
+        type: 'default',
+        tagName: 'style',
+        content: `
 /* Table Styles */
 .json-table-container {
     min-height: 100px;
@@ -3331,7 +3355,6 @@ function jsontablecustom(editor) {
     overflow-y: visible;
 }
 
-/* Only show scroll when actually needed */
 .json-table-wrapper .dataTables_wrapper {
     overflow-x: auto;
     overflow-y: visible;
@@ -3344,13 +3367,12 @@ function jsontablecustom(editor) {
     border: 2px solid #000;
 }
 
-
 /* Formula editing styles */
 .formula-error {
     background-color: #ffebee !important;
     color: #c62828 !important;
 }
-/* Apply editing styles to cell-content div */
+
 .cell-content.editing {
     background-color: #e3f2fd !important;
     outline: 2px solid #007bff !important;
@@ -3361,7 +3383,10 @@ function jsontablecustom(editor) {
 .cell-content[contenteditable="true"] {
     text-align: left !important;
 }
-td[data-highlighted="true"], th[data-highlighted="true"] {
+
+/* Highlight styles - with higher specificity */
+td[data-highlighted="true"], 
+th[data-highlighted="true"] {
     position: relative;
     box-sizing: border-box !important;
     border: 1px solid #000 !important;
@@ -3370,7 +3395,8 @@ td[data-highlighted="true"], th[data-highlighted="true"] {
     print-color-adjust: exact !important;
 }
 
-td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+td[data-highlighted="true"]::after, 
+th[data-highlighted="true"]::after {
     content: "★";
     position: absolute;
     top: 2px;
@@ -3381,20 +3407,33 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
     z-index: 1;
 }
 
-.running-total-column {
-    background-color: #f0f8ff !important;
-    font-weight: bold;
-    border-left: 3px solid #007bff !important;
+/* Running Total Column Styles - with !important to override table styles */
+.running-total-column,
+td[data-running-total="true"],
+th[data-running-total="true"] {
+    position: relative;
+    box-sizing: border-box !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
 }
 
-.running-total-column .cell-content {
-    color: #1976d2 !important;
-    font-family: 'Courier New', monospace !important;
+td[data-running-total="true"] .cell-content,
+th[data-running-total="true"] .cell-content {
+    font-weight: bold !important;
 }
 
+/* Ensure running total styles take precedence over table styles */
+td[data-running-total="true"][style],
+th[data-running-total="true"][style] {
+    background-color: var(--rt-bg-color) !important;
+    color: var(--rt-text-color) !important;
+    font-family: var(--rt-font-family) !important;
+    font-size: var(--rt-font-size) !important;
+}
         `
-                });
-            },
+    });
+},
 
 
             // Method to update specific cells without rebuilding entire table
@@ -3652,13 +3691,13 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
             <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
         </div>
-        <div style="display: none;">
+        <div >
             <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Size (px):</label>
             <input type="number" id="highlight-font-size" value="14" min="8" max="72" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
         </div>
         <div>
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
-            <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold; margin-left: 10% ">Font Family:</label>
+            <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-left:10%;">
                 <option value="">Default</option>
                 <option value="Arial, sans-serif">Arial</option>
                 <option value="Verdana, sans-serif">Verdana</option>
@@ -3675,6 +3714,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 <option value="'Arial Black', sans-serif">Arial Black</option>
             </select>
         </div>
+
     </div>
 </div>
     
@@ -3755,76 +3795,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             }, 100);
         }
     });
-    editor.Commands.add('open-column-reorder-manager', {
-        run(editor) {
-            const selected = editor.getSelected();
-            if (!selected || selected.get('type') !== 'json-table') return;
 
-            const headers = selected.get('custom-headers') || selected.get('table-headers') || {};
-            const columnKeys = Object.keys(headers);
-
-            if (columnKeys.length <= 1) {
-                alert('Need at least 2 columns to reorder');
-                return;
-            }
-
-            const modalContent = `
-<div class="column-reorder-manager" style="padding: 20px; max-width: 500px;">
-    
-    <div id="column-list" style="border: 1px solid #ddd; border-radius: 5px; ">
-        ${columnKeys.map((key, index) => `
-            <div class="column-item" data-key="${key}" style="
-                margin: 2px; 
-                padding: 12px 15px; 
-                border-radius: 3px; 
-                cursor: move; 
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                transition: all 0.2s ease;
-            ">
-                <span style="font-weight: 500;">${headers[key]}</span>
-                <span style="color: #666; font-size: 12px;">≡≡≡</span>
-            </div>
-        `).join('')}
-    </div>
-    
-    <div style="margin-top: 20px; display: flex; justify-content: space-between;">
-        <div>
-            <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
-                Reset to Original
-            </button>
-        </div>
-        <div>
-            <button id="cancel-reorder" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
-                Cancel
-            </button>
-            <button id="apply-reorder" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
-                Apply Order
-            </button>
-        </div>
-    </div>
-</div>
-
-<style>
-
-.column-item.dragging {
-    opacity: 0.5;
-    transform: rotate(5deg);
-}
-
-</style>`;
-
-            const modal = editor.Modal;
-            modal.setTitle('Reorder Table Columns');
-            modal.setContent(modalContent);
-            modal.open();
-
-            setTimeout(() => {
-                initializeColumnReorderManager(selected, columnKeys, headers);
-            }, 100);
-        }
-    });
     editor.Commands.add('open-running-total-manager', {
         run(editor) {
             const selected = editor.getSelected();
@@ -4010,273 +3981,101 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 key, name
             }));
 
-            const modalContent = `
+const modalContent = `
 <div class="table-settings-modal" style="width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
     <!-- Navbar -->
     <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
         <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; background: white; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
         <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
+        <button class="nav-tab" data-tab="running-total" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Running Total</button>
         <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
     </div>
 
-    <!-- Tab Content with individual scrolling -->
+    <!-- Tab Content -->
     <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
         <!-- Settings Tab -->
         <div id="settings-tab" class="tab-pane active">
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div>
-            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
-                    <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
-                    <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
-                </div>
-            </fieldset>
-
-            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-                <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
-                    <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
-                    <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
-                </div>
-            </fieldset>
-        </div>
-<div>
-    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-        <legend style="font-weight: bold; padding: 0 10px;">Running Total</legend>
-        <div style="margin-bottom: 10px;">
-            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Select Columns for Running Total:</label>
-            <div id="running-total-columns" style="max-height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
-                <!-- Will be populated dynamically -->
-            </div>
-        </div>
-        <button id="apply-running-total" style="width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">Apply Running Total</button>
-    </fieldset>
-
-    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-        <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
-        <button id="reorder-columns-btn" style="width: 100%; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Reorder Columns</button>
-    </fieldset>
-</div>
-    </div>
-</div>
-
-        <!-- Grouping & Summary Tab -->
- <div id="grouping-tab" class="tab-pane" style="display: none;">
-            <div style="display: grid; grid-template-columns: 200px 1fr; gap: 20px; height: 100%;">
-                <!-- Left Panel with scroll -->
-                <div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; max-height: calc(90vh - 200px);">
-                    <div style="margin-bottom: 15px;">
-                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Available Columns</label>
-                        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
-                            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                                <button id="sort-asc" title="Sort A-Z" style="flex: 1; padding: 5px; border: 1px solid #ddd; cursor: pointer;">A↓Z</button>
-                                <button id="sort-desc" title="Sort Z-A" style="flex: 1; padding: 5px; border: 1px solid #ddd; cursor: pointer;">Z↓A</button>
-                            </div>
-                            <div id="available-fields" style="max-height: 150px; overflow-y: auto; ">
-                                ${availableFields.map(field => `
-                                    <div class="field-item" data-key="${field.key}" style="padding: 5px; cursor: pointer; border-bottom: 1px solid #eee;">
-                                        <input type="checkbox" class="field-checkbox" data-type="available" style="margin-right: 5px;">
-                                        <span>${field.name}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Selected Fields</label>
-                        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
-                            <div id="selected-fields" style="max-height: 150px; overflow-y: auto; min-height: 50px;">
-                                <p style="color: #999; padding: 10px; text-align: center; font-size: 12px;">No fields selected</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="margin-top: 10px;">
-                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Query Fields</label>
-                        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 5px;">
-                            <div id="query-fields" style="max-height: 100px; overflow-y: auto; ">
-                                ${availableFields.map(field => `
-                                    <div class="field-item" data-key="${field.key}" style="padding: 5px; border-bottom: 1px solid #eee;">
-                                        <input type="checkbox" class="field-checkbox" data-type="query" style="margin-right: 5px;">
-                                        <span>${field.name}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right Panel: Grouping & Summary Options -->
-                 <div style="overflow-y: auto; max-height: calc(90vh - 200px);">
-                    <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-                        <label style="font-weight: bold; margin-bottom: 10px; display: block;">Grouping</label>
-                        <div id="grouping-field-display" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 20px; margin-bottom: 10px;">
-                            <span style="color: #999;">Select a field to group by</span>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 5px;">
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-size: 12px;">Sort</label>
-                                <select id="sort-order" style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
-                                    <option value="ascending">Ascending</option>
-                                    <option value="descending">Descending</option>
-                                    <option value="original">Original Order</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-size: 12px;">Top/N</label>
-                                <div style="display: flex; gap: 5px;">
-                                    <select id="top-n" style="flex: 2; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
-                                        <option value="none">None</option>
-                                        <option value="top">Top</option>
-                                        <option value="bottom">Bottom</option>
-                                        <option value="sort-all">Sort All</option>
-                                    </select>
-                                    <input type="number" id="top-n-value" min="1" value="10" style="flex: 1; padding: 5px; border: 1px solid #ddd; border-radius: 4px;" placeholder="N">
-                                </div>
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-size: 12px;">Option</label>
-                                <div>
-                                    <label style="display: block; font-size: 12px;">
-                                        <input type="checkbox" id="summarize-group"> Summarize Group
-                                    </label>
-                                    <label style="display: block; font-size: 12px;">
-                                        <input type="checkbox" id="page-break-after-group"> Page Break After Group
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 5px;">
-                            <label style="display: flex; align-items: center; margin-bottom: 5px;">
-                                <input type="checkbox" id="define-named-group" style="margin-right: 8px;">
-                                <span style="font-weight: bold;">Define Named Group</span>
-                            </label>
-                            <button id="open-named-group" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; margin-bottom: 5px;">
-                                Configure Named Groups
-                            </button>
-                            <div id="named-groups-list" style="display: none; border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 150px; overflow-y: auto;">
-                                <!-- Named groups will be listed here -->
-                            </div>
-                        </div>
-
-                        <div style= "display: none;">
-                            <label style="display: block; margin-bottom: 5px;">
-                                <input type="checkbox" id="predefined-named-group" style="margin-right: 8px;">
-                                <span style="font-weight: bold;">Predefined Named Group</span>
-                            </label>
-                            <select id="predefined-group-select" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f0f0f0;">
-                                <option value="">Select predefined group...</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; margin-top: 15px;">
-                        <label style="font-weight: bold; margin-bottom: 10px; display: block;">Summary</label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <div>
-                                <select id="summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
-                                    <option value="">Select field...</option>
-                                    ${availableFields.map(field => `<option value="${field.key}">${field.name}</option>`).join('')}
-                                </select>
-                            </div>
-                            <div>
-                                <select id="summary-function" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
-                                    <option value="sum">Sum</option>
-                                    <option value="average">Average</option>
-                                    <option value="count">Count</option>
-                                    <option value="min">Min</option>
-                                    <option value="max">Max</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style="margin-top: 10px;">
-                            <label style="display: block; margin-bottom: 5px; font-size: 12px;">Percentage:</label>
-                            <select id="summary-percentage" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: white;">
-                                <option value="none">None</option>
-                                <option value="total">Total</option>
-                                <option value="grandtotal">GrandTotal</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Options Tab -->
-        <div id="options-tab" class="tab-pane" style="display: none;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
                     <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Display Options</legend>
-                        <label style="display: block; margin-bottom: 10px;">
-                            <input type="checkbox" id="merge-group-cells">
-                            <span>Merge Group Cells</span>
-                        </label>
-                        <label style="display: block; margin-bottom: 10px;">
-                            <input type="checkbox" id="group-header-inplace" checked>
-                            <span>Group Header In-place</span>
-                        </label>
-                        <label style="display: block; margin-bottom: 10px;">
-                            <input type="checkbox" id="hide-subtotal-single-row">
-                            <span>Hide Subtotal for a Single Row</span>
-                        </label>
-                        <label style="display: block; margin-bottom: 10px;">
-                            <input type="checkbox" id="repeat-group-header">
-                            <span>Repeat Group Header</span>
-                        </label>
-                        <label style="display: block; margin-bottom: 10px;">
-                            <input type="checkbox" id="show-group-column">
-                            <span>Show Group Column</span>
-                        </label>
+                        <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
+                            <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
+                            <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
+                        </div>
                     </fieldset>
 
                     <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Grouping Options</legend>
-                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
-                            <span>Normal Grouping</span>
-                        </label>
-                        <label style="display: flex; align-items: center;">
-                            <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
-                            <span>Show Summary Only</span>
-                        </label>
-                        <label style="display: block; margin-top: 10px; margin-left: 24px;">
-                            <input type="checkbox" id="keep-group-hierarchy">
-                            <span style="font-size: 12px;">Keep Group Hierarchy</span>
-                        </label>
+                        <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
+                            <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
+                            <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
+                        </div>
                     </fieldset>
                 </div>
-
+                
                 <div>
                     <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Summary Labels</legend>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-size: 12px;">Summary Label:</label>
-                            <input type="text" id="summary-label" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label style="display: flex; align-items: center; margin-bottom: 5px;">
-                                <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
-                                <span style="font-weight: bold;">Grand Total</span>
-                            </label>
-                            <label style="display: block; margin-bottom: 5px; font-size: 12px; margin-left: 24px;">Grand Total Label:</label>
-                            <input type="text" id="grand-total-label" style="width: calc(95% - 24px); margin-left: 24px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
+                        <div id="column-reorder-section">
+                            <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+                                <!-- Will be populated dynamically -->
+                            </div>
+                            <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+                                <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                                    Reset to Original
+                                </button>
+                            </div>
                         </div>
                     </fieldset>
                 </div>
             </div>
+        </div>
+
+        <!-- Grouping & Summary Tab (existing content) -->
+        <div id="grouping-tab" class="tab-pane" style="display: none;">
+            <!-- Keep existing grouping tab content -->
+        </div>
+
+        <!-- Running Total Tab (NEW) -->
+        <div id="running-total-tab" class="tab-pane" style="display: none;">
+            <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px;">
+                <!-- Left: Column Selection -->
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
+                    <div id="rt-column-list" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 400px; overflow-y: auto;">
+                        <!-- Will be populated with numeric columns -->
+                    </div>
+                </div>
+
+                <!-- Right: Configuration Panel -->
+                <div>
+                    <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; background: #f8f9fa;">
+                        <p style="color: #666; text-align: center;">Select a column to configure running total</p>
+                    </div>
+
+                    <!-- Running Total List -->
+                    <div style="margin-top: 20px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
+                        <div id="rt-active-list" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; min-height: 100px; max-height: 200px; overflow-y: auto;">
+                            <p style="color: #999; text-align: center;">No running totals configured</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Options Tab (existing content) -->
+        <div id="options-tab" class="tab-pane" style="display: none;">
+            <!-- Keep existing options tab content -->
         </div>
     </div>
 
@@ -4286,22 +4085,7 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
     </div>
 </div>
-
-<style>
-.nav-tab.active {
-    background: white !important;
-    border-bottom: 3px solid #007bff !important;
-    font-weight: bold;
-}
-.field-item:hover {
-    background: #f0f0f0;
-}
-.field-item.selected {
-    background: #e3f2fd;
-}
-</style>
 `;
-
             const modal = editor.Modal;
             modal.setTitle('Table Settings');
             modal.setContent(modalContent);
@@ -4323,9 +4107,13 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
                 this.classList.add('active');
                 const tabId = this.getAttribute('data-tab') + '-tab';
                 document.getElementById(tabId).style.display = 'block';
+
+                            if (this.getAttribute('data-tab') === 'running-total') {
+                initializeRunningTotalTab(component);
+            }
             });
         });
-
+   initializeInlineColumnReorder(component);
         // Populate Running Total columns - STRICT numeric check
         const headers = component.get('custom-headers') || component.get('table-headers') || {};
         const data = component.get('custom-data') || component.get('table-data') || [];
@@ -4383,11 +4171,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
         </div>
     `).join('');
         }
-
-        // Add Reorder Columns button handler
-        document.getElementById('reorder-columns-btn').addEventListener('click', function () {
-            editor.Commands.run('open-column-reorder-manager');
-        });
 
         // Running Total Apply
         document.getElementById('apply-running-total').addEventListener('click', function () {
@@ -4704,6 +4487,473 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
             editor.Modal.close();
         });
     }
+
+    function initializeRunningTotalTab(component) {
+    const headers = component.get('custom-headers') || component.get('table-headers') || {};
+    const data = component.get('custom-data') || component.get('table-data') || [];
+    const runningTotals = component.get('running-totals') || [];
+    
+    // Filter numeric columns
+    const numericHeaders = {};
+    Object.entries(headers).forEach(([key, name]) => {
+        const isStrictlyNumeric = data.every(row => {
+            let value = row[key];
+            if (value === '' || value === null || value === undefined) return true;
+            value = String(value).trim();
+            if (/^\(.*\)$/.test(value)) value = '-' + value.slice(1, -1);
+            value = value.replace(/[$£€₹,\s]/g, '');
+            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                value = value.replace(/\./g, '').replace(',', '.');
+            }
+            const numValue = Number(value);
+            return typeof numValue === 'number' && !isNaN(numValue);
+        });
+        
+        if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
+            numericHeaders[key] = name;
+        }
+    });
+
+    // Populate column list
+    const columnList = document.getElementById('rt-column-list');
+    if (Object.keys(numericHeaders).length === 0) {
+        columnList.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No numeric columns available</p>';
+        return;
+    }
+
+    columnList.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
+        <div class="rt-column-item" data-key="${key}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+            <span>${name}</span>
+        </div>
+    `).join('');
+
+    // Add click handlers
+    document.querySelectorAll('.rt-column-item').forEach(item => {
+        item.addEventListener('click', function() {
+            document.querySelectorAll('.rt-column-item').forEach(i => i.style.background = 'white');
+            this.style.background = '#e3f2fd';
+            const columnKey = this.getAttribute('data-key');
+            const columnName = numericHeaders[columnKey];
+            showRunningTotalConfig(component, columnKey, columnName, runningTotals);
+        });
+    });
+
+    // Show active running totals
+    updateActiveRunningTotalsList(component, numericHeaders);
+}
+
+function initializeInlineColumnReorder(component) {
+    const headers = component.get('custom-headers') || component.get('table-headers') || {};
+    const columnKeys = Object.keys(headers);
+    
+    if (columnKeys.length <= 1) {
+        document.getElementById('column-list-inline').innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">Need at least 2 columns to reorder</p>';
+        return;
+    }
+
+    const originalOrder = [...columnKeys];
+    
+    const columnList = document.getElementById('column-list-inline');
+    columnList.innerHTML = columnKeys.map(key => `
+        <div class="column-item-inline" data-key="${key}" draggable="true" style="
+            margin: 2px; 
+            padding: 12px 15px; 
+            border-radius: 3px; 
+            cursor: move; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            transition: all 0.2s ease;
+        ">
+            <span style="font-weight: 500;">${headers[key]}</span>
+            <span style="color: #666; font-size: 12px;">≡≡≡</span>
+        </div>
+    `).join('');
+
+    let draggedElement = null;
+
+    const columnItems = columnList.querySelectorAll('.column-item-inline');
+    columnItems.forEach(item => {
+        item.addEventListener('dragstart', function (e) {
+            draggedElement = this;
+            this.style.opacity = '0.5';
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        item.addEventListener('dragend', function () {
+            this.style.opacity = '1';
+            draggedElement = null;
+            columnItems.forEach(item => item.style.borderTop = '');
+        });
+
+        item.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            if (this !== draggedElement) {
+                this.style.borderTop = '2px solid #007bff';
+            }
+        });
+
+        item.addEventListener('dragleave', function () {
+            this.style.borderTop = '';
+        });
+
+        item.addEventListener('drop', function (e) {
+            e.preventDefault();
+            this.style.borderTop = '';
+
+            if (this !== draggedElement) {
+                const allItems = Array.from(columnList.children);
+                const draggedIndex = allItems.indexOf(draggedElement);
+                const targetIndex = allItems.indexOf(this);
+
+                if (draggedIndex < targetIndex) {
+                    this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                } else {
+                    this.parentNode.insertBefore(draggedElement, this);
+                }
+                
+                // Auto-apply reorder
+                applyColumnReorder(component);
+            }
+        });
+    });
+
+    // Reset button
+    document.getElementById('reset-order').addEventListener('click', function () {
+        component.reorderColumns(originalOrder);
+        initializeInlineColumnReorder(component);
+        alert('Column order reset to original');
+    });
+}
+
+function applyColumnReorder(component) {
+    const columnList = document.getElementById('column-list-inline');
+    const currentItems = columnList.querySelectorAll('.column-item-inline');
+    const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
+    component.reorderColumns(newOrder);
+}
+
+function showRunningTotalConfig(component, columnKey, columnName, runningTotals) {
+    const existing = runningTotals.find(rt => rt.columnKey === columnKey);
+    
+    const configPanel = document.getElementById('rt-config-panel');
+    configPanel.innerHTML = `
+        <h4 style="margin-top: 0;">${columnName}</h4>
+        
+        <!-- Summary -->
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Field:</label>
+            <select id="rt-summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                <option value="sum" ${existing?.operation === 'sum' ? 'selected' : ''}>Sum</option>
+                <option value="count" ${existing?.operation === 'count' ? 'selected' : ''}>Count</option>
+                <option value="distinct-count" ${existing?.operation === 'distinct-count' ? 'selected' : ''}>Distinct Count</option>
+                <option value="average" ${existing?.operation === 'average' ? 'selected' : ''}>Average</option>
+                <option value="max" ${existing?.operation === 'max' ? 'selected' : ''}>Max</option>
+                <option value="min" ${existing?.operation === 'min' ? 'selected' : ''}>Min</option>
+                <option value="product" ${existing?.operation === 'product' ? 'selected' : ''}>Product</option>
+                <option value="std-dev" ${existing?.operation === 'std-dev' ? 'selected' : ''}>Std Deviation (Population)</option>
+                <option value="variance" ${existing?.operation === 'variance' ? 'selected' : ''}>Variance (Population)</option>
+                <option value="weighted-avg" ${existing?.operation === 'weighted-avg' ? 'selected' : ''}>Weighted Average</option>
+            </select>
+        </div>
+
+        <!-- Evaluate -->
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Evaluate:</label>
+            <label style="display: flex; align-items: center; margin-bottom: 8px;">
+                <input type="radio" name="rt-evaluate" value="for-each-record" ${!existing || existing.evaluate === 'for-each-record' ? 'checked' : ''} style="margin-right: 8px;">
+                <span>For each record</span>
+            </label>
+            <label style="display: flex; align-items: center;">
+                <input type="radio" name="rt-evaluate" value="on-change-of" ${existing?.evaluate === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
+                <span>On change of</span>
+            </label>
+            <select id="rt-evaluate-field" ${existing?.evaluate !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.evaluate !== 'on-change-of' ? '#f0f0f0' : 'white'};">
+                ${getGroupingFieldsOptions(component, existing?.evaluateField)}
+            </select>
+        </div>
+
+        <!-- Reset -->
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Reset:</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                <label style="display: flex; align-items: center;">
+                    <input type="radio" name="rt-reset" value="never" ${!existing || existing.reset === 'never' ? 'checked' : ''} style="margin-right: 8px;">
+                    <span>Never</span>
+                </label>
+                <label style="display: flex; align-items: center;">
+                    <input type="radio" name="rt-reset" value="on-pagebreak" ${existing?.reset === 'on-pagebreak' ? 'checked' : ''} style="margin-right: 8px;">
+                    <span>On Pagebreak</span>
+                </label>
+            </div>
+            <label style="display: flex; align-items: center;">
+                <input type="radio" name="rt-reset" value="on-change-of" ${existing?.reset === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
+                <span>On change of</span>
+            </label>
+            <select id="rt-reset-field" ${existing?.reset !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.reset !== 'on-change-of' ? '#f0f0f0' : 'white'};">
+                ${getGroupingFieldsOptions(component, existing?.resetField)}
+            </select>
+        </div>
+
+        <!-- Styling -->
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Styling:</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Background Color:</label>
+                    <input type="color" id="rt-bg-color" value="${existing?.bgColor || '#f0f8ff'}" style="width: 100%; height: 35px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Text Color:</label>
+                    <input type="color" id="rt-text-color" value="${existing?.textColor || '#1976d2'}" style="width: 100%; height: 35px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Family:</label>
+                    <select id="rt-font-family" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Default</option>
+                        <option value="Arial, sans-serif" ${existing?.fontFamily === 'Arial, sans-serif' ? 'selected' : ''}>Arial</option>
+                        <option value="'Courier New', monospace" ${existing?.fontFamily === "'Courier New', monospace" ? 'selected' : ''}>Courier New</option>
+                        <option value="Georgia, serif" ${existing?.fontFamily === 'Georgia, serif' ? 'selected' : ''}>Georgia</option>
+                        <option value="Verdana, sans-serif" ${existing?.fontFamily === 'Verdana, sans-serif' ? 'selected' : ''}>Verdana</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Size (px):</label>
+                    <input type="number" id="rt-font-size" value="${existing?.fontSize || 14}" min="8" max="72" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Horizontal Align:</label>
+                    <select id="rt-h-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="left" ${existing?.hAlign === 'left' ? 'selected' : ''}>Left</option>
+                        <option value="center" ${existing?.hAlign === 'center' ? 'selected' : ''}>Center</option>
+                        <option value="right" ${existing?.hAlign === 'right' ? 'selected' : ''}>Right</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Vertical Align:</label>
+                    <select id="rt-v-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="top" ${existing?.vAlign === 'top' ? 'selected' : ''}>Top</option>
+                        <option value="middle" ${existing?.vAlign === 'middle' ? 'selected' : ''}>Middle</option>
+                        <option value="bottom" ${existing?.vAlign === 'bottom' ? 'selected' : ''}>Bottom</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 10px;">
+            ${existing ? `<button id="rt-remove-btn" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Running Total</button>` : ''}
+            <button id="rt-apply-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${existing ? 'Update' : 'Add'} Running Total</button>
+        </div>
+    `;
+
+    // Add event listeners
+    document.querySelectorAll('input[name="rt-evaluate"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const field = document.getElementById('rt-evaluate-field');
+            field.disabled = this.value !== 'on-change-of';
+            field.style.background = this.value !== 'on-change-of' ? '#f0f0f0' : 'white';
+        });
+    });
+
+    document.querySelectorAll('input[name="rt-reset"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const field = document.getElementById('rt-reset-field');
+            field.disabled = this.value !== 'on-change-of';
+            field.style.background = this.value !== 'on-change-of' ? '#f0f0f0' : 'white';
+        });
+    });
+
+    document.getElementById('rt-apply-btn').addEventListener('click', function() {
+        const rtConfig = {
+            columnKey,
+            columnName,
+            operation: document.getElementById('rt-summary-field').value,
+            evaluate: document.querySelector('input[name="rt-evaluate"]:checked').value,
+            evaluateField: document.getElementById('rt-evaluate-field').value,
+            reset: document.querySelector('input[name="rt-reset"]:checked').value,
+            resetField: document.getElementById('rt-reset-field').value,
+            bgColor: document.getElementById('rt-bg-color').value,
+            textColor: document.getElementById('rt-text-color').value,
+            fontFamily: document.getElementById('rt-font-family').value,
+            fontSize: document.getElementById('rt-font-size').value,
+            hAlign: document.getElementById('rt-h-align').value,
+            vAlign: document.getElementById('rt-v-align').value
+        };
+
+        addOrUpdateRunningTotal(component, rtConfig);
+    });
+
+    if (existing) {
+        document.getElementById('rt-remove-btn').addEventListener('click', function() {
+            removeRunningTotal(component, columnKey);
+        });
+    }
+}
+
+function getGroupingFieldsOptions(component, selectedField) {
+    const headers = component.get('custom-headers') || component.get('table-headers') || {};
+    return Object.entries(headers).map(([key, name]) => 
+        `<option value="${key}" ${selectedField === key ? 'selected' : ''}>${name}</option>`
+    ).join('');
+}
+
+function addOrUpdateRunningTotal(component, rtConfig) {
+    let runningTotals = component.get('running-totals') || [];
+    const existingIndex = runningTotals.findIndex(rt => rt.columnKey === rtConfig.columnKey);
+    
+    if (existingIndex >= 0) {
+        runningTotals[existingIndex] = rtConfig;
+    } else {
+        runningTotals.push(rtConfig);
+    }
+    
+    component.set('running-totals', runningTotals);
+    
+    const headers = component.get('custom-headers') || component.get('table-headers') || {};
+    updateActiveRunningTotalsList(component, headers);
+    applyRunningTotalsToTable(component);
+    
+    alert(`Running total ${existingIndex >= 0 ? 'updated' : 'added'} for ${rtConfig.columnName}`);
+}
+
+function removeRunningTotal(component, columnKey) {
+    let runningTotals = component.get('running-totals') || [];
+    runningTotals = runningTotals.filter(rt => rt.columnKey !== columnKey);
+    component.set('running-totals', runningTotals);
+    
+    const headers = component.get('custom-headers') || component.get('table-headers') || {};
+    updateActiveRunningTotalsList(component, headers);
+    applyRunningTotalsToTable(component);
+    
+    document.getElementById('rt-config-panel').innerHTML = '<p style="color: #666; text-align: center;">Select a column to configure running total</p>';
+    
+    alert('Running total removed');
+}
+
+function updateActiveRunningTotalsList(component, numericHeaders) {
+    const runningTotals = component.get('running-totals') || [];
+    const activeList = document.getElementById('rt-active-list');
+    
+    if (runningTotals.length === 0) {
+        activeList.innerHTML = '<p style="color: #999; text-align: center;">No running totals configured</p>';
+        return;
+    }
+    
+    activeList.innerHTML = runningTotals.map(rt => `
+        <div style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+            <strong>${rt.columnName}</strong>
+            <div style="font-size: 12px; color: #666; margin-top: 3px;">
+                Operation: ${rt.operation} | Evaluate: ${rt.evaluate}
+            </div>
+        </div>
+    `).join('');
+}
+
+function applyRunningTotalsToTable(component) {
+    const runningTotals = component.get('running-totals') || [];
+    const data = component.get('custom-data') || component.get('table-data') || [];
+    const headers = component.get('custom-headers') || component.get('table-headers') || {};
+    
+    if (runningTotals.length === 0 || data.length === 0) return;
+    
+    // Remove existing running total columns
+    const updatedHeaders = {};
+    Object.keys(headers).forEach(key => {
+        if (!key.endsWith('_running_total')) {
+            updatedHeaders[key] = headers[key];
+        }
+    });
+    
+    let updatedData = data.map(row => {
+        const newRow = {};
+        Object.keys(row).forEach(key => {
+            if (!key.endsWith('_running_total')) {
+                newRow[key] = row[key];
+            }
+        });
+        return newRow;
+    });
+    
+    // Apply each running total
+    runningTotals.forEach(rt => {
+        const newColumnKey = `${rt.columnKey}_running_total`;
+        updatedHeaders[newColumnKey] = `${headers[rt.columnKey]} (RT)`;
+        
+        let accumulator = rt.operation === 'product' ? 1 : 0;
+        let count = 0;
+        let distinctValues = new Set();
+        let values = [];
+        let previousGroupValue = null;
+        
+        updatedData = updatedData.map((row, idx) => {
+            // Check for reset conditions
+            if (rt.reset === 'on-change-of' && rt.resetField && idx > 0) {
+                if (row[rt.resetField] !== updatedData[idx - 1][rt.resetField]) {
+                    accumulator = rt.operation === 'product' ? 1 : 0;
+                    count = 0;
+                    distinctValues.clear();
+                    values = [];
+                }
+            }
+            
+            // Check evaluate conditions
+            let shouldEvaluate = true;
+            if (rt.evaluate === 'on-change-of' && rt.evaluateField) {
+                shouldEvaluate = row[rt.evaluateField] !== previousGroupValue;
+                previousGroupValue = row[rt.evaluateField];
+            }
+            
+            if (shouldEvaluate) {
+                const value = parseFloat(row[rt.columnKey]) || 0;
+                count++;
+                distinctValues.add(row[rt.columnKey]);
+                values.push(value);
+                
+                switch (rt.operation) {
+                    case 'sum':
+                        accumulator += value;
+                        break;
+                    case 'count':
+                        accumulator = count;
+                        break;
+                    case 'distinct-count':
+                        accumulator = distinctValues.size;
+                        break;
+                    case 'average':
+                        accumulator = values.reduce((a, b) => a + b, 0) / values.length;
+                        break;
+                    case 'max':
+                        accumulator = Math.max(...values);
+                        break;
+                    case 'min':
+                        accumulator = Math.min(...values);
+                        break;
+                    case 'product':
+                        accumulator *= value;
+                        break;
+                    case 'std-dev':
+                        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+                        accumulator = Math.sqrt(variance);
+                        break;
+                    case 'variance':
+                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                        accumulator = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / values.length;
+                        break;
+                }
+            }
+            
+            row[newColumnKey] = accumulator.toFixed(2);
+            return row;
+        });
+    });
+    
+    component.set('custom-headers', updatedHeaders);
+    component.set('custom-data', updatedData);
+    component.updateTableHTML();
+}
     function initializeTableStyleManager(component) {
         // Load current values
         document.getElementById('border-style').value = component.get('table-border-style') || 'solid';
@@ -4911,109 +5161,6 @@ td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
 
         // Initial load
         refreshConditionsList(component);
-    }
-
-    function initializeColumnReorderManager(component, originalOrder, headers) {
-        const columnList = document.getElementById('column-list');
-        const cancelBtn = document.getElementById('cancel-reorder');
-        const applyBtn = document.getElementById('apply-reorder');
-        const resetBtn = document.getElementById('reset-order');
-
-        let draggedElement = null;
-
-        // Make columns draggable
-        const columnItems = columnList.querySelectorAll('.column-item');
-        columnItems.forEach(item => {
-            item.draggable = true;
-
-            item.addEventListener('dragstart', function (e) {
-                draggedElement = this;
-                this.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', this.outerHTML);
-            });
-
-            item.addEventListener('dragend', function (e) {
-                this.classList.remove('dragging');
-                draggedElement = null;
-
-                // Remove drag-over class from all items
-                columnItems.forEach(item => item.classList.remove('drag-over'));
-            });
-
-            item.addEventListener('dragover', function (e) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-
-                if (this !== draggedElement) {
-                    this.classList.add('drag-over');
-                }
-            });
-
-            item.addEventListener('dragleave', function (e) {
-                this.classList.remove('drag-over');
-            });
-
-            item.addEventListener('drop', function (e) {
-                e.preventDefault();
-                this.classList.remove('drag-over');
-
-                if (this !== draggedElement) {
-                    const allItems = Array.from(columnList.children);
-                    const draggedIndex = allItems.indexOf(draggedElement);
-                    const targetIndex = allItems.indexOf(this);
-
-                    if (draggedIndex < targetIndex) {
-                        this.parentNode.insertBefore(draggedElement, this.nextSibling);
-                    } else {
-                        this.parentNode.insertBefore(draggedElement, this);
-                    }
-                }
-            });
-        });
-
-        // Reset to original order
-        resetBtn.addEventListener('click', function () {
-            const columnList = document.getElementById('column-list');
-            columnList.innerHTML = originalOrder.map(key => `
-            <div class="column-item" data-key="${key}" draggable="true" style="
-                margin: 2px; 
-                padding: 12px 15px; 
-                cursor: move; 
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                transition: all 0.2s ease;
-            ">
-                <span style="font-weight: 500;">${headers[key]}</span>
-                <span style="color: #666; font-size: 12px;">≡≡≡</span>
-            </div>
-        `).join('');
-
-            // Re-initialize drag and drop for new elements
-            initializeColumnReorderManager(component, originalOrder, headers);
-        });
-
-        // Cancel
-        cancelBtn.addEventListener('click', function () {
-            editor.Modal.close();
-        });
-
-        // Apply reorder
-        applyBtn.addEventListener('click', function () {
-            const currentItems = columnList.querySelectorAll('.column-item');
-            const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
-
-            console.log('Reordering columns from:', originalOrder, 'to:', newOrder);
-
-            component.reorderColumns(newOrder);
-            editor.Modal.close();
-
-            // Show success message
-            setTimeout(() => {
-                alert('Column order updated successfully!');
-            }, 100);
-        });
     }
 
     editor.Commands.add('open-json-table-suggestion', {
