@@ -3114,46 +3114,48 @@ function jsontablecustom(editor) {
                     });
 
                     Object.keys(headers).forEach(key => {
-                        // Check if this cell should be skipped due to rowspan
-                        if (row[`_skip_${key}`]) {
-                            return;
-                        }
+    // Check if this cell should be skipped due to rowspan
+    if (row[`_skip_${key}`]) {
+        return;
+    }
 
-                        const cellId = `${tableId}-cell-${rowIndex}-${key}`;
-                        const displayValue = row[key] || '';
+    const cellId = `${tableId}-cell-${rowIndex}-${key}`;
+    const displayValue = row[key] || '';
 
-                                    // Check if this is a running total column
-            const isRunningTotal = key.endsWith('_running_total');
-            const rtConfig = isRunningTotal ? runningTotals.find(rt => `${rt.columnKey}_running_total` === key) : null;
-                        const tableStyles = this.get('table-styles-applied');
-                        const appliedCellStyles = tableStyles ? {
-                            'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
-                            'color': tableStyles.textColor,
-                            'font-family': tableStyles.fontFamily,
-                            'background-color': tableStyles.bgColor,
-                            '-webkit-print-color-adjust': 'exact',
-                            'print-color-adjust': 'exact'
-                        } : {
-                            'padding': '8px',
-                            'border': '1px solid #000'
-                        };
+    // Check if this is a running total column
+    const isRunningTotal = key.endsWith('_running_total');
+    const rtConfig = isRunningTotal ? runningTotals.find(rt => `${rt.columnKey}_running_total` === key) : null;
+    const tableStyles = this.get('table-styles-applied');
+    
+    // ✅ FIX: Use let instead of const
+    let appliedCellStyles = tableStyles ? {
+        'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
+        'color': tableStyles.textColor,
+        'font-family': tableStyles.fontFamily,
+        'background-color': tableStyles.bgColor,
+        '-webkit-print-color-adjust': 'exact',
+        'print-color-adjust': 'exact'
+    } : {
+        'padding': '8px',
+        'border': '1px solid #000'
+    };
 
-                                    // Override with running total styles if applicable
-            if (isRunningTotal && rtConfig) {
-                appliedCellStyles = {
-                    ...appliedCellStyles,
-                    'background-color': rtConfig.bgColor,
-                    'color': rtConfig.textColor,
-                    'font-family': rtConfig.fontFamily || appliedCellStyles['font-family'],
-                    'font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : appliedCellStyles['font-size'],
-                    'font-weight': 'bold',
-                    'border-left': '3px solid #007bff',
-                    '--rt-bg-color': rtConfig.bgColor,
-                    '--rt-text-color': rtConfig.textColor,
-                    '--rt-font-family': rtConfig.fontFamily || 'inherit',
-                    '--rt-font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : 'inherit'
-                };
-            }
+    // Override with running total styles if applicable
+    if (isRunningTotal && rtConfig) {
+        appliedCellStyles = {
+            ...appliedCellStyles,
+            'background-color': rtConfig.bgColor,
+            'color': rtConfig.textColor,
+            'font-family': rtConfig.fontFamily || appliedCellStyles['font-family'],
+            'font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : appliedCellStyles['font-size'],
+            'font-weight': 'bold',
+            'border-left': '3px solid #007bff',
+            '--rt-bg-color': rtConfig.bgColor,
+            '--rt-text-color': rtConfig.textColor,
+            '--rt-font-family': rtConfig.fontFamily || 'inherit',
+            '--rt-font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : 'inherit'
+        };
+    }
                         const alignStyles = tableStyles ? {
                             display: 'flex',
                             alignItems: tableStyles.verticalAlign === 'top' ? 'flex-start' :
@@ -4058,7 +4060,7 @@ const modalContent = `
 
                 <!-- Right: Configuration Panel -->
                 <div>
-                    <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; background: #f8f9fa;">
+                    <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px;">
                         <p style="color: #666; text-align: center;">Select a column to configure running total</p>
                     </div>
 
@@ -4528,15 +4530,22 @@ const modalContent = `
     `).join('');
 
     // Add click handlers
-    document.querySelectorAll('.rt-column-item').forEach(item => {
-        item.addEventListener('click', function() {
-            document.querySelectorAll('.rt-column-item').forEach(i => i.style.background = 'white');
-            this.style.background = '#e3f2fd';
-            const columnKey = this.getAttribute('data-key');
-            const columnName = numericHeaders[columnKey];
-            showRunningTotalConfig(component, columnKey, columnName, runningTotals);
+// Add click handlers
+document.querySelectorAll('.rt-column-item').forEach(item => {
+    item.addEventListener('click', function() {
+        // ✅ Highlight selected column
+        document.querySelectorAll('.rt-column-item').forEach(i => {
+            i.style.background = 'white';
+            i.style.borderColor = '#ddd';
         });
+        this.style.background = '#e3f2fd';
+        this.style.borderColor = '#007bff';
+        
+        const columnKey = this.getAttribute('data-key');
+        const columnName = numericHeaders[columnKey];
+        showRunningTotalConfig(component, columnKey, columnName, runningTotals);
     });
+});
 
     // Show active running totals
     updateActiveRunningTotalsList(component, numericHeaders);
@@ -4563,7 +4572,6 @@ function initializeInlineColumnReorder(component) {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: white;
             transition: all 0.2s ease;
         ">
             <span style="font-weight: 500;">${headers[key]}</span>
@@ -4642,7 +4650,7 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
         <h4 style="margin-top: 0;">${columnName}</h4>
         
         <!-- Summary -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; ">
             <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Field:</label>
             <select id="rt-summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
                 <option value="sum" ${existing?.operation === 'sum' ? 'selected' : ''}>Sum</option>
@@ -4659,7 +4667,7 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
         </div>
 
         <!-- Evaluate -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
             <label style="font-weight: bold; display: block; margin-bottom: 10px;">Evaluate:</label>
             <label style="display: flex; align-items: center; margin-bottom: 8px;">
                 <input type="radio" name="rt-evaluate" value="for-each-record" ${!existing || existing.evaluate === 'for-each-record' ? 'checked' : ''} style="margin-right: 8px;">
@@ -4675,7 +4683,7 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
         </div>
 
         <!-- Reset -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
             <label style="font-weight: bold; display: block; margin-bottom: 10px;">Reset:</label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
                 <label style="display: flex; align-items: center;">
@@ -4696,8 +4704,8 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
             </select>
         </div>
 
-        <!-- Styling -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+        <!-- Styling 
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
             <label style="font-weight: bold; display: block; margin-bottom: 10px;">Styling:</label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div>
@@ -4740,6 +4748,7 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
                 </div>
             </div>
         </div>
+        -->
 
         <!-- Action Buttons -->
         <div style="display: flex; gap: 10px;">
@@ -4842,7 +4851,7 @@ function updateActiveRunningTotalsList(component, numericHeaders) {
     }
     
     activeList.innerHTML = runningTotals.map(rt => `
-        <div style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; background: white;">
+        <div style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px;">
             <strong>${rt.columnName}</strong>
             <div style="font-size: 12px; color: #666; margin-top: 3px;">
                 Operation: ${rt.operation} | Evaluate: ${rt.evaluate}
@@ -4853,101 +4862,126 @@ function updateActiveRunningTotalsList(component, numericHeaders) {
 
 function applyRunningTotalsToTable(component) {
     const runningTotals = component.get('running-totals') || [];
-    const data = component.get('custom-data') || component.get('table-data') || [];
-    const headers = component.get('custom-headers') || component.get('table-headers') || {};
+    const baseData = component.get('table-data') || [];  // ✅ Always use base data
+    const baseHeaders = component.get('table-headers') || {};
     
-    if (runningTotals.length === 0 || data.length === 0) return;
+    if (runningTotals.length === 0) {
+        // No running totals - reset to base data
+        component.set('custom-headers', null);
+        component.set('custom-data', null);
+        component.updateTableHTML();
+        return;
+    }
     
-    // Remove existing running total columns
-    const updatedHeaders = {};
-    Object.keys(headers).forEach(key => {
-        if (!key.endsWith('_running_total')) {
-            updatedHeaders[key] = headers[key];
-        }
-    });
+    if (baseData.length === 0) return;
     
-    let updatedData = data.map(row => {
-        const newRow = {};
-        Object.keys(row).forEach(key => {
-            if (!key.endsWith('_running_total')) {
-                newRow[key] = row[key];
-            }
-        });
-        return newRow;
-    });
+    // Start fresh with base headers and data
+    const updatedHeaders = { ...baseHeaders };
+    
+    // ✅ Create deep copy of base data
+    let updatedData = baseData.map(row => ({ ...row }));
     
     // Apply each running total
-    runningTotals.forEach(rt => {
-        const newColumnKey = `${rt.columnKey}_running_total`;
-        updatedHeaders[newColumnKey] = `${headers[rt.columnKey]} (RT)`;
+// Apply each running total
+runningTotals.forEach(rt => {
+    const newColumnKey = `${rt.columnKey}_running_total`;
+    updatedHeaders[newColumnKey] = `${baseHeaders[rt.columnKey]} (RT)`;  // ✅ Use baseHeaders
+    
+    // ✅ Initialize accumulators properly
+    let accumulator = 0;
+    let count = 0;
+    let distinctValues = new Set();
+    let values = [];
+    let previousGroupValue = null;
+    let sumForAverage = 0;
+    
+    // ✅ Special initialization for certain operations
+    if (rt.operation === 'product') {
+        accumulator = 1;
+    } else if (rt.operation === 'min') {
+        accumulator = Infinity;
+    } else if (rt.operation === 'max') {
+        accumulator = -Infinity;
+    }
         
-        let accumulator = rt.operation === 'product' ? 1 : 0;
-        let count = 0;
-        let distinctValues = new Set();
-        let values = [];
-        let previousGroupValue = null;
+updatedData = updatedData.map((row, idx) => {
+    // Check for reset conditions
+    if (rt.reset === 'on-change-of' && rt.resetField && idx > 0) {
+        if (row[rt.resetField] !== updatedData[idx - 1][rt.resetField]) {
+            // ✅ Reset all accumulators
+            accumulator = rt.operation === 'product' ? 1 : 
+                         rt.operation === 'min' ? Infinity :
+                         rt.operation === 'max' ? -Infinity : 0;
+            count = 0;
+            distinctValues = new Set();
+            values = [];
+            sumForAverage = 0;
+        }
+    }
+    
+    // Check evaluate conditions
+    let shouldEvaluate = true;
+    if (rt.evaluate === 'on-change-of' && rt.evaluateField) {
+        shouldEvaluate = row[rt.evaluateField] !== previousGroupValue;
+        previousGroupValue = row[rt.evaluateField];
+    }
+    
+    if (shouldEvaluate) {
+        const value = parseFloat(row[rt.columnKey]) || 0;
+        count++;
+        distinctValues.add(row[rt.columnKey]);
+        values.push(value);
+        sumForAverage += value;
         
-        updatedData = updatedData.map((row, idx) => {
-            // Check for reset conditions
-            if (rt.reset === 'on-change-of' && rt.resetField && idx > 0) {
-                if (row[rt.resetField] !== updatedData[idx - 1][rt.resetField]) {
-                    accumulator = rt.operation === 'product' ? 1 : 0;
-                    count = 0;
-                    distinctValues.clear();
-                    values = [];
-                }
-            }
-            
-            // Check evaluate conditions
-            let shouldEvaluate = true;
-            if (rt.evaluate === 'on-change-of' && rt.evaluateField) {
-                shouldEvaluate = row[rt.evaluateField] !== previousGroupValue;
-                previousGroupValue = row[rt.evaluateField];
-            }
-            
-            if (shouldEvaluate) {
-                const value = parseFloat(row[rt.columnKey]) || 0;
-                count++;
-                distinctValues.add(row[rt.columnKey]);
-                values.push(value);
-                
-                switch (rt.operation) {
-                    case 'sum':
-                        accumulator += value;
-                        break;
-                    case 'count':
-                        accumulator = count;
-                        break;
-                    case 'distinct-count':
-                        accumulator = distinctValues.size;
-                        break;
-                    case 'average':
-                        accumulator = values.reduce((a, b) => a + b, 0) / values.length;
-                        break;
-                    case 'max':
-                        accumulator = Math.max(...values);
-                        break;
-                    case 'min':
-                        accumulator = Math.min(...values);
-                        break;
-                    case 'product':
-                        accumulator *= value;
-                        break;
-                    case 'std-dev':
-                        const mean = values.reduce((a, b) => a + b, 0) / values.length;
-                        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
-                        accumulator = Math.sqrt(variance);
-                        break;
-                    case 'variance':
-                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                        accumulator = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / values.length;
-                        break;
-                }
-            }
-            
-            row[newColumnKey] = accumulator.toFixed(2);
-            return row;
-        });
+        switch (rt.operation) {
+            case 'sum':
+                accumulator += value;
+                break;
+            case 'count':
+                accumulator = count;
+                break;
+            case 'distinct-count':
+                accumulator = distinctValues.size;
+                break;
+            case 'average':
+                accumulator = sumForAverage / count;  // ✅ Use separate sum
+                break;
+            case 'max':
+                accumulator = Math.max(accumulator, value);  // ✅ Cumulative max
+                break;
+            case 'min':
+                accumulator = Math.min(accumulator, value);  // ✅ Cumulative min
+                break;
+            case 'product':
+                accumulator *= value;
+                break;
+            case 'std-dev':
+                const mean = sumForAverage / count;
+                const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / count;
+                accumulator = Math.sqrt(variance);
+                break;
+            case 'variance':
+                const avg = sumForAverage / count;
+                accumulator = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / count;
+                break;
+            case 'weighted-avg':
+                // ✅ Implement if you have weight column logic
+                accumulator = sumForAverage / count;  // Fallback to average
+                break;
+        }
+    }
+    
+    // ✅ Format based on operation type
+    let formattedValue;
+    if (rt.operation === 'count' || rt.operation === 'distinct-count') {
+        formattedValue = accumulator.toString();
+    } else {
+        formattedValue = accumulator.toFixed(2);
+    }
+    
+    row[newColumnKey] = formattedValue;
+    return row;
+});
     });
     
     component.set('custom-headers', updatedHeaders);

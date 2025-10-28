@@ -176,13 +176,12 @@ function updateLayerName(component) {
   const layerName = `${baseName} #${idToShow}`;
 
   // Delay slightly to ensure GrapesJS finished rendering the layer label
-  setTimeout(() => {
+
     try {
       layers.setName(component, layerName);
     } catch (err) {
       console.warn('Layer update failed:', err);
     }
-  }, 50);
 }
 
 
@@ -2436,7 +2435,7 @@ uploadedJsonFiles.forEach((f, idx) => {
 // }
 
 async function generatePrintDialog() {
-  const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadHtmlToPdf";
+ const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadHtmlToPdf";
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
@@ -2467,25 +2466,18 @@ async function generatePrintDialog() {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
 
-    // 🧹 Remove IDs from specific classes
-    const classesToClean = [
-      "page-container",
-      "page-content",
-      "header-wrapper",
-      "page-header-element",
-      "content-wrapper",
-      "main-content-area",
-      "footer-wrapper",
-      "page-footer-element",
-    ];
+    // Remove margins from .page-container elements
+    const pageContainers = tempDiv.querySelectorAll(".page-container");
+    const idsToClean = [];
 
-    classesToClean.forEach((cls) => {
-      const elements = tempDiv.querySelectorAll(`.${cls}`);
-      elements.forEach((el) => {
-        if (el.hasAttribute("id")) {
-          el.removeAttribute("id");
-        }
-      });
+    pageContainers.forEach(el => {
+      if (el.id) idsToClean.push(el.id);
+    });
+
+    let cleanedCss = css;
+    idsToClean.forEach(id => {
+      const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
+      cleanedCss = cleanedCss.replace(idRegex, "$1");
     });
 
     // --- Add external CSS and JS resources ---

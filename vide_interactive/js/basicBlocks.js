@@ -270,11 +270,11 @@
                 // );
 
 
-              w("Dynamic Header Footer") &&
+              w("Sections") &&
               t.add(
-                "Dynamic Header Footer",
+                "Sections",
                 e(e({}, M), {
-                  label: "Dynamic Header Footer",
+                  label: "Sections",
                   media:`
                     <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
                     <rect x="2" y="3" width="20" height="4" rx="1" fill="#6c757d"/>
@@ -282,7 +282,7 @@
                     <rect x="2" y="21" width="20" height="3" rx="1" fill="#343a40"/>
                     </svg>`,
                   content: {
-                    type: "Dynamic Header Footer",
+                    type: "Sections",
                     content: "", 
                     
                   },
@@ -382,7 +382,7 @@
               "column3-7",
               "text",
               "separator",
-              "Dynamic Header Footer",
+              "Sections",
               "link",
               "image",
               "video",

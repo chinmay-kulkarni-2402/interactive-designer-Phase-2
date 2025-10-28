@@ -599,32 +599,166 @@ ${content}
   downloadFile(rtfContent, 'export.rtf', 'application/rtf');
 }
 
-  async function exportPDF(body) {
-    if (!window.html2canvas || !window.jspdf) {
-      alert("Please include html2canvas and jsPDF libraries!");
-      return;
+async function exportPDF(body) {
+  const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadSinglePagePdf";
+
+  // --- Create and show loading overlay ---
+  let overlay = document.createElement("div");
+  overlay.id = "pdf-loading-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "rgba(0,0,0,0.5)",
+    color: "#fff",
+    fontSize: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  });
+  overlay.innerText = "Generating PDF...";
+  document.body.appendChild(overlay);
+
+  try {
+    // --- Prepare Final HTML with external CSS/JS and cleaned DOM ---
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = body.outerHTML;
+
+    // 🧹 Remove IDs from specific page-related classes
+    const classesToClean = [
+      "page-container",
+      "page-content",
+      "header-wrapper",
+      "page-header-element",
+      "content-wrapper",
+      "main-content-area",
+      "footer-wrapper",
+      "page-footer-element",
+    ];
+    classesToClean.forEach((cls) => {
+      tempDiv.querySelectorAll(`.${cls}`).forEach((el) => {
+        if (el.hasAttribute("id")) el.removeAttribute("id");
+      });
+    });
+
+    // --- External CSS and JS ---
+    const canvasResources = {
+      styles: [
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
+        "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
+        "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+        "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
+        "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
+        "https://fonts.googleapis.com/icon?family=Material+Icons",
+        "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
+        "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
+      ],
+      scripts: [
+        "https://code.jquery.com/jquery-3.3.1.slim.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+        "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
+        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
+        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
+        "https://code.highcharts.com/stock/highstock.js",
+        "https://code.highcharts.com/highcharts-3d.js",
+        "https://code.highcharts.com/highcharts-more.js",
+        "https://code.highcharts.com/modules/data.js",
+        "https://code.highcharts.com/modules/exporting.js",
+        "https://code.highcharts.com/modules/accessibility.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
+        "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
+        "https://code.highcharts.com/modules/drilldown.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+        "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+        "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
+        "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
+        "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
+        "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+      ]
+    };
+
+    const externalStyles = canvasResources.styles
+      .map((url) => `<link rel="stylesheet" href="${url}">`)
+      .join("\n");
+
+    const externalScripts = canvasResources.scripts
+      .map((url) => `<script src="${url}" defer></script>`)
+      .join("\n");
+
+    // --- Combine everything into one HTML ---
+    const finalHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          ${externalStyles}
+          <style>
+            body { margin: 0; padding: 0; }
+          </style>
+          ${externalScripts}
+        </head>
+        <body>${tempDiv.innerHTML}</body>
+      </html>
+    `;
+
+    // --- Debug: Log and download HTML sent to backend ---
+    try {
+      const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+      const debugLink = document.createElement("a");
+      debugLink.href = debugUrl;
+      debugLink.download = "sent_to_single_page_pdf_api.html";
+      debugLink.click();
+      URL.revokeObjectURL(debugUrl);
+      console.log("💾 Debug HTML downloaded for inspection");
+    } catch (err) {
+      console.warn("⚠️ Could not auto-download debug HTML:", err);
     }
 
-    const canvas = await html2canvas(body, { 
-      scale: 2,
-      useCORS: true,
-      allowTaint: true
-    });
-    const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'pt', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-    const centerX = (pageWidth - imgWidth * ratio) / 2;
-    
-    pdf.addImage(imgData, 'PNG', centerX, 0, imgWidth * ratio, imgHeight * ratio);
-    const blob = pdf.output('blob');
-    downloadFile(blob, 'export.pdf');
+    // --- Send to backend API ---
+    const formData = new FormData();
+    formData.append("htmlFile", new Blob([finalHtml], { type: "text/html" }), "single_page.html");
+
+    const response = await fetch(apiUrl, { method: "POST", body: formData });
+    if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+    const blob = await response.blob();
+    const contentType = response.headers.get("Content-Type");
+
+    if (contentType && contentType.includes("pdf")) {
+      const pdfUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = pdfUrl;
+      a.download = "export.pdf";
+      a.click();
+      URL.revokeObjectURL(pdfUrl);
+      console.log("✅ PDF downloaded successfully!");
+    } else {
+      console.warn("⚠️ Unexpected response type:", contentType);
+      alert("Unexpected response from server, PDF not received.");
+    }
+
+  } catch (err) {
+    console.error("❌ Error exporting PDF:", err);
+    alert("Failed to export PDF. Check console for details.");
+  } finally {
+    // --- Remove overlay ---
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
+    }
   }
+}
+
 
   function downloadFile(content, filename, type) {
     let blob = content instanceof Blob ? content : new Blob([content], { type });
