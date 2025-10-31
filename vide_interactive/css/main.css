@@ -159,3 +159,61 @@ a.dt-button{
  .tableMinH{
   min-height: 40px !important;
  } 
+
+ .subreport-container {
+  border: 1px dashed #aaa;
+  padding: 10px;
+  margin: 10px 0;
+}
+.embedded-subreport {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-top: 10px;
+  background: #fff;
+}
+
+
+/* Base JSON Table Styles */
+.json-table-container {
+    min-height: 100px;
+    padding: 10px 0;
+    width: 100%;
+    margin: 10px 0;
+}
+
+.json-table-wrapper {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    width: 100%;
+    overflow-x: visible;
+    overflow-y: visible;
+}
+
+.json-table-wrapper .dataTables_wrapper {
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+.json-data-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+/* Formula editing styles */
+.formula-error {
+    background-color: #ffebee !important;
+    color: #c62828 !important;
+}
+
+.cell-content.editing {
+    background-color: #e3f2fd !important;
+    outline: 2px solid #007bff !important;
+    min-height: inherit;
+    overflow: hidden;
+}
+
+td[contenteditable="true"],
+th[contenteditable="true"] {
+    cursor: text;
+}
+

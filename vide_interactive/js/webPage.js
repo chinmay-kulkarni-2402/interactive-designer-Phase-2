@@ -2,34 +2,34 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = n())
     : "function" == typeof define && define.amd
-    ? define([], n)
-    : "object" == typeof exports
-    ? (exports["webpage-component"] = n())
-    : (e["webpage-component"] = n());
+      ? define([], n)
+      : "object" == typeof exports
+        ? (exports["webpage-component"] = n())
+        : (e["webpage-component"] = n());
 })(
   "undefined" != typeof globalThis
     ? globalThis
     : "undefined" != typeof window
-    ? window
-    : this,
+      ? window
+      : this,
   () =>
     (() => {
       "use strict";
       var e = {
-          d: (n, t) => {
-            for (var o in t)
-              e.o(t, o) &&
-                !e.o(n, o) &&
-                Object.defineProperty(n, o, { enumerable: !0, get: t[o] });
-          },
-          o: (e, n) => Object.prototype.hasOwnProperty.call(e, n),
-          r: (e) => {
-            "undefined" != typeof Symbol &&
-              Symbol.toStringTag &&
-              Object.defineProperty(e, Symbol.toStringTag, { value: "Module" }),
-              Object.defineProperty(e, "__esModule", { value: !0 });
-          },
+        d: (n, t) => {
+          for (var o in t)
+            e.o(t, o) &&
+              !e.o(n, o) &&
+              Object.defineProperty(n, o, { enumerable: !0, get: t[o] });
         },
+        o: (e, n) => Object.prototype.hasOwnProperty.call(e, n),
+        r: (e) => {
+          "undefined" != typeof Symbol &&
+            Symbol.toStringTag &&
+            Object.defineProperty(e, Symbol.toStringTag, { value: "Module" }),
+            Object.defineProperty(e, "__esModule", { value: !0 });
+        },
+      },
         n = {};
       e.r(n), e.d(n, { default: () => u });
       var t = "i_designer-open-import-webpage",
@@ -114,21 +114,21 @@
             run: function (e) {
               return e.setDevice("Desktop");
             },
-            stop: function () {},
+            stop: function () { },
           }),
           l.add(r, {
             run: function (e) {
               return e.setDevice("Tablet");
             },
-            stop: function () {},
+            stop: function () { },
           }),
           l.add(a, {
             run: function (e) {
               return e.setDevice("Mobile portrait");
             },
-            stop: function () {},
+            stop: function () { },
           }),
- l.add(i, function (e) {
+          l.add(i, function (e) {
             if (confirm(s)) {
               e.runCommand("core:canvas-clear");
 
@@ -270,7 +270,7 @@
                   id: "devices-c",
                   buttons: [
                     {
-                      id: o, 
+                      id: o,
                       command: o,
                       active: !0,
                       label: "<svg ".concat(
@@ -424,14 +424,14 @@
               return null == g ? void 0 : g.set("active", !0);
             }),
               n.showStylesOnChange &&
-                e.on("component:selected", function () {
-                  var n = c.getButton("views", u),
-                    t = c.getButton("views", m);
-                  (t && t.get("active")) ||
-                    !e.getSelected() ||
-                    null == n ||
-                    n.set("active", !0);
-                });
+              e.on("component:selected", function () {
+                var n = c.getButton("views", u),
+                  t = c.getButton("views", m);
+                (t && t.get("active")) ||
+                  !e.getSelected() ||
+                  null == n ||
+                  n.set("active", !0);
+              });
           })(e, c);
       };
       return n;

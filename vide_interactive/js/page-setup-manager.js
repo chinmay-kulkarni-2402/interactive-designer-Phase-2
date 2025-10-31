@@ -20,6 +20,10 @@ class PageSetupManager {
     });
 
     document.addEventListener('canvasCleared', () => {
+      localStorage.removeItem('editTemplateName');
+      localStorage.removeItem('editTemplateId');
+      sessionStorage.removeItem('single-page');
+      localStorage.removeItem('single-page');
       this.isInitialized = false;
       this.updateNavbarButton();
       this.updateAddPageButton();
@@ -517,15 +521,15 @@ class PageSetupManager {
   // ===============================
   //+Latest+ Create New Page
   // ===============================
- createNewPage() {
+  createNewPage() {
     return this.addNewPage();
   }
 
 
-// ===============================
-// +Latest+ Handle Page Break
-// ===============================
- handlePageBreak(pageIndex) {
+  // ===============================
+  // +Latest+ Handle Page Break
+  // ===============================
+  handlePageBreak(pageIndex) {
     console.log('PAGE BREAK CALL ==========', pageIndex);
 
     // ✅ PREVENT RECURSION - check if already processing this page break
@@ -863,370 +867,456 @@ class PageSetupManager {
   }
   ////////////////////////////////// auto-pagtination ////////////////////////////////////////////////////
 
-  checkAllPagesForOverflow() { 
+  checkAllPagesForOverflow() {
     if (this.paginationInProgress) {
-        console.log("Pagination already in progress. Skipping full check.");
-        return;
-    }  
-    for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
-        const currentPageIndex = i;  
-        this.handleAutoPagination(currentPageIndex);  
-    }
-}
-
-  handleAutoPagination(pageIndex) { 
-    debugger  
-    console.log(this.pageSettings.numberOfPages,'total pages==');
-    console.log(pageIndex,'handleAutoPagination ====');
-    this.handlePageBreak(pageIndex);
-
-    if (this.paginationInProgress) {
+      console.log("Pagination already in progress. Skipping full check.");
       return;
     }
-
-    this.paginationInProgress = true;
-
-    const resetFlag = () => {
-      this.paginationInProgress = false;
-    };
-
-    setTimeout(resetFlag, 15000);
-
-    try {
-      const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-      if (!pageComponent) {
-        console.warn(`❌ Page ${pageIndex} not found`);
-        resetFlag();
-        return;
-      }
-
-      const contentArea = pageComponent.find(".main-content-area")[0];
-      if (!contentArea) {
-        console.warn(`❌ Content area not found for page ${pageIndex}`);
-        resetFlag();
-        return;
-      }
-
-      // Check if we have sections structure
-      const sectionsContainer = contentArea.find('.sections-container')[0];
-      let targetArea = contentArea;
-      let availableHeight = contentArea.getEl().clientHeight;
-
-      if (sectionsContainer) {
-        // Work with section-content instead
-        const sectionContent = sectionsContainer.components().find(c => c.get('name') === 'Content');
-
-        if (sectionContent) {
-          targetArea = sectionContent;
-
-          // Calculate available height (main-content-area height - header - footer - padding)
-          const mainContentEl = contentArea.getEl();
-          const mainContentHeight = mainContentEl.clientHeight;
-
-          const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
-          const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
-
-          let headerHeight = 0;
-          let footerHeight = 0;
-
-          if (headerComp && headerComp.getEl()) {
-            headerHeight = this.getAccurateComponentHeight(headerComp.getEl());
-          }
-
-          if (footerComp && footerComp.getEl()) {
-            footerHeight = this.getAccurateComponentHeight(footerComp.getEl());
-          }
-
-          // Available height = total - header - footer - some padding
-          availableHeight = mainContentHeight - headerHeight - footerHeight - 40;
-
-         
-        }
-      }
-
-      const targetEl = targetArea.getEl();
-      if (!targetEl) {
-        console.warn(`❌ Target element not found for page ${pageIndex}`);
-        resetFlag();
-        return;
-      }
-
-      // Force layout recalculation
-      targetEl.offsetHeight;
-      const actualHeight = targetEl.scrollHeight;
-
-      const isOverflowing = actualHeight > availableHeight + 10;
-
-     
-
-      if (!isOverflowing) {
-        resetFlag();
-        return;
-      }
-
-
-      // Get components from target area
-      const components = targetArea.components();
-      if (components.length === 0) {
-        resetFlag();
-        return;
-      }
-
-      // Height-based splitting
-      const splitSuccess = this.splitContentByHeight(targetArea, components, pageIndex, availableHeight);
-
-      if (splitSuccess) {
-        setTimeout(() => {
-          resetFlag();
-
-          setTimeout(() => {
-            const nextPageIndex = pageIndex + 1;
-            if (nextPageIndex < this.pageSettings.numberOfPages) {
-              this.checkPageForOverflow(nextPageIndex);
-            }
-          }, 800);
-        }, 500);
-      } else {
-        console.error(`❌ Split strategy failed for page ${pageIndex}`);
-        resetFlag();
-      }
-
-    } catch (error) {
-      console.error(`❌ Error in handleAutoPagination for page ${pageIndex}:`, error);
-      resetFlag();
+    for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
+      const currentPageIndex = i;
+      this.handleAutoPagination(currentPageIndex);
     }
   }
 
+handleAutoPagination(pageIndex) {
+  debugger; 
+  console.log(pageIndex, 'handleAutoPagination ===='); 
+  
+  // ✅ FIRST: Check for manual page breaks
+  this.handlePageBreak(pageIndex); 
+  
+  // Prevent concurrent pagination runs
+  if (this.paginationInProgress) return;
+  this.paginationInProgress = true; 
+  const resetFlag = () => (this.paginationInProgress = false);
+  setTimeout(resetFlag, 15000); // auto-reset safety timeout
 
-  splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
-    debugger
-    console.log('splitContentByHeight ====');
-    const contentEl = contentArea.getEl();
-    const componentsToKeep = [];
-    const componentsToMove = [];
+  try {
+    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
+    if (!pageComponent) {
+      console.warn(`❌ Page ${pageIndex} not found`);
+      return resetFlag();
+    }
 
-    let accumulatedHeight = 0;
-    let splitPointFound = false;
+    const contentArea = pageComponent.find('.main-content-area')[0];
+    if (!contentArea) {
+      console.warn(`❌ Content area not found for page ${pageIndex}`);
+      return resetFlag();
+    }
 
-    for (let i = 0; i < components.length; i++) {
-        const component = components.at(i);
-        const compEl = component.getEl();
+    // ----------------------------
+    // Identify Target Content Area
+    // ----------------------------
+    let targetArea = contentArea;
+    let availableHeight = contentArea.getEl().clientHeight;
 
-        if (!compEl) continue;
+    const sectionsContainer = contentArea.find('.sections-container')[0];
+    const manualSectionContent = contentArea.find('.section-content')[0];
 
-        const compHeight = this.getAccurateComponentHeight(compEl);
+    if (manualSectionContent) {
+      targetArea = manualSectionContent;
+    } else if (sectionsContainer) {
+      const sectionContent = sectionsContainer
+        .components()
+        .find(c => c.get('name') === 'Content');
+      if (sectionContent) targetArea = sectionContent;
+    }
 
+    // ----------------------------
+    // ✅ NEW: Check for Conditional Page Break
+    // ----------------------------
+    const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
+    let conditionalBreakPosition = null;
 
-        // Calculate remaining space
-        const remainingSpace = maxHeight - accumulatedHeight;
+    if (conditionalBreakSettings?.enabled) {
+      const distanceInMm = this.convertToMm(
+        conditionalBreakSettings.distance,
+        conditionalBreakSettings.unit
+      );
+      const mmToPx = 96 / 25.4;
+      const distanceInPx = Math.round(distanceInMm * mmToPx);
+      
+      // Calculate break position from bottom
+      conditionalBreakPosition = availableHeight - distanceInPx;
+      
+      console.log(`🔹 Conditional break at ${distanceInPx}px from bottom (position: ${conditionalBreakPosition}px)`);
+    }
 
-        // If this component would overflow
-        if (accumulatedHeight + compHeight > maxHeight) {
-            splitPointFound = true;
+    // ----------------------------
+    // Calculate Available Height
+    // ----------------------------
+    if (sectionsContainer && targetArea !== contentArea) {
+      const mainContentEl = contentArea.getEl();
+      const mainContentHeight = mainContentEl.clientHeight;
 
-            // If there's reasonable space left (more than 20% of page height), try to fill it
-            if (remainingSpace > maxHeight * 0.2) {
+      const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
+      const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
 
-                // Split this component's text content using remaining space
-                // ARGUMENT CHANGE: compEl ki jagah sirf component aur remainingSpace bhejein
-                const splitResult = this.splitLargeComponent(component, remainingSpace);
+      const headerHeight = headerComp?.getEl()
+        ? this.getAccurateComponentHeight(headerComp.getEl())
+        : 0;
 
-                if (splitResult.moveComponent) {
-                    componentsToMove.push(splitResult.moveComponent);
-                }
+      const footerHeight = footerComp?.getEl()
+        ? this.getAccurateComponentHeight(footerComp.getEl())
+        : 0;
 
-                // Move remaining components (i+1 se)
-                for (let j = i + 1; j < components.length; j++) {
-                    componentsToMove.push(components.at(j));
-                }
+      availableHeight = mainContentHeight - headerHeight - footerHeight - 40;
+      
+      // ✅ Apply conditional break to section content
+      if (conditionalBreakPosition !== null) {
+        availableHeight = Math.min(availableHeight, conditionalBreakPosition);
+        console.log(`📏 Section content limited to ${availableHeight}px by conditional break`);
+      }
+      
+      console.log(
+        `[P${pageIndex}] Sections height => Header:${headerHeight}, Footer:${footerHeight}, Available:${availableHeight}`
+      );
+    } else if (conditionalBreakPosition !== null) {
+      // ✅ Apply conditional break to main content area
+      availableHeight = Math.min(availableHeight, conditionalBreakPosition);
+      console.log(`📏 Main content limited to ${availableHeight}px by conditional break`);
+    }
 
-                break;
-            } else {
-                // Not enough space, move entire component to next page
-                for (let j = i; j < components.length; j++) {
-                    componentsToMove.push(components.at(j));
-                }
-                break;
-            }
-        } else {
-            componentsToKeep.push(component);
-            accumulatedHeight += compHeight;
+    // ----------------------------
+    // Measure Actual Target Height
+    // ----------------------------
+    const targetEl = targetArea.getEl();
+    if (!targetEl) {
+      console.warn(`❌ Target element not found for page ${pageIndex}`);
+      return resetFlag();
+    }
+
+    targetEl.offsetHeight; // force reflow
+    const actualHeight = targetEl.scrollHeight;
+    const isOverflowing = actualHeight > availableHeight + 10;
+
+    if (!isOverflowing) return resetFlag();
+
+    // ----------------------------
+    // Split Overflowing Content
+    // ----------------------------
+    const components = targetArea.components();
+    if (components.length === 0) return resetFlag();
+
+    const splitSuccess = this.splitContentByHeight(targetArea, components, pageIndex, availableHeight);
+
+    if (!splitSuccess) {
+      console.error(`❌ Split strategy failed for page ${pageIndex}`);
+      return resetFlag();
+    }
+
+    // ----------------------------
+    // Continue Pagination for Next Page
+    // ----------------------------
+    setTimeout(() => {
+      resetFlag();
+
+      setTimeout(() => {
+        const nextPageIndex = pageIndex + 1;
+        if (nextPageIndex < this.pageSettings.numberOfPages) {
+          this.checkPageForOverflow(nextPageIndex);
         }
-    }
+      }, 800);
+    }, 500);
 
-    // If no split point found and only one component that's too large
-    if (!splitPointFound && components.length === 1 && accumulatedHeight > maxHeight) { // Added height check
-        const component = components.at(0);
-        
-        // Use 95% of maxHeight to ensure we fill the page properly
-        const splitResult = this.splitLargeComponent(component, maxHeight * 0.95);
-
-        if (splitResult.moveComponent) {
-            componentsToMove.push(splitResult.moveComponent);
-        }
-    }
-
-    if (componentsToMove.length === 0) {
-        console.warn(`⚠️ No components to move after split calculation`);
-        return false;
-    }
-
-
-    // Ensure next page exists
-    const nextPageIndex = pageIndex + 1;
-    if (nextPageIndex >= this.pageSettings.numberOfPages) {
-        this.addNewPage();
-
-        setTimeout(() => {
-            this.moveComponentsToPage(componentsToMove, nextPageIndex);
-        }, 600);
-    } else {
-        this.moveComponentsToPage(componentsToMove, nextPageIndex);
-    }
-
-    return true;
+  } catch (error) {
+    console.error(`❌ Error in handleAutoPagination (Page ${pageIndex}):`, error);
+    resetFlag();
+  }
 }
 
 
-  splitLargeComponent(component, availableSpace) { 
-    debugger
-    console.log('splitLargeComponent ====');
+splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
+  debugger
+  console.log('splitContentByHeight ====');
+  const contentEl = contentArea.getEl();
+  const componentsToKeep = [];
+  const componentsToMove = [];
+
+  let accumulatedHeight = 0;
+  let splitPointFound = false;
+
+  // ✅ Check if conditional break is active
+  const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
+  let conditionalBreakActive = false;
+  let conditionalBreakHeight = maxHeight;
+
+  if (conditionalBreakSettings?.enabled) {
+    const distanceInMm = this.convertToMm(
+      conditionalBreakSettings.distance,
+      conditionalBreakSettings.unit
+    );
+    const mmToPx = 96 / 25.4;
+    const distanceInPx = Math.round(distanceInMm * mmToPx);
+    
+    // Get the actual content area height
+    const contentAreaHeight = contentEl.clientHeight;
+    conditionalBreakHeight = contentAreaHeight - distanceInPx;
+    conditionalBreakActive = true;
+    
+    console.log(`✂️ Conditional break active at ${conditionalBreakHeight}px`);
+  }
+
+  for (let i = 0; i < components.length; i++) {
+    const component = components.at(i);
     const compEl = component.getEl();
 
-    if (!compEl || component.get('type') !== 'formatted-rich-text') {
-        return { keepComponent: component, moveComponent: null }; 
-    }
-    
-    const originalNodes = Array.from(compEl.childNodes);
-    const nodesToMove = [];
-    
-    // Original div ko temporarily saaf kar do
-    compEl.innerHTML = ''; 
+    if (!compEl) continue;
 
-    // --- Node Splitting Logic ---
-    for (let i = 0; i < originalNodes.length; i++) {
-        const node = originalNodes[i];
-        
-        // 1. Node ko wapas div mein daalo
-        compEl.appendChild(node);
-        
-        const currentContentHeight = compEl.offsetHeight; 
+    const compHeight = this.getAccurateComponentHeight(compEl);
 
-        if (currentContentHeight > availableSpace) {
-            // 🛑 OVERFLOW FOUND!
-            
-            // 2. Overflowing node ko wapas nikaal lo
-            compEl.removeChild(node); 
-            
-            // 3. SPECIAL HANDLING: Agar yeh Text Node hai 
-            if (node.nodeType === Node.TEXT_NODE) {
-                
-                const fullText = node.textContent;
-                
-                // Character-level splitting function ko call karo
-                const { textToKeep, textToMove } = this._splitLongTextNode(
-                    fullText, 
-                    compEl, 
-                    availableSpace
-                );
-                
-                // Agar splitting successful ho
-                if (textToKeep && textToKeep.length > 0 && textToMove && textToMove.length > 0) {
-                    
-                    // a) Original node ko naye content se update karo
-                    node.textContent = textToKeep;
-                    
-                    // b) Original node ko wapas compEl mein daalo (THIS IS THE FIX)
-                    compEl.appendChild(node);
-                    
-                    // c) Naya Text Node banao move karne ke liye
-                    const newNodeToMove = document.createTextNode(textToMove);
-                    
-                    // d) Naye node aur baaki sab ko move list mein daalo
-                    nodesToMove.push(newNodeToMove, ...originalNodes.slice(i + 1));
-                    
-                    break; 
-                }
-            } 
-            
-            // Default action (Non-Text Node ya Text Splitting fail)
-            nodesToMove.push(node, ...originalNodes.slice(i + 1));
-            break; 
+    // ✅ For conditional breaks, use exact height comparison
+    const effectiveMaxHeight = conditionalBreakActive ? conditionalBreakHeight : maxHeight;
+    const remainingSpace = effectiveMaxHeight - accumulatedHeight;
+
+    console.log(`Component ${i}: height=${compHeight}px, accumulated=${accumulatedHeight}px, remaining=${remainingSpace}px`);
+
+    // If this component would overflow
+    if (accumulatedHeight + compHeight > effectiveMaxHeight) {
+      splitPointFound = true;
+
+      // ✅ For conditional breaks, be more strict about splitting
+      if (conditionalBreakActive) {
+        console.log(`🔸 Conditional break triggered - moving component ${i} and all after`);
+        
+        // If component is text-based and has reasonable space, try to split
+        if (remainingSpace > effectiveMaxHeight * 0.15 && 
+            component.get('type') === 'formatted-rich-text') {
+          const splitResult = this.splitLargeComponent(component, remainingSpace);
+
+          if (splitResult.moveComponent) {
+            componentsToMove.push(splitResult.moveComponent);
+          }
+
+          // Move remaining components
+          for (let j = i + 1; j < components.length; j++) {
+            componentsToMove.push(components.at(j));
+          }
+          break;
+        } else {
+          // Move entire component and all after it
+          for (let j = i; j < components.length; j++) {
+            componentsToMove.push(components.at(j));
+          }
+          break;
         }
-    }
-    // --- End Node Splitting Logic ---
+      } else {
+        // Original logic for natural overflow (no conditional break)
+        if (remainingSpace > maxHeight * 0.2) {
+          const splitResult = this.splitLargeComponent(component, remainingSpace);
 
-    // 1. Original Component (Current Page) Sync
-    const contentThatFits = compEl.innerHTML;
-    component.set('content', contentThatFits); 
-    
-    if (nodesToMove.length > 0) {
-        
-        // 2. Naye component ke liye HTML content banao (Stringification)
-        let secondPartHTML = '';
-        nodesToMove.forEach(node => {
-            if (node.outerHTML) {
-                secondPartHTML += node.outerHTML;
-            } else if (node.textContent) {
-                secondPartHTML += node.textContent; 
-            }
-        });
-        
-        // 3. Naya component GrapesJS ke through banao
-        const newComponent = this.editor.Components.addComponent({
-            type: component.get('type'),
-            tagName: component.get('tagName') || 'div',
-            content: secondPartHTML, 
-            style: { ...component.getStyle() },
-            attributes: { ...component.getAttributes() }
-        });
-        
-        if (newComponent.view) {
-             newComponent.view.render();
+          if (splitResult.moveComponent) {
+            componentsToMove.push(splitResult.moveComponent);
+          }
+
+          for (let j = i + 1; j < components.length; j++) {
+            componentsToMove.push(components.at(j));
+          }
+          break;
+        } else {
+          for (let j = i; j < components.length; j++) {
+            componentsToMove.push(components.at(j));
+          }
+          break;
         }
-
-        return {
-            keepComponent: component, 
-            moveComponent: newComponent 
-        };
+      }
+    } else {
+      componentsToKeep.push(component);
+      accumulatedHeight += compHeight;
     }
+  }
 
-    return { keepComponent: component, moveComponent: null };
+  // Handle single large component
+  if (!splitPointFound && components.length === 1 && accumulatedHeight > effectiveMaxHeight) {
+    const component = components.at(0);
+    const splitResult = this.splitLargeComponent(component, effectiveMaxHeight * 0.95);
+
+    if (splitResult.moveComponent) {
+      componentsToMove.push(splitResult.moveComponent);
+    }
+  }
+
+  if (componentsToMove.length === 0) {
+    console.warn(`⚠️ No components to move after split calculation`);
+    return false;
+  }
+
+  console.log(`📦 Moving ${componentsToMove.length} components to next page`);
+
+  // Ensure next page exists
+  const nextPageIndex = pageIndex + 1;
+  if (nextPageIndex >= this.pageSettings.numberOfPages) {
+    this.addNewPage();
+
+    setTimeout(() => {
+      this.moveComponentsToPage(componentsToMove, nextPageIndex);
+    }, 2000);
+  } else {
+    this.moveComponentsToPage(componentsToMove, nextPageIndex);
+  }
+
+  return true;
 }
 
-_splitLongTextNode(fullText, containerEl, availableSpace) {
+
+splitLargeComponent(component, availableSpace) {
+  debugger
+  console.log('splitLargeComponent ====');
+  const compEl = component.getEl();
+
+  if (!compEl || component.get('type') !== 'formatted-rich-text') {
+    return { keepComponent: component, moveComponent: null };
+  }
+
+  // ✅ Capture ALL styles before splitting
+  const computed = window.getComputedStyle(compEl);
+  const preservedStyles = {};
+  
+  // Capture comprehensive style list
+  ['display', 'position', 'width', 'height', 'margin', 'padding',
+   'border', 'background', 'background-color', 'color', 'font-family', 
+   'font-size', 'font-weight', 'font-style', 'text-align', 'line-height',
+   'letter-spacing', 'text-decoration', 'text-transform', 'vertical-align',
+   'white-space', 'word-wrap', 'word-break', 'overflow-wrap'
+  ].forEach(prop => {
+    const value = computed.getPropertyValue(prop);
+    if (value && value !== 'none' && value !== 'normal') {
+      preservedStyles[prop] = value;
+    }
+  });
+
+  const originalNodes = Array.from(compEl.childNodes);
+  const nodesToMove = [];
+
+  // Original div ko temporarily saaf kar do
+  compEl.innerHTML = '';
+
+  // --- Node Splitting Logic ---
+  for (let i = 0; i < originalNodes.length; i++) {
+    const node = originalNodes[i];
+
+    // 1. Node ko wapas div mein daalo
+    compEl.appendChild(node);
+
+    const currentContentHeight = compEl.offsetHeight;
+
+    if (currentContentHeight > availableSpace) {
+      // 🛑 OVERFLOW FOUND!
+
+      // 2. Overflowing node ko wapas nikaal lo
+      compEl.removeChild(node);
+
+      // 3. SPECIAL HANDLING: Agar yeh Text Node hai 
+      if (node.nodeType === Node.TEXT_NODE) {
+        const fullText = node.textContent;
+
+        // Character-level splitting function ko call karo
+        const { textToKeep, textToMove } = this._splitLongTextNode(
+          fullText,
+          compEl,
+          availableSpace
+        );
+
+        // Agar splitting successful ho
+        if (textToKeep && textToKeep.length > 0 && textToMove && textToMove.length > 0) {
+          // a) Original node ko naye content se update karo
+          node.textContent = textToKeep;
+
+          // b) Original node ko wapas compEl mein daalo
+          compEl.appendChild(node);
+
+          // c) Naya Text Node banao move karne ke liye
+          const newNodeToMove = document.createTextNode(textToMove);
+
+          // d) Naye node aur baaki sab ko move list mein daalo
+          nodesToMove.push(newNodeToMove, ...originalNodes.slice(i + 1));
+
+          break;
+        }
+      }
+
+      // Default action (Non-Text Node ya Text Splitting fail)
+      nodesToMove.push(node, ...originalNodes.slice(i + 1));
+      break;
+    }
+  }
+  // --- End Node Splitting Logic ---
+
+  // 1. Original Component (Current Page) Sync
+  const contentThatFits = compEl.innerHTML;
+  component.set('content', contentThatFits);
+  
+  // ✅ Reapply styles to original component
+  component.setStyle(preservedStyles);
+
+  if (nodesToMove.length > 0) {
+    // 2. Naye component ke liye HTML content banao
+    let secondPartHTML = '';
+    nodesToMove.forEach(node => {
+      if (node.outerHTML) {
+        secondPartHTML += node.outerHTML;
+      } else if (node.textContent) {
+        secondPartHTML += node.textContent;
+      }
+    });
+
+    // 3. Naya component GrapesJS ke through banao
+    const newComponent = this.editor.Components.addComponent({
+      type: component.get('type'),
+      tagName: component.get('tagName') || 'div',
+      content: secondPartHTML,
+      style: preservedStyles, // ✅ Apply captured styles
+      attributes: { ...component.getAttributes() },
+      classes: component.getClasses()
+    });
+
+    // ✅ Force render with styles
+    if (newComponent.view) {
+      newComponent.view.render();
+    }
+
+    return {
+      keepComponent: component,
+      moveComponent: newComponent
+    };
+  }
+
+  return { keepComponent: component, moveComponent: null };
+}
+
+  _splitLongTextNode(fullText, containerEl, availableSpace) {
     let textToKeep = '';
-    const testNode = document.createTextNode(''); 
-    
+    const testNode = document.createTextNode('');
+
     // 1. containerEl mein temporary node daalo
     // Note: containerEl mein abhi sirf woh nodes hain jo fit ho chuke hain 
     // (splitLargeComponent ke loop se).
-    containerEl.appendChild(testNode); 
+    containerEl.appendChild(testNode);
 
     for (let charIndex = 0; charIndex < fullText.length; charIndex++) {
-        textToKeep += fullText[charIndex];
-        testNode.textContent = textToKeep; 
-        
-        // Height check: Ab containerEl.offsetHeight mein fit hone waala content +
-        // current temporary text node ka content dono shamil hai.
-        if (containerEl.offsetHeight > availableSpace) {
-            // Height exceed ho gayi. Aakhri character wapas le lo.
-            textToKeep = textToKeep.substring(0, textToKeep.length - 1);
-            
-            if (textToKeep.length === 0) {
-                 break;
-            }
-            break;
+      textToKeep += fullText[charIndex];
+      testNode.textContent = textToKeep;
+
+      // Height check: Ab containerEl.offsetHeight mein fit hone waala content +
+      // current temporary text node ka content dono shamil hai.
+      if (containerEl.offsetHeight > availableSpace) {
+        // Height exceed ho gayi. Aakhri character wapas le lo.
+        textToKeep = textToKeep.substring(0, textToKeep.length - 1);
+
+        if (textToKeep.length === 0) {
+          break;
         }
+        break;
+      }
     }
-    
+
     // Temporary testNode ko hata do
-    containerEl.removeChild(testNode); 
-    
+    containerEl.removeChild(testNode);
+
     const textToMove = fullText.substring(textToKeep.length);
-    
+
     return { textToKeep, textToMove };
-}
+  }
 
   findGoodBreakPoint(text, targetPosition) {
     // Look for sentence end (period + space)
@@ -1258,68 +1348,199 @@ _splitLongTextNode(fullText, containerEl, availableSpace) {
   }
 
 
-  moveComponentsToPage(components, targetPageIndex) {
-    debugger
-    console.log('moveComponentsToPage ====');
-    try {
-      const targetPageComponent = this.editor.getWrapper().find(`[data-page-index="${targetPageIndex}"]`)[0];
-      if (!targetPageComponent) {
-        console.error(`❌ Target page ${targetPageIndex} not found`);
-        return false;
-      }
+async moveComponentsToPage(components, targetPageIndex) {
+  console.log('🟦 moveComponentsToPage called for page:', targetPageIndex);
 
-      let targetContentArea = targetPageComponent.find(".main-content-area")[0];
-      if (!targetContentArea) {
-        console.error(`❌ Target content area not found`);
-        return false;
-      }
-
-      // Check if target page has sections structure
-      const sectionsContainer = targetContentArea.find('.sections-container')[0];
-      if (sectionsContainer) {
-        const sectionContent = sectionsContainer.components().find(c => c.get('name') === 'Content');
-        if (sectionContent) {
-          targetContentArea = sectionContent;
-        }
-      }
-
-
-      // Temporarily disconnect observer
-      if (this.pageObservers.has(targetPageIndex)) {
-        this.pageObservers.get(targetPageIndex).disconnect();
-      }
-
-      let successCount = 0;
-
-      components.forEach((component, index) => {
-        try {
-          if (!component) return;
-
-          // Remove from current location
-          component.remove();
-
-          // Vishal Add to target page
-          // targetContentArea.append(component);
-          targetContentArea.components().add(component, { at: 0 });
-          successCount++;
-
-        } catch (compError) {
-          console.error(`❌ Error moving component ${index}:`, compError);
-        }
-      });
-
-      // Reconnect observer
-      setTimeout(() => {
-        this.setupPageObserver(targetPageIndex);
-      }, 400);
-
-      return successCount > 0;
-
-    } catch (error) {
-      console.error(`❌ Error in moveComponentsToPage:`, error);
+  try {
+    const wrapper = this.editor.getWrapper();
+    const targetPageComponent = wrapper.find(`[data-page-index="${targetPageIndex}"]`)[0];
+    if (!targetPageComponent) {
+      console.error(`❌ Target page ${targetPageIndex} not found`);
       return false;
     }
+
+    let targetContentArea = targetPageComponent.find(".main-content-area")[0];
+    if (!targetContentArea) {
+      console.error(`❌ Target content area not found`);
+      return false;
+    }
+
+    // Wait for DOM to settle
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    // Determine final target
+    let finalTarget = targetContentArea;
+    const sectionContent = targetContentArea.find('.section-content')[0];
+
+    if (sectionContent) {
+      finalTarget = sectionContent;
+      console.log(`✅ Using '.section-content' as target on page ${targetPageIndex}`);
+    } else {
+      const sectionsContainer = targetContentArea.find('.sections-container')[0];
+      if (sectionsContainer) {
+        const namedContent = sectionsContainer.components()
+          .find(c => c.get('name') === 'Content');
+        if (namedContent) {
+          finalTarget = namedContent;
+          console.log(`✅ Using named 'Content' section as target on page ${targetPageIndex}`);
+        }
+      }
+    }
+
+    targetContentArea = finalTarget;
+
+    // Disconnect observer temporarily
+    const observer = this.pageObservers.get(targetPageIndex);
+    if (observer) observer.disconnect();
+
+    let moved = 0;
+
+    for (const [index, component] of components.entries()) {
+      if (!component) continue;
+      try {
+        // ✅ DEEP clone the entire component with ALL properties
+        const clonedComponent = component.clone();
+        
+        // ✅ Preserve complete HTML structure including inline styles
+        const fullHTML = component.toHTML();
+        
+        // ✅ Get computed styles from actual DOM element
+        const sourceEl = component.getEl();
+        let computedStyles = {};
+        if (sourceEl) {
+          const computed = window.getComputedStyle(sourceEl);
+          // Capture all relevant CSS properties
+          const stylesToCapture = [
+            'display', 'position', 'width', 'height', 'margin', 'padding',
+            'border', 'background', 'color', 'font-family', 'font-size',
+            'font-weight', 'text-align', 'line-height', 'vertical-align',
+            'flex', 'flex-direction', 'justify-content', 'align-items',
+            'grid', 'grid-template-columns', 'grid-gap',
+            'overflow', 'white-space', 'word-wrap', 'text-overflow',
+            'box-sizing', 'z-index', 'opacity', 'transform'
+          ];
+          
+          stylesToCapture.forEach(prop => {
+            const value = computed.getPropertyValue(prop);
+            if (value && value !== 'none' && value !== 'normal') {
+              computedStyles[prop] = value;
+            }
+          });
+        }
+
+        // ✅ Preserve ALL component data
+        const preservedData = {
+          html: fullHTML,
+          type: component.get('type'),
+          tagName: component.get('tagName'),
+          attributes: JSON.parse(JSON.stringify(component.getAttributes() || {})),
+          classes: [...(component.getClasses() || [])],
+          style: JSON.parse(JSON.stringify(component.getStyle() || {})),
+          computedStyles: computedStyles,
+          content: component.get('content'),
+          traits: component.get('traits') || [],
+          script: component.get('script'),
+          name: component.get('name'),
+          draggable: component.get('draggable'),
+          droppable: component.get('droppable'),
+          copyable: component.get('copyable'),
+          resizable: component.get('resizable'),
+          editable: component.get('editable'),
+          selectable: component.get('selectable'),
+          hoverable: component.get('hoverable'),
+          highlightable: component.get('highlightable'),
+          void: component.get('void')
+        };
+
+        console.log(`📋 Preserved data for component ${index}:`, preservedData);
+
+        // ✅ Remove from source (this will clean up empty divs)
+        const parent = component.parent();
+        component.remove();
+        
+        // ✅ Clean up parent if it's now empty
+        if (parent && parent.components().length === 0) {
+          const parentEl = parent.getEl();
+          if (parentEl && parentEl.innerHTML.trim() === '') {
+            console.log('🗑️ Removing empty parent container');
+            parent.remove();
+          }
+        }
+
+        // Force DOM reflow
+        const el = targetContentArea.getEl();
+        if (el) el.offsetHeight;
+
+        // ✅ Method 1: Try to use the cloned component first
+        try {
+          targetContentArea.components().add(clonedComponent, { at: 0 });
+          moved++;
+          console.log(`✅ Moved cloned component ${index}`);
+          continue;
+        } catch (cloneError) {
+          console.warn('⚠️ Clone method failed, using HTML reconstruction:', cloneError);
+        }
+
+        // ✅ Method 2: Recreate from preserved HTML
+        try {
+          const newComponent = targetContentArea.append(preservedData.html)[0];
+          
+          if (newComponent) {
+            // Apply all preserved styles
+            const combinedStyles = {
+              ...preservedData.computedStyles,
+              ...preservedData.style
+            };
+            newComponent.setStyle(combinedStyles);
+            
+            // Restore attributes
+            if (preservedData.attributes) {
+              Object.keys(preservedData.attributes).forEach(key => {
+                newComponent.addAttributes({ [key]: preservedData.attributes[key] });
+              });
+            }
+            
+            // Restore classes
+            if (preservedData.classes && preservedData.classes.length > 0) {
+              newComponent.setClass(preservedData.classes);
+            }
+            
+            // Restore component properties
+            newComponent.set({
+              name: preservedData.name,
+              draggable: preservedData.draggable,
+              droppable: preservedData.droppable,
+              copyable: preservedData.copyable,
+              resizable: preservedData.resizable,
+              editable: preservedData.editable,
+              selectable: preservedData.selectable,
+              hoverable: preservedData.hoverable,
+              highlightable: preservedData.highlightable
+            });
+
+            moved++;
+            console.log(`✅ Moved reconstructed component ${index} with full styles`);
+          }
+        } catch (reconstructError) {
+          console.error(`❌ Failed to reconstruct component ${index}:`, reconstructError);
+        }
+
+      } catch (err) {
+        console.error(`❌ Error moving component ${index}:`, err);
+      }
+    }
+
+    // Reconnect observer
+    setTimeout(() => this.setupPageObserver(targetPageIndex), 400);
+
+    console.log(`✅ Moved ${moved} component(s) to page ${targetPageIndex} with complete style preservation`);
+    return moved > 0;
+
+  } catch (error) {
+    console.error(`❌ moveComponentsToPage failed:`, error);
+    return false;
   }
+}
 
   getAccurateComponentHeight(element) {
     if (!element) return 0;
@@ -1358,179 +1579,201 @@ _splitLongTextNode(fullText, containerEl, availableSpace) {
     this.debounceTimers.clear();
   }
 
-  setupPageObserver(pageIndex) { 
-    console.log('setupPageObserver ====');
-    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-    if (!pageComponent) {
-        console.warn(`❌ Page component not found for index ${pageIndex}`);
-        return;
+setupPageObserver(pageIndex) {
+  console.log('🟢 setupPageObserver:', pageIndex);
+
+  // 🔹 Step 1: Locate the page component and main content area
+  const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
+  if (!pageComponent) return console.warn(`❌ Page component not found for index ${pageIndex}`);
+
+  const contentArea = pageComponent.find('.main-content-area')[0];
+  if (!contentArea) return console.warn(`❌ .main-content-area not found in page ${pageIndex}`);
+
+  // Always attach observer to .main-content-area
+  const contentEl = contentArea.getEl();
+  if (!contentEl) return console.warn(`❌ contentEl (DOM) not available for page ${pageIndex}`);
+
+  // 🔹 Step 2: Disconnect existing observer if any
+  if (this.pageObservers.has(pageIndex)) {
+    this.pageObservers.get(pageIndex).disconnect();
+  }
+
+  let lastContentHeight = contentEl.scrollHeight;
+
+  // 🔹 Step 3: Define MutationObserver
+  const observer = new MutationObserver((mutations) => {
+    const activeEl = document.activeElement;
+    const isEditing =
+      activeEl &&
+      (activeEl.isContentEditable || ['TEXTAREA', 'INPUT'].includes(activeEl.tagName));
+
+    if (isEditing) return; // Skip when user is typing/editing
+
+    // 🔹 Dynamically find the most relevant section container
+    const sectionsContainer = contentArea.components().find(c =>
+      c.getClasses().includes('sections-container')
+    );
+
+    let currentSectionContent = null;
+    if (sectionsContainer) {
+      currentSectionContent =
+        sectionsContainer.find('.section-content')[0] ||
+        sectionsContainer.components().find(c => c.get('name') === 'Content');
     }
 
-    const contentArea = pageComponent.find(".main-content-area")[0];
-    if (!contentArea) {
-        console.warn(`❌ .main-content-area not found in page ${pageIndex}`);
-        return;
+    // Target the best possible element for height calculation
+    const targetEl = currentSectionContent ? currentSectionContent.getEl() : contentEl;
+    const currentHeight = targetEl.scrollHeight;
+    const heightDiff = Math.abs(currentHeight - lastContentHeight);
+
+    console.log(heightDiff, 'heightDiff');
+    console.log(currentSectionContent, 'sectionContent');
+    console.log(contentArea, 'contentArea');
+
+    // Ignore small changes
+    if (heightDiff < 20) return;
+
+    lastContentHeight = currentHeight;
+
+    // Detect DOM structure changes
+    const hasDOMChange = mutations.some(m =>
+      m.type === 'childList' && (m.addedNodes.length || m.removedNodes.length)
+    );
+    if (!hasDOMChange) return;
+
+    // 🔹 Debounce pagination triggers
+    if (this.debounceTimers.has(pageIndex)) {
+      clearTimeout(this.debounceTimers.get(pageIndex));
     }
 
-    const contentEl = contentArea.getEl();
-    if (!contentEl) {
-        console.warn(`❌ contentEl (DOM) not available for page ${pageIndex}`);
-        return;
-    }
+    const timer = setTimeout(() => {
+      if (this.paginationInProgress) return;
 
-    // Existing observer ko disconnect karein
-    if (this.pageObservers.has(pageIndex)) {
-        this.pageObservers.get(pageIndex).disconnect();
-    }
+      observer.disconnect(); // Pause observer during pagination
+      console.log('handleAutoPagination call');
+      this.handleAutoPagination(pageIndex);
 
-    let lastContentHeight = contentEl.scrollHeight;
-
-    const observer = new MutationObserver((mutations) => {
-        // Check if user is actively editing
-        const activeElement = document.activeElement;
-        const isEditingText = activeElement && (
-            activeElement.isContentEditable ||
-            activeElement.tagName === 'TEXTAREA' ||
-            activeElement.tagName === 'INPUT'
-        );
-
-        if (isEditingText) {
-            return;
+      // Reconnect after short delay
+      setTimeout(() => {
+        const obs = this.pageObservers.get(pageIndex);
+        if (obs) {
+          obs.observe(contentEl, { childList: true, subtree: true });
         }
+      }, 500);
+    }, 500);
 
-        // Check if height actually changed significantly
-        const currentHeight = contentEl.scrollHeight;
-        // ⚠️ CHANGE 1: Height threshold kam kiya
-        const heightChange = Math.abs(currentHeight - lastContentHeight);
+    this.debounceTimers.set(pageIndex, timer);
+  });
 
-        if (heightChange < 20) { 
-            return;
-        }
+  // 🔹 Step 4: Start observing
+  observer.observe(contentEl, { childList: true, subtree: true });
 
-        lastContentHeight = currentHeight;
-
-        // Check if mutations are meaningful (childList change for component add/remove)
-        const meaningfulMutation = mutations.some(mutation => {
-            return (mutation.type === 'childList' &&
-                    (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0));
-        });
-
-        if (!meaningfulMutation) {
-            return;
-        }
-
-        // Clear existing debounce timer
-        if (this.debounceTimers.has(pageIndex)) {
-            clearTimeout(this.debounceTimers.get(pageIndex));
-        }
-
-        // ⚠️ CHANGE 2: Debounce timer ko 3000ms se 500ms tak kam kiya
-        const timer = setTimeout(() => {
-            if (!this.paginationInProgress) {
-                // ⚠️ CRITICAL FIX: Mutation observer ko disconnect karein
-                // jab hum pagination process shuru kar rahe hon
-                observer.disconnect();
-
-                // Pagination shuru karein
-                this.handleAutoPagination(pageIndex);
-                
-                // Pagination khatam hone ke baad, thoda delay dekar observer ko phir se connect karein
-                // Note: Agar handleAutoPagination cascading chala raha hai, toh yeh observer
-                // uske baad hi phir se active hona chahiye.
-                setTimeout(() => {
-                    if (this.pageObservers.has(pageIndex)) {
-                        this.pageObservers.get(pageIndex).observe(contentEl, {
-                            childList: true,
-                            subtree: true,
-                            characterData: false, 
-                            attributes: false
-                        });
-                    }
-                }, 500); // 500ms baad reconnect
-
-            }
-        }, 500); // Debounce: 500ms
-        
-        this.debounceTimers.set(pageIndex, timer);
-    });
-
-    // Observer ko shuru karein
-    observer.observe(contentEl, {
-        childList: true,
-        subtree: true,
-        characterData: false, 
-        attributes: false
-    });
-
-    this.pageObservers.set(pageIndex, observer);
+  this.pageObservers.set(pageIndex, observer);
 }
 
-  checkPageForOverflow(pageIndex) {
-    this.handlePageBreak(pageIndex);
+checkPageForOverflow(pageIndex) {
+  debugger;
+  console.log('🟢 checkPageForOverflow:', pageIndex);
 
-    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-    if (!pageComponent) return;
+  // Run basic page break handler first
+  this.handlePageBreak(pageIndex);
 
-    const contentArea = pageComponent.find(".main-content-area")[0];
-    if (!contentArea) return;
+  // 🔹 Step 1: Locate page and content area
+  const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
+  if (!pageComponent) return;
 
-    // Check for sections structure
-    const sectionsContainer = contentArea.find('.sections-container')[0];
-    let targetArea = contentArea;
-    let maxHeight = contentArea.getEl().clientHeight;
+  const contentArea = pageComponent.find('.main-content-area')[0];
+  if (!contentArea) return;
 
-    if (sectionsContainer) {
-      const sectionContent = sectionsContainer.components().find(c => c.get('name') === 'Content');
+  // 🔹 Step 2: Default setup
+  let targetArea = contentArea;
+  let maxHeight = contentArea.getEl().clientHeight;
 
-      if (sectionContent) {
-        targetArea = sectionContent;
+  // ✅ NEW: Check for conditional break FIRST
+  const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
+  let conditionalBreakPosition = null;
 
-        // Calculate available height
-        const mainContentHeight = contentArea.getEl().clientHeight;
-        const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
-        const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
+  if (conditionalBreakSettings?.enabled) {
+    const distanceInMm = this.convertToMm(
+      conditionalBreakSettings.distance,
+      conditionalBreakSettings.unit
+    );
+    const mmToPx = 96 / 25.4;
+    const distanceInPx = Math.round(distanceInMm * mmToPx);
+    conditionalBreakPosition = maxHeight - distanceInPx;
+  }
 
-        let headerHeight = 0;
-        let footerHeight = 0;
+  // 🔹 Step 3: Handle section-based layout
+  const sectionsContainer = contentArea.find('.sections-container')[0];
+  if (sectionsContainer) {
+    // Try to find `.section-content` first
+    let sectionContent =
+      sectionsContainer.find('.section-content')[0] ||
+      sectionsContainer.components().find(c => c.get('name') === 'Content');
 
-        if (headerComp && headerComp.getEl()) {
-          headerHeight = this.getAccurateComponentHeight(headerComp.getEl());
-        }
+    // If found, adjust target and maxHeight based on header/footer
+    if (sectionContent) {
+      targetArea = sectionContent;
 
-        if (footerComp && footerComp.getEl()) {
-          footerHeight = this.getAccurateComponentHeight(footerComp.getEl());
-        }
+      const mainContentHeight = contentArea.getEl().clientHeight;
+      const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
+      const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
 
-        maxHeight = mainContentHeight - headerHeight - footerHeight - 40;
+      let headerHeight = 0;
+      let footerHeight = 0;
+
+      if (headerComp?.getEl()) {
+        headerHeight = this.getAccurateComponentHeight(headerComp.getEl());
+      }
+
+      if (footerComp?.getEl()) {
+        footerHeight = this.getAccurateComponentHeight(footerComp.getEl());
+      }
+
+      // Subtract header/footer and padding
+      maxHeight = mainContentHeight - headerHeight - footerHeight - 40;
+
+      // ✅ Apply conditional break to section content
+      if (conditionalBreakPosition !== null) {
+        maxHeight = Math.min(maxHeight, conditionalBreakPosition);
+        console.log(`📏 Section content max height: ${maxHeight}px (conditional break applied)`);
       }
     }
-
-    const contentEl = targetArea.getEl();
-    if (!contentEl) return;
-
-    // Force layout recalculation
-    contentEl.offsetHeight;
-
-    const contentHeight = contentEl.scrollHeight;
-
-    // Check for overflow
-    const hasScrollOverflow = contentHeight > maxHeight;
-    const hasVisualOverflow = this.checkDeepVisualOverflow(contentEl, maxHeight);
-    const hasTextOverflow = this.checkTextOverflow(contentEl);
-
-   
-
-    const needsPagination =
-      contentHeight > maxHeight ||
-      hasScrollOverflow ||
-      hasVisualOverflow ||
-      hasTextOverflow;
-
-    if (needsPagination) {
-      setTimeout(() => this.handleAutoPagination(pageIndex), 100);
-    } else {
-    }
+  } else if (conditionalBreakPosition !== null) {
+    // ✅ Apply conditional break to main content
+    maxHeight = Math.min(maxHeight, conditionalBreakPosition);
+    console.log(`📏 Main content max height: ${maxHeight}px (conditional break applied)`);
   }
+
+  // 🔹 Step 4: Target DOM element for measurement
+  const contentEl = targetArea.getEl();
+  if (!contentEl) return;
+
+  // Force browser layout recalculation
+  contentEl.offsetHeight;
+
+  const contentHeight = contentEl.scrollHeight;
+
+  // 🔹 Step 5: Check overflow conditions
+  const hasScrollOverflow = contentHeight > maxHeight;
+  const hasVisualOverflow = this.checkDeepVisualOverflow(contentEl, maxHeight);
+  const hasTextOverflow = this.checkTextOverflow(contentEl);
+
+  const needsPagination =
+    contentHeight > maxHeight ||
+    hasScrollOverflow ||
+    hasVisualOverflow ||
+    hasTextOverflow;
+
+  // 🔹 Step 6: Trigger pagination if needed
+  if (needsPagination) {
+    console.log(`📄 Overflow detected on page ${pageIndex}, triggering pagination...`);
+    setTimeout(() => this.handleAutoPagination(pageIndex), 100);
+  } else {
+    console.log(`✅ No overflow on page ${pageIndex}`);
+  }
+}
+
 
   checkDeepVisualOverflow(container, maxHeight) {
     const containerRect = container.getBoundingClientRect();
@@ -1555,7 +1798,7 @@ _splitLongTextNode(fullText, containerEl, availableSpace) {
     }
     return false;
   }
-triggerPaginationCheck() {
+  triggerPaginationCheck() {
     console.log("🔧 Manual pagination check triggered");
 
     // Reset pagination flag to ensure it's not stuck
@@ -1572,7 +1815,7 @@ triggerPaginationCheck() {
     }, 200);
   }
 
-   checkForContentChanges() {
+  checkForContentChanges() {
     for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
       const pageComponent = this.editor.getWrapper().find(`[data-page-index="${i}"]`)[0];
       if (!pageComponent) continue;
@@ -1601,7 +1844,7 @@ triggerPaginationCheck() {
         Math.abs(lastSnapshot.textLength - currentSnapshot.textLength) > 50;
 
       if (hasSignificantChange) {
-       
+
 
         // Update snapshot
         this.lastContentSnapshot.set(i, currentSnapshot);
@@ -2409,7 +2652,7 @@ triggerPaginationCheck() {
         this.setupDragBoundaries()
       }
     })
-    
+
   }
 
   enforceContentBoundaries() {
@@ -3445,6 +3688,24 @@ padding: 8px;
           grid-template-columns: 1fr 1fr;
           gap: 15px;
         }
+/* Conditional Break Indicator */
+.conditional-break-indicator {
+  position: absolute !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  z-index: 999 !important;
+}
+
+.conditional-break-indicator span {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+@media print {
+  .conditional-break-indicator {
+    display: none !important;
+  }
+}}
       </style>
     `
 
@@ -4477,7 +4738,30 @@ padding: 8px;
           </div>
         </div>
       </div>
-
+<div class="page-setup-section">
+  <h3>✂️ Conditional Page Break Settings</h3>
+  <div class="page-setup-row">
+    <label>
+      <input type="checkbox" id="conditionalPageBreakEnabled" ${this.pageSettings.conditionalPageBreak?.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Conditional Page Break
+    </label>
+  </div>
+  <div id="conditionalPageBreakControls" class="page-numbering-controls ${this.pageSettings.conditionalPageBreak?.enabled ? "active" : ""}">
+    <div class="page-setup-row">
+      <label class="page-setup-label">Distance from Bottom:</label>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <input type="number" id="conditionalBreakDistance" class="page-setup-control" value="${this.pageSettings.conditionalPageBreak?.distance || 50}" min="1" max="200" step="0.1" style="flex: 1;">
+        <select id="conditionalBreakUnit" class="page-setup-control" style="width: 80px;">
+          <option value="mm" ${(this.pageSettings.conditionalPageBreak?.unit || 'mm') === 'mm' ? 'selected' : ''}>mm</option>
+          <option value="cm" ${this.pageSettings.conditionalPageBreak?.unit === 'cm' ? 'selected' : ''}>cm</option>
+          <option value="inch" ${this.pageSettings.conditionalPageBreak?.unit === 'inch' ? 'selected' : ''}>inch</option>
+        </select>
+      </div>
+    </div>
+    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+      An automatic page break will be inserted at the specified distance from the bottom of each page. Content below this line will automatically move to the next page.
+    </p>
+  </div>
+</div>
       <div class="page-setup-section">
         <h3>🗑️ Page Management</h3>
         <div class="page-setup-row">
@@ -5299,6 +5583,39 @@ padding: 8px;
         this.applyFormatAndOrientationChange();
       });
     }
+    // === Conditional Page Break Listeners ===
+const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled");
+const conditionalBreakControls = document.getElementById("conditionalPageBreakControls");
+
+if (conditionalBreakEnabled && conditionalBreakControls) {
+  conditionalBreakEnabled.addEventListener("change", (e) => {
+    if (!this.pageSettings.conditionalPageBreak) {
+      this.pageSettings.conditionalPageBreak = {};
+    }
+    this.pageSettings.conditionalPageBreak.enabled = e.target.checked;
+    conditionalBreakControls.style.display = e.target.checked ? "block" : "none";
+  });
+}
+
+const conditionalBreakDistance = document.getElementById("conditionalBreakDistance");
+if (conditionalBreakDistance) {
+  conditionalBreakDistance.addEventListener("input", (e) => {
+    if (!this.pageSettings.conditionalPageBreak) {
+      this.pageSettings.conditionalPageBreak = {};
+    }
+    this.pageSettings.conditionalPageBreak.distance = parseFloat(e.target.value);
+  });
+}
+
+const conditionalBreakUnit = document.getElementById("conditionalBreakUnit");
+if (conditionalBreakUnit) {
+  conditionalBreakUnit.addEventListener("change", (e) => {
+    if (!this.pageSettings.conditionalPageBreak) {
+      this.pageSettings.conditionalPageBreak = {};
+    }
+    this.pageSettings.conditionalPageBreak.unit = e.target.value;
+  });
+}
   }
 
 
@@ -5364,7 +5681,10 @@ padding: 8px;
       const headerCustomPages = this.parsePageList(headerCustomPageList);
       const footerCustomPages = this.parsePageList(footerCustomPageList);
 
-     
+// --- Conditional Page Break settings ---
+const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled")?.checked || false;
+const conditionalBreakDistance = parseFloat(document.getElementById("conditionalBreakDistance")?.value) || 50;
+const conditionalBreakUnit = document.getElementById("conditionalBreakUnit")?.value || "mm";
 
       // --- Store settings for persistence ---
       this._lastHeaderApplyMode = headerApplyMode;
@@ -5433,6 +5753,21 @@ padding: 8px;
         }
       };
 
+
+this.pageSettings.conditionalPageBreak = {
+  enabled: conditionalBreakEnabled,
+  distance: conditionalBreakDistance,
+  unit: conditionalBreakUnit
+};
+
+// Apply conditional page breaks to existing pages
+if (conditionalBreakEnabled) {
+  setTimeout(() => {
+    this.insertConditionalPageBreaksToAllPages();
+  }, 500);
+} else {
+  this.removeAllConditionalPageBreaks();
+}
       // --- Update individual page settings before setup ---
       this.updateIndividualPageSettings();
 
@@ -5471,6 +5806,142 @@ padding: 8px;
     }
   }
 
+convertToMm(value, unit) {
+  switch(unit) {
+    case 'cm':
+      return value * 10;
+    case 'inch':
+      return value * 25.4;
+    case 'mm':
+    default:
+      return value;
+  }
+}
+insertConditionalPageBreaksToAllPages() {
+  if (!this.pageSettings.conditionalPageBreak?.enabled) {
+    return;
+  }
+
+  const allPages = this.editor.getWrapper().find('.page-container');
+  
+  allPages.forEach((pageComponent, index) => {
+    this.insertConditionalPageBreakToPage(pageComponent, index);
+  });
+  
+  console.log('✂️ Conditional page breaks inserted to all pages');
+}
+insertConditionalPageBreakToPage(pageComponent, pageIndex) {
+  if (!this.pageSettings.conditionalPageBreak?.enabled) return;
+
+  const mainContentArea = pageComponent.find('.main-content-area')[0];
+  if (!mainContentArea) return;
+
+  // Remove ONLY existing conditional page breaks (not manual ones)
+  const existingConditionalBreaks = mainContentArea.find('.page-break[data-conditional="true"]');
+  existingConditionalBreaks.forEach(br => br.remove());
+
+  const distance = this.pageSettings.conditionalPageBreak.distance;
+  const unit = this.pageSettings.conditionalPageBreak.unit;
+  const distanceInMm = this.convertToMm(distance, unit);
+  
+  // Convert mm to px
+  const mmToPx = 96 / 25.4;
+  const distanceInPx = Math.round(distanceInMm * mmToPx);
+  
+  // Get main content area height
+  const contentEl = mainContentArea.getEl();
+  if (!contentEl) return;
+  
+  const contentHeight = contentEl.clientHeight;
+  const breakPosition = contentHeight - distanceInPx;
+  
+  // Don't insert if position is invalid
+  if (breakPosition <= 0 || breakPosition >= contentHeight) {
+    console.warn(`⚠️ Invalid conditional break position for page ${pageIndex + 1}`);
+    return;
+  }
+
+  // Check if there's already a MANUAL page break
+  const allBreaks = mainContentArea.find('.page-break:not([data-conditional="true"])');
+  if (allBreaks.length > 0) {
+    console.log(`⏭️ Skipping conditional break on page ${pageIndex + 1} - manual break already exists`);
+    return;
+  }
+
+  // Insert VISUAL INDICATOR ONLY - not an actual breaking element
+  const visualIndicatorHTML = `
+    <div class="conditional-break-indicator" 
+         data-conditional="true"
+         style="
+           position: absolute;
+           bottom: ${distanceInPx}px;
+           left: 0;
+           right: 0;
+           height: 2px;
+           border-top: 2px dashed #ff6b6b;
+           z-index: 999;
+           pointer-events: none;
+           background: rgba(255, 107, 107, 0.05);
+         ">
+      <span style="
+        position: absolute;
+        right: 0;
+        top: -20px;
+        background: #ff6b6b;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        z-index: 100;
+        white-space: nowrap;
+      ">Auto Break Zone: ${distance}${unit} from bottom</span>
+    </div>
+  `;
+
+  // Add to page-content, not main-content-area
+  const pageContent = pageComponent.find('.page-content')[0];
+  if (!pageContent) return;
+
+  const indicatorComponent = pageContent.append(visualIndicatorHTML)[0];
+  
+  if (indicatorComponent) {
+    indicatorComponent.set({
+      selectable: false,
+      editable: false,
+      removable: false,
+      draggable: false,
+      copyable: false,
+      attributes: {
+        'data-conditional': 'true'
+      }
+    });
+
+    console.log(`📏 Conditional break indicator added at ${distanceInPx}px from bottom on page ${pageIndex + 1}`);
+  }
+}
+
+removeAllConditionalPageBreaks() {
+  const allPages = this.editor.getWrapper().find('.page-container');
+  
+  allPages.forEach(pageComponent => {
+    // Remove from page-content (visual indicators)
+    const pageContent = pageComponent.find('.page-content')[0];
+    if (pageContent) {
+      const conditionalIndicators = pageContent.find('.conditional-break-indicator[data-conditional="true"]');
+      conditionalIndicators.forEach(ind => ind.remove());
+    }
+    
+    // Also check main-content-area (in case any were added there)
+    const mainContentArea = pageComponent.find('.main-content-area')[0];
+    if (mainContentArea) {
+      const conditionalBreaks = mainContentArea.find('[data-conditional="true"]');
+      conditionalBreaks.forEach(br => br.remove());
+    }
+  });
+  
+  console.log('🗑️ All conditional break indicators removed');
+}
 
   populatePageSettingsForm() {
     const watermark = this.pageSettings?.watermark || {};
@@ -5608,7 +6079,7 @@ padding: 8px;
       const headerCustomPages = this._lastHeaderCustomPages || [];
       const footerCustomPages = this._lastFooterCustomPages || [];
 
-     
+
 
       for (let i = 0; i < this.pageSettings.pages.length; i++) {
         const pageSettings = this.pageSettings.pages[i];
@@ -5660,7 +6131,7 @@ padding: 8px;
         pageSettings.header.shouldShowContent = shouldShowHeaderContent;
         pageSettings.footer.shouldShowContent = shouldShowFooterContent;
 
-        
+
       }
 
     } catch (error) {
@@ -5815,7 +6286,7 @@ padding: 8px;
     this.editor.Modal.close()
 
   }
- startContentMonitoring() {
+  startContentMonitoring() {
     // Clear any existing monitoring
     if (this.contentCheckInterval) {
       clearInterval(this.contentCheckInterval);
@@ -6091,12 +6562,12 @@ padding: 8px;
       // Restore content after structure is ready
       setTimeout(() => {
         this.restoreAllContent();
-         this.startContentMonitoring();
+        this.startContentMonitoring();
 
         this.renderPageNumbers();
         this.setupStrictBoundaryEnforcement();
 
-      
+
       }, 100);
     } catch (error) {
       console.error("❌ Error setting up Word-style editor pages:", error);
@@ -6954,7 +7425,7 @@ padding: 8px;
       // IMAGE watermark
       if ((watermark.type === "image" || watermark.type === "both") && watermark.image.url) {
         const imagePosition = watermark.imagePosition || watermark.position || "center";
-       
+
 
         const absImgPos = getAbsolutePosition(imagePosition);
 
@@ -7384,7 +7855,7 @@ padding: 8px;
   }
 
 
- addNewPage() {
+  addNewPage() {
     if (!this.isInitialized) return null;
     try {
       // Prevent recursive pagination during page creation
@@ -7547,7 +8018,12 @@ padding: 8px;
         this.paginationInProgress = originalPaginationState;
         this.setupPageObserver(newPageIndex);
       }, 500);
-
+// Apply conditional page break to new page if enabled
+if (this.pageSettings.conditionalPageBreak?.enabled) {
+  setTimeout(() => {
+    this.insertConditionalPageBreakToPage(pageComponent, newPageIndex);
+  }, 500);
+}
       // ✅ RETURN THE COMPONENT, NOT SETTINGS
       return pageComponent;
     } catch (error) {

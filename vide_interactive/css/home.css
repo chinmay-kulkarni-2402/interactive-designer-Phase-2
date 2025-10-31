@@ -1790,6 +1790,7 @@ span.CodeMirror-selectedtext {
   left: 0;
   top: 0;
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
 }
 .i_designer-pn-options {
   right: 15%;

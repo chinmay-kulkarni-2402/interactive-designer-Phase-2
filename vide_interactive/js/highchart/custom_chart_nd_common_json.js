@@ -2139,7 +2139,7 @@ function customChartCommonJson(editor) {
             <div style="padding-bottom:10px">${displayFileNames}</div>
             <div> 
                 <input type="file" class="form-control popupinput2" 
-                       accept="application/json" multiple
+                       accept="application/json,.xml,.json" multiple
                        style="width:95%"  
                        name="importJsonInputFile" id="importJsonInputFile">
             </div>  
@@ -2150,24 +2150,143 @@ function customChartCommonJson(editor) {
         document.getElementById("import-input-json-file").addEventListener("click", importInputJsonFile, true);
     }
 
-    function importInputJsonFile() {
-        const input = document.getElementById('importJsonInputFile');
-        const files = input.files;
+function importInputJsonFile() {
+    const input = document.getElementById('importJsonInputFile');
+    const files = input.files;
 
-        if (files.length > 0) {
-            let processedCount = 0;
-            let newFileNames = [];
+    if (files.length > 0) {
+        let processedCount = 0;
+        let newFileNames = [];
 
-            // Load existing file list
-            let existingFileNames = localStorage.getItem('common_json_files');
-            let allFileNames = existingFileNames ? existingFileNames.split(',').map(f => f.trim()) : [];
+        // Load existing file list
+        let existingFileNames = localStorage.getItem('common_json_files');
+        let allFileNames = existingFileNames ? existingFileNames.split(',').map(f => f.trim()) : [];
 
+        // Load xml2js library dynamically if not already loaded
+        if (typeof window.X2JS === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/x2js/1.2.0/xml2json.min.js';
+            script.onload = function() {
+                processFiles();
+            };
+            document.head.appendChild(script);
+        } else {
+            processFiles();
+        }
+
+        function normalizeXMLtoJSON(obj, parentKey = '') {
+            // Handle null or undefined
+            if (obj === null || obj === undefined) {
+                return obj;
+            }
+            
+            // Handle arrays
+            if (Array.isArray(obj)) {
+                return obj.map(item => normalizeXMLtoJSON(item, parentKey));
+            }
+            
+            // Handle non-object types
+            if (typeof obj !== 'object') {
+                return obj;
+            }
+            
+            // Handle objects
+            const normalized = {};
+            
+            for (let key in obj) {
+                if (!obj.hasOwnProperty(key)) continue;
+                
+                const value = obj[key];
+                
+                // Special case: if the object only has 'item' key, unwrap it
+                if (key === 'item' && Object.keys(obj).length === 1) {
+                    return normalizeXMLtoJSON(value, key);
+                }
+                
+                // Handle different value types
+                if (value && typeof value === 'object') {
+                    // Check if this object wraps an array with 'item' property
+                    if (value.item !== undefined) {
+                        // Unwrap the item
+                        if (Array.isArray(value.item)) {
+                            normalized[key] = value.item.map(item => normalizeXMLtoJSON(item, key));
+                        } else {
+                            // Single item, make it an array
+                            normalized[key] = [normalizeXMLtoJSON(value.item, key)];
+                        }
+                    }
+                    // Check for special wrappers like 'level', 'row', 'header', 'cell'
+                    else if (value.level !== undefined) {
+                        if (Array.isArray(value.level)) {
+                            normalized[key] = value.level.map(level => normalizeXMLtoJSON(level, 'level'));
+                        } else {
+                            normalized[key] = [normalizeXMLtoJSON(value.level, 'level')];
+                        }
+                    }
+                    else if (value.row !== undefined) {
+                        if (Array.isArray(value.row)) {
+                            normalized[key] = value.row.map(row => normalizeXMLtoJSON(row, 'row'));
+                        } else {
+                            normalized[key] = [normalizeXMLtoJSON(value.row, 'row')];
+                        }
+                    }
+                    else if (value.header !== undefined) {
+                        if (Array.isArray(value.header)) {
+                            normalized[key] = value.header.map(header => normalizeXMLtoJSON(header, 'header'));
+                        } else {
+                            normalized[key] = [normalizeXMLtoJSON(value.header, 'header')];
+                        }
+                    }
+                    else if (value.cell !== undefined) {
+                        if (Array.isArray(value.cell)) {
+                            normalized[key] = value.cell.map(cell => normalizeXMLtoJSON(cell, 'cell'));
+                        } else {
+                            normalized[key] = [normalizeXMLtoJSON(value.cell, 'cell')];
+                        }
+                    }
+                    // Recursively process nested objects
+                    else if (Array.isArray(value)) {
+                        normalized[key] = value.map(item => normalizeXMLtoJSON(item, key));
+                    }
+                    else {
+                        normalized[key] = normalizeXMLtoJSON(value, key);
+                    }
+                } else {
+                    // Primitive value
+                    normalized[key] = value;
+                }
+            }
+            
+            return normalized;
+        }
+
+        function processFiles() {
             Array.from(files).forEach((file) => {
                 const reader = new FileReader();
+                const fileExtension = file.name.split('.').pop().toLowerCase();
 
                 reader.onload = function (e) {
                     try {
-                        let code = JSON.parse(e.target.result);
+                        let code;
+                        
+                        if (fileExtension === 'xml') {
+                            // Convert XML to JSON
+                            const x2js = new X2JS();
+                            const xmlDoc = new DOMParser().parseFromString(e.target.result, 'text/xml');
+                            const xmlJson = x2js.xml2json(xmlDoc);
+                            
+                            // Log for debugging
+                            console.log('Original XML to JSON:', JSON.stringify(xmlJson).substring(0, 500));
+                            
+                            // Normalize the structure to match JSON format
+                            code = normalizeXMLtoJSON(xmlJson);
+                            
+                            // Log normalized result
+                            console.log('Normalized JSON:', JSON.stringify(code).substring(0, 500));
+                        } else {
+                            // Parse JSON directly
+                            code = JSON.parse(e.target.result);
+                        }
 
                         // Save this file's JSON separately
                         localStorage.setItem(`common_json_${file.name}`, JSON.stringify(code));
@@ -2178,7 +2297,8 @@ function customChartCommonJson(editor) {
                         }
                         newFileNames.push(file.name);
                     } catch (err) {
-                        alert('Invalid JSON in file: ' + file.name);
+                        console.error('Error processing file:', file.name, err);
+                        alert('Invalid file format in: ' + file.name);
                     }
 
                     processedCount++;
@@ -2202,10 +2322,11 @@ function customChartCommonJson(editor) {
 
                 reader.readAsText(file);
             });
-        } else {
-            alert('No file selected');
         }
+    } else {
+        alert('No file selected');
     }
+}
 
     function getJsonFileOptions() {
         const storedFileNames = localStorage.getItem('common_json_files');

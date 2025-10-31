@@ -1,5 +1,5 @@
 
-const editor = InteractiveDesigner.init({
+window.editor = InteractiveDesigner.init({
   
   height: "100%",
   container: "#editor",
@@ -37,6 +37,8 @@ const editor = InteractiveDesigner.init({
     linkTrackerPlugin,
     backgroundMusic,
     customFlowColumns,
+   // initNotificationsPlugin,
+    subreportPlugin,
     "basic-block-component",
     "countdown-component",
     "forms-component",
@@ -183,9 +185,6 @@ function updateLayerName(component) {
       console.warn('Layer update failed:', err);
     }
 }
-
-
-
 
 let pageManager = null;
 let pageSetupManager = null;
@@ -337,7 +336,7 @@ editor.Commands.add("open-modal", {
     let fileNameSaved = [];      // array of { key, indexes }
     let passwordSaved = [];      // array of { key, indexes }
     let passwordCustom = "";     // string if custom password
-    uploadedJsonFiles = []; // Array of { name, content, fromLocal }
+    uploadedJsonFiles = [];      // Array of { name, content, fromLocal }
 
 
 
@@ -2541,6 +2540,38 @@ async function generatePrintDialog() {
       .map((url) => `<script src="${url}" defer></script>`)
       .join("\n");
 
+      // --- Handle Subreport Embedding ---
+const subreports = tempDiv.querySelectorAll('.subreport-container');
+for (const sub of subreports) {
+  const src = sub.getAttribute('data-subreport-src');
+  if (src) {
+    try {
+      const res = await fetch(src);
+      const subHtml = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(subHtml, 'text/html');
+
+      // Remove any duplicate <html>/<body>
+      const subContent = doc.body ? doc.body.innerHTML : subHtml;
+
+      // Optional: Add subreport boundary for visual clarity
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('embedded-subreport');
+      wrapper.innerHTML = subContent;
+
+      // Merge header/footer logic placeholder
+      if (sub.getAttribute('data-merge-header-footer') === 'true') {
+        // You can inject or align header/footer from main report here
+      }
+
+      sub.innerHTML = wrapper.outerHTML;
+    } catch (err) {
+      console.warn('⚠️ Subreport Load Failed:', src, err);
+      sub.innerHTML = `<div style="color:red;">Failed to embed subreport (${src})</div>`;
+    }
+  }
+}
+
     // Combine everything into full HTML
     const finalHtml = `
       <!DOCTYPE html>
@@ -2872,7 +2903,7 @@ function importSinglePages() {
   editor.Modal.setTitle('Add Page Name');
   editor.Modal.setContent(`<div class="new-table-form">
   <div> 
-      <input type="file" class="form-control popupinput2" value="" accept="application/json" placeholder="Enter page name" style="width:95%"  name="importSinglePageInput" id="importSinglePageInput">
+      <input type="file" class="form-control popupinput2" value="" accept="application/html" placeholder="Enter page name" style="width:95%"  name="importSinglePageInput" id="importSinglePageInput">
   </div>  
   <input id="import-single-file" class="popupaddbtn" type="button" value="Add" data-component-id="c1006">
   </div>

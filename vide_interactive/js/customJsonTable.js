@@ -108,16 +108,6 @@ function jsontablecustom(editor) {
 
                     if (shouldHighlight) {
                         // Apply all highlight styles
-                        const bgColor = highlightColor || '#ffff99';
-                        const textColor = conditions[0].textColor || '';
-                        const fontFamily = conditions[0].fontFamily || '';
-                        const fontSize = conditions[0].fontSize || '';
-
-                        td.style.backgroundColor = bgColor;
-                        td.style.border = '1px solid #000';
-                        if (textColor) td.style.color = textColor;
-                        if (fontFamily) td.style.fontFamily = fontFamily;
-                        if (fontSize) td.style.fontSize = fontSize + 'px';
                         td.setAttribute('data-highlighted', 'true');
 
                         const id = td.id;
@@ -128,9 +118,6 @@ function jsontablecustom(editor) {
                                     'background-color': bgColor,
                                     'border': '1px solid #000',
                                     'box-sizing': 'border-box',
-                                    '-webkit-print-color-adjust': 'exact',
-                                    'color-adjust': 'exact',
-                                    'print-color-adjust': 'exact'
                                 };
                                 if (textColor) styles.color = textColor;
                                 if (fontFamily) styles['font-family'] = fontFamily;
@@ -417,7 +404,7 @@ function jsontablecustom(editor) {
                 'top-n': 'none',
                 'define-named-group': false,
                 'summarize-group': false,
-                'page-break-after-group': false,
+                'page-break': false,
                 'summary-percentage': 'none',
                 'merge-group-cells': false,
                 'group-header-inplace': true,
@@ -655,68 +642,46 @@ function jsontablecustom(editor) {
                 const rgbBorder = hexToRgb(borderColor);
                 const borderColorWithOpacity = `rgba(${rgbBorder.r}, ${rgbBorder.g}, ${rgbBorder.b}, ${opacity})`;
 
-                // Apply to table
-                tableElement.style.backgroundColor = bgColor;
-                tableElement.style.borderCollapse = 'collapse';
-
-                // Apply to all cells in DOM
-                const allCells = tableElement.querySelectorAll('td, th');
-                allCells.forEach(cell => {
-                    cell.style.border = `${borderWidth}px ${borderStyle} ${borderColorWithOpacity}`;
-                    cell.style.color = textColor;
-                    cell.style.fontFamily = fontFamily;
-                    cell.style.backgroundColor = bgColor;
-
-                    // Apply alignment to the div inside cell
-                    const cellContent = cell.querySelector('div');
-                    if (cellContent) {
-                        cellContent.style.textAlign = textAlign;
-                        cellContent.style.verticalAlign = verticalAlign;
-                        cellContent.style.display = 'flex';
-                        cellContent.style.alignItems = verticalAlign === 'top' ? 'flex-start' :
-                            verticalAlign === 'bottom' ? 'flex-end' : 'center';
-                        cellContent.style.justifyContent = textAlign === 'left' ? 'flex-start' :
-                            textAlign === 'right' ? 'flex-end' : 'center';
-                        cellContent.style.minHeight = '100%';
-                    }
-                });
-
-                // Apply to GrapesJS components - this ensures styles persist
+                // Apply to GrapesJS components directly
                 const wrapper = editor.DomComponents.getWrapper();
                 const tableComp = wrapper.find(`#${tableId}`)[0];
+
                 if (tableComp) {
+                    // Apply styles to table component
                     tableComp.addStyle({
                         'background-color': bgColor,
-                        '-webkit-print-color-adjust': 'exact',
-                        'print-color-adjust': 'exact'
+                        'border-collapse': 'collapse',
                     });
 
+                    // Find all cell components (td, th)
                     const cells = tableComp.find('td, th');
                     cells.forEach(cellComp => {
-                        const cellId = cellComp.getId();
+                        // Determine border style - handle "none" option
+                        const borderValue = borderStyle === 'none' ? 'none' : `${borderWidth}px ${borderStyle} ${borderColorWithOpacity}`;
 
                         // Apply styles to cell component
                         cellComp.addStyle({
-                            'border': `${borderWidth}px ${borderStyle} ${borderColorWithOpacity}`,
+                            'border': borderValue,
                             'color': textColor,
                             'font-family': fontFamily,
                             'background-color': bgColor,
-                            '-webkit-print-color-adjust': 'exact',
-                            'print-color-adjust': 'exact'
+                            'padding': '8px',
+                            'vertical-align': verticalAlign,
+                            'text-align': textAlign,
                         });
 
-                        // Apply alignment to the div inside
-                        const divComp = cellComp.find('div')[0];
-                        if (divComp) {
-                            divComp.addStyle({
-                                'text-align': textAlign,
+                        // Apply alignment to cell content div for proper vertical centering
+                        const cellContent = cellComp.find('div')[0] || cellComp.find('.cell-content')[0];
+                        if (cellContent) {
+                            cellContent.addStyle({
                                 'display': 'flex',
                                 'align-items': verticalAlign === 'top' ? 'flex-start' :
                                     verticalAlign === 'bottom' ? 'flex-end' : 'center',
                                 'justify-content': textAlign === 'left' ? 'flex-start' :
                                     textAlign === 'right' ? 'flex-end' : 'center',
                                 'min-height': '100%',
-                                'width': '100%'
+                                'width': '100%',
+                                'box-sizing': 'border-box',
                             });
                         }
                     });
@@ -1523,15 +1488,13 @@ function jsontablecustom(editor) {
                         headerRowComponent.components().add({
                             type: 'json-table-cell',
                             tagName: 'th',
-                            content: `<div style="${alignStyles}">${header.value || ''}</div>`,
+                            content: header.value || '',
                             selectable: true,
                             attributes,
                             style: {
                                 ...cellStyles,
                                 'padding': '8px',
                                 'text-align': 'center',
-                                '-webkit-print-color-adjust': 'exact',
-                                'print-color-adjust': 'exact'
                             }
                         });
                     });
@@ -1571,7 +1534,7 @@ function jsontablecustom(editor) {
                         rowComponent.components().add({
                             type: 'json-table-cell',
                             tagName: 'th',
-                            content: `<div>${header.value || ''}</div>`,
+                            content: header.value || '',
                             selectable: true,
                             attributes,
                             style: {
@@ -1589,7 +1552,7 @@ function jsontablecustom(editor) {
                         rowComponent.components().add({
                             type: 'json-table-cell',
                             tagName: 'td',
-                            content: `<div style="text-align: left;">${cellValue}</div>`,
+                            content: cellValue,
                             selectable: true,
                             attributes: {
                                 id: cellId,
@@ -1803,10 +1766,7 @@ function jsontablecustom(editor) {
                 const cellElement = canvasDoc.getElementById(cellId);
 
                 if (cellElement) {
-                    const cellContent = cellElement.querySelector('div');
-                    if (cellContent) {
-                        cellContent.textContent = newValue;
-                    }
+                    cellElement.textContent = newValue;
 
                     // Update DataTable cell if it exists
                     if (canvasDoc.defaultView.$ && canvasDoc.defaultView.$.fn.DataTable.isDataTable(`#${tableId}`)) {
@@ -1859,10 +1819,7 @@ function jsontablecustom(editor) {
                 const headerElement = canvasDoc.getElementById(headerId);
 
                 if (headerElement) {
-                    const headerContent = headerElement.querySelector('div');
-                    if (headerContent) {
-                        headerContent.textContent = newValue;
-                    }
+                    headerElement.textContent = newValue;
                 }
             },
 
@@ -2080,9 +2037,6 @@ function jsontablecustom(editor) {
                 if (!isCrosstab && footer === 'yes') {
                     this.addTableFooter(tableComponent, headers);
                 }
-
-                // Add styles component
-                this.addStylesComponent(wrapperComponent);
 
                 // Add DataTables initialization script AFTER the GrapesJS components are created
                 const datatableScript = this.createDataTableScript(tableId, pagination, pageLength, search, fileDownload, Object.keys(headers).length);
@@ -2652,18 +2606,8 @@ function jsontablecustom(editor) {
 
                 cellElement.setAttribute('data-formula-enabled', 'true');
 
-                const cellContent = cellElement.querySelector('div') || (() => {
-                    // If no div exists, create one and move content into it
-                    const existingContent = cellElement.textContent;
-                    cellElement.innerHTML = '';
-                    const newDiv = document.createElement('div');
-                    newDiv.className = 'cell-content';
-                    newDiv.textContent = existingContent;
-                    cellElement.appendChild(newDiv);
-                    return newDiv;
-                })();
-
-                cellContent.contentEditable = 'true';
+                cellElement.contentEditable = 'true';
+                const cellContent = cellElement; // Use the cell itself instead of a div
 
                 const handleFocus = () => {
                     const formula = cellElement.getAttribute('data-formula');
@@ -2782,20 +2726,6 @@ function jsontablecustom(editor) {
                             this.updateCellData(parseInt(rowIndex), columnKey, val);
                         }
                     }
-
-                    setTimeout(() => {
-                        if (!cellElement.querySelector('div')) {
-                            const newDiv = document.createElement('div');
-                            newDiv.textContent = cellContent.textContent || val;
-                            newDiv.contentEditable = 'true';
-                            newDiv.className = 'cell-content';
-                            cellElement.innerHTML = '';
-                            cellElement.appendChild(newDiv);
-                        } else {
-                            const existingDiv = cellElement.querySelector('div');
-                            existingDiv.contentEditable = 'true';
-                        }
-                    }, 10);
                 };
 
                 // Rest of the function remains the same...
@@ -3033,8 +2963,6 @@ function jsontablecustom(editor) {
                         'color': tableStyles.textColor,
                         'font-family': tableStyles.fontFamily,
                         'background-color': tableStyles.bgColor,
-                        '-webkit-print-color-adjust': 'exact',
-                        'print-color-adjust': 'exact'
                     } : {
                         'padding': '8px',
                         'border': '1px solid #000000ff',
@@ -3045,7 +2973,7 @@ function jsontablecustom(editor) {
                         type: 'json-table-cell',
                         tagName: 'th',
                         contenteditable: true,
-                        content: `<div style="display: flex; align-items: ${tableStyles ? (tableStyles.verticalAlign === 'top' ? 'flex-start' : tableStyles.verticalAlign === 'bottom' ? 'flex-end' : 'center') : 'center'}; justify-content: ${tableStyles ? (tableStyles.textAlign === 'left' ? 'flex-start' : tableStyles.textAlign === 'right' ? 'flex-end' : 'center') : 'flex-start'}; min-height: 100%; width: 100%;">${storedHeader}</div>`,
+                        content: storedHeader,
                         selectable: true,
                         contentEditable: true,
                         classes: ['json-table-cell', 'cell-content', 'editable-header'],
@@ -3114,48 +3042,46 @@ function jsontablecustom(editor) {
                     });
 
                     Object.keys(headers).forEach(key => {
-    // Check if this cell should be skipped due to rowspan
-    if (row[`_skip_${key}`]) {
-        return;
-    }
+                        // Check if this cell should be skipped due to rowspan
+                        if (row[`_skip_${key}`]) {
+                            return;
+                        }
 
-    const cellId = `${tableId}-cell-${rowIndex}-${key}`;
-    const displayValue = row[key] || '';
+                        const cellId = `${tableId}-cell-${rowIndex}-${key}`;
+                        const displayValue = row[key] || '';
 
-    // Check if this is a running total column
-    const isRunningTotal = key.endsWith('_running_total');
-    const rtConfig = isRunningTotal ? runningTotals.find(rt => `${rt.columnKey}_running_total` === key) : null;
-    const tableStyles = this.get('table-styles-applied');
-    
-    // ✅ FIX: Use let instead of const
-    let appliedCellStyles = tableStyles ? {
-        'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
-        'color': tableStyles.textColor,
-        'font-family': tableStyles.fontFamily,
-        'background-color': tableStyles.bgColor,
-        '-webkit-print-color-adjust': 'exact',
-        'print-color-adjust': 'exact'
-    } : {
-        'padding': '8px',
-        'border': '1px solid #000'
-    };
+                        // Check if this is a running total column
+                        const isRunningTotal = key.endsWith('_running_total');
+                        const rtConfig = isRunningTotal ? runningTotals.find(rt => `${rt.columnKey}_running_total` === key) : null;
+                        const tableStyles = this.get('table-styles-applied');
 
-    // Override with running total styles if applicable
-    if (isRunningTotal && rtConfig) {
-        appliedCellStyles = {
-            ...appliedCellStyles,
-            'background-color': rtConfig.bgColor,
-            'color': rtConfig.textColor,
-            'font-family': rtConfig.fontFamily || appliedCellStyles['font-family'],
-            'font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : appliedCellStyles['font-size'],
-            'font-weight': 'bold',
-            'border-left': '3px solid #007bff',
-            '--rt-bg-color': rtConfig.bgColor,
-            '--rt-text-color': rtConfig.textColor,
-            '--rt-font-family': rtConfig.fontFamily || 'inherit',
-            '--rt-font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : 'inherit'
-        };
-    }
+                        // ✅ FIX: Use let instead of const
+                        let appliedCellStyles = tableStyles ? {
+                            'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
+                            'color': tableStyles.textColor,
+                            'font-family': tableStyles.fontFamily,
+                            'background-color': tableStyles.bgColor,
+                        } : {
+                            'padding': '8px',
+                            'border': '1px solid #000'
+                        };
+
+                        // Override with running total styles if applicable
+                        if (isRunningTotal && rtConfig) {
+                            appliedCellStyles = {
+                                ...appliedCellStyles,
+                                // 'background-color': rtConfig.bgColor,
+                                // 'color': rtConfig.textColor,
+                                // 'font-family': rtConfig.fontFamily || appliedCellStyles['font-family'],
+                                // 'font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : appliedCellStyles['font-size'],
+                                // 'font-weight': 'bold',
+                                // 'border-left': '3px solid #007bff',
+                                // '--rt-bg-color': rtConfig.bgColor,
+                                // '--rt-text-color': rtConfig.textColor,
+                                // '--rt-font-family': rtConfig.fontFamily || 'inherit',
+                                // '--rt-font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : 'inherit'
+                            };
+                        }
                         const alignStyles = tableStyles ? {
                             display: 'flex',
                             alignItems: tableStyles.verticalAlign === 'top' ? 'flex-start' :
@@ -3173,9 +3099,9 @@ function jsontablecustom(editor) {
                             'data-gjs-hoverable': 'true',
                         };
 
-                                    if (isRunningTotal) {
-                attributes['data-running-total'] = 'true';
-            }
+                        if (isRunningTotal) {
+                            attributes['data-running-total'] = 'true';
+                        }
                         // Add rowspan if this cell should be merged
                         if (isGroupStart && row[`_merge_${key}`]) {
                             attributes.rowspan = groupSize.toString();
@@ -3193,8 +3119,8 @@ function jsontablecustom(editor) {
                             tagName: 'td',
                             selectable: true,
                             contenteditable: !(isSummary || isGrandTotal || isRunningTotal),
-                            content: `<div style="display: ${alignStyles.display || 'block'}; align-items: ${alignStyles.alignItems || 'flex-start'}; justify-content: ${alignStyles.justifyContent || 'flex-start'}; min-height: 100%; width: 100%;">${displayValue}</div>`,
-                            classes: ['json-table-cell', 'cell-content', (isSummary || isGrandTotal|| isRunningTotal) ? 'readonly-cell' : 'editable-cell'],
+                            content: displayValue,
+                            classes: ['json-table-cell', 'cell-content', (isSummary || isGrandTotal || isRunningTotal) ? 'readonly-cell' : 'editable-cell'],
                             attributes,
                             style: {
                                 ...appliedCellStyles,
@@ -3336,106 +3262,6 @@ function jsontablecustom(editor) {
                     }
                 });
             },
-
-addStylesComponent(parentComponent) {
-    parentComponent.components().add({
-        type: 'default',
-        tagName: 'style',
-        content: `
-/* Table Styles */
-.json-table-container {
-    min-height: 100px;
-    padding: 10px 0 10px 0;
-    width: 100%;
-    margin: 10px 0;
-}
-
-.json-table-wrapper {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    width: 100%;
-    overflow-x: visible;
-    overflow-y: visible;
-}
-
-.json-table-wrapper .dataTables_wrapper {
-    overflow-x: auto;
-    overflow-y: visible;
-}
-
-.json-data-table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
-    border: 2px solid #000;
-}
-
-/* Formula editing styles */
-.formula-error {
-    background-color: #ffebee !important;
-    color: #c62828 !important;
-}
-
-.cell-content.editing {
-    background-color: #e3f2fd !important;
-    outline: 2px solid #007bff !important;
-    min-height: inherit;
-    overflow: hidden;
-}
-
-.cell-content[contenteditable="true"] {
-    text-align: left !important;
-}
-
-/* Highlight styles - with higher specificity */
-td[data-highlighted="true"], 
-th[data-highlighted="true"] {
-    position: relative;
-    box-sizing: border-box !important;
-    border: 1px solid #000 !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-    print-color-adjust: exact !important;
-}
-
-td[data-highlighted="true"]::after, 
-th[data-highlighted="true"]::after {
-    content: "★";
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    font-size: 10px;
-    color: #ff6b35;
-    font-weight: bold;
-    z-index: 1;
-}
-
-/* Running Total Column Styles - with !important to override table styles */
-.running-total-column,
-td[data-running-total="true"],
-th[data-running-total="true"] {
-    position: relative;
-    box-sizing: border-box !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-    print-color-adjust: exact !important;
-}
-
-td[data-running-total="true"] .cell-content,
-th[data-running-total="true"] .cell-content {
-    font-weight: bold !important;
-}
-
-/* Ensure running total styles take precedence over table styles */
-td[data-running-total="true"][style],
-th[data-running-total="true"][style] {
-    background-color: var(--rt-bg-color) !important;
-    color: var(--rt-text-color) !important;
-    font-family: var(--rt-font-family) !important;
-    font-size: var(--rt-font-size) !important;
-}
-        `
-    });
-},
 
 
             // Method to update specific cells without rebuilding entire table
@@ -3882,6 +3708,7 @@ th[data-running-total="true"][style] {
             <div>
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Style:</label>
                 <select id="border-style" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="none">None</option>
                     <option value="solid">Solid</option>
                     <option value="double">Double</option>
                     <option value="dashed">Dashed</option>
@@ -3894,7 +3721,7 @@ th[data-running-total="true"][style] {
             </div>
             <div>
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Width (px):</label>
-                <input type="number" id="border-width" min="0" max="10" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <input type="number" id="border-width" min="0" max="10" value="1" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
             <div>
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Color:</label>
@@ -3983,7 +3810,7 @@ th[data-running-total="true"][style] {
                 key, name
             }));
 
-const modalContent = `
+            const modalContent = `
 <div class="table-settings-modal" style="width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
     <!-- Navbar -->
     <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
@@ -4043,79 +3870,271 @@ const modalContent = `
         </div>
 
         <!-- Grouping & Summary Tab (existing content) -->
-        <div id="grouping-tab" class="tab-pane" style="display: none;">
-            <!-- Keep existing grouping tab content -->
-        </div>
+<div id="grouping-tab" class="tab-pane" style="display: none;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+<!-- Available Fields -->
+<div>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <h4 style="margin: 0;">Available Fields</h4>
+    <div style="display: flex; gap: 5px;">
+      <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+      <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+    </div>
+  </div>
+  <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; max-height: 300px; overflow-y: auto;">
+    <!-- Dynamically populated -->
+  </div>
+</div>
 
-        <!-- Running Total Tab (NEW) -->
-        <div id="running-total-tab" class="tab-pane" style="display: none;">
-            <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px;">
-                <!-- Left: Column Selection -->
-                <div>
-                    <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
-                    <div id="rt-column-list" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 400px; overflow-y: auto;">
-                        <!-- Will be populated with numeric columns -->
+    <!-- Selected Grouping Fields -->
+    <div>
+      <h4 style="margin-bottom: 10px;">Selected Grouping Fields</h4>
+      <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; min-height: 100px; max-height: 300px; overflow-y: auto;">
+        <p style="color: #999; text-align: center;">No fields selected</p>
+      </div>
+    </div>
+  </div>
+
+  <hr style="margin: 20px 0;">
+
+  <!-- Summary Fields Section -->
+  <div>
+    <h4 style="margin-bottom: 10px;">Summary Fields</h4>
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+      <select id="summary-field" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+        <option value="">Select Field</option>
+      </select>
+      <select id="summary-function" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+        <option value="sum">Sum</option>
+        <option value="avg">Average</option>
+        <option value="min">Minimum</option>
+        <option value="max">Maximum</option>
+        <option value="count">Count</option>
+      </select>
+    </div>
+    <div id="query-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; min-height: 100px; max-height: 300px; overflow-y: auto;">
+      <p style="color: #999; text-align: center;">No summary fields added</p>
+    </div>
+  </div>
+</div>
+
+
+            <!-- Running Total Tab (NEW) -->
+            <div id="running-total-tab" class="tab-pane" style="display: none;">
+                <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px;">
+                    <!-- Left: Column Selection -->
+                    <div>
+                        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
+                        <div id="running-total-columns" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 400px; overflow-y: auto;">
+                            <!-- Will be populated with numeric columns -->
+                        </div>
                     </div>
-                </div>
 
-                <!-- Right: Configuration Panel -->
-                <div>
-                    <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px;">
-                        <p style="color: #666; text-align: center;">Select a column to configure running total</p>
-                    </div>
+                    <!-- Right: Configuration Panel -->
+                    <div>
+                        <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px;">
+                            <p style="color: #666; text-align: center;">Select a column to configure running total</p>
+                        </div>
 
-                    <!-- Running Total List -->
-                    <div style="margin-top: 20px;">
-                        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
-                        <div id="rt-active-list" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; min-height: 100px; max-height: 200px; overflow-y: auto;">
-                            <p style="color: #999; text-align: center;">No running totals configured</p>
+                        <!-- Running Total List -->
+                        <div style="margin-top: 20px;">
+                            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
+                            <div id="rt-active-list" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; min-height: 100px; max-height: 200px; overflow-y: auto;">
+                                <p style="color: #999; text-align: center;">No running totals configured</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Options Tab (existing content) -->
-        <div id="options-tab" class="tab-pane" style="display: none;">
-            <!-- Keep existing options tab content -->
+            <!-- Options Tab (existing content) -->
+<!-- Options Tab -->
+<div id="options-tab" class="tab-pane" style="display: none;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                <legend style="font-weight: bold;">Display Options</legend>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
+                    <span>Merge Group Cells</span>
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
+                    <span>Group Header In-place</span>
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
+                    <span>Hide Subtotal for Single Row</span>
+                </label>
+            </fieldset>
+        </div>
+        <div>
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                <legend style="font-weight: bold;">Total Options</legend>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
+                    <span>Show Grand Total</span>
+                </label>
+                <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </fieldset>
         </div>
     </div>
-
-    <!-- Footer Buttons -->
-    <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
-        <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
-        <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+    
+    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+        <legend style="font-weight: bold;">Grouping Type</legend>
+        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+            <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
+            <span>Show All Records</span>
+        </label>
+        <label style="display: flex; align-items: center;">
+            <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
+            <span>Show Summary Only</span>
+        </label>
+        <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
+            <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
+            <span>Keep Group Hierarchy</span>
+        </label>
+    </fieldset>
+    
+    <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Sort Order:</label>
+            <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="ascending">Ascending</option>
+                <option value="descending">Descending</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Percentage:</label>
+            <select id="summary-percentage" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="none">None</option>
+                <option value="of-group">Of Group</option>
+                <option value="of-total">Of Total</option>
+            </select>
+        </div>
+    </div>
+    
+    <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div>
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Top N:</label>
+            <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="none">None</option>
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Value:</label>
+            <input type="number" id="top-n-value" value="10" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+    </div>
+    
+    <div style="margin-top: 15px;">
+        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+            <input type="checkbox" id="define-named-group" style="margin-right: 8px;">
+            <span style="font-weight: bold;">Define Named Group</span>
+        </label>
+        <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; margin-bottom: 10px;">Configure Named Groups</button>
+        <div id="named-groups-list" style="display: none; border: 1px solid #ddd; padding: 10px; border-radius: 4px; min-height: 50px;"></div>
+    </div>
+    
+    <div style="margin-top: 15px;">
+        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+            <input type="checkbox" id="predefined-named-group" style="margin-right: 8px;">
+            <span style="font-weight: bold;">Use Predefined Named Group</span>
+        </label>
+        <select id="predefined-group-select" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f0f0f0;">
+            <option value="">Select Group</option>
+        </select>
+    </div>
+    
+    <div style="margin-top: 15px;">
+        <label style="display: flex; align-items: center;">
+            <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
+            <span style="font-weight: bold;">Summarize Group</span>
+        </label>
+    </div>
+    
+    <div style="margin-top: 15px;">
+        <label style="display: flex; align-items: center;">
+            <input type="checkbox" id="page-break" style="margin-right: 8px;">
+            <span style="font-weight: bold;">Page Break After Group</span>
+        </label>
     </div>
 </div>
-`;
+        </div>
+
+        <!-- Footer Buttons -->
+        <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
+            <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+            <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+        </div>
+    </div>
+    `;
             const modal = editor.Modal;
             modal.setTitle('Table Settings');
             modal.setContent(modalContent);
             modal.open();
 
             setTimeout(() => {
+                // Populate available fields
+                const availableFieldsDiv = document.getElementById('available-fields');
+                availableFieldsDiv.innerHTML = availableFields.map(field => `
+        <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+            <input type="checkbox" class="field-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('grouping-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+            <span>${field.name}</span>
+        </div>
+    `).join('');
+
+                // Populate summary field dropdown
+                const summaryFieldSelect = document.getElementById('summary-field');
+                summaryFieldSelect.innerHTML = '<option value="">Select Field</option>' +
+                    availableFields.map(field => `<option value="${field.key}">${field.name}</option>`).join('');
+
                 initializeTableSettingsModal(selected, availableFields);
             }, 100);
         }
     });
 
     function initializeTableSettingsModal(component, availableFields) {
-        // Tab switching
+        let selectedGroupingFields = [];
+        let selectedSummaryFields = [];
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', function () {
-                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+                // Remove active class and styles from all tabs
+                document.querySelectorAll('.nav-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.background = 'transparent';
+                    t.style.borderBottom = 'none';
+                    t.style.fontWeight = 'normal';
+                });
 
+                // Hide all tab panes
+                document.querySelectorAll('.tab-pane').forEach(p => {
+                    p.style.display = 'none';
+                });
+
+                // Activate clicked tab
                 this.classList.add('active');
-                const tabId = this.getAttribute('data-tab') + '-tab';
-                document.getElementById(tabId).style.display = 'block';
+                this.style.background = 'white';
+                this.style.borderBottom = '3px solid #007bff';
+                this.style.fontWeight = 'bold';
 
-                            if (this.getAttribute('data-tab') === 'running-total') {
-                initializeRunningTotalTab(component);
-            }
+                // Show corresponding tab pane
+                const tabId = this.getAttribute('data-tab') + '-tab';
+                const tabPane = document.getElementById(tabId);
+                if (tabPane) {
+                    tabPane.style.display = 'block';
+                }
+
+                // Initialize running total tab if needed
+                if (this.getAttribute('data-tab') === 'running-total') {
+                    initializeRunningTotalTab(component);
+                }
             });
         });
-   initializeInlineColumnReorder(component);
+        initializeInlineColumnReorder(component);
         // Populate Running Total columns - STRICT numeric check
         const headers = component.get('custom-headers') || component.get('table-headers') || {};
         const data = component.get('custom-data') || component.get('table-data') || [];
@@ -4175,12 +4194,12 @@ const modalContent = `
         }
 
         // Running Total Apply
-        document.getElementById('apply-running-total').addEventListener('click', function () {
-            const checkboxes = document.querySelectorAll('.running-total-checkbox:checked');
-            const selectedColumns = Array.from(checkboxes).map(cb => cb.value);
-            component.set('selected-running-total-columns', selectedColumns);
-            alert(`Running total applied to ${selectedColumns.length} column(s)`);
-        });
+        // document.getElementById('apply-running-total').addEventListener('click', function () {
+        //     const checkboxes = document.querySelectorAll('.running-total-checkbox:checked');
+        //     const selectedColumns = Array.from(checkboxes).map(cb => cb.value);
+        //     component.set('selected-running-total-columns', selectedColumns);
+        //     alert(`Running total applied to ${selectedColumns.length} column(s)`);
+        // });
 
         // Add Rows
         document.getElementById('add-rows').addEventListener('click', function () {
@@ -4243,19 +4262,34 @@ const modalContent = `
         updateSummaryFieldsList(); // Add this function call
 
         // Load other saved options
-        document.getElementById('sort-order').value = component.get('sort-order') || 'ascending';
-        document.getElementById('top-n').value = component.get('top-n') || 'none';
-        document.getElementById('top-n-value').value = component.get('top-n-value') || '10';
-        document.getElementById('summarize-group').checked = component.get('summarize-group') || false;
-        document.getElementById('page-break-after-group').checked = component.get('page-break-after-group') || false;
-        document.getElementById('summary-percentage').value = component.get('summary-percentage') || 'none';
-        document.getElementById('merge-group-cells').checked = component.get('merge-group-cells') || false;
-        document.getElementById('group-header-inplace').checked = component.get('group-header-inplace') !== false;
-        document.getElementById('hide-subtotal-single-row').checked = component.get('hide-subtotal-single-row') || false;
-        document.getElementById('keep-group-hierarchy').checked = component.get('keep-group-hierarchy') || false;
-        document.getElementById('grand-total').checked = component.get('grand-total') !== false;
-        document.getElementById('grand-total-label').value = component.get('grand-total-label') || '';
-        document.getElementById('summary-label').value = component.get('summary-label') || '';
+        // Load other saved options with null checks
+        const sortOrder = document.getElementById('sort-order');
+        const topN = document.getElementById('top-n');
+        const topNValue = document.getElementById('top-n-value');
+        const summarizeGroup = document.getElementById('summarize-group');
+        const pageBreak = document.getElementById('page-break');
+        const summaryPercentage = document.getElementById('summary-percentage');
+        const mergeGroupCells = document.getElementById('merge-group-cells');
+        const groupHeaderInplace = document.getElementById('group-header-inplace');
+        const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
+        const keepGroupHierarchy = document.getElementById('keep-group-hierarchy');
+        const grandTotal = document.getElementById('grand-total');
+        const grandTotalLabel = document.getElementById('grand-total-label');
+        const summaryLabel = document.getElementById('summary-label');
+
+        if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
+        if (topN) topN.value = component.get('top-n') || 'none';
+        if (topNValue) topNValue.value = component.get('top-n-value') || '10';
+        if (summarizeGroup) summarizeGroup.checked = component.get('summarize-group') || false;
+        if (pageBreak) pageBreak.checked = component.get('page-break') || false;
+        if (summaryPercentage) summaryPercentage.value = component.get('summary-percentage') || 'none';
+        if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') || false;
+        if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
+        if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') || false;
+        if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') || false;
+        if (grandTotal) grandTotal.checked = component.get('grand-total') !== false;
+        if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
+        if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
 
         if (component.get('show-summary-only')) {
             document.querySelector('input[name="grouping-type"][value="summary"]').checked = true;
@@ -4277,19 +4311,27 @@ const modalContent = `
 
         function updateSelectedFields() {
             const selectedFieldsDiv = document.getElementById('selected-fields');
+
+            // Add null check
+            if (!selectedFieldsDiv) {
+                console.warn('Selected fields div not found');
+                return;
+            }
+
             if (selectedGroupingFields.length === 0) {
                 selectedFieldsDiv.innerHTML = '<p style="color: #999; padding: 10px; text-align: center; font-size: 12px;">No fields selected</p>';
             } else {
                 selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
-                <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-                    <span>${field.name}</span>
-                    <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-                </div>
-            `).join('');
+            <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                <span>${field.name}</span>
+                <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+            </div>
+        `).join('');
 
-                if (selectedGroupingFields.length > 0) {
-                    document.getElementById('grouping-field-display').innerHTML =
-                        `<span style="color: #000;">${selectedGroupingFields[0].name}</span>`;
+                // Update grouping field display if it exists
+                const groupingFieldDisplay = document.getElementById('grouping-field-display');
+                if (groupingFieldDisplay && selectedGroupingFields.length > 0) {
+                    groupingFieldDisplay.innerHTML = `<span style="color: #000;">${selectedGroupingFields[0].name}</span>`;
                 }
 
                 // Add remove functionality
@@ -4310,14 +4352,24 @@ const modalContent = `
         // Add this new function for summary fields
         function updateSummaryFieldsList() {
             const queryFields = document.getElementById('query-fields');
-            if (!queryFields) return;
+
+            // Add null check
+            if (!queryFields) {
+                console.warn('Query fields div not found');
+                return;
+            }
+
+            if (selectedSummaryFields.length === 0) {
+                queryFields.innerHTML = '<p style="color: #999; text-align: center;">No summary fields added</p>';
+                return;
+            }
 
             queryFields.innerHTML = selectedSummaryFields.map((field, idx) => `
-            <div class="field-item" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-                <span>${availableFields.find(f => f.key === field.key)?.name || field.key} (${field.function})</span>
-                <button class="remove-summary-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-            </div>
-        `).join('');
+        <div class="field-item" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+            <span>${availableFields.find(f => f.key === field.key)?.name || field.key} (${field.function})</span>
+            <button class="remove-summary-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+        </div>
+    `).join('');
 
             // Add remove functionality
             queryFields.querySelectorAll('.remove-summary-field').forEach(btn => {
@@ -4328,7 +4380,6 @@ const modalContent = `
                 });
             });
         }
-
         // Summary field addition - Update this section
         const summaryAddBtn = document.createElement('button');
         summaryAddBtn.textContent = 'Add Summary';
@@ -4475,7 +4526,7 @@ const modalContent = `
             component.set('top-n-value', document.getElementById('top-n-value').value);
             component.set('define-named-group', document.getElementById('define-named-group').checked);
             component.set('summarize-group', document.getElementById('summarize-group').checked);
-            component.set('page-break-after-group', document.getElementById('page-break-after-group').checked);
+            component.set('page-break', document.getElementById('page-break').checked);
             component.set('summary-percentage', document.getElementById('summary-percentage').value);
             component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
             component.set('group-header-inplace', document.getElementById('group-header-inplace').checked);
@@ -4491,79 +4542,79 @@ const modalContent = `
     }
 
     function initializeRunningTotalTab(component) {
-    const headers = component.get('custom-headers') || component.get('table-headers') || {};
-    const data = component.get('custom-data') || component.get('table-data') || [];
-    const runningTotals = component.get('running-totals') || [];
-    
-    // Filter numeric columns
-    const numericHeaders = {};
-    Object.entries(headers).forEach(([key, name]) => {
-        const isStrictlyNumeric = data.every(row => {
-            let value = row[key];
-            if (value === '' || value === null || value === undefined) return true;
-            value = String(value).trim();
-            if (/^\(.*\)$/.test(value)) value = '-' + value.slice(1, -1);
-            value = value.replace(/[$£€₹,\s]/g, '');
-            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
-                value = value.replace(/\./g, '').replace(',', '.');
+        const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        const data = component.get('custom-data') || component.get('table-data') || [];
+        const runningTotals = component.get('running-totals') || [];
+
+        // Filter numeric columns
+        const numericHeaders = {};
+        Object.entries(headers).forEach(([key, name]) => {
+            const isStrictlyNumeric = data.every(row => {
+                let value = row[key];
+                if (value === '' || value === null || value === undefined) return true;
+                value = String(value).trim();
+                if (/^\(.*\)$/.test(value)) value = '-' + value.slice(1, -1);
+                value = value.replace(/[$£€₹,\s]/g, '');
+                if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                    value = value.replace(/\./g, '').replace(',', '.');
+                }
+                const numValue = Number(value);
+                return typeof numValue === 'number' && !isNaN(numValue);
+            });
+
+            if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
+                numericHeaders[key] = name;
             }
-            const numValue = Number(value);
-            return typeof numValue === 'number' && !isNaN(numValue);
         });
-        
-        if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
-            numericHeaders[key] = name;
+
+        // Populate column list
+        const columnList = document.getElementById('running-total-columns');
+        if (Object.keys(numericHeaders).length === 0) {
+            columnList.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No numeric columns available</p>';
+            return;
         }
-    });
 
-    // Populate column list
-    const columnList = document.getElementById('rt-column-list');
-    if (Object.keys(numericHeaders).length === 0) {
-        columnList.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No numeric columns available</p>';
-        return;
-    }
-
-    columnList.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
+        columnList.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
         <div class="rt-column-item" data-key="${key}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
             <span>${name}</span>
         </div>
     `).join('');
 
-    // Add click handlers
-// Add click handlers
-document.querySelectorAll('.rt-column-item').forEach(item => {
-    item.addEventListener('click', function() {
-        // ✅ Highlight selected column
-        document.querySelectorAll('.rt-column-item').forEach(i => {
-            i.style.background = 'white';
-            i.style.borderColor = '#ddd';
+        // Add click handlers
+        // Add click handlers
+        document.querySelectorAll('.rt-column-item').forEach(item => {
+            item.addEventListener('click', function () {
+                // ✅ Highlight selected column
+                document.querySelectorAll('.rt-column-item').forEach(i => {
+                    i.style.background = 'white';
+                    i.style.borderColor = '#ddd';
+                });
+                this.style.background = '#e3f2fd';
+                this.style.borderColor = '#007bff';
+
+                const columnKey = this.getAttribute('data-key');
+                const columnName = numericHeaders[columnKey];
+                showRunningTotalConfig(component, columnKey, columnName, runningTotals);
+            });
         });
-        this.style.background = '#e3f2fd';
-        this.style.borderColor = '#007bff';
-        
-        const columnKey = this.getAttribute('data-key');
-        const columnName = numericHeaders[columnKey];
-        showRunningTotalConfig(component, columnKey, columnName, runningTotals);
-    });
-});
 
-    // Show active running totals
-    updateActiveRunningTotalsList(component, numericHeaders);
-}
-
-function initializeInlineColumnReorder(component) {
-    const headers = component.get('custom-headers') || component.get('table-headers') || {};
-    const columnKeys = Object.keys(headers);
-    
-    if (columnKeys.length <= 1) {
-        document.getElementById('column-list-inline').innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">Need at least 2 columns to reorder</p>';
-        return;
+        // Show active running totals
+        updateActiveRunningTotalsList(component, numericHeaders);
     }
 
-    const originalOrder = [...columnKeys];
-    
-    const columnList = document.getElementById('column-list-inline');
-    columnList.innerHTML = columnKeys.map(key => `
+    function initializeInlineColumnReorder(component) {
+        const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        const columnKeys = Object.keys(headers);
+
+        if (columnKeys.length <= 1) {
+            document.getElementById('column-list-inline').innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">Need at least 2 columns to reorder</p>';
+            return;
+        }
+
+        const originalOrder = [...columnKeys];
+
+        const columnList = document.getElementById('column-list-inline');
+        columnList.innerHTML = columnKeys.map(key => `
         <div class="column-item-inline" data-key="${key}" draggable="true" style="
             margin: 2px; 
             padding: 12px 15px; 
@@ -4579,74 +4630,74 @@ function initializeInlineColumnReorder(component) {
         </div>
     `).join('');
 
-    let draggedElement = null;
+        let draggedElement = null;
 
-    const columnItems = columnList.querySelectorAll('.column-item-inline');
-    columnItems.forEach(item => {
-        item.addEventListener('dragstart', function (e) {
-            draggedElement = this;
-            this.style.opacity = '0.5';
-            e.dataTransfer.effectAllowed = 'move';
-        });
+        const columnItems = columnList.querySelectorAll('.column-item-inline');
+        columnItems.forEach(item => {
+            item.addEventListener('dragstart', function (e) {
+                draggedElement = this;
+                this.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            });
 
-        item.addEventListener('dragend', function () {
-            this.style.opacity = '1';
-            draggedElement = null;
-            columnItems.forEach(item => item.style.borderTop = '');
-        });
+            item.addEventListener('dragend', function () {
+                this.style.opacity = '1';
+                draggedElement = null;
+                columnItems.forEach(item => item.style.borderTop = '');
+            });
 
-        item.addEventListener('dragover', function (e) {
-            e.preventDefault();
-            if (this !== draggedElement) {
-                this.style.borderTop = '2px solid #007bff';
-            }
-        });
-
-        item.addEventListener('dragleave', function () {
-            this.style.borderTop = '';
-        });
-
-        item.addEventListener('drop', function (e) {
-            e.preventDefault();
-            this.style.borderTop = '';
-
-            if (this !== draggedElement) {
-                const allItems = Array.from(columnList.children);
-                const draggedIndex = allItems.indexOf(draggedElement);
-                const targetIndex = allItems.indexOf(this);
-
-                if (draggedIndex < targetIndex) {
-                    this.parentNode.insertBefore(draggedElement, this.nextSibling);
-                } else {
-                    this.parentNode.insertBefore(draggedElement, this);
+            item.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                if (this !== draggedElement) {
+                    this.style.borderTop = '2px solid #007bff';
                 }
-                
-                // Auto-apply reorder
-                applyColumnReorder(component);
-            }
+            });
+
+            item.addEventListener('dragleave', function () {
+                this.style.borderTop = '';
+            });
+
+            item.addEventListener('drop', function (e) {
+                e.preventDefault();
+                this.style.borderTop = '';
+
+                if (this !== draggedElement) {
+                    const allItems = Array.from(columnList.children);
+                    const draggedIndex = allItems.indexOf(draggedElement);
+                    const targetIndex = allItems.indexOf(this);
+
+                    if (draggedIndex < targetIndex) {
+                        this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                    } else {
+                        this.parentNode.insertBefore(draggedElement, this);
+                    }
+
+                    // Auto-apply reorder
+                    applyColumnReorder(component);
+                }
+            });
         });
-    });
 
-    // Reset button
-    document.getElementById('reset-order').addEventListener('click', function () {
-        component.reorderColumns(originalOrder);
-        initializeInlineColumnReorder(component);
-        alert('Column order reset to original');
-    });
-}
+        // Reset button
+        document.getElementById('reset-order').addEventListener('click', function () {
+            component.reorderColumns(originalOrder);
+            initializeInlineColumnReorder(component);
+            alert('Column order reset to original');
+        });
+    }
 
-function applyColumnReorder(component) {
-    const columnList = document.getElementById('column-list-inline');
-    const currentItems = columnList.querySelectorAll('.column-item-inline');
-    const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
-    component.reorderColumns(newOrder);
-}
+    function applyColumnReorder(component) {
+        const columnList = document.getElementById('column-list-inline');
+        const currentItems = columnList.querySelectorAll('.column-item-inline');
+        const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
+        component.reorderColumns(newOrder);
+    }
 
-function showRunningTotalConfig(component, columnKey, columnName, runningTotals) {
-    const existing = runningTotals.find(rt => rt.columnKey === columnKey);
-    
-    const configPanel = document.getElementById('rt-config-panel');
-    configPanel.innerHTML = `
+    function showRunningTotalConfig(component, columnKey, columnName, runningTotals) {
+        const existing = runningTotals.find(rt => rt.columnKey === columnKey);
+
+        const configPanel = document.getElementById('rt-config-panel');
+        configPanel.innerHTML = `
         <h4 style="margin-top: 0;">${columnName}</h4>
         
         <!-- Summary -->
@@ -4704,8 +4755,8 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
             </select>
         </div>
 
-        <!-- Styling 
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+        <!-- Styling -->
+        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; display: none">
             <label style="font-weight: bold; display: block; margin-bottom: 10px;">Styling:</label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div>
@@ -4748,7 +4799,7 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
                 </div>
             </div>
         </div>
-        -->
+        
 
         <!-- Action Buttons -->
         <div style="display: flex; gap: 10px;">
@@ -4757,100 +4808,100 @@ function showRunningTotalConfig(component, columnKey, columnName, runningTotals)
         </div>
     `;
 
-    // Add event listeners
-    document.querySelectorAll('input[name="rt-evaluate"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const field = document.getElementById('rt-evaluate-field');
-            field.disabled = this.value !== 'on-change-of';
-            field.style.background = this.value !== 'on-change-of' ? '#f0f0f0' : 'white';
+        // Add event listeners
+        document.querySelectorAll('input[name="rt-evaluate"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                const field = document.getElementById('rt-evaluate-field');
+                field.disabled = this.value !== 'on-change-of';
+                field.style.background = this.value !== 'on-change-of' ? '#f0f0f0' : 'white';
+            });
         });
-    });
 
-    document.querySelectorAll('input[name="rt-reset"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const field = document.getElementById('rt-reset-field');
-            field.disabled = this.value !== 'on-change-of';
-            field.style.background = this.value !== 'on-change-of' ? '#f0f0f0' : 'white';
+        document.querySelectorAll('input[name="rt-reset"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                const field = document.getElementById('rt-reset-field');
+                field.disabled = this.value !== 'on-change-of';
+                field.style.background = this.value !== 'on-change-of' ? '#f0f0f0' : 'white';
+            });
         });
-    });
 
-    document.getElementById('rt-apply-btn').addEventListener('click', function() {
-        const rtConfig = {
-            columnKey,
-            columnName,
-            operation: document.getElementById('rt-summary-field').value,
-            evaluate: document.querySelector('input[name="rt-evaluate"]:checked').value,
-            evaluateField: document.getElementById('rt-evaluate-field').value,
-            reset: document.querySelector('input[name="rt-reset"]:checked').value,
-            resetField: document.getElementById('rt-reset-field').value,
-            bgColor: document.getElementById('rt-bg-color').value,
-            textColor: document.getElementById('rt-text-color').value,
-            fontFamily: document.getElementById('rt-font-family').value,
-            fontSize: document.getElementById('rt-font-size').value,
-            hAlign: document.getElementById('rt-h-align').value,
-            vAlign: document.getElementById('rt-v-align').value
-        };
+        document.getElementById('rt-apply-btn').addEventListener('click', function () {
+            const rtConfig = {
+                columnKey,
+                columnName,
+                operation: document.getElementById('rt-summary-field').value,
+                evaluate: document.querySelector('input[name="rt-evaluate"]:checked').value,
+                evaluateField: document.getElementById('rt-evaluate-field').value,
+                reset: document.querySelector('input[name="rt-reset"]:checked').value,
+                resetField: document.getElementById('rt-reset-field').value,
+                bgColor: document.getElementById('rt-bg-color').value,
+                textColor: document.getElementById('rt-text-color').value,
+                fontFamily: document.getElementById('rt-font-family').value,
+                fontSize: document.getElementById('rt-font-size').value,
+                hAlign: document.getElementById('rt-h-align').value,
+                vAlign: document.getElementById('rt-v-align').value
+            };
 
-        addOrUpdateRunningTotal(component, rtConfig);
-    });
-
-    if (existing) {
-        document.getElementById('rt-remove-btn').addEventListener('click', function() {
-            removeRunningTotal(component, columnKey);
+            addOrUpdateRunningTotal(component, rtConfig);
         });
+
+        if (existing) {
+            document.getElementById('rt-remove-btn').addEventListener('click', function () {
+                removeRunningTotal(component, columnKey);
+            });
+        }
     }
-}
 
-function getGroupingFieldsOptions(component, selectedField) {
-    const headers = component.get('custom-headers') || component.get('table-headers') || {};
-    return Object.entries(headers).map(([key, name]) => 
-        `<option value="${key}" ${selectedField === key ? 'selected' : ''}>${name}</option>`
-    ).join('');
-}
-
-function addOrUpdateRunningTotal(component, rtConfig) {
-    let runningTotals = component.get('running-totals') || [];
-    const existingIndex = runningTotals.findIndex(rt => rt.columnKey === rtConfig.columnKey);
-    
-    if (existingIndex >= 0) {
-        runningTotals[existingIndex] = rtConfig;
-    } else {
-        runningTotals.push(rtConfig);
+    function getGroupingFieldsOptions(component, selectedField) {
+        const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        return Object.entries(headers).map(([key, name]) =>
+            `<option value="${key}" ${selectedField === key ? 'selected' : ''}>${name}</option>`
+        ).join('');
     }
-    
-    component.set('running-totals', runningTotals);
-    
-    const headers = component.get('custom-headers') || component.get('table-headers') || {};
-    updateActiveRunningTotalsList(component, headers);
-    applyRunningTotalsToTable(component);
-    
-    alert(`Running total ${existingIndex >= 0 ? 'updated' : 'added'} for ${rtConfig.columnName}`);
-}
 
-function removeRunningTotal(component, columnKey) {
-    let runningTotals = component.get('running-totals') || [];
-    runningTotals = runningTotals.filter(rt => rt.columnKey !== columnKey);
-    component.set('running-totals', runningTotals);
-    
-    const headers = component.get('custom-headers') || component.get('table-headers') || {};
-    updateActiveRunningTotalsList(component, headers);
-    applyRunningTotalsToTable(component);
-    
-    document.getElementById('rt-config-panel').innerHTML = '<p style="color: #666; text-align: center;">Select a column to configure running total</p>';
-    
-    alert('Running total removed');
-}
+    function addOrUpdateRunningTotal(component, rtConfig) {
+        let runningTotals = component.get('running-totals') || [];
+        const existingIndex = runningTotals.findIndex(rt => rt.columnKey === rtConfig.columnKey);
 
-function updateActiveRunningTotalsList(component, numericHeaders) {
-    const runningTotals = component.get('running-totals') || [];
-    const activeList = document.getElementById('rt-active-list');
-    
-    if (runningTotals.length === 0) {
-        activeList.innerHTML = '<p style="color: #999; text-align: center;">No running totals configured</p>';
-        return;
+        if (existingIndex >= 0) {
+            runningTotals[existingIndex] = rtConfig;
+        } else {
+            runningTotals.push(rtConfig);
+        }
+
+        component.set('running-totals', runningTotals);
+
+        const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        updateActiveRunningTotalsList(component, headers);
+        applyRunningTotalsToTable(component);
+
+        alert(`Running total ${existingIndex >= 0 ? 'updated' : 'added'} for ${rtConfig.columnName}`);
     }
-    
-    activeList.innerHTML = runningTotals.map(rt => `
+
+    function removeRunningTotal(component, columnKey) {
+        let runningTotals = component.get('running-totals') || [];
+        runningTotals = runningTotals.filter(rt => rt.columnKey !== columnKey);
+        component.set('running-totals', runningTotals);
+
+        const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        updateActiveRunningTotalsList(component, headers);
+        applyRunningTotalsToTable(component);
+
+        document.getElementById('rt-config-panel').innerHTML = '<p style="color: #666; text-align: center;">Select a column to configure running total</p>';
+
+        alert('Running total removed');
+    }
+
+    function updateActiveRunningTotalsList(component, numericHeaders) {
+        const runningTotals = component.get('running-totals') || [];
+        const activeList = document.getElementById('rt-active-list');
+
+        if (runningTotals.length === 0) {
+            activeList.innerHTML = '<p style="color: #999; text-align: center;">No running totals configured</p>';
+            return;
+        }
+
+        activeList.innerHTML = runningTotals.map(rt => `
         <div style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px;">
             <strong>${rt.columnName}</strong>
             <div style="font-size: 12px; color: #666; margin-top: 3px;">
@@ -4858,148 +4909,160 @@ function updateActiveRunningTotalsList(component, numericHeaders) {
             </div>
         </div>
     `).join('');
-}
+    }
 
-function applyRunningTotalsToTable(component) {
-    const runningTotals = component.get('running-totals') || [];
-    const baseData = component.get('table-data') || [];  // ✅ Always use base data
-    const baseHeaders = component.get('table-headers') || {};
-    
-    if (runningTotals.length === 0) {
-        // No running totals - reset to base data
-        component.set('custom-headers', null);
-        component.set('custom-data', null);
+    function applyRunningTotalsToTable(component) {
+        const runningTotals = component.get('running-totals') || [];
+        const baseData = component.get('table-data') || [];  // ✅ Always use base data
+        const baseHeaders = component.get('table-headers') || {};
+
+        if (runningTotals.length === 0) {
+            // No running totals - reset to base data
+            component.set('custom-headers', null);
+            component.set('custom-data', null);
+            component.updateTableHTML();
+            return;
+        }
+
+        if (baseData.length === 0) return;
+
+        // Start fresh with base headers and data
+        const updatedHeaders = { ...baseHeaders };
+
+        // ✅ Create deep copy of base data
+        let updatedData = baseData.map(row => ({ ...row }));
+
+        // Apply each running total
+        // Apply each running total
+        runningTotals.forEach(rt => {
+            const newColumnKey = `${rt.columnKey}_running_total`;
+            updatedHeaders[newColumnKey] = `${baseHeaders[rt.columnKey]} (RT)`;  // ✅ Use baseHeaders
+
+            // ✅ Initialize accumulators properly
+            let accumulator = 0;
+            let count = 0;
+            let distinctValues = new Set();
+            let values = [];
+            let previousGroupValue = null;
+            let sumForAverage = 0;
+
+            // ✅ Special initialization for certain operations
+            if (rt.operation === 'product') {
+                accumulator = 1;
+            } else if (rt.operation === 'min') {
+                accumulator = Infinity;
+            } else if (rt.operation === 'max') {
+                accumulator = -Infinity;
+            }
+
+            updatedData = updatedData.map((row, idx) => {
+                // Check for reset conditions
+                if (rt.reset === 'on-change-of' && rt.resetField && idx > 0) {
+                    if (row[rt.resetField] !== updatedData[idx - 1][rt.resetField]) {
+                        // ✅ Reset all accumulators
+                        accumulator = rt.operation === 'product' ? 1 :
+                            rt.operation === 'min' ? Infinity :
+                                rt.operation === 'max' ? -Infinity : 0;
+                        count = 0;
+                        distinctValues = new Set();
+                        values = [];
+                        sumForAverage = 0;
+                    }
+                }
+
+                // Check evaluate conditions
+                let shouldEvaluate = true;
+                if (rt.evaluate === 'on-change-of' && rt.evaluateField) {
+                    shouldEvaluate = row[rt.evaluateField] !== previousGroupValue;
+                    previousGroupValue = row[rt.evaluateField];
+                }
+
+                if (shouldEvaluate) {
+                    const value = parseFloat(row[rt.columnKey]) || 0;
+                    count++;
+                    distinctValues.add(row[rt.columnKey]);
+                    values.push(value);
+                    sumForAverage += value;
+
+                    switch (rt.operation) {
+                        case 'sum':
+                            accumulator += value;
+                            break;
+                        case 'count':
+                            accumulator = count;
+                            break;
+                        case 'distinct-count':
+                            accumulator = distinctValues.size;
+                            break;
+                        case 'average':
+                            accumulator = sumForAverage / count;  // ✅ Use separate sum
+                            break;
+                        case 'max':
+                            accumulator = Math.max(accumulator, value);  // ✅ Cumulative max
+                            break;
+                        case 'min':
+                            accumulator = Math.min(accumulator, value);  // ✅ Cumulative min
+                            break;
+                        case 'product':
+                            accumulator *= value;
+                            break;
+                        case 'std-dev':
+                            const mean = sumForAverage / count;
+                            const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / count;
+                            accumulator = Math.sqrt(variance);
+                            break;
+                        case 'variance':
+                            const avg = sumForAverage / count;
+                            accumulator = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / count;
+                            break;
+                        case 'weighted-avg':
+                            // ✅ Implement if you have weight column logic
+                            accumulator = sumForAverage / count;  // Fallback to average
+                            break;
+                    }
+                }
+
+                // ✅ Format based on operation type
+                let formattedValue;
+                if (rt.operation === 'count' || rt.operation === 'distinct-count') {
+                    formattedValue = accumulator.toString();
+                } else {
+                    formattedValue = accumulator.toFixed(2);
+                }
+
+                row[newColumnKey] = formattedValue;
+                return row;
+            });
+        });
+
+        component.set('custom-headers', updatedHeaders);
+        component.set('custom-data', updatedData);
         component.updateTableHTML();
-        return;
     }
-    
-    if (baseData.length === 0) return;
-    
-    // Start fresh with base headers and data
-    const updatedHeaders = { ...baseHeaders };
-    
-    // ✅ Create deep copy of base data
-    let updatedData = baseData.map(row => ({ ...row }));
-    
-    // Apply each running total
-// Apply each running total
-runningTotals.forEach(rt => {
-    const newColumnKey = `${rt.columnKey}_running_total`;
-    updatedHeaders[newColumnKey] = `${baseHeaders[rt.columnKey]} (RT)`;  // ✅ Use baseHeaders
-    
-    // ✅ Initialize accumulators properly
-    let accumulator = 0;
-    let count = 0;
-    let distinctValues = new Set();
-    let values = [];
-    let previousGroupValue = null;
-    let sumForAverage = 0;
-    
-    // ✅ Special initialization for certain operations
-    if (rt.operation === 'product') {
-        accumulator = 1;
-    } else if (rt.operation === 'min') {
-        accumulator = Infinity;
-    } else if (rt.operation === 'max') {
-        accumulator = -Infinity;
-    }
-        
-updatedData = updatedData.map((row, idx) => {
-    // Check for reset conditions
-    if (rt.reset === 'on-change-of' && rt.resetField && idx > 0) {
-        if (row[rt.resetField] !== updatedData[idx - 1][rt.resetField]) {
-            // ✅ Reset all accumulators
-            accumulator = rt.operation === 'product' ? 1 : 
-                         rt.operation === 'min' ? Infinity :
-                         rt.operation === 'max' ? -Infinity : 0;
-            count = 0;
-            distinctValues = new Set();
-            values = [];
-            sumForAverage = 0;
-        }
-    }
-    
-    // Check evaluate conditions
-    let shouldEvaluate = true;
-    if (rt.evaluate === 'on-change-of' && rt.evaluateField) {
-        shouldEvaluate = row[rt.evaluateField] !== previousGroupValue;
-        previousGroupValue = row[rt.evaluateField];
-    }
-    
-    if (shouldEvaluate) {
-        const value = parseFloat(row[rt.columnKey]) || 0;
-        count++;
-        distinctValues.add(row[rt.columnKey]);
-        values.push(value);
-        sumForAverage += value;
-        
-        switch (rt.operation) {
-            case 'sum':
-                accumulator += value;
-                break;
-            case 'count':
-                accumulator = count;
-                break;
-            case 'distinct-count':
-                accumulator = distinctValues.size;
-                break;
-            case 'average':
-                accumulator = sumForAverage / count;  // ✅ Use separate sum
-                break;
-            case 'max':
-                accumulator = Math.max(accumulator, value);  // ✅ Cumulative max
-                break;
-            case 'min':
-                accumulator = Math.min(accumulator, value);  // ✅ Cumulative min
-                break;
-            case 'product':
-                accumulator *= value;
-                break;
-            case 'std-dev':
-                const mean = sumForAverage / count;
-                const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / count;
-                accumulator = Math.sqrt(variance);
-                break;
-            case 'variance':
-                const avg = sumForAverage / count;
-                accumulator = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / count;
-                break;
-            case 'weighted-avg':
-                // ✅ Implement if you have weight column logic
-                accumulator = sumForAverage / count;  // Fallback to average
-                break;
-        }
-    }
-    
-    // ✅ Format based on operation type
-    let formattedValue;
-    if (rt.operation === 'count' || rt.operation === 'distinct-count') {
-        formattedValue = accumulator.toString();
-    } else {
-        formattedValue = accumulator.toFixed(2);
-    }
-    
-    row[newColumnKey] = formattedValue;
-    return row;
-});
-    });
-    
-    component.set('custom-headers', updatedHeaders);
-    component.set('custom-data', updatedData);
-    component.updateTableHTML();
-}
     function initializeTableStyleManager(component) {
         // Load current values
-        document.getElementById('border-style').value = component.get('table-border-style') || 'solid';
-        document.getElementById('border-width').value = component.get('table-border-width') || '1';
-        document.getElementById('border-color').value = component.get('table-border-color') || '#000000';
-        document.getElementById('border-opacity').value = component.get('table-border-opacity') || '100';
-        document.getElementById('bg-color').value = component.get('table-bg-color') || '#ffffff';
-        document.getElementById('text-color').value = component.get('table-text-color') || '#000000';
-        document.getElementById('font-family').value = component.get('table-font-family') || 'Arial, sans-serif';
-        document.getElementById('text-align').value = component.get('table-text-align') || 'left';
-        document.getElementById('vertical-align').value = component.get('table-vertical-align') || 'middle';
-        document.getElementById('top-n-value').value = component.get('top-n-value') || '10';
+        const borderStyle = document.getElementById('border-style');
+        const borderWidth = document.getElementById('border-width');
+        const borderColor = document.getElementById('border-color');
+        const borderOpacity = document.getElementById('border-opacity');
+        const bgColor = document.getElementById('bg-color');
+        const textColor = document.getElementById('text-color');
+        const fontFamily = document.getElementById('font-family');
+        const textAlign = document.getElementById('text-align');
+        const verticalAlign = document.getElementById('vertical-align');
+        const topNValue = document.getElementById('top-n-value');
+
+        if (borderStyle) borderStyle.value = component.get('table-border-style') || 'solid';
+        if (borderWidth) borderWidth.value = component.get('table-border-width') || '1';
+        if (borderColor) borderColor.value = component.get('table-border-color') || '#000000';
+        if (borderOpacity) borderOpacity.value = component.get('table-border-opacity') || '100';
+        if (bgColor) bgColor.value = component.get('table-bg-color') || '#ffffff';
+        if (textColor) textColor.value = component.get('table-text-color') || '#000000';
+        if (fontFamily) fontFamily.value = component.get('table-font-family') || 'Arial, sans-serif';
+        if (textAlign) textAlign.value = component.get('table-text-align') || 'left';
+        if (verticalAlign) verticalAlign.value = component.get('table-vertical-align') || 'middle';
+        if (topNValue) topNValue.value = component.get('top-n-value') || '10';
+
 
         // Opacity slider
         const opacitySlider = document.getElementById('border-opacity');
@@ -5035,7 +5098,8 @@ updatedData = updatedData.map((row, idx) => {
             document.getElementById('font-family').value = 'Arial, sans-serif';
             document.getElementById('text-align').value = 'left';
             document.getElementById('vertical-align').value = 'middle';
-            opacityValue.textContent = '100%';
+            const opacityValue = document.getElementById('opacity-value');
+            if (opacityValue) opacityValue.textContent = '100%';
         });
 
         // Cancel button

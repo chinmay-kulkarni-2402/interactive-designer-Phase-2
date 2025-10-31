@@ -1,7 +1,7 @@
 
 function initNotificationsPlugin(editor) {
     console.log("🔔 Initializing Notifications Plugin...");
-if (editor.Notifications) {
+    if (editor.Notifications) {
         console.log("✅ Notifications Plugin already initialized");
         return editor.Notifications;
     }
@@ -336,12 +336,17 @@ if (editor.Notifications) {
     // API Functions
     async function logErrorToBackend(message) {
         try {
+            // 🧼 Clean out control characters that break JSON parsing
+            const cleanMessage = typeof message === 'string'
+                ? message.replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+                : String(message);
+
             const response = await fetch(API_ENDPOINTS.logError, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ message: cleanMessage })
             });
 
             if (!response.ok) {
@@ -352,16 +357,17 @@ if (editor.Notifications) {
         }
     }
 
+
     async function fetchLogsFromBackend(fromDate = null, toDate = null) {
         try {
             let url = API_ENDPOINTS.fetchLogs;
-            
+
             if (fromDate && toDate) {
                 url += `?from=${fromDate}&to=${toDate}`;
             }
 
             const response = await fetch(url);
-            
+
             if (!response.ok) {
                 throw new Error('Failed to fetch logs');
             }
@@ -410,8 +416,8 @@ if (editor.Notifications) {
         }
 
 
-            logErrorToBackend(message);
-        
+        logErrorToBackend(message);
+
 
         const id = Date.now() + Math.random();
         const notif = { id, type, message, timestamp: new Date() };
@@ -424,7 +430,7 @@ if (editor.Notifications) {
         }
 
         const notifEl = createNotificationElement(notif);
-        
+
         if (notificationConfig.reverse) {
             notificationContainer.insertBefore(notifEl, notificationContainer.firstChild);
         } else {
@@ -501,10 +507,10 @@ if (editor.Notifications) {
     // Format date for display
     function formatDate(dateStr) {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
         });
     }
 
@@ -612,40 +618,41 @@ if (editor.Notifications) {
             const notificationsList = renderNotificationLogs(allLogs, currentPage, totalPages);
 
             const modalContent = `
-                <div class="date-filter-container">
-                    <div class="date-filter-group">
-                        <label class="date-filter-label">From Date</label>
-                        <input type="date" id="filter-from-date" class="date-filter-input" value="${fromDate}">
-                    </div>
-                    <div class="date-filter-group">
-                        <label class="date-filter-label">To Date</label>
-                        <input type="date" id="filter-to-date" class="date-filter-input" value="${toDate}">
-                    </div>
-                    <button id="submit-filter-btn" class="date-filter-button submit">Submit</button>
-                    <button id="reset-filter-btn" class="date-filter-button reset">Reset</button>
-                </div>
-                <div style="max-height: 400px; overflow-y: auto; padding: 10px;">
-                    ${notificationsList}
-                </div>
-                ${totalPages > 1 ? `
-                    <div class="pagination-container">
-                        <button id="prev-page-btn" class="pagination-button" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
-                        <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
-                        <button id="next-page-btn" class="pagination-button" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
-                    </div>
-                ` : ''}
-                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; text-align: center;">
-                    <div style="font-size: 12px; color: #666;">
-                        Total: ${allLogs.length} notification${allLogs.length !== 1 ? 's' : ''}
-                    </div>
-                </div>
-            `;
+        <div class="date-filter-container">
+            <div class="date-filter-group">
+                <label class="date-filter-label">From Date</label>
+                <input type="date" id="filter-from-date" class="date-filter-input" value="${fromDate}">
+            </div>
+            <div class="date-filter-group">
+                <label class="date-filter-label">To Date</label>
+                <input type="date" id="filter-to-date" class="date-filter-input" value="${toDate}">
+            </div>
+            <button id="submit-filter-btn" class="date-filter-button submit">Submit</button>
+            <button id="reset-filter-btn" class="date-filter-button reset">Reset</button>
+            <button id="export-excel-btn" class="date-filter-button submit">Export Excel</button>
+        </div>
+        <div style="max-height: 400px; overflow-y: auto; padding: 10px;">
+            ${notificationsList}
+        </div>
+        ${totalPages > 1 ? `
+            <div class="pagination-container">
+                <button id="prev-page-btn" class="pagination-button" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+                <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
+                <button id="next-page-btn" class="pagination-button" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+            </div>
+        ` : ''}
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; text-align: center;">
+            <div style="font-size: 12px; color: #666;">
+                Total: ${allLogs.length} notification${allLogs.length !== 1 ? 's' : ''}
+            </div>
+        </div>
+    `;
 
             editor.Modal.setContent(modalContent);
             attachEventListeners();
-            attachExportEventListener();
-
+            attachExportEventListener(); // 🧩 ensure this runs after button exists
         };
+
 
         const attachFilterEventListeners = () => {
             setTimeout(() => {
@@ -675,35 +682,72 @@ if (editor.Notifications) {
         };
 
         function attachExportEventListener() {
-    const exportBtn = document.getElementById('export-excel-btn');
-    if (!exportBtn) return;
+            const exportBtn = document.getElementById('export-excel-btn');
+            if (!exportBtn) return;
 
-    exportBtn.addEventListener('click', () => {
-        if (!allLogs || allLogs.length === 0) {
-            alert('No notifications to export.');
-            return;
+            exportBtn.addEventListener('click', () => {
+                if (!allLogs || allLogs.length === 0) {
+                    alert('No notifications to export.');
+                    return;
+                }
+
+                console.log("🧾 Exporting Excel Report...", allLogs);
+
+                // ✅ Prepare worksheet data safely
+                const wsData = allLogs.map((log, index) => {
+                    // Safe fallbacks for missing values
+                    const typeValue = typeof log.type === 'string'
+                        ? log.type.toUpperCase()
+                        : (log.type ? String(log.type).toUpperCase() : 'ERROR');
+
+                    const dateValue = log.date
+                        ? log.date
+                        : log.timestamp
+                            ? formatDate(log.timestamp)
+                            : '';
+
+                    const timeValue = log.time
+                        ? log.time
+                        : log.timestamp
+                            ? new Date(log.timestamp).toLocaleTimeString()
+                            : '';
+
+                    const messageValue = log.message || '(No message)';
+
+                    return {
+                        SNo: index + 1,
+                        Type: typeValue,
+                        Message: messageValue,
+                        Date: dateValue,
+                        Time: timeValue
+                    };
+                });
+
+                // ✅ Handle empty after filtering (defensive)
+                if (wsData.length === 0) {
+                    alert('No valid notification data to export.');
+                    return;
+                }
+
+                try {
+                    // Convert to worksheet
+                    const ws = XLSX.utils.json_to_sheet(wsData);
+
+                    // Create workbook
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Notifications");
+
+                    // Export file
+                    const filename = `notifications_${getTodayDate()}.xlsx`;
+                    XLSX.writeFile(wb, filename);
+                    console.log(`✅ Excel exported: ${filename}`);
+                } catch (err) {
+                    console.error("❌ Excel export failed:", err);
+                    alert("Failed to export Excel. Check console for details.");
+                }
+            });
         }
 
-        // Prepare worksheet data
-        const wsData = allLogs.map((log, index) => ({
-            SNo: index + 1,
-            Type: log.type.toUpperCase(),
-            Message: log.message,
-            Date: log.date || formatDate(log.timestamp),
-            Time: log.time || new Date(log.timestamp).toLocaleTimeString()
-        }));
-
-        // Convert to worksheet
-        const ws = XLSX.utils.json_to_sheet(wsData);
-
-        // Create workbook
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Notifications");
-
-        // Export
-        XLSX.writeFile(wb, `notifications_${getTodayDate()}.xlsx`);
-    });
-}
 
         const attachEventListeners = () => {
             setTimeout(() => {
@@ -735,7 +779,7 @@ if (editor.Notifications) {
 
         const loadLogs = async () => {
             showLoadingState();
-            
+
             try {
                 allLogs = await fetchLogsFromBackend(fromDate, toDate);
                 renderModal();
@@ -746,7 +790,7 @@ if (editor.Notifications) {
 
         editor.Modal.setTitle('📬 Notifications');
         editor.Modal.open();
-        
+
         await loadLogs();
     }
 
@@ -780,15 +824,23 @@ if (editor.Notifications) {
     // Add notification button to navbar
     const panels = editor.Panels;
     const notificationsPanelId = 'notifications-panel-btn';
-    
-    panels.addButton('options', {
-        id: notificationsPanelId,
-        className: 'fa fa-bell notifications-btn',
-        command: 'toggle-notifications',
-        attributes: { title: 'Notifications' },
-        active: false,
-    });
 
+    editor.on("load", () => {
+        const devicesPanel = editor.Panels.getPanel("devices-c");
+
+        if (devicesPanel) {
+            const buttons = devicesPanel.get("buttons");
+
+            buttons.add([{
+                id: notificationsPanelId,
+                className: "fa fa-bell notifications-btn",
+                command: "toggle-notifications",
+                attributes: {
+                    title: "Notifications"
+                }
+            }]);
+        }
+    });
     // Add badge element
     setTimeout(() => {
         const btnEl = document.querySelector('.notifications-btn');
@@ -809,61 +861,61 @@ if (editor.Notifications) {
         get: (id) => notifications.find(n => n.id === id)
     };
 
-// Capture console errors and warnings (optional)
-const originalError = console.error;
-const originalWarn = console.warn;
+    // Capture console errors and warnings (optional)
+    const originalError = console.error;
+    const originalWarn = console.warn;
 
-// Track recent messages to prevent duplicates
-const recentMessages = new Map();
-const DUPLICATE_THRESHOLD = 1000; // 1 second
+    // Track recent messages to prevent duplicates
+    const recentMessages = new Map();
+    const DUPLICATE_THRESHOLD = 1000; // 1 second
 
-function isDuplicate(message) {
-    const now = Date.now();
-    if (recentMessages.has(message)) {
-        const lastTime = recentMessages.get(message);
-        if (now - lastTime < DUPLICATE_THRESHOLD) {
-            return true;
-        }
-    }
-    recentMessages.set(message, now);
-    
-    // Clean up old entries
-    if (recentMessages.size > 50) {
-        const entries = Array.from(recentMessages.entries());
-        entries.forEach(([msg, time]) => {
-            if (now - time > DUPLICATE_THRESHOLD) {
-                recentMessages.delete(msg);
+    function isDuplicate(message) {
+        const now = Date.now();
+        if (recentMessages.has(message)) {
+            const lastTime = recentMessages.get(message);
+            if (now - lastTime < DUPLICATE_THRESHOLD) {
+                return true;
             }
-        });
-    }
-    
-    return false;
-}
+        }
+        recentMessages.set(message, now);
 
-console.error = function(...args) {
-    originalError.apply(console, args);
-    const message = args.join(' ');
-    
-    if (!isDuplicate(message)) {
-        addNotification({
-            type: 'error',
-            message: message,
-            timeout: 0
-        });
-    }
-};
+        // Clean up old entries
+        if (recentMessages.size > 50) {
+            const entries = Array.from(recentMessages.entries());
+            entries.forEach(([msg, time]) => {
+                if (now - time > DUPLICATE_THRESHOLD) {
+                    recentMessages.delete(msg);
+                }
+            });
+        }
 
-console.warn = function(...args) {
-    originalWarn.apply(console, args);
-    const message = args.join(' ');
-    
-    if (!isDuplicate(message)) {
-        addNotification({
-            type: 'warning',
-            message: message
-        });
+        return false;
     }
-};
+
+    console.error = function (...args) {
+        originalError.apply(console, args);
+        const message = args.join(' ');
+
+        if (!isDuplicate(message)) {
+            addNotification({
+                type: 'error',
+                message: message,
+                timeout: 0
+            });
+        }
+    };
+
+    console.warn = function (...args) {
+        originalWarn.apply(console, args);
+        const message = args.join(' ');
+
+        if (!isDuplicate(message)) {
+            addNotification({
+                type: 'warning',
+                message: message
+            });
+        }
+    };
 
     console.log("✅ Notifications Plugin initialized successfully");
 
