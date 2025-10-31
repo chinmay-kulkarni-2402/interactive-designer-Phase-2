@@ -381,13 +381,23 @@ setTimeout(() => renderUploadedJsonList(), 0);
     editor.Modal.open({
       title: "Bulk Export",
       content: `
-      <div style="height:100%; overflow:auto;">
+<div style="height:100%; overflow:auto;">
 
-        <button id="payload-preview-btn" style="margin-bottom:10px; display: none;">View Payload Mappings</button>
-        <div id="payload-preview-container"></div>
-                <h5>Upload JSON Files</h5>
-        <input type="file" id="json-upload-input" accept=".json" multiple />
-        <div id="uploaded-json-list" style="margin-top:10px; font-size:0.9em; color:#333;"></div>
+  <button id="payload-preview-btn" style="margin-bottom:10px; display: none;">View Payload Mappings</button>
+  <div id="payload-preview-container"></div>
+  
+  <h5>Upload JSON Files</h5>
+  <input type="file" 
+         class="form-control popupinput2"
+         accept="application/json,.xml,.json"
+         multiple
+         style="width:95%"  
+         name="importJsonInputFile"
+         id="json-upload-input">
+  <div id="uploaded-json-list" style="margin-top:10px; font-size:0.9em; color:#333;"></div>
+
+</div>
+
         <hr>
 
         <h5>Export Type</h5>
@@ -833,8 +843,124 @@ function getFilenameFromResponse(response, fallback = "export.pdf") {
   return fallback;
 }
 
+// Add this helper function at the top level (after uploadedJsonFiles declaration)
+async function convertXmlToJson(xmlContent, fileName) {
+    return new Promise((resolve, reject) => {
+        try {
+            // Load X2JS if not already loaded
+            if (typeof window.X2JS === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/x2js/1.2.0/xml2json.min.js';
+                script.onload = function() {
+                    performConversion();
+                };
+                script.onerror = function() {
+                    reject(new Error('Failed to load X2JS library'));
+                };
+                document.head.appendChild(script);
+            } else {
+                performConversion();
+            }
+
+            function normalizeXMLtoJSON(obj, parentKey = '') {
+                if (obj === null || obj === undefined) {
+                    return obj;
+                }
+                
+                if (Array.isArray(obj)) {
+                    return obj.map(item => normalizeXMLtoJSON(item, parentKey));
+                }
+                
+                if (typeof obj !== 'object') {
+                    return obj;
+                }
+                
+                const normalized = {};
+                
+                for (let key in obj) {
+                    if (!obj.hasOwnProperty(key)) continue;
+                    
+                    const value = obj[key];
+                    
+                    if (key === 'item' && Object.keys(obj).length === 1) {
+                        return normalizeXMLtoJSON(value, key);
+                    }
+                    
+                    if (value && typeof value === 'object') {
+                        if (value.item !== undefined) {
+                            if (Array.isArray(value.item)) {
+                                normalized[key] = value.item.map(item => normalizeXMLtoJSON(item, key));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.item, key)];
+                            }
+                        }
+                        else if (value.level !== undefined) {
+                            if (Array.isArray(value.level)) {
+                                normalized[key] = value.level.map(level => normalizeXMLtoJSON(level, 'level'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.level, 'level')];
+                            }
+                        }
+                        else if (value.row !== undefined) {
+                            if (Array.isArray(value.row)) {
+                                normalized[key] = value.row.map(row => normalizeXMLtoJSON(row, 'row'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.row, 'row')];
+                            }
+                        }
+                        else if (value.header !== undefined) {
+                            if (Array.isArray(value.header)) {
+                                normalized[key] = value.header.map(header => normalizeXMLtoJSON(header, 'header'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.header, 'header')];
+                            }
+                        }
+                        else if (value.cell !== undefined) {
+                            if (Array.isArray(value.cell)) {
+                                normalized[key] = value.cell.map(cell => normalizeXMLtoJSON(cell, 'cell'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.cell, 'cell')];
+                            }
+                        }
+                        else if (Array.isArray(value)) {
+                            normalized[key] = value.map(item => normalizeXMLtoJSON(item, key));
+                        }
+                        else {
+                            normalized[key] = normalizeXMLtoJSON(value, key);
+                        }
+                    } else {
+                        normalized[key] = value;
+                    }
+                }
+                
+                return normalized;
+            }
+
+            function performConversion() {
+                try {
+                    const x2js = new X2JS();
+                    const xmlDoc = new DOMParser().parseFromString(xmlContent, 'text/xml');
+                    const xmlJson = x2js.xml2json(xmlDoc);
+                    const normalizedJson = normalizeXMLtoJSON(xmlJson);
+                    
+                    console.log(`✅ Converted XML to JSON: ${fileName}`);
+                    resolve({
+                        json: normalizedJson,
+                        jsonString: JSON.stringify(normalizedJson)
+                    });
+                } catch (err) {
+                    console.error(`❌ Error converting XML ${fileName}:`, err);
+                    reject(err);
+                }
+            }
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+// Update the exportDesignAndSend function - replace the file appending section
 async function exportDesignAndSend(editor, inputJsonMappings) {
-  // Get export type from modal dropdown
   const exportType = document.getElementById("export-type-dropdown")?.value || "pdf";
   const apiUrl =
     exportType === "pdf"
@@ -844,62 +970,75 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   const html = editor.getHtml();
   const css = editor.getCss();
 
-let finalHtml;
+  let finalHtml;
 
-if (exportType === "pdf") {
-  // Remove margin from .page-container in CSS
-  const tempDiv = document.createElement("div");
-  tempDiv.innerHTML = html;
-  
-  // Find all elements with class "page-container"
-  const pageContainers = tempDiv.querySelectorAll(".page-container");
-  const idsToClean = [];
-  
-  pageContainers.forEach(el => {
-    if (el.id) {
-      idsToClean.push(el.id);
-    }
-  });
-  
-  // Remove margin property from those IDs in CSS
-  let cleanedCss = css;
-  idsToClean.forEach(id => {
-    // Match #id { ... } block and remove margin property
-    const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, 'g');
-    cleanedCss = cleanedCss.replace(idRegex, '$1');
-  });
-  
-  finalHtml = htmlWithCss(html, cleanedCss);
-} else {
-  // For HTML export, send raw HTML with CSS, no cleanup
-  finalHtml = htmlWithCss(html, css);
-}
-
+  if (exportType === "pdf") {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = html;
+    
+    const pageContainers = tempDiv.querySelectorAll(".page-container");
+    const idsToClean = [];
+    
+    pageContainers.forEach(el => {
+      if (el.id) {
+        idsToClean.push(el.id);
+      }
+    });
+    
+    let cleanedCss = css;
+    idsToClean.forEach(id => {
+      const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, 'g');
+      cleanedCss = cleanedCss.replace(idRegex, '$1');
+    });
+    
+    finalHtml = htmlWithCss(html, cleanedCss);
+  } else {
+    finalHtml = htmlWithCss(html, css);
+  }
 
   const formData = new FormData();
   formData.append("htmlFile", new Blob([finalHtml], { type: "text/html" }), "template.html");
 
-  // Append all uploaded JSONs (localStorage + frontend)
-uploadedJsonFiles.forEach((f, idx) => {
-  formData.append(
-    "jsonFile",
-    new Blob([f.content], { type: "application/json" }),
-    f.name || `data${idx + 1}.json`
-  );
-});
-
-
+  // ✅ Convert XML files to JSON before sending
+  for (let idx = 0; idx < uploadedJsonFiles.length; idx++) {
+    const f = uploadedJsonFiles[idx];
+    const fileExtension = f.name.split('.').pop().toLowerCase();
+    
+    let jsonContent = f.content;
+    let jsonFileName = f.name;
+    
+    // If it's an XML file, convert it to JSON
+    if (fileExtension === 'xml') {
+      try {
+        console.log(`🔄 Converting XML file: ${f.name}`);
+        const converted = await convertXmlToJson(f.content, f.name);
+        jsonContent = converted.jsonString;
+        // Change extension from .xml to .json
+        jsonFileName = f.name.replace(/\.xml$/i, '.json');
+        console.log(`✅ Converted ${f.name} → ${jsonFileName}`);
+      } catch (err) {
+        console.error(`❌ Failed to convert XML file ${f.name}:`, err);
+        alert(`Failed to convert XML file: ${f.name}`);
+        throw err;
+      }
+    }
+    
+    // Append the JSON file (either original or converted)
+    formData.append(
+      "jsonFile",
+      new Blob([jsonContent], { type: "application/json" }),
+      jsonFileName
+    );
+  }
 
   formData.append("payload", JSON.stringify(inputJsonMappings));
 
-  // 🔍 Debug logs
   console.log("🚀 Sending Export Request");
   console.log("👉 API URL:", apiUrl);
   console.log("👉 Export Type:", exportType);
   console.log("👉 Payload (inputJsonMappings):", JSON.stringify(inputJsonMappings, null, 2));
   console.log("👉 Final HTML being sent:\n", finalHtml);
 
-  // 🔽 Extra: download the same HTML being sent for debugging
   try {
     const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
     const debugLink = document.createElement("a");
@@ -914,18 +1053,15 @@ uploadedJsonFiles.forEach((f, idx) => {
 
   const response = await fetch(apiUrl, { method: "POST", body: formData });
 
-  // Debug response headers
   console.log("📩 Raw response headers:", [...response.headers.entries()]);
 
   if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
-  // Always expect ZIP file
   const blob = await response.blob();
   const filename = getFilenameFromResponse(response, "export.zip");
 
   console.log("📦 ZIP filename resolved:", filename);
 
-  // Download the ZIP file
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
