@@ -264,340 +264,144 @@ function exportPlugin(editor) {
   }
 
   // Enhanced RTF Export with proper image handling
-async function exportRTF(editor, doc) {
-  // RTF Helper Functions
-  function escapeRTF(text) {
-    return text
-      .replace(/\\/g, '\\\\')
-      .replace(/{/g, '\\{')
-      .replace(/}/g, '\\}')
-      .replace(/\n/g, '\\line ')
-      .replace(/[^\x00-\x7F]/g, c => `\\u${c.charCodeAt(0)}?`);
-  }
+async function exportRTF(body) {
+  const apiUrl = "http://192.168.0.221:9998/api/toRtf";
 
-  function rgbToRTFColor(r, g, b) {
-    return `\\red${r}\\green${g}\\blue${b};`;
-  }
+  // --- Create and show loading overlay ---
+  let overlay = document.createElement("div");
+  overlay.id = "rtf-loading-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "rgba(0,0,0,0.5)",
+    color: "#fff",
+    fontSize: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  });
+  overlay.innerText = "Generating RTF...";
+  document.body.appendChild(overlay);
 
-  function getColorIndex(colorStr, colorTable) {
-    let r = 0, g = 0, b = 0;
+  try {
+    // --- Prepare clean HTML for API ---
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = body.outerHTML;
 
-    if (colorStr.startsWith('#')) {
-      const hex = colorStr.substring(1);
-      r = parseInt(hex.substring(0, 2), 16);
-      g = parseInt(hex.substring(2, 4), 16);
-      b = parseInt(hex.substring(4, 6), 16);
-    } else if (colorStr.startsWith('rgb')) {
-      const match = colorStr.match(/\d+/g);
-      if (match) {
-        r = parseInt(match[0]);
-        g = parseInt(match[1]);
-        b = parseInt(match[2]);
-      }
-    }
+    // 🧹 Remove unwanted IDs from common page containers
+    const classesToClean = [
+      "page-container",
+      "page-content",
+      "header-wrapper",
+      "page-header-element",
+      "content-wrapper",
+      "main-content-area",
+      "footer-wrapper",
+      "page-footer-element",
+    ];
+    classesToClean.forEach((cls) => {
+      tempDiv.querySelectorAll(`.${cls}`).forEach((el) => {
+        if (el.hasAttribute("id")) el.removeAttribute("id");
+      });
+    });
 
-    const colorKey = `${r},${g},${b}`;
-    if (!colorTable.has(colorKey)) {
-      colorTable.set(colorKey, colorTable.size + 1);
-    }
-    return colorTable.get(colorKey);
-  }
+    // --- External CSS and JS Resources ---
+    const canvasResources = {
+      styles: [
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
+        "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
+        "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+        "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
+        "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
+        "https://fonts.googleapis.com/icon?family=Material+Icons",
+        "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
+        "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
+      ],
+      scripts: [
+        "https://code.jquery.com/jquery-3.3.1.slim.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+        "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
+        "https://code.highcharts.com/highcharts.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+        "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+      ],
+    };
 
-  function getFontIndex(font, fontTable) {
-    const fontKey = font.split(',')[0].trim().replace(/['"]/g, '');
-    if (!fontTable.has(fontKey)) {
-      fontTable.set(fontKey, fontTable.size);
-    }
-    return fontTable.get(fontKey);
-  }
+    const externalStyles = canvasResources.styles
+      .map((url) => `<link rel="stylesheet" href="${url}">`)
+      .join("\n");
 
-  function getInlineStyleRTF(el, colorTable, fontTable) {
-    const style = getComputedStyle(el);
-    let codes = '';
+    const externalScripts = canvasResources.scripts
+      .map((url) => `<script src="${url}" defer></script>`)
+      .join("\n");
 
-    // Color
-    const color = style.color;
-    if (color && color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)') {
-      const index = getColorIndex(color, colorTable);
-      if (index > 0) codes += `\\cf${index} `;
-    }
+    // --- Construct full HTML ---
+    const finalHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          ${externalStyles}
+          <style>body { margin: 0; padding: 0; }</style>
+          ${externalScripts}
+        </head>
+        <body>${tempDiv.innerHTML}</body>
+      </html>
+    `;
 
-    // Font family
-    const font = style.fontFamily;
-    if (font) {
-      const index = getFontIndex(font, fontTable);
-      codes += `\\f${index} `;
-    }
-
-    // Font size
-    const size = parseFloat(style.fontSize);
-    if (!isNaN(size)) {
-      const halfPoints = Math.round(size * 2); // px to half-points (approximation)
-      codes += `\\fs${halfPoints} `;
-    }
-
-    // Bold
-    if (style.fontWeight === 'bold' || parseInt(style.fontWeight) >= 700) {
-      codes += '\\b ';
-    }
-
-    // Italic
-    if (style.fontStyle === 'italic' || style.fontStyle === 'oblique') {
-      codes += '\\i ';
-    }
-
-    // Underline
-    if (style.textDecoration.includes('underline')) {
-      codes += '\\ul ';
-    }
-
-    // Strikethrough
-    if (style.textDecoration.includes('line-through')) {
-      codes += '\\strike ';
-    }
-
-    // Text background (highlight)
-    const bg = style.backgroundColor;
-    if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-      const index = getColorIndex(bg, colorTable);
-      if (index > 0) codes += `\\highlight${index} `;
-    }
-
-    return codes;
-  }
-
-  function getParaStyleRTF(el, colorTable, fontTable) {
-    const style = getComputedStyle(el);
-    let codes = '';
-
-    // Alignment
-    const align = style.textAlign;
-    if (align === 'center') codes += '\\qc ';
-    else if (align === 'right') codes += '\\qr ';
-    else if (align === 'justify') codes += '\\qj ';
-
-    // Indent (margin-left)
-    const marginLeft = parseFloat(style.marginLeft);
-    if (!isNaN(marginLeft) && marginLeft > 0) {
-      const twips = Math.round(marginLeft * 15);
-      codes += `\\li${twips} `;
-    }
-
-    // Add inline styles for font, size, etc.
-    codes += getInlineStyleRTF(el, colorTable, fontTable);
-
-    return codes;
-  }
-
-  function getBorderRTF(side, el, colorTable) {
-    const style = getComputedStyle(el);
-    const widthStr = style[`border-${side}-width`];
-    const bStyle = style[`border-${side}-style`];
-    if (bStyle === 'none' || parseFloat(widthStr) === 0) return '';
-
-    let width = parseFloat(widthStr);
-    if (isNaN(width)) width = 0.5; // Default for thin
-    const wTwips = Math.round(width * 15);
-
-    let bType = '\\brdrs'; // solid
-    switch (bStyle) {
-      case 'dotted': bType = '\\brdrdot'; break;
-      case 'dashed': bType = '\\brdrdash'; break;
-      case 'double': bType = '\\brdrdb'; break;
-    }
-
-    const color = style[`border-${side}-color`];
-    let cf = '';
-    if (color && color !== 'transparent' && color !== 'rgb(0, 0, 0)') {
-      const index = getColorIndex(color, colorTable);
-      if (index > 0) cf = `\\brdrcf${index} `;
-    }
-
-    return `${bType}\\brdrw${wTwips} ${cf}`;
-  }
-
-  // Convert image to RTF hex format
-  async function imageToRTFHex(imgSrc) {
+    // --- Optional: Debug HTML before sending ---
     try {
-      let blob;
-      if (imgSrc.startsWith('data:')) {
-        const response = await fetch(imgSrc);
-        blob = await response.blob();
-      } else {
-        const response = await fetch(imgSrc);
-        blob = await response.blob();
-      }
-
-      const arrayBuffer = await blob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      let hex = '';
-      for (let byte of uint8Array) {
-        hex += byte.toString(16).padStart(2, '0');
-      }
-      return hex;
-    } catch (e) {
-      console.warn('Failed to convert image:', e);
-      return null;
-    }
-  }
-
-  // Convert DOM element to RTF
-  async function convertElement(el, colorTable, fontTable) {
-    if (el.nodeType === 3) {
-      return escapeRTF(el.textContent);
+      const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+      const debugLink = document.createElement("a");
+      debugLink.href = debugUrl;
+      debugLink.download = "sent_to_rtf_api.html";
+      debugLink.click();
+      URL.revokeObjectURL(debugUrl);
+    } catch (err) {
+      console.warn("⚠️ Could not auto-download debug HTML:", err);
     }
 
-    if (['STYLE', 'SCRIPT', 'LINK', 'META'].includes(el.tagName)) {
-      return '';
-    }
+    // --- Send HTML to RTF API ---
+    const formData = new FormData();
+    formData.append("file", new Blob([finalHtml], { type: "text/html" }), "export.html");
 
-    const style = getComputedStyle(el);
-    const tag = el.tagName;
+    const response = await fetch(apiUrl, { method: "POST", body: formData });
+    if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
-    // Special handling for BR
-    if (tag === 'BR') {
-      return '\\line ';
-    }
+    const blob = await response.blob();
+    const contentType = response.headers.get("Content-Type");
 
-    // Images
-    if (tag === 'IMG') {
-      const hex = await imageToRTFHex(el.src);
-      if (hex) {
-        const width = (parseFloat(style.width) || el.width || 200) * 15;
-        const height = (parseFloat(style.height) || el.height || 150) * 15;
-        return `{\\pict\\pngblip\\picw${width}\\pich${height}\\picwgoal${width}\\pichgoal${height} ${hex}}\\par `;
-      }
-      return '';
-    }
-
-    // Tables
-    if (tag === 'TABLE') {
-      return await tableToRTF(el, colorTable, fontTable);
-    }
-
-    // Headings
-    if (/^H[1-6]$/.test(tag)) {
-      const level = parseInt(tag[1]);
-      const baseSize = 24 - (level * 2); // Adjustable: h1 largest
-      let rtf = '\\pard ';
-      rtf += getParaStyleRTF(el, colorTable, fontTable);
-      rtf += `\\fs${baseSize * 2} `; // Override with heading size if not set in style
-      rtf += await getChildren(el, colorTable, fontTable);
-      rtf += '\\par ';
-      return rtf;
-    }
-
-    // Paragraphs and Divs (block elements)
-    if (tag === 'P' || tag === 'DIV' || style.display === 'block') {
-      let rtf = '\\pard ';
-      rtf += getParaStyleRTF(el, colorTable, fontTable);
-      rtf += await getChildren(el, colorTable, fontTable);
-      rtf += '\\par ';
-      return rtf;
-    }
-
-    // Inline elements (wrap in group for nesting)
-    const open = getInlineStyleRTF(el, colorTable, fontTable);
-    const content = await getChildren(el, colorTable, fontTable);
-    if (open) {
-      return `{${open}${content}}`;
+    if (contentType && (contentType.includes("rtf") || contentType.includes("application/octet-stream"))) {
+      const rtfUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = rtfUrl;
+      a.download = "export.rtf";
+      a.click();
+      URL.revokeObjectURL(rtfUrl);
+      console.log("✅ RTF downloaded successfully!");
     } else {
-      return content;
-    }
-  }
-
-  async function getChildren(el, colorTable, fontTable) {
-    const children = Array.from(el.childNodes);
-    const results = await Promise.all(children.map(c => convertElement(c, colorTable, fontTable)));
-    return results.join('');
-  }
-
-  async function tableToRTF(table, colorTable, fontTable) {
-    let rtf = '';
-    const rows = table.querySelectorAll('tr');
-
-    for (const row of rows) {
-      const cells = row.querySelectorAll('th, td');
-      rtf += '\\trowd\\trgaph108\\trleft0\n';
-
-      let cellx = 0;
-      for (const cell of cells) {
-        const width = parseFloat(getComputedStyle(cell).width);
-        const widthTwips = Math.round((isNaN(width) ? 200 : width) * 15);
-        if (widthTwips < 100) continue;
-        cellx += widthTwips;
-
-        // Cell background
-        const bgColor = getComputedStyle(cell).backgroundColor;
-        let bgDef = '';
-        if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-          const bgIndex = getColorIndex(bgColor, colorTable);
-          if (bgIndex > 0) bgDef = `\\clcbpat${bgIndex} `;
-        }
-
-        // Borders
-        const top = getBorderRTF('top', cell, colorTable);
-        const bottom = getBorderRTF('bottom', cell, colorTable);
-        const left = getBorderRTF('left', cell, colorTable);
-        const right = getBorderRTF('right', cell, colorTable);
-
-        rtf += bgDef;
-        if (top) rtf += `\\clbrdrt${top} `;
-        if (bottom) rtf += `\\clbrdrb${bottom} `;
-        if (left) rtf += `\\clbrdrl${left} `;
-        if (right) rtf += `\\clbrdrr${right} `;
-        rtf += `\\cellx${cellx}\n`;
-      }
-
-      for (const cell of cells) {
-        rtf += '\\pard\\intbl ';
-        rtf += getParaStyleRTF(cell, colorTable, fontTable);
-        rtf += await getChildren(cell, colorTable, fontTable); // Use getChildren to allow nested elements
-        rtf += ' \\cell\n';
-      }
-      rtf += '\\row\n';
+      console.warn("⚠️ Unexpected response type:", contentType);
+      alert("Unexpected response from server — RTF not received.");
     }
 
-    return rtf;
+  } catch (err) {
+    console.error("❌ Error exporting RTF:", err);
+    alert("Failed to export RTF. Check console for details.");
+  } finally {
+    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
   }
-
-  // Build tables
-  const colorTable = new Map();
-  colorTable.set('0,0,0', 1); // Black as cf1
-
-  const fontTable = new Map();
-  fontTable.set('Arial', 0); // Default font
-
-  // Convert content
-  const content = await convertElement(doc.body, colorTable, fontTable);
-
-  // Build font table RTF
-  let fontTableRTF = '{\\fonttbl';
-  const sortedFonts = Array.from(fontTable.entries()).sort((a, b) => a[1] - b[1]);
-  sortedFonts.forEach(([font, index]) => {
-    fontTableRTF += `{\\f${index}\\fswiss\\fcharset0 ${font};}`;
-  });
-  fontTableRTF += '}';
-
-  // Build color table RTF
-  let colorTableRTF = '{\\colortbl;'; // First ; for auto (cf0)
-  const sortedColors = Array.from(colorTable.entries()).sort((a, b) => a[1] - b[1]);
-  sortedColors.forEach(([color]) => {
-    const [r, g, b] = color.split(',').map(Number);
-    colorTableRTF += rgbToRTFColor(r, g, b);
-  });
-  colorTableRTF += '}';
-
-  // Generate full RTF
-  const rtfContent = `{\\rtf1\\ansi\\ansicpg1252\\deff0
-${fontTableRTF}
-${colorTableRTF}
-\\viewkind4\\uc1\\pard\\f0\\fs20
-${content}
-}`;
-
-  downloadFile(rtfContent, 'export.rtf', 'application/rtf');
 }
+
 
 async function exportPDF(body) {
   const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadSinglePagePdf";
