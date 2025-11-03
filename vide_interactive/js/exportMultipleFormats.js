@@ -265,7 +265,7 @@ function exportPlugin(editor) {
 
   // Enhanced RTF Export with proper image handling
 async function exportRTF(body) {
-  const apiUrl = "http://localhost:8080/api/toRtf";
+  const apiUrl = "http://192.168.0.188:8081/api/toRtf";
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
@@ -404,7 +404,7 @@ async function exportRTF(body) {
 
 
 async function exportPDF(body) {
-  const apiUrl = "http://localhost:8080/jsonApi/uploadSinglePagePdf";
+  const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadSinglePagePdf";
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
@@ -531,7 +531,7 @@ async function exportPDF(body) {
 
     // --- Send to backend API ---
     const formData = new FormData();
-    formData.append("htmlFile", new Blob([finalHtml], { type: "text/html" }), "single_page.html");
+    formData.append("file", new Blob([finalHtml], { type: "text/html" }), "single_page.html");
 
     const response = await fetch(apiUrl, { method: "POST", body: formData });
     if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);

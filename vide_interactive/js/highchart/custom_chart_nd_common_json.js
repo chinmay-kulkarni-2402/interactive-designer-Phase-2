@@ -1,4 +1,16 @@
 function customChartCommonJson(editor) {
+    function getJsonFileOptions() {
+        const storedFileNames = localStorage.getItem('common_json_files');
+        const options = [{ id: '0', name: 'Select File' }];
+
+        if (storedFileNames) {
+            const fileNames = storedFileNames.split(',').map(f => f.trim());
+            fileNames.forEach((fileName, index) => {
+                options.push({ id: (index + 1).toString(), name: fileName });
+            });
+        }
+        return options;
+    }
     const props_test_chart = (i) => i;
     const id_Trait = {
         name: "id",
@@ -75,6 +87,14 @@ function customChartCommonJson(editor) {
         default: 'pie',
         name,
     }));
+    const json_file_index_Trait = ["jsonFileIndex"].map((name) => ({
+        changeProp: 1,
+        type: "select",
+        label: "Select JSON File",
+        options: getJsonFileOptions(),
+        default: '0',
+        name,
+    }));
 
     const json_path_Trait = ["jsonpath"].map((name) => ({
         changeProp: 1,
@@ -110,9 +130,8 @@ function customChartCommonJson(editor) {
         label: "Json Suggestion",
         placeholder: "Json Suggestion",
         name,
-        id: "json-suggestion-btn",
         text: "Suggestion",
-        class: "json-suggestion-btn",
+        full: true,
     }));
     const swap_axis_Trait = ["swapAxis"].map((name) => ({
         changeProp: 1,
@@ -140,6 +159,7 @@ function customChartCommonJson(editor) {
             ...chartTitle_Trait,
             ...Select_title_Align_Trait,
             ...Select_chart_Trait,
+            ...json_file_index_Trait,
             ...json_path_Trait,
             ...json_button_sugesstionTrait,
             ...chart_yAxis_Trait,
@@ -226,7 +246,22 @@ function customChartCommonJson(editor) {
                         try {
                             if (typeof localStorage !== 'undefined') {
                                 language = localStorage.getItem('language') || 'english';
-                                const common_json_data = JSON.parse(localStorage.getItem('common_json') || 'null');
+
+                                // Get file index
+                                let fileIndex = "{[ jsonFileIndex ]}" || '0';
+                                let common_json_data = null;
+
+                                if (fileIndex !== '0') {
+                                    const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
+                                    const selectedFile = fileNames[parseInt(fileIndex) - 1];
+                                    const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+                                    if (jsonString) {
+                                        common_json_data = JSON.parse(jsonString);
+                                    }
+                                } else {
+                                    common_json_data = JSON.parse(localStorage.getItem('common_json') || 'null');
+                                }
+
                                 if (common_json_data && JsonPath1) {
                                     str = common_json_data[language] && common_json_data[language][JsonPath1];
                                 }
@@ -2069,6 +2104,7 @@ function customChartCommonJson(editor) {
                     ...chartTitle_Trait,
                     ...Select_title_Align_Trait,
                     ...Select_chart_Trait,
+                    ...json_file_index_Trait,
                     ...json_path_Trait,
                     ...json_button_sugesstionTrait,
                     ...chart_yAxis_Trait,
@@ -2098,6 +2134,169 @@ function customChartCommonJson(editor) {
             category: "Charts",
             attributes: { class: "fa fa-bar-chart" },
             content: { type: "custom_line_chart" },
+        });
+    }
+    // Add event listener for the suggestion button after editor loads
+    editor.on('component:selected', (component) => {
+        if (component.get('type') === 'custom_line_chart') {
+            setTimeout(() => {
+                const suggestionBtn = document.querySelector('[data-trait-name="jsonButtonSugesstionTrait"] button');
+                if (suggestionBtn) {
+                    suggestionBtn.onclick = function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openChartJsonSuggestionModal(component);
+                    };
+                }
+            }, 100);
+        }
+    });
+
+    function extractMetaDataKeys(obj, prefix = '') {
+        let keys = [];
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                let newKey;
+                if (Array.isArray(obj)) {
+                    newKey = `${prefix}[${key}]`;
+                } else {
+                    newKey = prefix ? `${prefix}.${key}` : key;
+                }
+                keys.push(newKey);
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    keys = keys.concat(extractMetaDataKeys(obj[key], newKey));
+                }
+            }
+        }
+        return keys;
+    }
+
+    function openChartJsonSuggestionModal(component) {
+        // Get file index from component
+        let fileIndex = component.get('jsonFileIndex') || '0';
+
+        if (fileIndex === '0') {
+            alert('Please select a JSON file first');
+            return;
+        }
+
+        // Get the selected file's JSON data
+        const fileNames = (localStorage.getItem('common_json_files') || "")
+            .split(',').map(f => f.trim());
+        const selectedFile = fileNames[parseInt(fileIndex) - 1];
+        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+
+        if (!jsonString) {
+            alert('Selected JSON file not found');
+            return;
+        }
+
+        const commonJson = JSON.parse(jsonString);
+
+        // Show top-level keys (language options) first
+        const topLevelKeys = Object.keys(commonJson);
+
+        let modalContent = `
+        <div class="new-table-form">
+            <div style="padding-bottom:10px">
+                <input type="text" id="searchInput" placeholder="Search json">
+            </div>
+            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+    `;
+
+        topLevelKeys.forEach(key => {
+            modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
+        });
+
+        modalContent += `
+            </div>
+        </div>
+    `;
+
+        editor.Modal.setTitle('Json Suggestion');
+        editor.Modal.setContent(modalContent);
+        editor.Modal.open();
+
+        // Add event listener to search input
+        document.getElementById("searchInput").addEventListener("input", function () {
+            filterChartSuggestions(this.value);
+        });
+
+        const suggestionItems = document.querySelectorAll('.suggestion');
+        suggestionItems.forEach(item => {
+            item.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+                const dataType = this.getAttribute('data-type');
+
+                if (dataType === 'language') {
+                    // Show keys under selected language
+                    showChartLanguageKeys(selectedValue, commonJson, component);
+                }
+            });
+        });
+    }
+
+    function showChartLanguageKeys(language, commonJson, component) {
+        const metaDataKeys = extractMetaDataKeys(commonJson[language]);
+
+        let modalContent = `
+        <div class="new-table-form">
+            <div style="padding-bottom:10px">
+                <button id="backBtn" style="margin-right: 10px;">← Back</button>
+                <input type="text" id="searchInput" placeholder="Search json">
+            </div>
+            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+    `;
+
+        metaDataKeys.forEach(key => {
+            const fullPath = `${language}.${key}`;
+            modalContent += `<div class="suggestion" data-value="${fullPath}" data-type="key">${key}</div>`;
+        });
+
+        modalContent += `
+            </div>
+        </div>
+    `;
+
+        editor.Modal.setContent(modalContent);
+
+        // Back button functionality
+        document.getElementById("backBtn").addEventListener("click", function () {
+            openChartJsonSuggestionModal(component);
+        });
+
+        // Search functionality
+        document.getElementById("searchInput").addEventListener("input", function () {
+            filterChartSuggestions(this.value);
+        });
+
+        // Key selection
+        const suggestionItems = document.querySelectorAll('.suggestion');
+        suggestionItems.forEach(item => {
+            item.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+
+                // Set the json path in component
+                component.set('jsonpath', selectedValue);
+
+                // Trigger change to update chart
+                component.set('jsonpath', selectedValue);
+                component.trigger('change:jsonpath');
+
+                editor.Modal.close();
+            });
+        });
+    }
+
+    function filterChartSuggestions(query) {
+        const suggestionResults = document.querySelector('.suggestion-results');
+        const metaDataKeys = Array.from(suggestionResults.children);
+        metaDataKeys.forEach(key => {
+            if (key.textContent.toLowerCase().includes(query.toLowerCase())) {
+                key.style.display = "block";
+            } else {
+                key.style.display = "none";
+            }
         });
     }
 
@@ -2150,183 +2349,222 @@ function customChartCommonJson(editor) {
         document.getElementById("import-input-json-file").addEventListener("click", importInputJsonFile, true);
     }
 
-function importInputJsonFile() {
-    const input = document.getElementById('importJsonInputFile');
-    const files = input.files;
+    function importInputJsonFile() {
+        const input = document.getElementById('importJsonInputFile');
+        const files = input.files;
 
-    if (files.length > 0) {
-        let processedCount = 0;
-        let newFileNames = [];
+        if (files.length > 0) {
+            let processedCount = 0;
+            let newFileNames = [];
 
-        // Load existing file list
-        let existingFileNames = localStorage.getItem('common_json_files');
-        let allFileNames = existingFileNames ? existingFileNames.split(',').map(f => f.trim()) : [];
+            // Load existing file list
+            let existingFileNames = localStorage.getItem('common_json_files');
+            let allFileNames = existingFileNames ? existingFileNames.split(',').map(f => f.trim()) : [];
 
-        // Load xml2js library dynamically if not already loaded
-        if (typeof window.X2JS === 'undefined') {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/x2js/1.2.0/xml2json.min.js';
-            script.onload = function() {
-                processFiles();
-            };
-            document.head.appendChild(script);
-        } else {
-            processFiles();
-        }
-
-        function normalizeXMLtoJSON(obj, parentKey = '') {
-            // Handle null or undefined
-            if (obj === null || obj === undefined) {
-                return obj;
-            }
-            
-            // Handle arrays
-            if (Array.isArray(obj)) {
-                return obj.map(item => normalizeXMLtoJSON(item, parentKey));
-            }
-            
-            // Handle non-object types
-            if (typeof obj !== 'object') {
-                return obj;
-            }
-            
-            // Handle objects
-            const normalized = {};
-            
-            for (let key in obj) {
-                if (!obj.hasOwnProperty(key)) continue;
-                
-                const value = obj[key];
-                
-                // Special case: if the object only has 'item' key, unwrap it
-                if (key === 'item' && Object.keys(obj).length === 1) {
-                    return normalizeXMLtoJSON(value, key);
-                }
-                
-                // Handle different value types
-                if (value && typeof value === 'object') {
-                    // Check if this object wraps an array with 'item' property
-                    if (value.item !== undefined) {
-                        // Unwrap the item
-                        if (Array.isArray(value.item)) {
-                            normalized[key] = value.item.map(item => normalizeXMLtoJSON(item, key));
-                        } else {
-                            // Single item, make it an array
-                            normalized[key] = [normalizeXMLtoJSON(value.item, key)];
-                        }
-                    }
-                    // Check for special wrappers like 'level', 'row', 'header', 'cell'
-                    else if (value.level !== undefined) {
-                        if (Array.isArray(value.level)) {
-                            normalized[key] = value.level.map(level => normalizeXMLtoJSON(level, 'level'));
-                        } else {
-                            normalized[key] = [normalizeXMLtoJSON(value.level, 'level')];
-                        }
-                    }
-                    else if (value.row !== undefined) {
-                        if (Array.isArray(value.row)) {
-                            normalized[key] = value.row.map(row => normalizeXMLtoJSON(row, 'row'));
-                        } else {
-                            normalized[key] = [normalizeXMLtoJSON(value.row, 'row')];
-                        }
-                    }
-                    else if (value.header !== undefined) {
-                        if (Array.isArray(value.header)) {
-                            normalized[key] = value.header.map(header => normalizeXMLtoJSON(header, 'header'));
-                        } else {
-                            normalized[key] = [normalizeXMLtoJSON(value.header, 'header')];
-                        }
-                    }
-                    else if (value.cell !== undefined) {
-                        if (Array.isArray(value.cell)) {
-                            normalized[key] = value.cell.map(cell => normalizeXMLtoJSON(cell, 'cell'));
-                        } else {
-                            normalized[key] = [normalizeXMLtoJSON(value.cell, 'cell')];
-                        }
-                    }
-                    // Recursively process nested objects
-                    else if (Array.isArray(value)) {
-                        normalized[key] = value.map(item => normalizeXMLtoJSON(item, key));
-                    }
-                    else {
-                        normalized[key] = normalizeXMLtoJSON(value, key);
-                    }
-                } else {
-                    // Primitive value
-                    normalized[key] = value;
-                }
-            }
-            
-            return normalized;
-        }
-
-        function processFiles() {
-            Array.from(files).forEach((file) => {
-                const reader = new FileReader();
-                const fileExtension = file.name.split('.').pop().toLowerCase();
-
-                reader.onload = function (e) {
-                    try {
-                        let code;
-                        
-                        if (fileExtension === 'xml') {
-                            // Convert XML to JSON
-                            const x2js = new X2JS();
-                            const xmlDoc = new DOMParser().parseFromString(e.target.result, 'text/xml');
-                            const xmlJson = x2js.xml2json(xmlDoc);
-                            
-                            // Log for debugging
-                            console.log('Original XML to JSON:', JSON.stringify(xmlJson).substring(0, 500));
-                            
-                            // Normalize the structure to match JSON format
-                            code = normalizeXMLtoJSON(xmlJson);
-                            
-                            // Log normalized result
-                            console.log('Normalized JSON:', JSON.stringify(code).substring(0, 500));
-                        } else {
-                            // Parse JSON directly
-                            code = JSON.parse(e.target.result);
-                        }
-
-                        // Save this file's JSON separately
-                        localStorage.setItem(`common_json_${file.name}`, JSON.stringify(code));
-
-                        // Track file name
-                        if (!allFileNames.includes(file.name)) {
-                            allFileNames.push(file.name);
-                        }
-                        newFileNames.push(file.name);
-                    } catch (err) {
-                        console.error('Error processing file:', file.name, err);
-                        alert('Invalid file format in: ' + file.name);
-                    }
-
-                    processedCount++;
-                    if (processedCount === files.length) {
-                        // Save updated file list
-                        localStorage.setItem('common_json_files', allFileNames.join(', '));
-
-                        common_json_file_name_text = 'Already Added File(s): ' + allFileNames.join(', ');
-
-                        alert('File(s) Imported');
-                        editor.Modal.close();
-
-                        if (typeof updateComponentsWithNewJson === 'function') {
-                            updateComponentsWithNewJson(editor);
-                        }
-
-                        // Update StyleManager options immediately
-                        updateFileIndexOptions();
-                    }
+            // Load xml2js library dynamically if not already loaded
+            if (typeof window.X2JS === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/x2js/1.2.0/xml2json.min.js';
+                script.onload = function () {
+                    processFiles();
                 };
+                document.head.appendChild(script);
+            } else {
+                processFiles();
+            }
 
-                reader.readAsText(file);
-            });
+            function normalizeXMLtoJSON(obj, parentKey = '') {
+                // Handle null or undefined
+                if (obj === null || obj === undefined) {
+                    return obj;
+                }
+
+                // Handle arrays
+                if (Array.isArray(obj)) {
+                    return obj.map(item => normalizeXMLtoJSON(item, parentKey));
+                }
+
+                // Handle non-object types
+                if (typeof obj !== 'object') {
+                    return obj;
+                }
+
+                // Handle objects
+                const normalized = {};
+
+                for (let key in obj) {
+                    if (!obj.hasOwnProperty(key)) continue;
+
+                    const value = obj[key];
+
+                    // Special case: if the object only has 'item' key, unwrap it
+                    if (key === 'item' && Object.keys(obj).length === 1) {
+                        return normalizeXMLtoJSON(value, key);
+                    }
+
+                    // Handle different value types
+                    if (value && typeof value === 'object') {
+                        // Check if this object wraps an array with 'item' property
+                        if (value.item !== undefined) {
+                            // Unwrap the item
+                            if (Array.isArray(value.item)) {
+                                normalized[key] = value.item.map(item => normalizeXMLtoJSON(item, key));
+                            } else {
+                                // Single item, make it an array
+                                normalized[key] = [normalizeXMLtoJSON(value.item, key)];
+                            }
+                        }
+                        // Check for special wrappers like 'level', 'row', 'header', 'cell'
+                        else if (value.level !== undefined) {
+                            if (Array.isArray(value.level)) {
+                                normalized[key] = value.level.map(level => normalizeXMLtoJSON(level, 'level'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.level, 'level')];
+                            }
+                        }
+                        else if (value.row !== undefined) {
+                            if (Array.isArray(value.row)) {
+                                normalized[key] = value.row.map(row => normalizeXMLtoJSON(row, 'row'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.row, 'row')];
+                            }
+                        }
+                        else if (value.header !== undefined) {
+                            if (Array.isArray(value.header)) {
+                                normalized[key] = value.header.map(header => normalizeXMLtoJSON(header, 'header'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.header, 'header')];
+                            }
+                        }
+                        else if (value.cell !== undefined) {
+                            if (Array.isArray(value.cell)) {
+                                normalized[key] = value.cell.map(cell => normalizeXMLtoJSON(cell, 'cell'));
+                            } else {
+                                normalized[key] = [normalizeXMLtoJSON(value.cell, 'cell')];
+                            }
+                        }
+                        // Recursively process nested objects
+                        else if (Array.isArray(value)) {
+                            normalized[key] = value.map(item => normalizeXMLtoJSON(item, key));
+                        }
+                        else {
+                            normalized[key] = normalizeXMLtoJSON(value, key);
+                        }
+                    } else {
+                        // Primitive value
+                        normalized[key] = value;
+                    }
+                }
+
+                return normalized;
+            }
+
+            function processFiles() {
+                Array.from(files).forEach((file) => {
+                    const reader = new FileReader();
+                    const fileExtension = file.name.split('.').pop().toLowerCase();
+
+                    reader.onload = function (e) {
+                        try {
+                            let code;
+
+                            if (fileExtension === 'xml') {
+                                // Convert XML to JSON
+                                const x2js = new X2JS();
+                                const xmlDoc = new DOMParser().parseFromString(e.target.result, 'text/xml');
+                                const xmlJson = x2js.xml2json(xmlDoc);
+
+                                // Log for debugging
+                                console.log('Original XML to JSON:', JSON.stringify(xmlJson).substring(0, 500));
+
+                                // Normalize the structure to match JSON format
+                                code = normalizeXMLtoJSON(xmlJson);
+
+                                // Log normalized result
+                                console.log('Normalized JSON:', JSON.stringify(code).substring(0, 500));
+                            } else {
+                                // Parse JSON directly
+                                code = JSON.parse(e.target.result);
+                            }
+
+                            // Save this file's JSON separately
+                            localStorage.setItem(`common_json_${file.name}`, JSON.stringify(code));
+
+                            // Track file name
+                            if (!allFileNames.includes(file.name)) {
+                                allFileNames.push(file.name);
+                            }
+                            newFileNames.push(file.name);
+                        } catch (err) {
+                            console.error('Error processing file:', file.name, err);
+                            alert('Invalid file format in: ' + file.name);
+                        }
+
+                        processedCount++;
+                        if (processedCount === files.length) {
+                            // Save updated file list
+                            localStorage.setItem('common_json_files', allFileNames.join(', '));
+
+                            common_json_file_name_text = 'Already Added File(s): ' + allFileNames.join(', ');
+
+                            // Update dropdown BEFORE closing modal
+                            updateFileIndexOptionsImmediate();
+
+                            // Close modal after a short delay to ensure DOM updates
+                            setTimeout(() => {
+                                alert('File(s) Imported');
+                                editor.Modal.close();
+
+                                if (typeof updateComponentsWithNewJson === 'function') {
+                                    updateComponentsWithNewJson(editor);
+                                }
+                            }, 150);
+                        }
+                    };
+
+                    reader.readAsText(file);
+                });
+            }
+        } else {
+            alert('No file selected');
         }
-    } else {
-        alert('No file selected');
     }
-}
+
+    function updateFileIndexOptionsImmediate() {
+        const newOptions = getJsonFileOptions();
+        const jsonSector = styleManager.getSector('JSON');
+
+        if (jsonSector) {
+            const fileIndexProperty = jsonSector.getProperty('json-file-index');
+            if (fileIndexProperty) {
+                // Update the property options
+                fileIndexProperty.set('options', newOptions);
+
+                // Force immediate update of the select element in DOM
+                const selectElement = document.querySelector('.i_designer-sm-property__json-file-index select');
+                if (selectElement) {
+                    // Store current selected value
+                    const currentValue = selectElement.value;
+
+                    // Clear existing options
+                    selectElement.innerHTML = '';
+
+                    // Add new options directly to DOM
+                    newOptions.forEach(option => {
+                        const optionElement = document.createElement('option');
+                        optionElement.value = option.id;
+                        optionElement.textContent = option.name;
+                        selectElement.appendChild(optionElement);
+                    });
+
+                    // Restore selection if still valid
+                    if (Array.from(selectElement.options).some(opt => opt.value === currentValue)) {
+                        selectElement.value = currentValue;
+                    }
+                }
+            }
+        }
+    }
 
     function getJsonFileOptions() {
         const storedFileNames = localStorage.getItem('common_json_files');
@@ -2348,11 +2586,27 @@ function importInputJsonFile() {
         if (jsonSector) {
             const fileIndexProperty = jsonSector.getProperty('json-file-index');
             if (fileIndexProperty) {
+                // Update options
                 fileIndexProperty.set('options', newOptions);
-                // Force re-render of the StyleManager
+
+                // Force immediate update of the select element in DOM
+                const selectElement = document.querySelector('.i_designer-sm-property__json-file-index select');
+                if (selectElement) {
+                    // Clear existing options
+                    selectElement.innerHTML = '';
+
+                    // Add new options directly to DOM
+                    newOptions.forEach(option => {
+                        const optionElement = document.createElement('option');
+                        optionElement.value = option.id;
+                        optionElement.textContent = option.name;
+                        selectElement.appendChild(optionElement);
+                    });
+                }
+
+                // Also trigger StyleManager re-render
                 setTimeout(() => {
                     editor.StyleManager.render();
-                    // Ensure button is re-added after render
                     ensureJsonSuggestionButton();
                 }, 100);
             }
@@ -3255,7 +3509,7 @@ function importInputJsonFile() {
     //       font-size: 11px !important;
     //       margin: 0 !important;
     //     }
-        
+
     //     #${ctx} table th,
     //     #${ctx} table td {
     //       padding: 6px 8px !important;
@@ -3265,26 +3519,26 @@ function importInputJsonFile() {
     //       vertical-align: top !important;
     //       position: relative !important;
     //     }
-        
+
     //     #${ctx} table th {
     //       font-weight: bold !important;
     //       background-color: #e0e0e0 !important;
     //       -webkit-print-color-adjust: exact !important;
     //       print-color-adjust: exact !important;
     //     }
-        
+
     //     #${ctx} table td {
     //       background-color: #fff !important;
     //       -webkit-print-color-adjust: exact !important;
     //       print-color-adjust: exact !important;
     //     }
-        
+
     //     /* Hide input elements completely in print */
     //     #${ctx} .cell-input {
     //       display: none !important;
     //       visibility: hidden !important;
     //     }
-        
+
     //     /* Ensure display spans are visible and contain the actual data */
     //     #${ctx} .cell-display {
     //       display: block !important;
@@ -3292,7 +3546,7 @@ function importInputJsonFile() {
     //       width: 100% !important;
     //       color: #000 !important;
     //     }
-        
+
     //     /* Fallback: Use data attributes if spans fail */
     //     #${ctx} td::after {
     //       content: attr(data-display-value) !important;
@@ -3306,17 +3560,17 @@ function importInputJsonFile() {
     //       color: #000 !important;
     //       z-index: 1000 !important;
     //     }
-        
+
     //     /* Override the pseudo-element if display span exists and has content */
     //     #${ctx} td:has(.cell-display:not(:empty))::after {
     //       display: none !important;
     //     }
-        
+
     //     @page {
     //       margin: 0.5in;
     //       size: landscape;
     //     }
-        
+
     //     /* Ensure no other styles interfere */
     //     #${ctx} * {
     //       -webkit-print-color-adjust: exact !important;

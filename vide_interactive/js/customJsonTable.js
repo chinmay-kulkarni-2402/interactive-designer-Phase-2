@@ -209,11 +209,24 @@ function jsontablecustom(editor) {
     }
 
     editor.DomComponents.addType('json-table', {
+        isComponent: el => {
+            if (!el || !el.getAttribute) return false;
+            if (el.getAttribute('data-gjs-type') === 'json-table') return { type: 'json-table' };
+            if (el.classList && el.classList.contains('json-table-container')) return { type: 'json-table' };
+            if (el.classList && el.classList.contains('json-table-wrapper')) return { type: 'json-table' };
+            return false;
+        },
+
         model: {
             defaults: {
                 tagName: 'div',
                 selectable: true,
-                attributes: { class: 'json-table-container' },
+                attributes: {
+                    class: 'json-table-container',
+                    'data-gjs-type': 'json-table',
+                    'data-json-state': ''
+                },
+
                 traits: [
                     {
                         type: 'text',
@@ -419,7 +432,34 @@ function jsontablecustom(editor) {
 
             init() {
                 // Replace the existing onChange handlers with these optimized ones:
-
+                try {
+                    const attrs = this.getAttributes ? this.getAttributes() : {};
+                    const encoded = attrs && attrs['data-json-state'];
+                    if (encoded) {
+                        const parsed = JSON.parse(decodeURIComponent(encoded));
+                        // Restore persisted state into model
+                        this.set('custom-headers', parsed.headers || null);
+                        this.set('custom-data', parsed.data || null);
+                        this.set('table-styles-applied', parsed.styles || null);
+                        this.set('highlight-conditions', parsed.highlights || null);
+                        if (parsed.filter) {
+                            this.set('filter-column', parsed.filter.column || '');
+                            this.set('filter-value', parsed.filter.value || '');
+                        }
+                        if (parsed.meta) {
+                            this.set('table-type', parsed.meta.tableType || 'standard');
+                            this.set('caption', parsed.meta.caption || 'no');
+                            this.set('page-length', parsed.meta.pageLength || 10);
+                            this.set('pagination', parsed.meta.pagination || 'no');
+                            this.set('search', parsed.meta.search || 'no');
+                            this.set('file-download', parsed.meta.fileDownload || '');
+                        }
+                        // Rebuild HTML with restored state
+                        setTimeout(() => this.updateTableHTML(), 0);
+                    }
+                } catch (e) {
+                    console.warn('json-table init rehydrate failed', e);
+                }
                 this.on('change:json-file-index', () => {
                     this.set('json-path', '');
                     this.set('filter-column', '');
@@ -617,35 +657,96 @@ function jsontablecustom(editor) {
                         }, 100);
                     });
                 });
-                    this.on('change:custom-data change:table-data', () => {
-        setTimeout(() => {
-            this.triggerAutoPagination();
-        }, 500);
-    });
+                this.on('change:custom-data change:table-data', () => {
+                    setTimeout(() => {
+                        this.triggerAutoPagination();
+                    }, 500);
+                });
+                // --- rehydrate all json-table components after Code panel Apply ---
+                try {
+                    const ed = this.em && this.em.get ? this.em.get('Editor') : this.em;
+                    if (ed && !ed.__jsonTableCodeHydrateBound) {
+                        ed.__jsonTableCodeHydrateBound = true;
+
+                        // Save freshest state right before opening the code panel
+                        ed.on('run:core:open-code', () => {
+                            ed.getWrapper().findType('json-table').forEach(cmp => {
+                                const st = {
+                                    headers: cmp.get('custom-headers') || cmp.get('table-headers') || null,
+                                    data: cmp.get('custom-data') || cmp.get('table-data') || null,
+                                    styles: cmp.get('table-styles-applied') || null,
+                                    highlights: cmp.get('highlight-conditions') || null,
+                                    filter: {
+                                        column: cmp.get('filter-column') || null,
+                                        value: cmp.get('filter-value') || null
+                                    },
+                                    meta: {
+                                        tableType: cmp.get('table-type') || 'standard',
+                                        caption: cmp.get('caption') || 'no',
+                                        pageLength: cmp.get('page-length') || 10,
+                                        pagination: cmp.get('pagination') || 'no',
+                                        search: cmp.get('search') || 'no',
+                                        fileDownload: cmp.get('file-download') || ''
+                                    }
+                                };
+                                cmp.addAttributes({ 'data-json-state': encodeURIComponent(JSON.stringify(st)) });
+                            });
+                        });
+
+                        // Rehydrate after user clicks Apply (modal closes)
+                        ed.on('stop:core:open-code', () => {
+                            ed.getWrapper().findType('json-table').forEach(cmp => {
+                                const raw = cmp.getAttributes()['data-json-state'];
+                                if (!raw) return;
+                                try {
+                                    const parsed = JSON.parse(decodeURIComponent(raw));
+                                    cmp.set('custom-headers', parsed.headers);
+                                    cmp.set('custom-data', parsed.data);
+                                    cmp.set('table-styles-applied', parsed.styles);
+                                    cmp.set('highlight-conditions', parsed.highlights);
+                                    cmp.set('filter-column', parsed.filter && parsed.filter.column || '');
+                                    cmp.set('filter-value', parsed.filter && parsed.filter.value || '');
+                                    cmp.set('table-type', parsed.meta && parsed.meta.tableType || 'standard');
+                                    cmp.set('caption', parsed.meta && parsed.meta.caption || 'no');
+                                    cmp.set('page-length', parsed.meta && parsed.meta.pageLength || 10);
+                                    cmp.set('pagination', parsed.meta && parsed.meta.pagination || 'no');
+                                    cmp.set('search', parsed.meta && parsed.meta.search || 'no');
+                                    cmp.set('file-download', parsed.meta && parsed.meta.fileDownload || '');
+                                    // rebuild with your existing routine
+                                    cmp.updateTableHTML();
+                                } catch (e) {
+                                    console.warn('json-table restore failed', e);
+                                }
+                            });
+                        });
+                    }
+                } catch (e) {
+                    console.warn('json-table rehydrate binding failed', e);
+                }
             },
-triggerAutoPagination() {
-    const tableId = this.cid ? `json-table-${this.cid}` : null;
-    if (!tableId) return;
+            triggerAutoPagination() {
+                const tableId = this.cid ? `json-table-${this.cid}` : null;
+                if (!tableId) return;
 
-    const canvasDoc = editor.Canvas.getDocument();
-    const tableElement = canvasDoc.getElementById(tableId);
-    if (!tableElement) return;
+                const canvasDoc = editor.Canvas.getDocument();
+                const tableElement = canvasDoc.getElementById(tableId);
+                if (!tableElement) return;
 
-    // Find the page containing this table
-    const pageContainer = tableElement.closest('.page-container');
-    if (!pageContainer) return;
+                // Find the page containing this table
+                const pageContainer = tableElement.closest('.page-container');
+                if (!pageContainer) return;
 
-    const pageIndex = parseInt(pageContainer.getAttribute('data-page-index'));
-    if (isNaN(pageIndex)) return;
+                const pageIndex = parseInt(pageContainer.getAttribute('data-page-index'));
+                if (isNaN(pageIndex)) return;
 
-    // Trigger pagination check for this page
-    const pageSetupManager = editor.get?.('PageSetupManager');
-    if (pageSetupManager && pageSetupManager.checkPageForOverflow) {
-        setTimeout(() => {
-            pageSetupManager.checkPageForOverflow(pageIndex);
-        }, 300);
-    }
-},
+                // Trigger pagination check for this page
+                const pageSetupManager = editor.get?.('PageSetupManager');
+                if (pageSetupManager && pageSetupManager.checkPageForOverflow) {
+                    setTimeout(() => {
+                        pageSetupManager.checkPageForOverflow(pageIndex);
+                    }, 300);
+                }
+            },
             applyTableStyles() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
@@ -1966,6 +2067,32 @@ triggerAutoPagination() {
             },
 
             updateTableHTML() {
+                // --- persist component state so Code panel Apply can rehydrate ---
+                const _stateForDom = (() => {
+                    return {
+                        headers: this.get('custom-headers') || this.get('table-headers') || null,
+                        data: this.get('custom-data') || this.get('table-data') || null,
+                        styles: this.get('table-styles-applied') || null,
+                        highlights: this.get('highlight-conditions') || null,
+                        filter: {
+                            column: this.get('filter-column') || null,
+                            value: this.get('filter-value') || null
+                        },
+                        meta: {
+                            tableType: this.get('table-type') || 'standard',
+                            caption: this.get('caption') || 'no',
+                            pageLength: this.get('page-length') || 10,
+                            pagination: this.get('pagination') || 'no',
+                            search: this.get('search') || 'no',
+                            fileDownload: this.get('file-download') || ''
+                        }
+                    };
+                })();
+                this.addAttributes({
+                    'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
+                });
+                // ----------------------------------------------------------------
+
                 const headers = this.get('custom-headers');
                 const data = this.get('custom-data');
                 const name = this.get('name') || 'Table';
@@ -2081,48 +2208,48 @@ triggerAutoPagination() {
                 }, 500);
             },
 
-applyGroupingAndSummary() {
-    const groupingFields = this.get('grouping-fields') || [];
-    const data = this.get('table-data') || [];
+            applyGroupingAndSummary() {
+                const groupingFields = this.get('grouping-fields') || [];
+                const data = this.get('table-data') || [];
 
-    if (groupingFields.length === 0) {
-        // No grouping, reset to original data
-        this.set('custom-data', null);
-        this.updateTableHTML();
-        return;
-    }
+                if (groupingFields.length === 0) {
+                    // No grouping, reset to original data
+                    this.set('custom-data', null);
+                    this.updateTableHTML();
+                    return;
+                }
 
-    // Apply grouping logic
-    const groupedData = this.groupData(data, groupingFields);
+                // Apply grouping logic
+                const groupedData = this.groupData(data, groupingFields);
 
-    // Update custom data with processed data (including page breaks)
-    this.set('custom-data', groupedData);
-    this.updateTableHTML();
-    
-    // ✅ TRIGGER AUTOPAGINATION AFTER GROUPING
-    setTimeout(() => {
-        this.triggerAutoPagination();
-    }, 500);
-},
+                // Update custom data with processed data (including page breaks)
+                this.set('custom-data', groupedData);
+                this.updateTableHTML();
 
-getTableContainer() {
-    const tableId = this.cid ? `json-table-${this.cid}` : null;
-    if (!tableId) return null;
+                // ✅ TRIGGER AUTOPAGINATION AFTER GROUPING
+                setTimeout(() => {
+                    this.triggerAutoPagination();
+                }, 500);
+            },
 
-    const canvasDoc = editor.Canvas.getDocument();
-    const tableElement = canvasDoc.getElementById(tableId);
-    if (!tableElement) return null;
+            getTableContainer() {
+                const tableId = this.cid ? `json-table-${this.cid}` : null;
+                if (!tableId) return null;
 
-    // Check if inside section-content
-    const sectionContent = tableElement.closest('.section-content');
-    if (sectionContent) return sectionContent;
+                const canvasDoc = editor.Canvas.getDocument();
+                const tableElement = canvasDoc.getElementById(tableId);
+                if (!tableElement) return null;
 
-    // Check if inside main-content-area
-    const mainContent = tableElement.closest('.main-content-area');
-    if (mainContent) return mainContent;
+                // Check if inside section-content
+                const sectionContent = tableElement.closest('.section-content');
+                if (sectionContent) return sectionContent;
 
-    return null;
-},
+                // Check if inside main-content-area
+                const mainContent = tableElement.closest('.main-content-area');
+                if (mainContent) return mainContent;
+
+                return null;
+            },
             groupData(data, groupingFields) {
                 if (!groupingFields || groupingFields.length === 0) return data;
 
@@ -2242,10 +2369,10 @@ getTableContainer() {
                     result.push(grandTotalRow);
                 }
 
-    // ✅ INSERT PAGE BREAKS AFTER GROUPS
-    const resultWithPageBreaks = insertPageBreaksAfterGroups(this, result);
+                // ✅ INSERT PAGE BREAKS AFTER GROUPS
+                const resultWithPageBreaks = insertPageBreaksAfterGroups(this, result);
 
-    return resultWithPageBreaks;
+                return resultWithPageBreaks;
             },
 
             applyNamedGroups(data, fieldKey, namedGroupsConfig) {
@@ -2309,84 +2436,84 @@ getTableContainer() {
                 return summaryRow;
             },
 
-createGrandTotalRow(data) {
-    const summaryFields = this.get('summary-fields') || [];
-    const headers = this.get('custom-headers') || this.get('table-headers') || {};
-    const grandTotalLabel = this.get('grand-total-label') || 'Grand Total';
+            createGrandTotalRow(data) {
+                const summaryFields = this.get('summary-fields') || [];
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const grandTotalLabel = this.get('grand-total-label') || 'Grand Total';
 
-    const grandTotalRow = {};
+                const grandTotalRow = {};
 
-    Object.keys(headers).forEach(key => {
-        grandTotalRow[key] = '';
-    });
+                Object.keys(headers).forEach(key => {
+                    grandTotalRow[key] = '';
+                });
 
-    const firstKey = Object.keys(headers)[0];
-    grandTotalRow[firstKey] = grandTotalLabel;
+                const firstKey = Object.keys(headers)[0];
+                grandTotalRow[firstKey] = grandTotalLabel;
 
-    // Check which columns are numeric (similar to running total logic)
-    const numericColumns = {};
-    Object.keys(headers).forEach(key => {
-        const isStrictlyNumeric = data.every(row => {
-            let value = row[key];
-            if (value === '' || value === null || value === undefined) return true;
-            value = String(value).trim();
-            if (/^\(.*\)$/.test(value)) {
-                value = '-' + value.slice(1, -1);
-            }
-            value = value.replace(/[$£€₹,\s]/g, '');
-            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
-                value = value.replace(/\./g, '').replace(',', '.');
-            }
-            const numValue = Number(value);
-            return typeof numValue === 'number' && !isNaN(numValue);
-        });
+                // Check which columns are numeric (similar to running total logic)
+                const numericColumns = {};
+                Object.keys(headers).forEach(key => {
+                    const isStrictlyNumeric = data.every(row => {
+                        let value = row[key];
+                        if (value === '' || value === null || value === undefined) return true;
+                        value = String(value).trim();
+                        if (/^\(.*\)$/.test(value)) {
+                            value = '-' + value.slice(1, -1);
+                        }
+                        value = value.replace(/[$£€₹,\s]/g, '');
+                        if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                            value = value.replace(/\./g, '').replace(',', '.');
+                        }
+                        const numValue = Number(value);
+                        return typeof numValue === 'number' && !isNaN(numValue);
+                    });
 
-        if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
-            numericColumns[key] = true;
-        }
-    });
+                    if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
+                        numericColumns[key] = true;
+                    }
+                });
 
-    // Calculate grand totals for numeric columns
-    Object.keys(numericColumns).forEach(key => {
-        const values = data.map(row => {
-            let value = row[key];
-            if (value === '' || value === null || value === undefined) return 0;
-            value = String(value).trim();
-            if (/^\(.*\)$/.test(value)) {
-                value = '-' + value.slice(1, -1);
-            }
-            value = value.replace(/[$£€₹,\s]/g, '');
-            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
-                value = value.replace(/\./g, '').replace(',', '.');
-            }
-            return parseFloat(value) || 0;
-        });
+                // Calculate grand totals for numeric columns
+                Object.keys(numericColumns).forEach(key => {
+                    const values = data.map(row => {
+                        let value = row[key];
+                        if (value === '' || value === null || value === undefined) return 0;
+                        value = String(value).trim();
+                        if (/^\(.*\)$/.test(value)) {
+                            value = '-' + value.slice(1, -1);
+                        }
+                        value = value.replace(/[$£€₹,\s]/g, '');
+                        if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                            value = value.replace(/\./g, '').replace(',', '.');
+                        }
+                        return parseFloat(value) || 0;
+                    });
 
-        // Apply summary function if defined, otherwise use sum
-        const summaryField = summaryFields.find(f => f.key === key);
-        const func = summaryField ? summaryField.function : 'sum';
+                    // Apply summary function if defined, otherwise use sum
+                    const summaryField = summaryFields.find(f => f.key === key);
+                    const func = summaryField ? summaryField.function : 'sum';
 
-        switch (func) {
-            case 'sum':
-                grandTotalRow[key] = values.reduce((a, b) => a + b, 0).toFixed(2);
-                break;
-            case 'average':
-                grandTotalRow[key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
-                break;
-            case 'count':
-                grandTotalRow[key] = values.length;
-                break;
-            case 'min':
-                grandTotalRow[key] = Math.min(...values).toFixed(2);
-                break;
-            case 'max':
-                grandTotalRow[key] = Math.max(...values).toFixed(2);
-                break;
-        }
-    });
+                    switch (func) {
+                        case 'sum':
+                            grandTotalRow[key] = values.reduce((a, b) => a + b, 0).toFixed(2);
+                            break;
+                        case 'average':
+                            grandTotalRow[key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
+                            break;
+                        case 'count':
+                            grandTotalRow[key] = values.length;
+                            break;
+                        case 'min':
+                            grandTotalRow[key] = Math.min(...values).toFixed(2);
+                            break;
+                        case 'max':
+                            grandTotalRow[key] = Math.max(...values).toFixed(2);
+                            break;
+                    }
+                });
 
-    return grandTotalRow;
-},
+                return grandTotalRow;
+            },
 
             processSummary(data, summaryFields) {
                 // Additional processing if needed
@@ -3088,66 +3215,66 @@ createGrandTotalRow(data) {
                 });
             },
 
-addTableBody(tableComponent, headers, data, tableId) {
-    const tbodyComponent = tableComponent.components().add({
-        type: 'default',
-        tagName: 'tbody'
-    });
+            addTableBody(tableComponent, headers, data, tableId) {
+                const tbodyComponent = tableComponent.components().add({
+                    type: 'default',
+                    tagName: 'tbody'
+                });
 
-    if (data.length === 0) {
-        const emptyRowComponent = tbodyComponent.components().add({
-            type: 'default',
-            tagName: 'tr'
-        });
+                if (data.length === 0) {
+                    const emptyRowComponent = tbodyComponent.components().add({
+                        type: 'default',
+                        tagName: 'tr'
+                    });
 
-        emptyRowComponent.components().add({
-            type: 'text',
-            tagName: 'td',
-            content: 'No data found',
-            attributes: {
-                colspan: Object.keys(headers).length.toString()
-            },
-            style: {
-                'text-align': 'center',
-                'padding': '20px',
-                'color': '#666'
-            }
-        });
-        return;
-    }
-
-    const jsonPath = this.get('json-path') || '';
-    const runningTotals = this.get('running-totals') || [];
-
-    data.forEach((row, rowIndex) => {
-        // ✅ CHECK FOR PAGE BREAK ROW
-        if (row._isPageBreak) {
-            const pageBreakRow = tbodyComponent.components().add({
-                type: 'default',
-                tagName: 'tr',
-                attributes: {
-                    'data-page-break-row': 'true',
-                    'id': row._pageBreakId
-                },
-                style: {
-                    'display': 'none' // Hidden in editor, will be processed by PageSetupManager
+                    emptyRowComponent.components().add({
+                        type: 'text',
+                        tagName: 'td',
+                        content: 'No data found',
+                        attributes: {
+                            colspan: Object.keys(headers).length.toString()
+                        },
+                        style: {
+                            'text-align': 'center',
+                            'padding': '20px',
+                            'color': '#666'
+                        }
+                    });
+                    return;
                 }
-            });
 
-            pageBreakRow.components().add({
-                type: 'default',
-                tagName: 'td',
-                attributes: {
-                    'colspan': Object.keys(headers).length.toString(),
-                    'data-page-break': 'true'
-                },
-                classes: ['page-break', 'page-break-element'],
-                style: {
-                    'height': '0',
-                    'padding': '0',
-                    'border': 'none'
-                },
-                content: `<div class="page-break" data-page-break="true" style="
+                const jsonPath = this.get('json-path') || '';
+                const runningTotals = this.get('running-totals') || [];
+
+                data.forEach((row, rowIndex) => {
+                    // ✅ CHECK FOR PAGE BREAK ROW
+                    if (row._isPageBreak) {
+                        const pageBreakRow = tbodyComponent.components().add({
+                            type: 'default',
+                            tagName: 'tr',
+                            attributes: {
+                                'data-page-break-row': 'true',
+                                'id': row._pageBreakId
+                            },
+                            style: {
+                                'display': 'none' // Hidden in editor, will be processed by PageSetupManager
+                            }
+                        });
+
+                        pageBreakRow.components().add({
+                            type: 'default',
+                            tagName: 'td',
+                            attributes: {
+                                'colspan': Object.keys(headers).length.toString(),
+                                'data-page-break': 'true'
+                            },
+                            classes: ['page-break', 'page-break-element'],
+                            style: {
+                                'height': '0',
+                                'padding': '0',
+                                'border': 'none'
+                            },
+                            content: `<div class="page-break" data-page-break="true" style="
                     width: 100%;
                     height: 30px;
                     background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%);
@@ -3167,24 +3294,24 @@ addTableBody(tableComponent, headers, data, tableId) {
                         letter-spacing: 1px;
                     ">PAGE BREAK (Auto-inserted after group)</span>
                 </div>`
-            });
-            return; // Skip normal row rendering for page break rows
-        }
+                        });
+                        return; // Skip normal row rendering for page break rows
+                    }
 
-        // NORMAL ROW RENDERING (rest of your existing code)
-        const isSummary = row._isSummary;
-        const isGrandTotal = row._isGrandTotal;
-        const isGroupStart = row._groupStart;
-        const groupSize = row._groupSize || 1;
+                    // NORMAL ROW RENDERING (rest of your existing code)
+                    const isSummary = row._isSummary;
+                    const isGrandTotal = row._isGrandTotal;
+                    const isGroupStart = row._groupStart;
+                    const groupSize = row._groupSize || 1;
 
-        const rowComponent = tbodyComponent.components().add({
-            type: 'default',
-            tagName: 'tr',
-            classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
-            style: {
-                'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'
-            }
-        });
+                    const rowComponent = tbodyComponent.components().add({
+                        type: 'default',
+                        tagName: 'tr',
+                        classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
+                        style: {
+                            'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'
+                        }
+                    });
 
                     Object.keys(headers).forEach(key => {
                         // Check if this cell should be skipped due to rowspan
@@ -4340,37 +4467,37 @@ addTableBody(tableComponent, headers, data, tableId) {
             }, 100);
         }
     });
-// Add this function in the jsontablecustom file (around line 1500, after groupData function)
+    // Add this function in the jsontablecustom file (around line 1500, after groupData function)
 
-function insertPageBreaksAfterGroups(component, groupedData) {
-    const pageBreakEnabled = component.get('page-break') || false;
-    if (!pageBreakEnabled) return groupedData;
+    function insertPageBreaksAfterGroups(component, groupedData) {
+        const pageBreakEnabled = component.get('page-break') || false;
+        if (!pageBreakEnabled) return groupedData;
 
-    const result = [];
-    const groupingFields = component.get('grouping-fields') || [];
-    
-    if (groupingFields.length === 0) return groupedData;
+        const result = [];
+        const groupingFields = component.get('grouping-fields') || [];
 
-    let currentGroupKey = null;
-    
-    groupedData.forEach((row, index) => {
-        // Detect group change
-        const rowGroupKey = groupingFields.map(field => row[field.key] || '').join('|');
-        
-        if (currentGroupKey !== null && currentGroupKey !== rowGroupKey) {
-            // Insert page break marker row
-            result.push({
-                _isPageBreak: true,
-                _pageBreakId: `pb-${Date.now()}-${index}`
-            });
-        }
-        
-        result.push(row);
-        currentGroupKey = rowGroupKey;
-    });
-    
-    return result;
-}
+        if (groupingFields.length === 0) return groupedData;
+
+        let currentGroupKey = null;
+
+        groupedData.forEach((row, index) => {
+            // Detect group change
+            const rowGroupKey = groupingFields.map(field => row[field.key] || '').join('|');
+
+            if (currentGroupKey !== null && currentGroupKey !== rowGroupKey) {
+                // Insert page break marker row
+                result.push({
+                    _isPageBreak: true,
+                    _pageBreakId: `pb-${Date.now()}-${index}`
+                });
+            }
+
+            result.push(row);
+            currentGroupKey = rowGroupKey;
+        });
+
+        return result;
+    }
     function initializeTableSettingsModal(component, availableFields) {
         let selectedGroupingFields = [];
         let selectedSummaryFields = [];

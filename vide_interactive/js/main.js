@@ -966,8 +966,8 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   const exportType = document.getElementById("export-type-dropdown")?.value || "pdf";
   const apiUrl =
     exportType === "pdf"
-      ? "http://localhost:8080/jsonApi/uploadPdf"
-      : "http://localhost:8080/jsonApi/uploadHtml";
+      ? "http://192.168.0.188:8081/jsonApi/uploadPdf"
+      : "http://192.168.0.188:8081/jsonApi/uploadHtml";
 
   const html = editor.getHtml();
   const css = editor.getCss();
@@ -999,7 +999,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   }
 
   const formData = new FormData();
-  formData.append("htmlFile", new Blob([finalHtml], { type: "text/html" }), "template.html");
+  formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
 
   // ✅ Convert XML files to JSON before sending
   for (let idx = 0; idx < uploadedJsonFiles.length; idx++) {
@@ -2572,7 +2572,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 // }
 
 async function generatePrintDialog() {
- const apiUrl = "http://localhost:8080/jsonApi/uploadHtmlToPdf";
+ const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadHtmlToPdf";
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
@@ -2740,7 +2740,7 @@ for (const sub of subreports) {
 
     // --- Prepare FormData (only HTML file) ---
     const formData = new FormData();
-    formData.append("htmlFile", new Blob([finalHtml], { type: "text/html" }), "template.html");
+    formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
 
     console.log("🚀 Sending HTML to PDF API:", apiUrl);
 
@@ -3189,20 +3189,20 @@ editor.on("run:core:canvas-clear", () => {
 });
 
 
-let hasChanges = false;
+// let hasChanges = false;
 
-// Listen for any changes in the editor
-editor.on('update', () => {
-  hasChanges = true;
-});
+// // Listen for any changes in the editor
+// editor.on('update', () => {
+//   hasChanges = true;
+// });
 
-// Add an event listener for the beforeunload event
-window.addEventListener('beforeunload', function (e) {
-  if (hasChanges) {
-    // Cancel the event
-    e.preventDefault(); 
-    // Chrome requires returnValue to be set
-    e.returnValue = ''; 
-    // The browser will display a generic confirmation message (e.g., "Changes you made may not be saved")
-  }
-});
+// // Add an event listener for the beforeunload event
+// window.addEventListener('beforeunload', function (e) {
+//   if (hasChanges) {
+//     // Cancel the event
+//     e.preventDefault(); 
+//     // Chrome requires returnValue to be set
+//     e.returnValue = ''; 
+//     // The browser will display a generic confirmation message (e.g., "Changes you made may not be saved")
+//   }
+// });
