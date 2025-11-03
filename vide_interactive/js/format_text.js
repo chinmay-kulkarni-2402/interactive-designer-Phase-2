@@ -938,30 +938,31 @@ function addFormattedRichTextComponent(editor) {
         this.set('custom-name', label, { silent: true });
       },
 
-      handleFormatTypeChange() {
-        const newFormatType = this.get('format-type');
-        const previousFormatType = this.previous('format-type');
-        const rawContent = this.get('raw-content') || '';
+handleFormatTypeChange() {
+  const newFormatType = this.get('format-type');
+  const previousFormatType = this.previous('format-type');
+  const rawContent = this.get('raw-content') || '';
 
-        const validation = formatHelpers.validateFormat(rawContent, newFormatType);
+  const validation = formatHelpers.validateFormat(rawContent, newFormatType);
 
-        if (!validation.valid) {
-          alert(validation.error);
-          // Revert to previous format type
-          this.set('format-type', previousFormatType, { silent: true });
+  if (!validation.valid) {
+    alert(validation.error);
+    // Revert to previous format type
+    this.set('format-type', previousFormatType, { silent: true });
 
-          // Force trait update to reflect reverted value
-          const trait = this.getTrait('format-type');
-          if (trait) {
-            trait.set('value', previousFormatType);
-          }
-          return;
-        }
+    // Force trait update to reflect reverted value - ADD THIS PART
+    const trait = this.getTrait('format-type');
+    if (trait && trait.view) {
+      // Force the trait view to update its input element
+      trait.view.el.querySelector('select').value = previousFormatType;
+    }
+    return;
+  }
 
-        this.updateFormatPattern();
-        this.updateContent();
-        this.updateTooltip();
-      },
+  this.updateFormatPattern();
+  this.updateContent();
+  this.updateTooltip();
+},
 
       handleJsonPathChange() {
         console.log('=== COMPONENT JSON PATH CHANGE ===');

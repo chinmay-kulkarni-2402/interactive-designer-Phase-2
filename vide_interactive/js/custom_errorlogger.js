@@ -6,7 +6,7 @@ function initNotificationsPlugin(editor) {
         return editor.Notifications;
     }
     // API configuration
-    const API_BASE_URL = 'http://192.168.0.221:9998';
+    const API_BASE_URL = 'http://localhost:8080';
     const API_ENDPOINTS = {
         logError: `${API_BASE_URL}/jsonLog`,
         fetchLogs: `${API_BASE_URL}/jsonLog`

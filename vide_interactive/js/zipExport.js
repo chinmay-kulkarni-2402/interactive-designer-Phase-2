@@ -8020,7 +8020,7 @@ if (common_json !== null) {
                           alert('Template Name Required.');
                           return false
                         }
-                        const apiUrl = 'http://192.168.0.221:9998/api/uploadFile';
+                        const apiUrl = 'http://localhost:8080/api/uploadFile';
                         // const apiUrl = 'http://localhost:9998/uploadFile'; 
                         const formData = new FormData();
                         formData.append('name', templateName);
@@ -8293,7 +8293,7 @@ ${htmlContent}
                       }
 
                       // Determine API URL
-                      let apiUrl = 'http://192.168.0.221:9998/api/uploadFile';
+                      let apiUrl = 'http://localhost:8080/api/uploadFile';
                       if (replaceCheckbox && replaceCheckbox.checked && editTemplateId) {
                         apiUrl += `/${editTemplateId}`; // edit mode
                       }

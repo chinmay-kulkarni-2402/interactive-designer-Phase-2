@@ -8,7 +8,7 @@ window.editor = InteractiveDesigner.init({
   telemetry: false,
   showOffsets: true,
   fromElement: true,
-  noticeOnUnload: false,
+  noticeOnUnload: true,
   storageManager: false,
   selectorManager: {
     componentFirst: true,
@@ -36,7 +36,7 @@ window.editor = InteractiveDesigner.init({
     addLiveLineChartComponent,
     linkTrackerPlugin,
     backgroundMusic,
-    customFlowColumns,
+   // customFlowColumns,
    // initNotificationsPlugin,
     subreportPlugin,
     "basic-block-component",
@@ -124,6 +124,8 @@ window.editor = InteractiveDesigner.init({
     ],
   },
 });
+
+
 
 // window.addEventListener("load", () => {
 //   initNotificationsPlugin(editor); // sets up plugin, commands, navbar
@@ -964,8 +966,8 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   const exportType = document.getElementById("export-type-dropdown")?.value || "pdf";
   const apiUrl =
     exportType === "pdf"
-      ? "http://192.168.0.221:9998/jsonApi/uploadPdf"
-      : "http://192.168.0.221:9998/jsonApi/uploadHtml";
+      ? "http://localhost:8080/jsonApi/uploadPdf"
+      : "http://localhost:8080/jsonApi/uploadHtml";
 
   const html = editor.getHtml();
   const css = editor.getCss();
@@ -2570,7 +2572,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 // }
 
 async function generatePrintDialog() {
- const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadHtmlToPdf";
+ const apiUrl = "http://localhost:8080/jsonApi/uploadHtmlToPdf";
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
@@ -3184,4 +3186,23 @@ editor.on("run:core:canvas-clear", () => {
   clickStates = {};
   currentSlideIndex = 1;
 
+});
+
+
+let hasChanges = false;
+
+// Listen for any changes in the editor
+editor.on('update', () => {
+  hasChanges = true;
+});
+
+// Add an event listener for the beforeunload event
+window.addEventListener('beforeunload', function (e) {
+  if (hasChanges) {
+    // Cancel the event
+    e.preventDefault(); 
+    // Chrome requires returnValue to be set
+    e.returnValue = ''; 
+    // The browser will display a generic confirmation message (e.g., "Changes you made may not be saved")
+  }
 });

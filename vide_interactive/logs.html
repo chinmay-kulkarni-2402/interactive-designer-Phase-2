@@ -18,6 +18,12 @@
     body {
       font-family: 'Roboto', sans-serif;
     }
+
+    /* ✅ Make the container wider */
+    .container {
+      max-width: 95% !important;
+    }
+
     .pagination {
       justify-content: center;
     }
@@ -69,11 +75,12 @@
       <table class="table table-bordered" id="pageTable">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Error Message</th>
+            <th>Serial Number</th>
+            <th>Message</th>
             <th>Send Request Time</th>
             <th>Output Response Time</th>
             <th>Result</th>
+            <th>Template ID</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -89,7 +96,7 @@
   <script>
     let allpage = [];
     let filteredLogs = [];
-    const apiUrl = "http://192.168.0.221:9998/api/getErrorLogs";
+    const apiUrl = "http://localhost:8080/api/getErrorLogs";
     const logsPerPage = 10;
     let currentPage = 1;
 
@@ -108,13 +115,18 @@
       paginatedLogs.forEach((item, index) => {
         const sendTime = formatDate(item.sendRequestTime);
         const outputTime = formatDate(item.outputResponseTime);
+
+        // ✅ Use serial number (index + 1 + offset)
+        const serialNo = startIndex + index + 1;
+
         const row = document.createElement("tr");
         row.innerHTML = `
-          <td>${item.id}</td>
-          <td>${item.error_message || ''}</td>
+          <td>${serialNo}</td>
+          <td>${item.message || ''}</td>
           <td>${sendTime}</td>
           <td>${outputTime}</td>
           <td>${item.result || ''}</td>
+          <td>${item.user_id || ''}</td>
         `;
         tbody.appendChild(row);
       });
@@ -160,10 +172,11 @@
 
       const data = filteredLogs.map((item, index) => ({
         "Sr. No": index + 1,
-        "Error Message": item.error_message || "",
+        "Error Message": item.message || "",
         "Send Request Time": formatDate(item.sendRequestTime),
         "Output Response Time": formatDate(item.outputResponseTime),
-        "Result": item.result || ""
+        "Result": item.result || "",
+        "Template ID": item.user_id || ""
       }));
 
       const ws = XLSX.utils.json_to_sheet(data);
@@ -176,7 +189,7 @@
       fetch(url)
         .then(response => response.json())
         .then(data => {
-          allpage = data.sort((a, b) => new Date(b.sendRequestTime) - new Date(a.sendRequestTime)); // newest first
+          allpage = data.sort((a, b) => new Date(b.sendRequestTime) - new Date(a.sendRequestTime));
           filteredLogs = [...allpage];
           applyFilters();
         })

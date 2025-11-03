@@ -166,7 +166,6 @@ class PageSetupManager {
     this.setupContentBoundaryEnforcement()
     this.initSharedRegionSync()
     this.setupSectionSelection()
-    this.addPageBreakComponent()
     this.setupJsonSuggestionButton()
     this.initializeArrayDataListener()
     const MAX_HEIGHT = 1027;
@@ -193,330 +192,12 @@ class PageSetupManager {
 
   }
 
-  // Add page break component to GrapesJS
-  // Replace your existing addPageBreakComponent method with this improved version
-
-  addPageBreakComponent() {
-
-    // Add the block to the Extra category
-    // this.editor.BlockManager.add("page-break", {
-    //   category: "Extra",
-    //   label: `
-    //   <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px;">
-    //     <div style="font-size: 20px; color: #ff6b6b;">✂️</div>
-    //     <span style="font-size: 10px; font-weight: bold; color: #333;">Page Break</span>
-    //   </div>
-    // `,
-    //   content: {
-    //     type: "page-break",
-    //   },
-    // });
-
-    editor.BlockManager.add('page-break', {
-      label: `
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px;">
-        <div style="font-size: 20px; color: #ff6b6b;">✂️</div>
-        <span style="font-size: 10px; font-weight: bold; color: #333;">Page Break</span>
-      </div>
-    `,
-      category: 'Basic',
-      content: '<div class="page-break" style="height:0; border-top:1px dashed #999; margin:20px 0;"></div>'
-    });
-
-    // Add CSS rules for page breaks first
-    // this.addPageBreakCSS();
-
-    // Define the page break component
-    // this.editor.DomComponents.addType("page-break", {
-    //   model: {
-    //     defaults: {
-    //       tagName: "div",
-    //       classes: ["page-break-element"],
-    //       droppable: false,
-    //       editable: false,
-    //       selectable: true,
-    //       removable: true,
-    //       copyable: true,
-    //       draggable: true,
-    //       attributes: {
-    //         "data-page-break": "true",
-    //         contenteditable: "false",
-    //       },
-    //       traits: [
-    //         {
-    //           type: "checkbox",
-    //           name: "force-new-page",
-    //           label: "Force New Page",
-    //           changeProp: 1,
-    //         },
-    //       ],
-    //       style: {
-    //         width: "100%",
-    //         height: "30px",
-    //         margin: "20px 0",
-    //         position: "relative",
-    //         cursor: "move",
-    //       },
-    //       content: '<span class="page-break-label">✂️ PAGE BREAK</span>',
-    //     },
-
-
-
-    //     handlePageBreakInsertion() {
-    //       console.log("🔄 Page break insertion detected");
-
-    //       // Get the editor instance
-    //       const editor = this.em?.get?.("Editor") || this.em || this.collection?.editor;
-    //       if (!editor) {
-    //         console.error("❌ Editor not found in page break component");
-    //         return;
-    //       }
-
-    //       // Get the PageSetupManager
-    //       const pageSetupManager = editor.get?.("PageSetupManager");
-    //       if (!pageSetupManager) {
-    //         console.warn("⚠️ PageSetupManager not found - page break functionality may be limited");
-    //         this.addPrintPageBreakCSS();
-    //         return;
-    //       }
-
-    //       // Check if PageSetupManager is initialized
-    //       if (!pageSetupManager.isInitialized) {
-    //         console.warn("⚠️ PageSetupManager not initialized yet, retrying in 1 second...");
-    //         setTimeout(() => {
-    //           this.handlePageBreakInsertion();
-    //         }, 1000);
-    //         return;
-    //       }
-
-    //       try {
-    //         // Create insertion context
-    //         const insertionContext = {
-    //           component: this,
-    //           parent: this.parent(),
-    //           index: this.index(),
-    //           previousSibling: this.parent()?.components().at(this.index() - 1),
-    //           nextSibling: this.parent()?.components().at(this.index() + 1)
-    //         };
-
-    //         // Call the page setup manager to handle the break
-    //         pageSetupManager.handlePageBreakInsertion(this, insertionContext);
-    //         console.log("✅ Page break processed successfully");
-
-    //       } catch (error) {
-    //         console.error("❌ Error processing page break:", error);
-    //         // Fallback: at least add CSS for print
-    //         this.addPrintPageBreakCSS();
-    //       }
-    //     },
-
-    //     addPrintPageBreakCSS() {
-    //       const view = this.view;
-    //       if (view && view.el) {
-    //         view.el.classList.add('print-page-break');
-
-    //         // Ensure CSS is added
-    //         const css = `
-    //         @media print {
-    //           .print-page-break {
-    //             page-break-before: always !important;
-    //             break-before: page !important;
-    //             display: none !important;
-    //           }
-    //         }
-    //       `;
-
-    //         const editor = this.em || this.collection?.editor;
-    //         if (editor) {
-    //           try {
-    //             const cssManager = editor.Css || editor.CssComposer;
-    //             if (cssManager && cssManager.add) {
-    //               cssManager.add(css);
-    //             }
-    //           } catch (error) {
-    //             console.warn("Could not add CSS through editor");
-    //           }
-    //         }
-    //       }
-    //     },
-    //   },
-
-    //   view: {
-    //     onRender() {
-    //       const el = this.el;
-    //       if (!el) {
-    //         console.error("Page break element not found during render");
-    //         return;
-    //       }
-
-    //       try {
-    //         // Set the content
-    //         el.innerHTML = '<span class="page-break-label">✂️ PAGE BREAK</span>';
-
-    //         // Add CSS classes
-    //         el.classList.add('page-break-element', 'rendered-page-break');
-
-    //         // Add data attributes for better identification
-    //         el.setAttribute('data-gjs-type', 'page-break');
-    //         el.setAttribute('title', 'Page Break - Content after this will start on a new page');
-
-    //         // Add hover effects
-    //         this.addInteractionEffects();
-
-    //         console.log("Page break component rendered successfully");
-    //       } catch (error) {
-    //         console.error("Error rendering page break component:", error);
-    //       }
-    //     },
-
-    //     addInteractionEffects() {
-    //       const el = this.el;
-    //       if (!el) return;
-
-    //       // Hover effects
-    //       el.addEventListener('mouseenter', () => {
-    //         el.style.transform = 'scale(1.02)';
-    //         el.style.boxShadow = '0 2px 10px rgba(255, 75, 87, 0.4)';
-    //       });
-
-    //       el.addEventListener('mouseleave', () => {
-    //         el.style.transform = 'scale(1)';
-    //         el.style.boxShadow = 'none';
-    //       });
-
-    //       // Click handling
-    //       el.addEventListener('click', (e) => {
-    //         e.stopPropagation();
-    //         console.log("Page break clicked");
-    //         this.model.trigger('active');
-    //       });
-    //     },
-
-    //     onRemove() {
-    //       // Clean up event listeners if needed
-    //       console.log("Page break component removed");
-    //     },
-    //   },
-    // });
-  }
-
 
   resetInitialization() {
     this.isInitialized = false;
     this.updateNavbarButton();
     this.updateAddPageButton();
   }
-
-
-
-  // createNewPage() {
-  //   debugger
-  // console.log('createNewPage CALL');
-  //   // Your logic to create a new page
-  //   const wrapper = this.editor.getWrapper();
-
-  //   const newPageIndex = wrapper.find('[data-page-index]').length;
-
-  //   const newPage = document.createElement('div');
-  //   newPage.className = 'page';
-  //   newPage.setAttribute('data-page-index', newPageIndex);
-
-  //   const mainContent = document.createElement('div');
-  //   mainContent.className = 'main-content-area';
-  //   newPage.appendChild(mainContent);
-
-  //   wrapper.getEl().appendChild(newPage);
-  // }
-
-  //  createNewPage() {
-  //   console.log('createNewPage CALL ============');
-
-  //   const wrapper = this.editor.getWrapper();
-  //   const newPageIndex = wrapper.find('[data-page-index]').length;
-
-  //   // Use GrapesJS API instead of raw DOM
-  //   const newPage = wrapper.append(`
-  //     <div class="page-container" data-page-id="page-${newPageIndex + 1}" data-page-index="${newPageIndex}">
-  //       <div class="page-content">
-  //         <div data-shared-region="header" class="header-wrapper">
-  //           <div class="page-header-element"></div>
-  //         </div>
-  //         <div class="content-wrapper">
-  //           <div class="main-content-area"></div>
-  //         </div>
-  //         <div data-shared-region="footer" class="footer-wrapper">
-  //           <div class="page-footer-element"></div>
-  //         </div>
-  //       </div>
-  //     </div>
-  //   `);
-
-  //   // ✅ wrapper.append() returns an array of components
-  //   return newPage[0];
-  // } 
-
-
-  // handlePageBreak(pageIndex) {
-  //   console.log('PAGE BREAK CALL ==========');
-  //   const wrapper = this.editor.getWrapper();
-  //   if (!wrapper) return;
-
-  //   // Step 1: Current page lo
-  //   const pageComponents = wrapper.find(`[data-page-index="${pageIndex}"]`);
-  //   if (!pageComponents.length) return;
-
-  //   const pageComponent = pageComponents[0];
-  //   const contentArea = pageComponent.find('.main-content-area')[0];
-  //   if (!contentArea) return;
-
-  //   const contentEl = contentArea.getEl();
-  //   if (!contentEl) return;
-
-  //   const pageBreakEl = contentEl.querySelector('.page-break');
-  //   if (!pageBreakEl) return;
-
-  //   // Step 2: Collect elements after break
-  //   let foundBreak = false;
-  //   const allChildren = Array.from(contentArea.components()); // ✅ GrapesJS components, not raw DOM
-  //   const afterBreak = [];
-
-  //   for (let cmp of allChildren) {
-  //     if (foundBreak) afterBreak.push(cmp);
-  //     if (cmp.getEl() === pageBreakEl) foundBreak = true;
-  //   }
-
-  //   if (afterBreak.length === 0) return;
-
-  //   // Step 3: Find next page or create one
-  //   let nextPage = wrapper.find(`[data-page-index="${pageIndex + 1}"]`)[0];
-  //   if (!nextPage) {
-  //     nextPage = this.createNewPage();
-  //   }
-
-  //   if (!nextPage) {
-  //     console.warn('❌ Failed to create or find next page');
-  //     return;
-  //   }
-
-  //   // Step 4: Get next main-content-area
-  //   const nextContentArea = nextPage.find('.main-content-area')[0];
-  //   if (!nextContentArea) {
-  //     console.warn('❌ next page does not have a main-content-area');
-  //     return;
-  //   }
-
-  //   // Step 5: Move elements using GrapesJS API
-  //   afterBreak.forEach(cmp => {
-  //     nextContentArea.append(cmp); // ✅ GrapesJS way
-  //   });
-
-  //   // Remove the page-break element
-  //   const breakCmp = this.editor.getComponents().find(c => c.getEl() === pageBreakEl);
-  //   if (breakCmp) breakCmp.remove();
-
-  //   console.log(`✅ Moved ${afterBreak.length} components to page ${pageIndex + 1}`);
-  // }
-
 
   // ===============================
   //+Latest+ Create New Page
@@ -2305,24 +1986,6 @@ checkPageForOverflow(pageIndex) {
         footer: null,
       };
 
-      // // Preserve header content
-      // const headerRegion = firstPageComponent.find('[data-shared-region="header"]')[0];
-      // if (headerRegion) {
-      //   const headerComponents = headerRegion.components();
-      //   if (headerComponents.length > 0) {
-      //     this.sharedContent.header = {
-      //       components: headerComponents.map((comp) => ({
-      //         html: comp.toHTML(),
-      //         styles: comp.getStyle(),
-      //         attributes: comp.getAttributes(),
-      //         type: comp.get("type"),
-      //       })),
-      //       styles: headerRegion.getStyle(),
-      //       attributes: headerRegion.getAttributes(),
-      //     };
-      //   }
-      // }
-
       // Preserve footer content
       const footerRegion = firstPageComponent.find('[data-shared-region="footer"]')[0];
       if (footerRegion) {
@@ -2346,94 +2009,12 @@ checkPageForOverflow(pageIndex) {
     }
   }
 
-  // Restore shared content after operations
-  restoreSharedContent() {
-    // if (!this.isInitialized) return
-
-    // try {
-    //   const allPageComponents = this.editor.getWrapper().find(".page-container")
-
-    //   allPageComponents.forEach((pageComponent) => {
-    //     // Restore header content
-    //     if (this.sharedContent.header && this.pageSettings.headerFooter.headerEnabled) {
-    //       const headerRegion = pageComponent.find('[data-shared-region="header"]')[0]
-    //       if (headerRegion && this.sharedContent.header.components.length > 0) {
-    //         // Clear existing content
-    //         headerRegion.components().reset()
-
-    //         // Restore components
-    //         this.sharedContent.header.components.forEach((compData) => {
-    //           try {
-    //             const newComponent = headerRegion.append(compData.html)[0]
-    //             if (newComponent) {
-    //               if (compData.styles) {
-    //                 newComponent.setStyle(compData.styles)
-    //               }
-    //               if (compData.attributes) {
-    //                 Object.keys(compData.attributes).forEach((key) => {
-    //                   newComponent.addAttributes({ [key]: compData.attributes[key] })
-    //                 })
-    //               }
-    //             }
-    //           } catch (error) {
-    //             console.error("Error restoring shared header component:", error)
-    //           }
-    //         })
-    //       }
-    //     }
-
-    //     // Restore footer content
-    //     if (this.sharedContent.footer && this.pageSettings.headerFooter.footerEnabled) {
-    //       const footerRegion = pageComponent.find('[data-shared-region="footer"]')[0]
-    //       if (footerRegion && this.sharedContent.footer.components.length > 0) {
-    //         // Clear existing content
-    //         footerRegion.components().reset()
-
-    //         // Restore components
-    //         this.sharedContent.footer.components.forEach((compData) => {
-    //           try {
-    //             const newComponent = footerRegion.append(compData.html)[0]
-    //             if (newComponent) {
-    //               if (compData.styles) {
-    //                 newComponent.setStyle(compData.styles)
-    //               }
-    //               if (compData.attributes) {
-    //                 Object.keys(compData.attributes).forEach((key) => {
-    //                   newComponent.addAttributes({ [key]: compData.attributes[key] })
-    //                 })
-    //               }
-    //             }
-    //           } catch (error) {
-    //             console.error("Error restoring shared footer component:", error)
-    //           }
-    //         })
-    //       }
-    //     }
-    //   })
-    // } catch (error) {
-    //   console.error("Error restoring shared content:", error)
-    // }
-  }
-
   initSharedRegionSync() {
     const editor = this.editor
     if (!editor) return
 
     // Track sync operations to prevent infinite loops
     this._syncInProgress = false
-
-    // Listen for component additions
-    // editor.on("component:add", (model) => {
-    //   if (this._syncInProgress) return
-
-    //   const sharedRegion = model.closest("[data-shared-region]")
-    //   if (sharedRegion) {
-    //     const regionType = sharedRegion.getAttributes()["data-shared-region"]
-    //     setTimeout(() => {
-    //       this.syncSharedRegion(regionType, sharedRegion)
-    //     }, 50)
-    //   }
-    // })
 
     // Listen for component updates (style, content, attributes)
     editor.on("component:update", (model) => {
@@ -2447,19 +2028,6 @@ checkPageForOverflow(pageIndex) {
         }, 50)
       }
     })
-
-    // Listen for component removals
-    // editor.on("component:remove", (model) => {
-    //   if (this._syncInProgress) return
-
-    //   const sharedRegion = model.closest("[data-shared-region]")
-    //   if (sharedRegion) {
-    //     const regionType = sharedRegion.getAttributes()["data-shared-region"]
-    //     setTimeout(() => {
-    //       this.syncSharedRegion(regionType, sharedRegion)
-    //     }, 50)
-    //   }
-    // })
 
     // Listen for style changes
     editor.on("component:styleUpdate", (model) => {
@@ -2684,8 +2252,6 @@ checkPageForOverflow(pageIndex) {
       })
 
       if (!isInsidePage) {
-        // Show error and remove component
-        this.showBoundaryError()
         component.remove()
         return
       }
@@ -2707,8 +2273,7 @@ checkPageForOverflow(pageIndex) {
             rect.left < pageRect.left ||
             rect.top < pageRect.top
           ) {
-            // Show error and adjust element position to stay within boundaries
-            this.showBoundaryError()
+            // adjust element position to stay within boundaries
 
             const style = window.getComputedStyle(child)
             const left = Number.parseInt(style.left) || 0
@@ -2748,7 +2313,6 @@ checkPageForOverflow(pageIndex) {
       if (!insideMain || !insidePage) {
         console.warn('🚫 Blocked component creation outside page boundaries');
         component.remove(); // instantly remove
-        this.showBoundaryError?.();
       }
     });
 
@@ -2768,7 +2332,6 @@ checkPageForOverflow(pageIndex) {
       if (!droppedEl) {
         console.warn('🚫 Drop rejected — outside any page');
         if (data?.component) data.component.remove();
-        this.showBoundaryError?.();
       }
     });
 
@@ -2815,44 +2378,6 @@ checkPageForOverflow(pageIndex) {
         })
       }
     })
-  }
-
-  showBoundaryError() {
-    // Show error message for boundary violation - COMMENTED OUT
-    /*
-    const errorMsg = document.createElement("div")
-    errorMsg.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 6px;
-      z-index: 10000;
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-      animation: slideIn 0.3s ease-out;
-    `
-    errorMsg.innerHTML = ""
-
-    // Add animation
-    const style = document.createElement("style")
-    style.textContent = `
-      @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-    `
-    document.head.appendChild(style)
-
-    document.body.appendChild(errorMsg)
-
-    setTimeout(() => {
-      errorMsg.remove()
-      style.remove()
-    }, 3000)
-    */
   }
 
   setupDragBoundaries() {
@@ -5036,19 +4561,6 @@ padding: 8px;
       'pageNumberFontSize', 'pageNumberColor', 'pageNumberBackgroundColor',
       'pageNumberShowBorder'];
 
-    pageNumberInputs.forEach(id => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.addEventListener('change', () => {
-          // Update the setting in pageSettings first
-          // this.updatePageNumberSetting(id, element);
-
-          // Re-render page numbers
-          setTimeout(() => this.renderPageNumbers(), 100);
-        });
-      }
-    });
-
     // Position grid listener
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('position-option')) {
@@ -5057,11 +4569,6 @@ padding: 8px;
           // Update position setting
           this.pageSettings.pageNumber = this.pageSettings.pageNumber || {};
           this.pageSettings.pageNumber.position = e.target.getAttribute('data-position');
-
-          // Re-render if enabled
-          if (this.pageSettings.pageNumber.enabled) {
-            setTimeout(() => this.renderPageNumbers(), 100);
-          }
         }
       }
     });
@@ -6563,8 +6070,6 @@ removeAllConditionalPageBreaks() {
       setTimeout(() => {
         this.restoreAllContent();
         this.startContentMonitoring();
-
-        this.renderPageNumbers();
         this.setupStrictBoundaryEnforcement();
 
 
@@ -7464,64 +6969,6 @@ removeAllConditionalPageBreaks() {
       }
     }
   }
-
-
-  // renderPageNumbers() {
-
-  //   if (!this.pageSettings.pageNumber?.enabled) {
-  //     this.removeAllPageNumbers();
-  //     return;
-  //   }
-
-  //   const settings = this.pageSettings.pageNumber;
-  //   const startFrom = settings.startFrom || 1;
-  //   const format = settings.format || "Page {n}";
-  //   const position = settings.position || "bottom-center";
-  //   const pages = this.editor.getWrapper().find('.page-container');
-  //   let currentNumber = startFrom;
-
-  //   pages.forEach((pageComponent, index) => {
-  //     // Check if page already has a page number element
-  //     const existing = pageComponent.find('.page-number-element');
-  //     if (existing.length > 0) {
-  //       // Already has a number → skip or update if you want
-  //       currentNumber++;
-  //       return;
-  //     }
-
-  //     const pageText = format
-  //       .replace('{n}', currentNumber.toString())
-  //       .replace('{total}', (pages.length - startFrom + 1).toString());
-
-  //     const positionStyles = this.getPageNumberPositionStyles(position);
-
-  //     const pageNumberHTML = `
-  //       <div class="page-number-element" style="
-  //           position: absolute;
-  //           font-family: ${settings.fontFamily || 'Arial'};
-  //           font-size: ${settings.fontSize || 11}px;
-  //           color: ${settings.color || '#333333'};
-  //           background-color: ${settings.backgroundColor || 'transparent'};
-  //           border: ${settings.showBorder ? '1px solid ' + (settings.color || '#333333') : 'none'};
-  //           padding: ${settings.showBorder ? '2px 6px' : '2px'};
-  //           border-radius: 3px;
-  //           z-index: 1000;
-  //           pointer-events: none;
-  //           white-space: nowrap;
-  //           ${positionStyles}
-  //       ">${pageText}</div>
-  //       `;
-
-  //     const pageContent = pageComponent.find('.page-content')[0];
-  //     if (pageContent) {
-  //       pageContent.append(pageNumberHTML);
-  //     } else {
-  //     }
-
-  //     currentNumber++;
-  //   });
-
-  // }
 
 
   getPageNumberPositionStyles(position) {
@@ -8789,13 +8236,4 @@ if (this.pageSettings.conditionalPageBreak?.enabled) {
     return result;
   }
   //////////////////////////////////////////////////////daynamic header footer from json///////////////////////////
-
-
-
-
-
-
-
-
-
 }

@@ -617,8 +617,35 @@ function jsontablecustom(editor) {
                         }, 100);
                     });
                 });
+                    this.on('change:custom-data change:table-data', () => {
+        setTimeout(() => {
+            this.triggerAutoPagination();
+        }, 500);
+    });
             },
+triggerAutoPagination() {
+    const tableId = this.cid ? `json-table-${this.cid}` : null;
+    if (!tableId) return;
 
+    const canvasDoc = editor.Canvas.getDocument();
+    const tableElement = canvasDoc.getElementById(tableId);
+    if (!tableElement) return;
+
+    // Find the page containing this table
+    const pageContainer = tableElement.closest('.page-container');
+    if (!pageContainer) return;
+
+    const pageIndex = parseInt(pageContainer.getAttribute('data-page-index'));
+    if (isNaN(pageIndex)) return;
+
+    // Trigger pagination check for this page
+    const pageSetupManager = editor.get?.('PageSetupManager');
+    if (pageSetupManager && pageSetupManager.checkPageForOverflow) {
+        setTimeout(() => {
+            pageSetupManager.checkPageForOverflow(pageIndex);
+        }, 300);
+    }
+},
             applyTableStyles() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
@@ -2054,25 +2081,48 @@ function jsontablecustom(editor) {
                 }, 500);
             },
 
-            applyGroupingAndSummary() {
-                const groupingFields = this.get('grouping-fields') || [];
-                const data = this.get('table-data') || [];
+applyGroupingAndSummary() {
+    const groupingFields = this.get('grouping-fields') || [];
+    const data = this.get('table-data') || [];
 
-                if (groupingFields.length === 0) {
-                    // No grouping, reset to original data
-                    this.set('custom-data', null);
-                    this.updateTableHTML();
-                    return;
-                }
+    if (groupingFields.length === 0) {
+        // No grouping, reset to original data
+        this.set('custom-data', null);
+        this.updateTableHTML();
+        return;
+    }
 
-                // Apply grouping logic
-                const groupedData = this.groupData(data, groupingFields);
+    // Apply grouping logic
+    const groupedData = this.groupData(data, groupingFields);
 
-                // Update custom data with processed data
-                this.set('custom-data', groupedData);
-                this.updateTableHTML();
-            },
+    // Update custom data with processed data (including page breaks)
+    this.set('custom-data', groupedData);
+    this.updateTableHTML();
+    
+    // ✅ TRIGGER AUTOPAGINATION AFTER GROUPING
+    setTimeout(() => {
+        this.triggerAutoPagination();
+    }, 500);
+},
 
+getTableContainer() {
+    const tableId = this.cid ? `json-table-${this.cid}` : null;
+    if (!tableId) return null;
+
+    const canvasDoc = editor.Canvas.getDocument();
+    const tableElement = canvasDoc.getElementById(tableId);
+    if (!tableElement) return null;
+
+    // Check if inside section-content
+    const sectionContent = tableElement.closest('.section-content');
+    if (sectionContent) return sectionContent;
+
+    // Check if inside main-content-area
+    const mainContent = tableElement.closest('.main-content-area');
+    if (mainContent) return mainContent;
+
+    return null;
+},
             groupData(data, groupingFields) {
                 if (!groupingFields || groupingFields.length === 0) return data;
 
@@ -2192,7 +2242,10 @@ function jsontablecustom(editor) {
                     result.push(grandTotalRow);
                 }
 
-                return result;
+    // ✅ INSERT PAGE BREAKS AFTER GROUPS
+    const resultWithPageBreaks = insertPageBreaksAfterGroups(this, result);
+
+    return resultWithPageBreaks;
             },
 
             applyNamedGroups(data, fieldKey, namedGroupsConfig) {
@@ -2256,44 +2309,84 @@ function jsontablecustom(editor) {
                 return summaryRow;
             },
 
-            createGrandTotalRow(data) {
-                const summaryFields = this.get('summary-fields') || [];
-                const headers = this.get('custom-headers') || this.get('table-headers') || {};
-                const grandTotalLabel = this.get('grand-total-label') || 'Grand Total';
+createGrandTotalRow(data) {
+    const summaryFields = this.get('summary-fields') || [];
+    const headers = this.get('custom-headers') || this.get('table-headers') || {};
+    const grandTotalLabel = this.get('grand-total-label') || 'Grand Total';
 
-                const grandTotalRow = {};
+    const grandTotalRow = {};
 
-                Object.keys(headers).forEach(key => {
-                    grandTotalRow[key] = '';
-                });
+    Object.keys(headers).forEach(key => {
+        grandTotalRow[key] = '';
+    });
 
-                const firstKey = Object.keys(headers)[0];
-                grandTotalRow[firstKey] = grandTotalLabel;
+    const firstKey = Object.keys(headers)[0];
+    grandTotalRow[firstKey] = grandTotalLabel;
 
-                summaryFields.forEach(field => {
-                    const values = data.map(row => parseFloat(row[field.key]) || 0);
+    // Check which columns are numeric (similar to running total logic)
+    const numericColumns = {};
+    Object.keys(headers).forEach(key => {
+        const isStrictlyNumeric = data.every(row => {
+            let value = row[key];
+            if (value === '' || value === null || value === undefined) return true;
+            value = String(value).trim();
+            if (/^\(.*\)$/.test(value)) {
+                value = '-' + value.slice(1, -1);
+            }
+            value = value.replace(/[$£€₹,\s]/g, '');
+            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                value = value.replace(/\./g, '').replace(',', '.');
+            }
+            const numValue = Number(value);
+            return typeof numValue === 'number' && !isNaN(numValue);
+        });
 
-                    switch (field.function) {
-                        case 'sum':
-                            grandTotalRow[field.key] = values.reduce((a, b) => a + b, 0).toFixed(2);
-                            break;
-                        case 'average':
-                            grandTotalRow[field.key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
-                            break;
-                        case 'count':
-                            grandTotalRow[field.key] = values.length;
-                            break;
-                        case 'min':
-                            grandTotalRow[field.key] = Math.min(...values).toFixed(2);
-                            break;
-                        case 'max':
-                            grandTotalRow[field.key] = Math.max(...values).toFixed(2);
-                            break;
-                    }
-                });
+        if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
+            numericColumns[key] = true;
+        }
+    });
 
-                return grandTotalRow;
-            },
+    // Calculate grand totals for numeric columns
+    Object.keys(numericColumns).forEach(key => {
+        const values = data.map(row => {
+            let value = row[key];
+            if (value === '' || value === null || value === undefined) return 0;
+            value = String(value).trim();
+            if (/^\(.*\)$/.test(value)) {
+                value = '-' + value.slice(1, -1);
+            }
+            value = value.replace(/[$£€₹,\s]/g, '');
+            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                value = value.replace(/\./g, '').replace(',', '.');
+            }
+            return parseFloat(value) || 0;
+        });
+
+        // Apply summary function if defined, otherwise use sum
+        const summaryField = summaryFields.find(f => f.key === key);
+        const func = summaryField ? summaryField.function : 'sum';
+
+        switch (func) {
+            case 'sum':
+                grandTotalRow[key] = values.reduce((a, b) => a + b, 0).toFixed(2);
+                break;
+            case 'average':
+                grandTotalRow[key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
+                break;
+            case 'count':
+                grandTotalRow[key] = values.length;
+                break;
+            case 'min':
+                grandTotalRow[key] = Math.min(...values).toFixed(2);
+                break;
+            case 'max':
+                grandTotalRow[key] = Math.max(...values).toFixed(2);
+                break;
+        }
+    });
+
+    return grandTotalRow;
+},
 
             processSummary(data, summaryFields) {
                 // Additional processing if needed
@@ -2995,51 +3088,103 @@ function jsontablecustom(editor) {
                 });
             },
 
-            addTableBody(tableComponent, headers, data, tableId) {
-                const tbodyComponent = tableComponent.components().add({
-                    type: 'default',
-                    tagName: 'tbody'
-                });
+addTableBody(tableComponent, headers, data, tableId) {
+    const tbodyComponent = tableComponent.components().add({
+        type: 'default',
+        tagName: 'tbody'
+    });
 
-                if (data.length === 0) {
-                    const emptyRowComponent = tbodyComponent.components().add({
-                        type: 'default',
-                        tagName: 'tr'
-                    });
+    if (data.length === 0) {
+        const emptyRowComponent = tbodyComponent.components().add({
+            type: 'default',
+            tagName: 'tr'
+        });
 
-                    emptyRowComponent.components().add({
-                        type: 'text',
-                        tagName: 'td',
-                        content: 'No data found',
-                        attributes: {
-                            colspan: Object.keys(headers).length.toString()
-                        },
-                        style: {
-                            'text-align': 'center',
-                            'padding': '20px',
-                            'color': '#666'
-                        }
-                    });
-                    return;
+        emptyRowComponent.components().add({
+            type: 'text',
+            tagName: 'td',
+            content: 'No data found',
+            attributes: {
+                colspan: Object.keys(headers).length.toString()
+            },
+            style: {
+                'text-align': 'center',
+                'padding': '20px',
+                'color': '#666'
+            }
+        });
+        return;
+    }
+
+    const jsonPath = this.get('json-path') || '';
+    const runningTotals = this.get('running-totals') || [];
+
+    data.forEach((row, rowIndex) => {
+        // ✅ CHECK FOR PAGE BREAK ROW
+        if (row._isPageBreak) {
+            const pageBreakRow = tbodyComponent.components().add({
+                type: 'default',
+                tagName: 'tr',
+                attributes: {
+                    'data-page-break-row': 'true',
+                    'id': row._pageBreakId
+                },
+                style: {
+                    'display': 'none' // Hidden in editor, will be processed by PageSetupManager
                 }
+            });
 
-                const jsonPath = this.get('json-path') || '';
-                const runningTotals = this.get('running-totals') || [];
+            pageBreakRow.components().add({
+                type: 'default',
+                tagName: 'td',
+                attributes: {
+                    'colspan': Object.keys(headers).length.toString(),
+                    'data-page-break': 'true'
+                },
+                classes: ['page-break', 'page-break-element'],
+                style: {
+                    'height': '0',
+                    'padding': '0',
+                    'border': 'none'
+                },
+                content: `<div class="page-break" data-page-break="true" style="
+                    width: 100%;
+                    height: 30px;
+                    background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%);
+                    border: 2px dashed #ff4757;
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 10px 0;
+                    position: relative;
+                    cursor: move;
+                ">
+                    <span class="page-break-label" style="
+                        color: white;
+                        font-size: 12px;
+                        font-weight: bold;
+                        letter-spacing: 1px;
+                    ">PAGE BREAK (Auto-inserted after group)</span>
+                </div>`
+            });
+            return; // Skip normal row rendering for page break rows
+        }
 
-                data.forEach((row, rowIndex) => {
-                    const isSummary = row._isSummary;
-                    const isGrandTotal = row._isGrandTotal;
-                    const isGroupStart = row._groupStart;
-                    const groupSize = row._groupSize || 1;
+        // NORMAL ROW RENDERING (rest of your existing code)
+        const isSummary = row._isSummary;
+        const isGrandTotal = row._isGrandTotal;
+        const isGroupStart = row._groupStart;
+        const groupSize = row._groupSize || 1;
 
-                    const rowComponent = tbodyComponent.components().add({
-                        type: 'default',
-                        tagName: 'tr',
-                        classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
-                        style: {
-                            'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'
-                        }
-                    });
+        const rowComponent = tbodyComponent.components().add({
+            type: 'default',
+            tagName: 'tr',
+            classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
+            style: {
+                'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'
+            }
+        });
 
                     Object.keys(headers).forEach(key => {
                         // Check if this cell should be skipped due to rowspan
@@ -3869,22 +4014,22 @@ function jsontablecustom(editor) {
             </div>
         </div>
 
-        <!-- Grouping & Summary Tab (existing content) -->
+<!-- Grouping & Summary Tab -->
 <div id="grouping-tab" class="tab-pane" style="display: none;">
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-<!-- Available Fields -->
-<div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-    <h4 style="margin: 0;">Available Fields</h4>
-    <div style="display: flex; gap: 5px;">
-      <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
-      <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+    <!-- Available Fields -->
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h4 style="margin: 0;">Available Fields</h4>
+        <div style="display: flex; gap: 5px;">
+          <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+          <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+        </div>
+      </div>
+      <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; max-height: 300px; overflow-y: auto;">
+        <!-- Dynamically populated -->
+      </div>
     </div>
-  </div>
-  <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; max-height: 300px; overflow-y: auto;">
-    <!-- Dynamically populated -->
-  </div>
-</div>
 
     <!-- Selected Grouping Fields -->
     <div>
@@ -3906,7 +4051,7 @@ function jsontablecustom(editor) {
       </select>
       <select id="summary-function" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
         <option value="sum">Sum</option>
-        <option value="avg">Average</option>
+        <option value="average">Average</option>
         <option value="min">Minimum</option>
         <option value="max">Maximum</option>
         <option value="count">Count</option>
@@ -3916,6 +4061,103 @@ function jsontablecustom(editor) {
       <p style="color: #999; text-align: center;">No summary fields added</p>
     </div>
   </div>
+
+  <hr style="margin: 20px 0;">
+
+  <!-- Grouping Options -->
+  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+    <legend style="font-weight: bold;">Grouping Options</legend>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+      <div>
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Sort Order:</label>
+        <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          <option value="ascending">Ascending</option>
+          <option value="descending">Descending</option>
+          <option value="original">Original Order</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Percentage:</label>
+        <select id="summary-percentage" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          <option value="none">None</option>
+          <option value="of-group">Of Group</option>
+          <option value="of-total">Of Total</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+      <div>
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Top N:</label>
+        <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          <option value="none">None</option>
+          <option value="top">Top N Groups</option>
+          <option value="bottom">Bottom N Groups</option>
+          <option value="sort-all">Sort All (No Limit)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">N Value:</label>
+        <input type="number" id="top-n-value" value="10" min="1" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+      </div>
+    </div>
+
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+      <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
+      <span>Merge Group Cells</span>
+    </label>
+    
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+      <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
+      <span>Hide Subtotal for Single Row Groups</span>
+    </label>
+
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+      <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
+      <span>Show Group Subtotals</span>
+    </label>
+  </fieldset>
+
+  <!-- Grouping Type -->
+  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+    <legend style="font-weight: bold;">Display Mode</legend>
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+      <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
+      <span>Show All Records</span>
+    </label>
+    <label style="display: flex; align-items: center;">
+      <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
+      <span>Show Summary Only</span>
+    </label>
+    <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
+      <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
+      <span>Keep Group Hierarchy</span>
+    </label>
+  </fieldset>
+
+  <!-- Grand Total -->
+  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+    <legend style="font-weight: bold;">Grand Total</legend>
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+      <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
+      <span>Show Grand Total</span>
+    </label>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+      <input type="text" id="summary-label" placeholder="Subtotal Label" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+    </div>
+  </fieldset>
+
+  <!-- Named Groups -->
+  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+    <legend style="font-weight: bold;">Named Groups</legend>
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+      <input type="checkbox" id="define-named-group" style="margin-right: 8px;">
+      <span>Define Named Group</span>
+    </label>
+    <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; width: 100%;">Configure Named Groups</button>
+  </fieldset>
 </div>
 
 
@@ -3997,6 +4239,8 @@ function jsontablecustom(editor) {
         </label>
     </fieldset>
     
+
+    <!--
     <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
         <div>
             <label style="font-weight: bold; display: block; margin-bottom: 5px;">Sort Order:</label>
@@ -4048,7 +4292,7 @@ function jsontablecustom(editor) {
             <option value="">Select Group</option>
         </select>
     </div>
-    
+    -->
     <div style="margin-top: 15px;">
         <label style="display: flex; align-items: center;">
             <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
@@ -4096,7 +4340,37 @@ function jsontablecustom(editor) {
             }, 100);
         }
     });
+// Add this function in the jsontablecustom file (around line 1500, after groupData function)
 
+function insertPageBreaksAfterGroups(component, groupedData) {
+    const pageBreakEnabled = component.get('page-break') || false;
+    if (!pageBreakEnabled) return groupedData;
+
+    const result = [];
+    const groupingFields = component.get('grouping-fields') || [];
+    
+    if (groupingFields.length === 0) return groupedData;
+
+    let currentGroupKey = null;
+    
+    groupedData.forEach((row, index) => {
+        // Detect group change
+        const rowGroupKey = groupingFields.map(field => row[field.key] || '').join('|');
+        
+        if (currentGroupKey !== null && currentGroupKey !== rowGroupKey) {
+            // Insert page break marker row
+            result.push({
+                _isPageBreak: true,
+                _pageBreakId: `pb-${Date.now()}-${index}`
+            });
+        }
+        
+        result.push(row);
+        currentGroupKey = rowGroupKey;
+    });
+    
+    return result;
+}
     function initializeTableSettingsModal(component, availableFields) {
         let selectedGroupingFields = [];
         let selectedSummaryFields = [];
@@ -4449,10 +4723,10 @@ function jsontablecustom(editor) {
         });
 
         // Predefined Named Group checkbox
-        document.getElementById('predefined-named-group').addEventListener('change', function () {
-            document.getElementById('predefined-group-select').disabled = !this.checked;
-            document.getElementById('predefined-group-select').style.background = this.checked ? 'white' : '#f0f0f0';
-        });
+        // document.getElementById('predefined-named-group').addEventListener('change', function () {
+        //     document.getElementById('predefined-group-select').disabled = !this.checked;
+        //     document.getElementById('predefined-group-select').style.background = this.checked ? 'white' : '#f0f0f0';
+        // });
 
         // Show Summary Only radio
         document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
@@ -4585,12 +4859,10 @@ function jsontablecustom(editor) {
         document.querySelectorAll('.rt-column-item').forEach(item => {
             item.addEventListener('click', function () {
                 // ✅ Highlight selected column
-                document.querySelectorAll('.rt-column-item').forEach(i => {
-                    i.style.background = 'white';
-                    i.style.borderColor = '#ddd';
-                });
-                this.style.background = '#e3f2fd';
-                this.style.borderColor = '#007bff';
+                // document.querySelectorAll('.rt-column-item').forEach(i => {
+                //     i.style.background = 'white';
+                //     i.style.borderColor = '#ddd';
+                // });
 
                 const columnKey = this.getAttribute('data-key');
                 const columnName = numericHeaders[columnKey];
