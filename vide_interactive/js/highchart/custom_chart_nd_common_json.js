@@ -1,16 +1,4 @@
 function customChartCommonJson(editor) {
-    function getJsonFileOptions() {
-        const storedFileNames = localStorage.getItem('common_json_files');
-        const options = [{ id: '0', name: 'Select File' }];
-
-        if (storedFileNames) {
-            const fileNames = storedFileNames.split(',').map(f => f.trim());
-            fileNames.forEach((fileName, index) => {
-                options.push({ id: (index + 1).toString(), name: fileName });
-            });
-        }
-        return options;
-    }
     const props_test_chart = (i) => i;
     const id_Trait = {
         name: "id",
@@ -87,12 +75,12 @@ function customChartCommonJson(editor) {
         default: 'pie',
         name,
     }));
+
     const json_file_index_Trait = ["jsonFileIndex"].map((name) => ({
         changeProp: 1,
         type: "select",
         label: "Select JSON File",
-        options: getJsonFileOptions(),
-        default: '0',
+        options: getJsonFileOptions(), // This function already exists in document 2
         name,
     }));
 
@@ -102,6 +90,17 @@ function customChartCommonJson(editor) {
         label: "Json Path",
         placeholder: "Enter Json Path",
         name,
+    }));
+
+    const json_button_sugesstionTrait = ["jsonButtonSugesstionTrait"].map((name) => ({
+        changeProp: 1,
+        type: "button",
+        label: "Json Suggestion",
+        placeholder: "Json Suggestion",
+        name,
+        id: "json-suggestion-btn",
+        text: "Suggestion",
+        class: "json-suggestion-btn",
     }));
 
     const chart_yAxis_Trait = ["ChartyAxis"].map((name) => ({
@@ -124,15 +123,6 @@ function customChartCommonJson(editor) {
         name,
     }));
 
-    const json_button_sugesstionTrait = ["jsonButtonSugesstionTrait"].map((name) => ({
-        changeProp: 1,
-        type: "button",
-        label: "Json Suggestion",
-        placeholder: "Json Suggestion",
-        name,
-        text: "Suggestion",
-        full: true,
-    }));
     const swap_axis_Trait = ["swapAxis"].map((name) => ({
         changeProp: 1,
         type: "select",
@@ -242,40 +232,46 @@ function customChartCommonJson(editor) {
                         let project_type = 'developmentJsonType';
                         let str = null;
                         let seriesData = {};
+                        let jsonFileIndex = "{[ jsonFileIndex ]}" || "0";
 
                         try {
-                            if (typeof localStorage !== 'undefined') {
+                            if (typeof localStorage !== 'undefined' && JsonPath1) {
                                 language = localStorage.getItem('language') || 'english';
+                                let commonJson = null;
 
-                                // Get file index
-                                let fileIndex = "{[ jsonFileIndex ]}" || '0';
-                                let common_json_data = null;
-
-                                if (fileIndex !== '0') {
-                                    const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
-                                    const selectedFile = fileNames[parseInt(fileIndex) - 1];
+                                if (jsonFileIndex !== "0") {
+                                    const fileNames = (localStorage.getItem('common_json_files') || "")
+                                        .split(',').map(f => f.trim());
+                                    const selectedFile = fileNames[parseInt(jsonFileIndex) - 1];
                                     const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
                                     if (jsonString) {
-                                        common_json_data = JSON.parse(jsonString);
+                                        commonJson = JSON.parse(jsonString);
                                     }
                                 } else {
-                                    common_json_data = JSON.parse(localStorage.getItem('common_json') || 'null');
+
+                                    commonJson = JSON.parse(localStorage.getItem('common_json') || 'null');
                                 }
 
-                                if (common_json_data && JsonPath1) {
-                                    str = common_json_data[language] && common_json_data[language][JsonPath1];
-                                }
-                            }
+                                if (commonJson && JsonPath1) {
 
-                            if (typeof project_type2 !== 'undefined' && project_type2 === 'downloadedJsonType') {
-                                project_type = 'downloadedJsonType';
-                                if (typeof jsonData1 !== 'undefined' && jsonData1[0] && JsonPath1) {
-                                    str = jsonData1[0][language] && jsonData1[0][language][JsonPath1];
+                                    const jsonPaths = JsonPath1.split(',').map(path => path.trim());
+                                    const firstPath = jsonPaths[0];
+                                    const pathParts = firstPath.split('.');
+
+
+                                    let fullPath;
+                                    if (commonJson[pathParts[0]]) {
+                                        fullPath = `commonJson.${firstPath}`;
+                                    } else {
+                                        fullPath = `commonJson.${language}.${firstPath}`;
+                                    }
+
+                                    str = eval(fullPath);
                                 }
                             }
 
                             if (str) {
-                                seriesData = eval(str);
+                                seriesData = typeof str === 'string' ? JSON.parse(str) : str;
                                 if (!seriesData.series) {
                                     throw new Error("Series array not found");
                                 }
@@ -2098,13 +2094,20 @@ function customChartCommonJson(editor) {
                     const newTraits = getTraitsForChartType(chartType);
                     this.set('traits', [id_Trait, title_Trait, ...newTraits]);
                 });
+                this.on('change:jsonFileIndex', () => {
+                    this.highchartsInitialized = false;
+                    this.trigger("change:script");
+                });
 
+                this.on('change:jsonpath', () => {
+                    this.highchartsInitialized = false;
+                    this.trigger("change:script");
+                });
                 const allPossibleTraits = [
                     name_Trait,
                     ...chartTitle_Trait,
                     ...Select_title_Align_Trait,
                     ...Select_chart_Trait,
-                    ...json_file_index_Trait,
                     ...json_path_Trait,
                     ...json_button_sugesstionTrait,
                     ...chart_yAxis_Trait,
@@ -2136,171 +2139,9 @@ function customChartCommonJson(editor) {
             content: { type: "custom_line_chart" },
         });
     }
-    // Add event listener for the suggestion button after editor loads
-    editor.on('component:selected', (component) => {
-        if (component.get('type') === 'custom_line_chart') {
-            setTimeout(() => {
-                const suggestionBtn = document.querySelector('[data-trait-name="jsonButtonSugesstionTrait"] button');
-                if (suggestionBtn) {
-                    suggestionBtn.onclick = function (e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        openChartJsonSuggestionModal(component);
-                    };
-                }
-            }, 100);
-        }
-    });
-
-    function extractMetaDataKeys(obj, prefix = '') {
-        let keys = [];
-        for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                let newKey;
-                if (Array.isArray(obj)) {
-                    newKey = `${prefix}[${key}]`;
-                } else {
-                    newKey = prefix ? `${prefix}.${key}` : key;
-                }
-                keys.push(newKey);
-                if (typeof obj[key] === 'object' && obj[key] !== null) {
-                    keys = keys.concat(extractMetaDataKeys(obj[key], newKey));
-                }
-            }
-        }
-        return keys;
-    }
-
-    function openChartJsonSuggestionModal(component) {
-        // Get file index from component
-        let fileIndex = component.get('jsonFileIndex') || '0';
-
-        if (fileIndex === '0') {
-            alert('Please select a JSON file first');
-            return;
-        }
-
-        // Get the selected file's JSON data
-        const fileNames = (localStorage.getItem('common_json_files') || "")
-            .split(',').map(f => f.trim());
-        const selectedFile = fileNames[parseInt(fileIndex) - 1];
-        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
-
-        if (!jsonString) {
-            alert('Selected JSON file not found');
-            return;
-        }
-
-        const commonJson = JSON.parse(jsonString);
-
-        // Show top-level keys (language options) first
-        const topLevelKeys = Object.keys(commonJson);
-
-        let modalContent = `
-        <div class="new-table-form">
-            <div style="padding-bottom:10px">
-                <input type="text" id="searchInput" placeholder="Search json">
-            </div>
-            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-    `;
-
-        topLevelKeys.forEach(key => {
-            modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
-        });
-
-        modalContent += `
-            </div>
-        </div>
-    `;
-
-        editor.Modal.setTitle('Json Suggestion');
-        editor.Modal.setContent(modalContent);
-        editor.Modal.open();
-
-        // Add event listener to search input
-        document.getElementById("searchInput").addEventListener("input", function () {
-            filterChartSuggestions(this.value);
-        });
-
-        const suggestionItems = document.querySelectorAll('.suggestion');
-        suggestionItems.forEach(item => {
-            item.addEventListener('click', function () {
-                const selectedValue = this.getAttribute('data-value');
-                const dataType = this.getAttribute('data-type');
-
-                if (dataType === 'language') {
-                    // Show keys under selected language
-                    showChartLanguageKeys(selectedValue, commonJson, component);
-                }
-            });
-        });
-    }
-
-    function showChartLanguageKeys(language, commonJson, component) {
-        const metaDataKeys = extractMetaDataKeys(commonJson[language]);
-
-        let modalContent = `
-        <div class="new-table-form">
-            <div style="padding-bottom:10px">
-                <button id="backBtn" style="margin-right: 10px;">← Back</button>
-                <input type="text" id="searchInput" placeholder="Search json">
-            </div>
-            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-    `;
-
-        metaDataKeys.forEach(key => {
-            const fullPath = `${language}.${key}`;
-            modalContent += `<div class="suggestion" data-value="${fullPath}" data-type="key">${key}</div>`;
-        });
-
-        modalContent += `
-            </div>
-        </div>
-    `;
-
-        editor.Modal.setContent(modalContent);
-
-        // Back button functionality
-        document.getElementById("backBtn").addEventListener("click", function () {
-            openChartJsonSuggestionModal(component);
-        });
-
-        // Search functionality
-        document.getElementById("searchInput").addEventListener("input", function () {
-            filterChartSuggestions(this.value);
-        });
-
-        // Key selection
-        const suggestionItems = document.querySelectorAll('.suggestion');
-        suggestionItems.forEach(item => {
-            item.addEventListener('click', function () {
-                const selectedValue = this.getAttribute('data-value');
-
-                // Set the json path in component
-                component.set('jsonpath', selectedValue);
-
-                // Trigger change to update chart
-                component.set('jsonpath', selectedValue);
-                component.trigger('change:jsonpath');
-
-                editor.Modal.close();
-            });
-        });
-    }
-
-    function filterChartSuggestions(query) {
-        const suggestionResults = document.querySelector('.suggestion-results');
-        const metaDataKeys = Array.from(suggestionResults.children);
-        metaDataKeys.forEach(key => {
-            if (key.textContent.toLowerCase().includes(query.toLowerCase())) {
-                key.style.display = "block";
-            } else {
-                key.style.display = "none";
-            }
-        });
-    }
 
     addCustomLineChartType(editor);
+
 
     const styleManager = editor.StyleManager;
     let common_json_file_name_value = localStorage.getItem('common_json_file_name');
@@ -2357,11 +2198,9 @@ function customChartCommonJson(editor) {
             let processedCount = 0;
             let newFileNames = [];
 
-            // Load existing file list
             let existingFileNames = localStorage.getItem('common_json_files');
             let allFileNames = existingFileNames ? existingFileNames.split(',').map(f => f.trim()) : [];
 
-            // Load xml2js library dynamically if not already loaded
             if (typeof window.X2JS === 'undefined') {
                 const script = document.createElement('script');
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/x2js/1.2.0/xml2json.min.js';
@@ -2374,22 +2213,18 @@ function customChartCommonJson(editor) {
             }
 
             function normalizeXMLtoJSON(obj, parentKey = '') {
-                // Handle null or undefined
                 if (obj === null || obj === undefined) {
                     return obj;
                 }
 
-                // Handle arrays
                 if (Array.isArray(obj)) {
                     return obj.map(item => normalizeXMLtoJSON(item, parentKey));
                 }
 
-                // Handle non-object types
                 if (typeof obj !== 'object') {
                     return obj;
                 }
 
-                // Handle objects
                 const normalized = {};
 
                 for (let key in obj) {
@@ -2397,12 +2232,14 @@ function customChartCommonJson(editor) {
 
                     const value = obj[key];
 
-                    // Special case: if the object only has 'item' key, unwrap it
+                    if (key === '__text' && Object.keys(obj).length === 1) {
+                        return value;
+                    }
+
                     if (key === 'item' && Object.keys(obj).length === 1) {
                         return normalizeXMLtoJSON(value, key);
                     }
 
-                    // Handle different value types
                     if (value && typeof value === 'object') {
                         // Check if this object wraps an array with 'item' property
                         if (value.item !== undefined) {
@@ -2414,33 +2251,19 @@ function customChartCommonJson(editor) {
                                 normalized[key] = [normalizeXMLtoJSON(value.item, key)];
                             }
                         }
-                        // Check for special wrappers like 'level', 'row', 'header', 'cell'
-                        else if (value.level !== undefined) {
-                            if (Array.isArray(value.level)) {
-                                normalized[key] = value.level.map(level => normalizeXMLtoJSON(level, 'level'));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.level, 'level')];
-                            }
+                        // Handle __text property (text content from XML)
+                        else if (value.__text !== undefined && Object.keys(value).length === 1) {
+                            // If only __text exists, use its value directly
+                            normalized[key] = value.__text;
                         }
-                        else if (value.row !== undefined) {
-                            if (Array.isArray(value.row)) {
-                                normalized[key] = value.row.map(row => normalizeXMLtoJSON(row, 'row'));
+                        // Check for numeric or boolean strings in __text
+                        else if (value.__text !== undefined) {
+                            const textValue = value.__text;
+                            // Try to preserve the actual value type
+                            if (!isNaN(textValue) && textValue !== '') {
+                                normalized[key] = Number(textValue);
                             } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.row, 'row')];
-                            }
-                        }
-                        else if (value.header !== undefined) {
-                            if (Array.isArray(value.header)) {
-                                normalized[key] = value.header.map(header => normalizeXMLtoJSON(header, 'header'));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.header, 'header')];
-                            }
-                        }
-                        else if (value.cell !== undefined) {
-                            if (Array.isArray(value.cell)) {
-                                normalized[key] = value.cell.map(cell => normalizeXMLtoJSON(cell, 'cell'));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.cell, 'cell')];
+                                normalized[key] = textValue;
                             }
                         }
                         // Recursively process nested objects
@@ -2451,8 +2274,12 @@ function customChartCommonJson(editor) {
                             normalized[key] = normalizeXMLtoJSON(value, key);
                         }
                     } else {
-                        // Primitive value
-                        normalized[key] = value;
+                        // Primitive value - try to convert numbers
+                        if (typeof value === 'string' && !isNaN(value) && value !== '') {
+                            normalized[key] = Number(value);
+                        } else {
+                            normalized[key] = value;
+                        }
                     }
                 }
 
@@ -3074,29 +2901,50 @@ function customChartCommonJson(editor) {
 
     // open chart and table json popup model
     function openSuggestionJsonModalChartTable(type) {
-        // Extract metadata keys from common_json
-        const commonJson = JSON.parse(localStorage.getItem('common_json'));
-        const customLanguage = custom_language;
-        const metaDataKeys = extractMetaDataKeys(commonJson[customLanguage]);
-        // Create the modal content with search functionality
+        const selectedComponent = editor.getSelected();
+
+        // Get file index from component trait
+        let fileIndex = selectedComponent?.get('jsonFileIndex') || '0';
+
+        if (fileIndex === '0') {
+            alert('Please select a JSON file first from the chart traits');
+            return;
+        }
+
+        // Get the selected file's JSON data
+        const fileNames = (localStorage.getItem('common_json_files') || "")
+            .split(',').map(f => f.trim());
+        const selectedFile = fileNames[parseInt(fileIndex) - 1];
+        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+
+        if (!jsonString) {
+            alert('Selected JSON file not found');
+            return;
+        }
+
+        const commonJson = JSON.parse(jsonString);
+
+        // Show top-level keys (language options) first
+        const topLevelKeys = Object.keys(commonJson);
+
         let modalContent = `
-      <div class="new-table-form">
+        <div class="new-table-form">
         <div style="padding-bottom:10px">
-          <input type="text" id="searchInput" placeholder="Search json">
+            <input type="text" id="searchInput" placeholder="Search json">
         </div>
         <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
     `;
 
-        // Display all metadata keys initially
-        metaDataKeys.forEach(key => {
-            modalContent += `<div class="suggestion" data-value="${key}">${key}</div>`;
+        topLevelKeys.forEach(key => {
+            modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
         });
-        modalContent += `
-        </div>
-      </div>
-    `;
 
-        editor.Modal.setTitle('Json Suggestion');
+        modalContent += `
+      </div>
+    </div>
+  `;
+
+        editor.Modal.setTitle('Json Suggestion - Select Language');
         editor.Modal.setContent(modalContent);
         editor.Modal.open();
 
@@ -3109,16 +2957,74 @@ function customChartCommonJson(editor) {
         suggestionItems.forEach(item => {
             item.addEventListener('click', function () {
                 const selectedValue = this.getAttribute('data-value');
+                const dataType = this.getAttribute('data-type');
+
+                if (dataType === 'language') {
+                    // Show keys under selected language for chart
+                    showLanguageKeysForChart(selectedValue, commonJson, type);
+                }
+            });
+        });
+    }
+
+    function showLanguageKeysForChart(language, commonJson, type) {
+        const metaDataKeys = extractMetaDataKeys(commonJson[language]);
+
+        let modalContent = `
+    <div class="new-table-form">
+      <div style="padding-bottom:10px">
+        <button id="backBtn" style="margin-right: 10px;">← Back</button>
+        <input type="text" id="searchInput" placeholder="Search json">
+      </div>
+      <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+  `;
+
+        metaDataKeys.forEach(key => {
+            const fullPath = `${language}.${key}`;
+            modalContent += `<div class="suggestion" data-value="${fullPath}" data-type="key">${key}</div>`;
+        });
+
+        modalContent += `
+      </div>
+    </div>
+  `;
+
+        editor.Modal.setContent(modalContent);
+
+        // Back button functionality
+        document.getElementById("backBtn").addEventListener("click", function () {
+            openSuggestionJsonModalChartTable(type);
+        });
+
+        // Search functionality
+        document.getElementById("searchInput").addEventListener("input", function () {
+            filterSuggestions(this.value);
+        });
+
+        // Key selection
+        const suggestionItems = document.querySelectorAll('.suggestion');
+        suggestionItems.forEach(item => {
+            item.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+
                 if (type === 'chart') {
-                    const inputField = document.querySelector('.i_designer-trt-trait__wrp-jsonpath input');
-                    inputField.value = selectedValue;
-                    // Create a new 'change' event
-                    var event = new Event('change', {
-                        bubbles: true, // Ensure the event bubbles up
-                        cancelable: true // Ensure the event can be canceled
-                    });
-                    // Dispatch the 'change' event on the input field
-                    inputField.dispatchEvent(event);
+                    const selectedComponent = editor.getSelected();
+                    if (selectedComponent) {
+                        // Set the trait value
+                        selectedComponent.set('jsonpath', selectedValue);
+
+                        // Force chart update
+                        selectedComponent.highchartsInitialized = false;
+                        selectedComponent.trigger('change:script');
+
+                        // Also update the trait input field visually
+                        setTimeout(() => {
+                            const inputField = document.querySelector('.i_designer-trt-trait__wrp-jsonpath input');
+                            if (inputField) {
+                                inputField.value = selectedValue;
+                            }
+                        }, 100);
+                    }
                 }
 
                 editor.Modal.close();
@@ -3126,631 +3032,6 @@ function customChartCommonJson(editor) {
         });
     }
 
-
-    // function customTable2(editor) {
-    //     const props_test_table = (i) => i;
-    //     const id_Trait = {
-    //         name: "id",
-    //         label: "Id",
-    //     };
-
-    //     const title_Trait = {
-    //         name: "title",
-    //         label: "Title",
-    //     };
-
-    //     const test_chart_Props = {
-    //         name: "Table",
-    //         jsonpath: "",
-    //         pageLength: 5,
-    //         FileDownload: `["copy", "csv", "excel", "pdf", "print","msword"]`,
-    //         filterColumn: "",
-    //         filterValue: "",
-    //     };
-
-    //     const name_Trait = {
-    //         changeProp: 1,
-    //         type: "text",
-    //         name: "name",
-    //         label: "name",
-    //         placeholder: "Chart Name",
-    //     };
-
-    //     const Footer_Trait = ["Footer"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "select",
-    //         options: [
-    //             { value: true, label: 'Yes' },
-    //             { value: false, label: 'No' },
-    //         ],
-    //         name,
-    //     }));
-
-    //     const File_Download_Trait = ["FileDownload"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "text",
-    //         label: "File Download",
-    //         default: `["copy", "csv", "excel", "pdf", "print"]`,
-    //         name,
-    //     }));
-
-    //     const Pagination_Trait = ["Pagination"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "select",
-    //         label: "Pagination",
-    //         options: [
-    //             { value: true, label: 'Yes' },
-    //             { value: false, label: 'No' },
-    //         ],
-    //         name,
-    //     }));
-
-    //     const PageLength_Trait = ["pageLength"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "number",
-    //         label: "Page Length",
-    //         name,
-    //         default: 5,
-    //         placeholder: "Enter page length"
-    //     }));
-
-    //     const Search_Trait = ["Search"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "select",
-    //         options: [
-    //             { value: true, label: 'Yes' },
-    //             { value: false, label: 'No' },
-    //         ],
-    //         name,
-    //     }));
-
-    //     const Caption_Trait = ["Caption"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "select",
-    //         options: [
-    //             { value: true, label: 'Yes' },
-    //             { value: false, label: 'No' },
-    //         ],
-    //         name,
-    //     }));
-
-
-    //     const CaptionAlign_Trait = ["CaptionAlign"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "select",
-    //         label: "Caption Align",
-    //         options: [
-    //             { value: 'left', label: 'Left' },
-    //             { value: 'right', label: 'Right' },
-    //             { value: 'center', label: 'Center' },
-    //         ],
-    //         name,
-    //     }));
-
-    //     const json_path_Trait = ["jsonpath"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "text",
-    //         label: "Json Path",
-    //         placeholder: "Enter Json Path",
-    //         name,
-    //     }));
-
-    //     const json_button_sugesstionTrait = ["jsonButtonSugesstionTrait"].map((name) => ({
-    //         changeProp: 1,
-    //         type: "button",
-    //         label: "Json Suggestion",
-    //         placeholder: "Json Suggestion",
-    //         name,
-    //         id: "json-suggestion-btn",
-    //         text: "Suggestion",
-    //         class: "json-suggestion-btn",
-    //     }));
-
-    //     const filter_column_trait = {
-    //         changeProp: 1,
-    //         type: "select",
-    //         name: "filterColumn",
-    //         label: "Filter Column",
-    //         options: [{ value: "", label: "First enter JSON path" }],
-    //     };
-
-    //     const filter_value_trait = {
-    //         changeProp: 1,
-    //         type: "text",
-    //         name: "filterValue",
-    //         label: "Filter Value",
-    //         placeholder: "Enter filter value or '=' for all data",
-    //     };
-
-    //     const all_Traits = [
-    //         name_Trait,
-    //         ...Footer_Trait,
-    //         ...File_Download_Trait,
-    //         ...Pagination_Trait,
-    //         ...PageLength_Trait,
-    //         ...Search_Trait,
-    //         ...Caption_Trait,
-    //         ...CaptionAlign_Trait,
-    //         ...json_path_Trait,
-    //         ...json_button_sugesstionTrait,
-    //         filter_column_trait,
-    //         filter_value_trait
-    //     ];
-
-    //     let jsonData = [];
-    //     let common_json = JSON.parse(localStorage.getItem("common_json"));
-    //     if (common_json !== null) {
-    //         jsonData.length = 0;
-    //         jsonData.push(common_json);
-    //         jsonData = JSON.stringify(jsonData);
-    //     }
-
-    //     editor.Components.addType("custom_table", {
-    //         model: {
-    //             defaults: props_test_table({
-    //                 ...test_chart_Props,
-    //                 tagName: "div",
-    //                 resizable: 1,
-    //                 droppable: 0,
-    //                 attributes: { 'data-i_designer-type': 'custom_table' },
-    //                 custom_line_chartsrc: "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
-    //                 stylable: 1,
-    //                 traits: [id_Trait, title_Trait, ...all_Traits],
-    //                 style: {
-    //                     padding: "10px 0px",
-    //                     minHeight: "50px",
-    //                 },
-    //                 script: function () {
-    //                     if (this.tableInitialized) return;
-    //                     this.tableInitialized = true;
-
-    //                     const init1 = () => {
-    //                         const ctx = this.id;
-    //                         let uniqueID = Math.floor(100 + Math.random() * 900);
-    //                         const divElement = document.getElementById(ctx);
-    //                         let JsonPath1 = "{[ jsonpath ]}";
-    //                         let filterColumn = "{[ filterColumn ]}";
-    //                         let filterValue = "{[ filterValue ]}";
-
-    //                         divElement.innerHTML = "";
-
-    //                         if (!JsonPath1 || JsonPath1.trim() === "") {
-    //                             return;
-    //                         }
-
-    //                         if (!filterValue || filterValue.trim() === "") {
-    //                             return;
-    //                         }
-
-    //                         let custom_language = localStorage.getItem('language') || 'english';
-    //                         const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
-
-    //                         if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][JsonPath1]) {
-    //                             divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid JSON path or data not found</div>`;
-    //                             return;
-    //                         }
-
-    //                         const str = jsonDataN[custom_language][JsonPath1];
-    //                         const tableData = eval(str);
-
-    //                         if (!tableData || !tableData.heading || !tableData.data) {
-    //                             divElement.innerHTML = `<div style="padding: 20px; text-align: center; color: #721c24;">Error: Invalid table data structure</div>`;
-    //                             return;
-    //                         }
-
-    //                         const objectKeys = Object.keys(tableData.heading);
-
-    //                         let filteredData = tableData.data;
-    //                         if (filterColumn && filterColumn !== "" && filterValue && filterValue !== "") {
-    //                             if (filterValue === "=") {
-    //                                 filteredData = tableData.data;
-    //                             } else {
-    //                                 filteredData = tableData.data.filter(row => {
-    //                                     const cellValue = String(row[filterColumn] || "").toLowerCase();
-    //                                     const searchValue = String(filterValue).toLowerCase();
-    //                                     return cellValue.includes(searchValue);
-    //                                 });
-    //                             }
-    //                         }
-
-    //                         const table = document.createElement('table');
-    //                         table.setAttribute('width', '100%');
-    //                         table.style.borderCollapse = "collapse";
-    //                         table.style.border = "1px solid #000";
-    //                         table.setAttribute('id', 'table' + ctx);
-
-    //                         const thead = document.createElement('thead');
-    //                         const headerRow = document.createElement('tr');
-
-    //                         objectKeys.forEach((key, i) => {
-    //                             const th = document.createElement('th');
-    //                             th.setAttribute("class", "col" + ctx + i);
-    //                             th.style.padding = "8px";
-    //                             th.style.textAlign = "left";
-    //                             th.style.border = "1px solid #000";
-    //                             th.style.fontWeight = "bold";
-
-    //                             const labelDiv = document.createElement('div');
-    //                             labelDiv.textContent = tableData.heading[key];
-
-    //                             th.appendChild(labelDiv);
-    //                             headerRow.appendChild(th);
-    //                         });
-
-    //                         thead.appendChild(headerRow);
-    //                         table.appendChild(thead);
-
-    //                         const tbody = document.createElement('tbody');
-    //                         tbody.setAttribute("id", "tbody" + ctx);
-
-    //                         if (filteredData.length === 0) {
-    //                             const noDataRow = document.createElement('tr');
-    //                             const noDataCell = document.createElement('td');
-    //                             noDataCell.setAttribute('colspan', objectKeys.length);
-    //                             noDataCell.textContent = 'No data found';
-    //                             noDataCell.style.textAlign = 'center';
-    //                             noDataCell.style.padding = '20px';
-    //                             noDataCell.style.border = "1px solid #000";
-    //                             noDataRow.appendChild(noDataCell);
-    //                             tbody.appendChild(noDataRow);
-    //                         } else {
-    //                             filteredData.forEach((row, rowIndex) => {
-    //                                 const tr = document.createElement('tr');
-
-    //                                 objectKeys.forEach((key, j) => {
-    //                                     const td = document.createElement('td');
-    //                                     td.className = `col${uniqueID}`;
-    //                                     td.setAttribute("class", "col" + ctx + j);
-    //                                     td.style.padding = "8px";
-    //                                     td.style.textAlign = "left";
-    //                                     td.style.border = "1px solid #000";
-
-    //                                     const rawVal = row[key];
-    //                                     let displayVal = rawVal;
-
-    //                                     const colLetter = String.fromCharCode(65 + j);
-    //                                     const cellRef = colLetter + (rowIndex + 1);
-
-    //                                     if (!window.globalFormulaParser) {
-    //                                         window.globalFormulaParser = new formulaParser.Parser();
-    //                                     }
-    //                                     const parser = window.globalFormulaParser;
-
-    //                                     if (!window.globalCellMap) {
-    //                                         window.globalCellMap = {};
-    //                                     }
-    //                                     const cellMap = window.globalCellMap;
-
-    //                                     parser.on('callCellValue', function (cellCoord, done) {
-    //                                         const label = cellCoord.label;
-    //                                         done(cellMap[label] || 0);
-    //                                     });
-
-    //                                     if (typeof rawVal === 'string' && rawVal.trim().startsWith('=')) {
-    //                                         const res = parser.parse(rawVal.trim().substring(1));
-    //                                         displayVal = res.error ? '#ERR' : res.result;
-    //                                     }
-    //                                     cellMap[cellRef] = isNaN(displayVal) ? 0 : displayVal;
-
-    //                                     const displaySpan = document.createElement('span');
-    //                                     displaySpan.className = 'cell-display';
-    //                                     displaySpan.textContent = displayVal || '';
-    //                                     displaySpan.style.display = 'block';
-
-    //                                     const editInput = document.createElement('input');
-    //                                     editInput.type = 'text';
-    //                                     editInput.className = 'cell-input';
-    //                                     editInput.value = rawVal || '';
-    //                                     editInput.style.display = 'none';
-    //                                     editInput.style.width = '100%';
-    //                                     editInput.style.border = 'none';
-    //                                     editInput.style.outline = 'none';
-    //                                     editInput.style.background = 'transparent';
-    //                                     editInput.style.font = 'inherit';
-
-    //                                     td.appendChild(displaySpan);
-    //                                     td.appendChild(editInput);
-
-    //                                     td.setAttribute("data-formula", rawVal);
-    //                                     td.setAttribute("data-cell-ref", cellRef);
-    //                                     td.setAttribute("data-display-value", displayVal || '');
-
-    //                                     td.addEventListener("click", function () {
-    //                                         if (td.isEditing) return;
-
-    //                                         td.isEditing = true;
-    //                                         displaySpan.style.display = 'none';
-    //                                         editInput.style.display = 'block';
-    //                                         editInput.focus();
-    //                                         editInput.select();
-
-    //                                         const finishEdit = () => {
-    //                                             const userInput = editInput.value.trim();
-    //                                             let newVal = userInput;
-
-    //                                             if (userInput.startsWith('=')) {
-    //                                                 const result = parser.parse(userInput.substring(1));
-    //                                                 newVal = result.error ? "#ERR" : result.result;
-    //                                             }
-
-    //                                             cellMap[cellRef] = isNaN(newVal) ? 0 : newVal;
-    //                                             td.setAttribute("data-formula", userInput);
-    //                                             td.setAttribute("data-display-value", newVal || '');
-    //                                             displaySpan.textContent = newVal || '';
-
-    //                                             editInput.style.display = 'none';
-    //                                             displaySpan.style.display = 'block';
-    //                                             td.isEditing = false;
-    //                                         };
-
-    //                                         editInput.addEventListener("blur", finishEdit);
-    //                                         editInput.addEventListener("keypress", function (e) {
-    //                                             if (e.key === 'Enter') {
-    //                                                 finishEdit();
-    //                                             }
-    //                                         });
-    //                                     });
-    //                                     tr.appendChild(td);
-    //                                 });
-    //                                 tbody.appendChild(tr);
-    //                             });
-    //                         }
-
-    //                         table.appendChild(tbody);
-    //                         divElement.appendChild(table);
-
-    //                         const printStyles = document.createElement('style');
-    //                         printStyles.textContent = `
-    //   @media print {
-    //     #${ctx} table {
-    //       width: 100% !important;
-    //       border-collapse: collapse !important;
-    //       page-break-inside: auto !important;
-    //       font-size: 11px !important;
-    //       margin: 0 !important;
-    //     }
-
-    //     #${ctx} table th,
-    //     #${ctx} table td {
-    //       padding: 6px 8px !important;
-    //       border: 1px solid #000 !important;
-    //       word-wrap: break-word !important;
-    //       page-break-inside: avoid !important;
-    //       vertical-align: top !important;
-    //       position: relative !important;
-    //     }
-
-    //     #${ctx} table th {
-    //       font-weight: bold !important;
-    //       background-color: #e0e0e0 !important;
-    //       -webkit-print-color-adjust: exact !important;
-    //       print-color-adjust: exact !important;
-    //     }
-
-    //     #${ctx} table td {
-    //       background-color: #fff !important;
-    //       -webkit-print-color-adjust: exact !important;
-    //       print-color-adjust: exact !important;
-    //     }
-
-    //     /* Hide input elements completely in print */
-    //     #${ctx} .cell-input {
-    //       display: none !important;
-    //       visibility: hidden !important;
-    //     }
-
-    //     /* Ensure display spans are visible and contain the actual data */
-    //     #${ctx} .cell-display {
-    //       display: block !important;
-    //       visibility: visible !important;
-    //       width: 100% !important;
-    //       color: #000 !important;
-    //     }
-
-    //     /* Fallback: Use data attributes if spans fail */
-    //     #${ctx} td::after {
-    //       content: attr(data-display-value) !important;
-    //       display: block !important;
-    //       position: absolute !important;
-    //       top: 6px !important;
-    //       left: 8px !important;
-    //       right: 8px !important;
-    //       bottom: 6px !important;
-    //       background: white !important;
-    //       color: #000 !important;
-    //       z-index: 1000 !important;
-    //     }
-
-    //     /* Override the pseudo-element if display span exists and has content */
-    //     #${ctx} td:has(.cell-display:not(:empty))::after {
-    //       display: none !important;
-    //     }
-
-    //     @page {
-    //       margin: 0.5in;
-    //       size: landscape;
-    //     }
-
-    //     /* Ensure no other styles interfere */
-    //     #${ctx} * {
-    //       -webkit-print-color-adjust: exact !important;
-    //       print-color-adjust: exact !important;
-    //     }
-    //   }
-    // `;
-
-    //                         if (!document.getElementById('table-print-styles-' + ctx)) {
-    //                             printStyles.id = 'table-print-styles-' + ctx;
-    //                             document.head.appendChild(printStyles);
-    //                         }
-
-    //                         const beforePrintHandler = () => {
-    //                             const cells = divElement.querySelectorAll('td[data-display-value]');
-    //                             cells.forEach(cell => {
-    //                                 const displaySpan = cell.querySelector('.cell-display');
-    //                                 const displayValue = cell.getAttribute('data-display-value');
-    //                                 if (displaySpan && displayValue !== null) {
-    //                                     displaySpan.textContent = displayValue;
-    //                                     displaySpan.style.display = 'block';
-    //                                 }
-    //                                 const input = cell.querySelector('.cell-input');
-    //                                 if (input) {
-    //                                     input.style.display = 'none';
-    //                                 }
-    //                             });
-    //                         };
-
-    //                         window.addEventListener('beforeprint', beforePrintHandler);
-
-    //                         divElement._printHandler = beforePrintHandler;
-    //                     };
-
-    //                     const loadScriptsAndInit = () => {
-    //                         if (!window.jQuery) {
-    //                             const jqueryScript = document.createElement("script");
-    //                             jqueryScript.src = "{[ custom_line_chartsrc ]}";
-    //                             jqueryScript.onload = () => loadFormulaParser();
-    //                             document.head.appendChild(jqueryScript);
-    //                         } else {
-    //                             loadFormulaParser();
-    //                         }
-    //                     };
-
-    //                     const loadFormulaParser = () => {
-    //                         if (!window.formulaParserLoaded) {
-    //                             const fScript = document.createElement("script");
-    //                             fScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser@3.0.0/dist/formula-parser.min.js";
-    //                             fScript.onload = () => {
-    //                                 window.formulaParserLoaded = true;
-    //                                 init1();
-    //                             };
-    //                             document.head.appendChild(fScript);
-    //                         } else {
-    //                             init1();
-    //                         }
-    //                     };
-
-    //                     loadScriptsAndInit();
-
-    //                     this.on('removed', function () {
-    //                         this.tableInitialized = false;
-    //                         const printStyleEl = document.getElementById('table-print-styles-' + this.id);
-    //                         if (printStyleEl) {
-    //                             printStyleEl.remove();
-    //                         }
-    //                         const divElement = document.getElementById(this.id);
-    //                         if (divElement && divElement._printHandler) {
-    //                             window.removeEventListener('beforeprint', divElement._printHandler);
-    //                         }
-    //                     });
-    //                 },
-    //             }),
-    //             init() {
-    //                 this.on('change:jsonpath', () => {
-    //                     this.updateFilterColumnOptions();
-    //                     this.set('filterColumn', '');
-    //                     this.set('filterValue', '');
-    //                 });
-
-    //                 this.on('change:filterValue', () => {
-    //                     this.tableInitialized = false;
-    //                     this.trigger("change:script");
-    //                 });
-
-    //                 this.on('change:filterColumn', () => {
-    //                     if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
-    //                         this.tableInitialized = false;
-    //                         this.trigger("change:script");
-    //                     }
-    //                 });
-
-    //                 const otherTraits = all_Traits
-    //                     .filter((i) => !["jsonpath", "filterColumn", "filterValue"].includes(i.name))
-    //                     .map((i) => `change:${i.name}`)
-    //                     .join(" ");
-
-    //                 if (otherTraits) {
-    //                     this.on(otherTraits, () => {
-    //                         if (this.get('filterValue') && this.get('filterValue').trim() !== '') {
-    //                             this.tableInitialized = false;
-    //                             this.trigger("change:script");
-    //                         }
-    //                     });
-    //                 }
-    //             },
-
-    //             updateFilterColumnOptions() {
-    //                 try {
-    //                     const jsonPath = this.get('jsonpath');
-    //                     if (!jsonPath || jsonPath.trim() === "") {
-    //                         const filterColumnTrait = this.getTrait('filterColumn');
-    //                         if (filterColumnTrait) {
-    //                             filterColumnTrait.set('options', [{ value: "", label: "First enter JSON path" }]);
-    //                         }
-    //                         return;
-    //                     }
-
-    //                     let custom_language = localStorage.getItem('language') || 'english';
-    //                     const jsonDataN = JSON.parse(localStorage.getItem("common_json"));
-
-    //                     if (!jsonDataN || !jsonDataN[custom_language] || !jsonDataN[custom_language][jsonPath]) {
-    //                         const filterColumnTrait = this.getTrait('filterColumn');
-    //                         if (filterColumnTrait) {
-    //                             filterColumnTrait.set('options', [{ value: "", label: "Invalid JSON path" }]);
-    //                         }
-    //                         return;
-    //                     }
-
-    //                     const str = jsonDataN[custom_language][jsonPath];
-    //                     const tableData = eval(str);
-
-    //                     if (!tableData || !tableData.heading) {
-    //                         const filterColumnTrait = this.getTrait('filterColumn');
-    //                         if (filterColumnTrait) {
-    //                             filterColumnTrait.set('options', [{ value: "", label: "Invalid data structure" }]);
-    //                         }
-    //                         return;
-    //                     }
-
-    //                     const objectKeys = Object.keys(tableData.heading);
-    //                     const filterColumnTrait = this.getTrait('filterColumn');
-
-    //                     if (filterColumnTrait) {
-    //                         const options = [
-    //                             { value: "", label: "Select Column to Filter" },
-    //                             ...objectKeys.map(key => ({
-    //                                 value: key,
-    //                                 label: tableData.heading[key]
-    //                             }))
-    //                         ];
-
-    //                         filterColumnTrait.set('options', options);
-    //                     }
-    //                 } catch (error) {
-    //                     console.log('Error updating filter options:', error);
-    //                     const filterColumnTrait = this.getTrait('filterColumn');
-    //                     if (filterColumnTrait) {
-    //                         filterColumnTrait.set('options', [{ value: "", label: "Error loading headers" }]);
-    //                     }
-    //                 }
-    //             }
-    //         },
-    //     });
-
-    //     editor.Blocks.add("custom_table", {
-    //         label: "JSON Table",
-    //         category: "Extra",
-    //         attributes: {
-    //             class: "fa fa-table",
-    //         },
-    //         content: {
-    //             type: "custom_table",
-    //         },
-    //     });
-    // }
-
-    // customTable2(editor);
-    // =================================
     setTimeout(() => {
         var language = document.getElementById("multiLanguage");
         language.addEventListener("click", languageChange, true);
@@ -3867,6 +3148,7 @@ function customChartCommonJson(editor) {
             jsonData.push(jsonData1);
         }
 
+        // Refresh all charts with new JSON data
         editor.getWrapper().find('[data-i_designer-type="custom_line_chart"]').forEach(chart => {
             chart.highchartsInitialized = false;
             chart.trigger('change:script');

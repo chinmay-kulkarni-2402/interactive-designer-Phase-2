@@ -1,6 +1,6 @@
 
 window.editor = InteractiveDesigner.init({
-  
+
   height: "100%",
   container: "#editor",
   fromElement: 1,
@@ -36,8 +36,8 @@ window.editor = InteractiveDesigner.init({
     addLiveLineChartComponent,
     linkTrackerPlugin,
     backgroundMusic,
-   // customFlowColumns,
-   // initNotificationsPlugin,
+    // customFlowColumns,
+    // initNotificationsPlugin,
     subreportPlugin,
     "basic-block-component",
     "countdown-component",
@@ -151,7 +151,7 @@ editor.on('component:add', (component) => {
 // Update all layers once editor is fully loaded
 editor.on('load', () => {
   editor.getComponents().forEach((component) => {
-updateLayerName(component)
+    updateLayerName(component)
   });
 });
 
@@ -181,11 +181,11 @@ function updateLayerName(component) {
 
   // Delay slightly to ensure GrapesJS finished rendering the layer label
 
-    try {
-      layers.setName(component, layerName);
-    } catch (err) {
-      console.warn('Layer update failed:', err);
-    }
+  try {
+    layers.setName(component, layerName);
+  } catch (err) {
+    console.warn('Layer update failed:', err);
+  }
 }
 
 let pageManager = null;
@@ -342,42 +342,42 @@ editor.Commands.add("open-modal", {
 
 
 
-// Load all JSON files from localStorage separately
-// Load all JSON files from localStorage separately
-for (let i = 0; i < localStorage.length; i++) {
-  const key = localStorage.key(i);
-  if (key.startsWith("common_json")) {
-    const content = localStorage.getItem(key);
+    // Load all JSON files from localStorage separately
+    // Load all JSON files from localStorage separately
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith("common_json")) {
+        const content = localStorage.getItem(key);
 
-    try {
-      const parsed = JSON.parse(content);
+        try {
+          const parsed = JSON.parse(content);
 
-      // ✅ Only push if parsed is an object/array
-      if (typeof parsed === "object" && parsed !== null) {
-        console.log(`📂 Found JSON in localStorage [${key}]:`, parsed);
+          // ✅ Only push if parsed is an object/array
+          if (typeof parsed === "object" && parsed !== null) {
+            console.log(`📂 Found JSON in localStorage [${key}]:`, parsed);
 
-        uploadedJsonFiles.push({
-          name: `${key}.json`,
-          content: content,
-          fromLocal: true,
-          storageKey: key
-        });
-      } else {
-        console.warn(`⚠️ Skipping ${key} because it’s not a JSON object/array:`, parsed);
+            uploadedJsonFiles.push({
+              name: `${key}.json`,
+              content: content,
+              fromLocal: true,
+              storageKey: key
+            });
+          } else {
+            console.warn(`⚠️ Skipping ${key} because it’s not a JSON object/array:`, parsed);
+          }
+
+        } catch (err) {
+          console.warn(`⚠️ Failed to parse JSON from localStorage key: ${key}`, content);
+          // ❌ do not push invalid JSONs
+        }
       }
-
-    } catch (err) {
-      console.warn(`⚠️ Failed to parse JSON from localStorage key: ${key}`, content);
-      // ❌ do not push invalid JSONs
     }
-  }
-}
 
-// 🔹 Immediately render the list so it's shown in modal
-setTimeout(() => renderUploadedJsonList(), 0);
+    // 🔹 Immediately render the list so it's shown in modal
+    setTimeout(() => renderUploadedJsonList(), 0);
 
-// 🔹 Immediately render the list so it's shown in modal
-setTimeout(() => renderUploadedJsonList(), 0);
+    // 🔹 Immediately render the list so it's shown in modal
+    setTimeout(() => renderUploadedJsonList(), 0);
 
     // Modal HTML
     editor.Modal.open({
@@ -517,26 +517,26 @@ setTimeout(() => renderUploadedJsonList(), 0);
     }
 
     // Populate language dropdowns
-// Populate language dropdowns - merge all JSON files
-const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
-const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
+    // Populate language dropdowns - merge all JSON files
+    const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
+    const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
 
-// Merge all uploaded JSON files to get language keys
-const mergedJson = {};
-uploadedJsonFiles.forEach(f => {
-  try {
-    const jsonData = JSON.parse(f.content);
-    Object.assign(mergedJson, jsonData);
-  } catch (e) {
-    console.warn(`Failed to parse ${f.name}:`, e);
-  }
-});
+    // Merge all uploaded JSON files to get language keys
+    const mergedJson = {};
+    uploadedJsonFiles.forEach(f => {
+      try {
+        const jsonData = JSON.parse(f.content);
+        Object.assign(mergedJson, jsonData);
+      } catch (e) {
+        console.warn(`Failed to parse ${f.name}:`, e);
+      }
+    });
 
-const topLevelKeys = Object.keys(mergedJson);
-topLevelKeys.forEach(k => {
-  const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
-  const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
-});
+    const topLevelKeys = Object.keys(mergedJson);
+    topLevelKeys.forEach(k => {
+      const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
+      const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
+    });
 
     // Mode change handlers
     document.getElementById("file-name-mode").addEventListener("change", e => {
@@ -560,152 +560,152 @@ topLevelKeys.forEach(k => {
     });
 
     // Handle JSON file uploads
-document.getElementById("json-upload-input").addEventListener("change", async (e) => {
-  const files = Array.from(e.target.files);
-  for (const file of files) {
-    const text = await file.text();
-    uploadedJsonFiles.push({ name: file.name, content: text, fromLocal: false });
-  }
-  renderUploadedJsonList();
-  e.target.value = ""; // reset input
-});
+    document.getElementById("json-upload-input").addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files);
+      for (const file of files) {
+        const text = await file.text();
+        uploadedJsonFiles.push({ name: file.name, content: text, fromLocal: false });
+      }
+      renderUploadedJsonList();
+      e.target.value = ""; // reset input
+    });
 
 
     // Render JSON file list
-// Render JSON file list
-function renderUploadedJsonList() {
-  const container = document.getElementById("uploaded-json-list");
-  container.innerHTML = "";
-  uploadedJsonFiles.forEach((f, i) => {
-    const row = document.createElement("div");
-    row.style.cssText =
-      "display:flex; justify-content:space-between; align-items:center; padding:4px; color:white; margin:2px 0; border-radius:3px;";
-    row.innerHTML = `
+    // Render JSON file list
+    function renderUploadedJsonList() {
+      const container = document.getElementById("uploaded-json-list");
+      container.innerHTML = "";
+      uploadedJsonFiles.forEach((f, i) => {
+        const row = document.createElement("div");
+        row.style.cssText =
+          "display:flex; justify-content:space-between; align-items:center; padding:4px; color:white; margin:2px 0; border-radius:3px;";
+        row.innerHTML = `
       <span>${f.name}${f.fromLocal ? " (localStorage)" : ""}</span>
       <button data-index="${i}" style="background:#ff4444; color:white; border:none; padding:2px 6px; cursor:pointer; border-radius:3px;">✕</button>
     `;
-    container.appendChild(row);
-  });
-  container.querySelectorAll("button").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const idx = parseInt(e.target.getAttribute("data-index"));
-      uploadedJsonFiles.splice(idx, 1);
-      renderUploadedJsonList();
-      
-      // ✅ Refresh language dropdowns after deletion
-      refreshLanguageDropdowns();
-    });
-  });
-}
+        container.appendChild(row);
+      });
+      container.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const idx = parseInt(e.target.getAttribute("data-index"));
+          uploadedJsonFiles.splice(idx, 1);
+          renderUploadedJsonList();
 
-// ✅ Add new function to refresh language dropdowns
-function refreshLanguageDropdowns() {
-  const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
-  const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
-  
-  // Clear existing options
-  fileNameLanguageDropdown.innerHTML = '<option value="">--Select Language--</option>';
-  passwordLanguageDropdown.innerHTML = '<option value="">--Select Language--</option>';
-  
-  // Merge all remaining JSON files
-  const mergedJson = {};
-  uploadedJsonFiles.forEach(f => {
-    try {
-      const jsonData = JSON.parse(f.content);
-      Object.assign(mergedJson, jsonData);
-    } catch (e) {
-      console.warn(`Failed to parse ${f.name}:`, e);
+          // ✅ Refresh language dropdowns after deletion
+          refreshLanguageDropdowns();
+        });
+      });
     }
-  });
-  
-  // Re-populate dropdowns
-  const topLevelKeys = Object.keys(mergedJson);
-  topLevelKeys.forEach(k => {
-    const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
-    const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
-  });
-  
-  // Hide key selection sections
-  document.getElementById("file-name-key-dropdown-section").style.display = "none";
-  document.getElementById("password-key-dropdown-section").style.display = "none";
-  document.getElementById("file-name-index-section").style.display = "none";
-  document.getElementById("password-index-section").style.display = "none";
-}
+
+    // ✅ Add new function to refresh language dropdowns
+    function refreshLanguageDropdowns() {
+      const fileNameLanguageDropdown = document.getElementById("file-name-language-dropdown");
+      const passwordLanguageDropdown = document.getElementById("password-language-dropdown");
+
+      // Clear existing options
+      fileNameLanguageDropdown.innerHTML = '<option value="">--Select Language--</option>';
+      passwordLanguageDropdown.innerHTML = '<option value="">--Select Language--</option>';
+
+      // Merge all remaining JSON files
+      const mergedJson = {};
+      uploadedJsonFiles.forEach(f => {
+        try {
+          const jsonData = JSON.parse(f.content);
+          Object.assign(mergedJson, jsonData);
+        } catch (e) {
+          console.warn(`Failed to parse ${f.name}:`, e);
+        }
+      });
+
+      // Re-populate dropdowns
+      const topLevelKeys = Object.keys(mergedJson);
+      topLevelKeys.forEach(k => {
+        const opt1 = document.createElement("option"); opt1.value = k; opt1.textContent = k; fileNameLanguageDropdown.appendChild(opt1);
+        const opt2 = document.createElement("option"); opt2.value = k; opt2.textContent = k; passwordLanguageDropdown.appendChild(opt2);
+      });
+
+      // Hide key selection sections
+      document.getElementById("file-name-key-dropdown-section").style.display = "none";
+      document.getElementById("password-key-dropdown-section").style.display = "none";
+      document.getElementById("file-name-index-section").style.display = "none";
+      document.getElementById("password-index-section").style.display = "none";
+    }
 
 
     // Language selection handlers
-// For file name language dropdown (line ~204):
-fileNameLanguageDropdown.addEventListener("change", e => {
-  const selectedLanguage = e.target.value;
-  const fileNameKeyDropdown = document.getElementById("file-name-key-dropdown");
-  const fileNameKeySection = document.getElementById("file-name-key-dropdown-section");
+    // For file name language dropdown (line ~204):
+    fileNameLanguageDropdown.addEventListener("change", e => {
+      const selectedLanguage = e.target.value;
+      const fileNameKeyDropdown = document.getElementById("file-name-key-dropdown");
+      const fileNameKeySection = document.getElementById("file-name-key-dropdown-section");
 
-  if (selectedLanguage) {
-    fileNameKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
+      if (selectedLanguage) {
+        fileNameKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
 
-    // Merge all JSON files to get the language data
-    const mergedJson = {};
-    uploadedJsonFiles.forEach(f => {
-      try {
-        const jsonData = JSON.parse(f.content);
-        Object.assign(mergedJson, jsonData);
-      } catch (e) {
-        console.warn(`Failed to parse ${f.name}:`, e);
+        // Merge all JSON files to get the language data
+        const mergedJson = {};
+        uploadedJsonFiles.forEach(f => {
+          try {
+            const jsonData = JSON.parse(f.content);
+            Object.assign(mergedJson, jsonData);
+          } catch (e) {
+            console.warn(`Failed to parse ${f.name}:`, e);
+          }
+        });
+
+        const languageData = mergedJson[selectedLanguage];
+        if (languageData) {
+          const keys = extractMetaDataKeys(languageData);
+          keys.forEach(key => {
+            const opt = document.createElement("option");
+            opt.value = `${selectedLanguage}.${key}`;
+            opt.textContent = key;
+            fileNameKeyDropdown.appendChild(opt);
+          });
+        }
+        fileNameKeySection.style.display = "block";
+      } else {
+        fileNameKeySection.style.display = "none";
       }
+      document.getElementById("file-name-index-section").style.display = "none";
     });
 
-    const languageData = mergedJson[selectedLanguage];
-    if (languageData) {
-      const keys = extractMetaDataKeys(languageData);
-      keys.forEach(key => {
-        const opt = document.createElement("option");
-        opt.value = `${selectedLanguage}.${key}`;
-        opt.textContent = key;
-        fileNameKeyDropdown.appendChild(opt);
-      });
-    }
-    fileNameKeySection.style.display = "block";
-  } else {
-    fileNameKeySection.style.display = "none";
-  }
-  document.getElementById("file-name-index-section").style.display = "none";
-});
+    passwordLanguageDropdown.addEventListener("change", e => {
+      const selectedLanguage = e.target.value;
+      const passwordKeyDropdown = document.getElementById("password-key-dropdown");
+      const passwordKeySection = document.getElementById("password-key-dropdown-section");
 
-passwordLanguageDropdown.addEventListener("change", e => {
-  const selectedLanguage = e.target.value;
-  const passwordKeyDropdown = document.getElementById("password-key-dropdown");
-  const passwordKeySection = document.getElementById("password-key-dropdown-section");
+      if (selectedLanguage) {
+        passwordKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
 
-  if (selectedLanguage) {
-    passwordKeyDropdown.innerHTML = '<option value="">--Select Key--</option>';
+        // Merge all JSON files to get the language data
+        const mergedJson = {};
+        uploadedJsonFiles.forEach(f => {
+          try {
+            const jsonData = JSON.parse(f.content);
+            Object.assign(mergedJson, jsonData);
+          } catch (e) {
+            console.warn(`Failed to parse ${f.name}:`, e);
+          }
+        });
 
-    // Merge all JSON files to get the language data
-    const mergedJson = {};
-    uploadedJsonFiles.forEach(f => {
-      try {
-        const jsonData = JSON.parse(f.content);
-        Object.assign(mergedJson, jsonData);
-      } catch (e) {
-        console.warn(`Failed to parse ${f.name}:`, e);
+        const languageData = mergedJson[selectedLanguage];
+        if (languageData) {
+          const keys = extractMetaDataKeys(languageData);
+          keys.forEach(key => {
+            const opt = document.createElement("option");
+            opt.value = `${selectedLanguage}.${key}`;
+            opt.textContent = key;
+            passwordKeyDropdown.appendChild(opt);
+          });
+        }
+        passwordKeySection.style.display = "block";
+      } else {
+        passwordKeySection.style.display = "none";
       }
+      document.getElementById("password-index-section").style.display = "none";
     });
-
-    const languageData = mergedJson[selectedLanguage];
-    if (languageData) {
-      const keys = extractMetaDataKeys(languageData);
-      keys.forEach(key => {
-        const opt = document.createElement("option");
-        opt.value = `${selectedLanguage}.${key}`;
-        opt.textContent = key;
-        passwordKeyDropdown.appendChild(opt);
-      });
-    }
-    passwordKeySection.style.display = "block";
-  } else {
-    passwordKeySection.style.display = "none";
-  }
-  document.getElementById("password-index-section").style.display = "none";
-});
 
     // File name key selection
     document.getElementById("file-name-key-dropdown").addEventListener("change", e => {
@@ -738,26 +738,26 @@ passwordLanguageDropdown.addEventListener("change", e => {
       }
     });
 
-document.getElementById("password-add-btn").addEventListener("click", () => {
-  const key = document.getElementById("password-key-dropdown").value;
-  const idx = document.getElementById("password-index-input").value.trim();
-  if (key) {
-    passwordSaved.push({ key, indexes: idx });
-    renderSaved(passwordSaved, "password-saved");
-    document.getElementById("password-index-input").value = "";
-    document.getElementById("password-key-dropdown").value = "";
-    document.getElementById("password-index-section").style.display = "none";
-  }
-});
+    document.getElementById("password-add-btn").addEventListener("click", () => {
+      const key = document.getElementById("password-key-dropdown").value;
+      const idx = document.getElementById("password-index-input").value.trim();
+      if (key) {
+        passwordSaved.push({ key, indexes: idx });
+        renderSaved(passwordSaved, "password-saved");
+        document.getElementById("password-index-input").value = "";
+        document.getElementById("password-key-dropdown").value = "";
+        document.getElementById("password-index-section").style.display = "none";
+      }
+    });
 
-// Add listener for custom password button
-document.getElementById("password-custom-add-btn").addEventListener("click", () => {
-  const val = document.getElementById("password-custom-input").value.trim();
-  if (val) {
-    passwordCustom = val;
-    document.getElementById("password-saved").innerHTML = `Custom: ${val}`;
-  }
-});
+    // Add listener for custom password button
+    document.getElementById("password-custom-add-btn").addEventListener("click", () => {
+      const val = document.getElementById("password-custom-input").value.trim();
+      if (val) {
+        passwordCustom = val;
+        document.getElementById("password-saved").innerHTML = `Custom: ${val}`;
+      }
+    });
 
     function renderSaved(arr, containerId) {
       const div = document.getElementById(containerId);
@@ -766,11 +766,11 @@ document.getElementById("password-custom-add-btn").addEventListener("click", () 
 
     // Send button
     document.getElementById("send-api-btn").addEventListener("click", async () => {
-  // ✅ Validate payload mappings
-  if (inputJsonMappings.length === 0) {
-    alert("⚠️ No payload mappings found. Please add at least one mapping before sending.");
-    return;
-  }
+      // ✅ Validate payload mappings
+      if (inputJsonMappings.length === 0) {
+        alert("⚠️ No payload mappings found. Please add at least one mapping before sending.");
+        return;
+      }
       editor.Modal.close();
 
       let fileNamePayload;
@@ -847,127 +847,126 @@ function getFilenameFromResponse(response, fallback = "export.pdf") {
 
 // Add this helper function at the top level (after uploadedJsonFiles declaration)
 async function convertXmlToJson(xmlContent, fileName) {
-    return new Promise((resolve, reject) => {
-        try {
-            // Load X2JS if not already loaded
-            if (typeof window.X2JS === 'undefined') {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/x2js/1.2.0/xml2json.min.js';
-                script.onload = function() {
-                    performConversion();
-                };
-                script.onerror = function() {
-                    reject(new Error('Failed to load X2JS library'));
-                };
-                document.head.appendChild(script);
-            } else {
-                performConversion();
-            }
+  return new Promise((resolve, reject) => {
+    try {
+      // ✅ Dynamically load X2JS if not available
+      if (typeof window.X2JS === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/x2js/1.2.0/xml2json.min.js';
+        script.onload = () => performConversion();
+        script.onerror = () => reject(new Error('Failed to load X2JS library'));
+        document.head.appendChild(script);
+      } else {
+        performConversion();
+      }
 
-            function normalizeXMLtoJSON(obj, parentKey = '') {
-                if (obj === null || obj === undefined) {
-                    return obj;
-                }
-                
-                if (Array.isArray(obj)) {
-                    return obj.map(item => normalizeXMLtoJSON(item, parentKey));
-                }
-                
-                if (typeof obj !== 'object') {
-                    return obj;
-                }
-                
-                const normalized = {};
-                
-                for (let key in obj) {
-                    if (!obj.hasOwnProperty(key)) continue;
-                    
-                    const value = obj[key];
-                    
-                    if (key === 'item' && Object.keys(obj).length === 1) {
-                        return normalizeXMLtoJSON(value, key);
-                    }
-                    
-                    if (value && typeof value === 'object') {
-                        if (value.item !== undefined) {
-                            if (Array.isArray(value.item)) {
-                                normalized[key] = value.item.map(item => normalizeXMLtoJSON(item, key));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.item, key)];
-                            }
-                        }
-                        else if (value.level !== undefined) {
-                            if (Array.isArray(value.level)) {
-                                normalized[key] = value.level.map(level => normalizeXMLtoJSON(level, 'level'));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.level, 'level')];
-                            }
-                        }
-                        else if (value.row !== undefined) {
-                            if (Array.isArray(value.row)) {
-                                normalized[key] = value.row.map(row => normalizeXMLtoJSON(row, 'row'));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.row, 'row')];
-                            }
-                        }
-                        else if (value.header !== undefined) {
-                            if (Array.isArray(value.header)) {
-                                normalized[key] = value.header.map(header => normalizeXMLtoJSON(header, 'header'));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.header, 'header')];
-                            }
-                        }
-                        else if (value.cell !== undefined) {
-                            if (Array.isArray(value.cell)) {
-                                normalized[key] = value.cell.map(cell => normalizeXMLtoJSON(cell, 'cell'));
-                            } else {
-                                normalized[key] = [normalizeXMLtoJSON(value.cell, 'cell')];
-                            }
-                        }
-                        else if (Array.isArray(value)) {
-                            normalized[key] = value.map(item => normalizeXMLtoJSON(item, key));
-                        }
-                        else {
-                            normalized[key] = normalizeXMLtoJSON(value, key);
-                        }
-                    } else {
-                        normalized[key] = value;
-                    }
-                }
-                
-                return normalized;
-            }
+      // ✅ Matches normalizeXMLtoJSON from importInputJsonFile()
+      function normalizeXMLtoJSON(obj, parentKey = '') {
+        if (obj === null || obj === undefined) return obj;
 
-            function performConversion() {
-                try {
-                    const x2js = new X2JS();
-                    const xmlDoc = new DOMParser().parseFromString(xmlContent, 'text/xml');
-                    const xmlJson = x2js.xml2json(xmlDoc);
-                    const normalizedJson = normalizeXMLtoJSON(xmlJson);
-                    
-                    console.log(`✅ Converted XML to JSON: ${fileName}`);
-                    resolve({
-                        json: normalizedJson,
-                        jsonString: JSON.stringify(normalizedJson)
-                    });
-                } catch (err) {
-                    console.error(`❌ Error converting XML ${fileName}:`, err);
-                    reject(err);
-                }
-            }
-        } catch (err) {
-            reject(err);
+        // Handle arrays
+        if (Array.isArray(obj)) {
+          return obj.map(item => normalizeXMLtoJSON(item, parentKey));
         }
-    });
+
+        // Handle primitives
+        if (typeof obj !== 'object') {
+          return obj;
+        }
+
+        const normalized = {};
+
+        for (let key in obj) {
+          if (!obj.hasOwnProperty(key)) continue;
+          const value = obj[key];
+
+          // 🟢 Skip __text-only objects
+          if (key === '__text' && Object.keys(obj).length === 1) {
+            return value;
+          }
+
+          // 🟢 Unwrap single 'item' key (common XML list wrapper)
+          if (key === 'item' && Object.keys(obj).length === 1) {
+            return normalizeXMLtoJSON(value, key);
+          }
+
+          // 🟢 Handle objects recursively
+          if (value && typeof value === 'object') {
+            // Case: value contains 'item' → treat as array
+            if (value.item !== undefined) {
+              normalized[key] = Array.isArray(value.item)
+                ? value.item.map(i => normalizeXMLtoJSON(i, key))
+                : [normalizeXMLtoJSON(value.item, key)];
+            }
+            // Case: only __text
+            else if (value.__text !== undefined && Object.keys(value).length === 1) {
+              normalized[key] = value.__text;
+            }
+            // Case: mixed object with __text + other properties
+            else if (value.__text !== undefined) {
+              const textValue = value.__text;
+              if (!isNaN(textValue) && textValue !== '') {
+                normalized[key] = Number(textValue);
+              } else {
+                normalized[key] = textValue;
+              }
+            }
+            // Case: nested arrays
+            else if (Array.isArray(value)) {
+              normalized[key] = value.map(i => normalizeXMLtoJSON(i, key));
+            }
+            // Default: recurse into nested object
+            else {
+              normalized[key] = normalizeXMLtoJSON(value, key);
+            }
+          } else {
+            // 🟢 Primitive value: convert numeric strings
+            if (typeof value === 'string' && !isNaN(value) && value !== '') {
+              normalized[key] = Number(value);
+            } else {
+              normalized[key] = value;
+            }
+          }
+        }
+
+        return normalized;
+      }
+
+      function performConversion() {
+        try {
+          const x2js = new X2JS();
+          const xmlDoc = new DOMParser().parseFromString(xmlContent, 'text/xml');
+          const rawJson = x2js.xml2json(xmlDoc);
+
+          console.log(`📄 Raw XML→JSON (${fileName}):`, JSON.stringify(rawJson).substring(0, 500));
+
+          const normalizedJson = normalizeXMLtoJSON(rawJson);
+
+          console.log(`✅ Normalized JSON (${fileName}):`, JSON.stringify(normalizedJson).substring(0, 500));
+
+          resolve({
+            json: normalizedJson,
+            jsonString: JSON.stringify(normalizedJson)
+          });
+        } catch (err) {
+          console.error(`❌ Error converting XML ${fileName}:`, err);
+          reject(err);
+        }
+      }
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
+
 
 // Update the exportDesignAndSend function - replace the file appending section
 async function exportDesignAndSend(editor, inputJsonMappings) {
   const exportType = document.getElementById("export-type-dropdown")?.value || "pdf";
   const apiUrl =
     exportType === "pdf"
-      ? "http://192.168.0.188:8081/jsonApi/uploadPdf"
-      : "http://192.168.0.188:8081/jsonApi/uploadHtml";
+      ? "http://192.168.0.221:9998/jsonApi/uploadPdf"
+      : "http://192.168.0.221:9998/jsonApi/uploadHtml";
 
   const html = editor.getHtml();
   const css = editor.getCss();
@@ -977,22 +976,22 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   if (exportType === "pdf") {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
-    
+
     const pageContainers = tempDiv.querySelectorAll(".page-container");
     const idsToClean = [];
-    
+
     pageContainers.forEach(el => {
       if (el.id) {
         idsToClean.push(el.id);
       }
     });
-    
+
     let cleanedCss = css;
     idsToClean.forEach(id => {
       const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, 'g');
       cleanedCss = cleanedCss.replace(idRegex, '$1');
     });
-    
+
     finalHtml = htmlWithCss(html, cleanedCss);
   } else {
     finalHtml = htmlWithCss(html, css);
@@ -1005,10 +1004,10 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   for (let idx = 0; idx < uploadedJsonFiles.length; idx++) {
     const f = uploadedJsonFiles[idx];
     const fileExtension = f.name.split('.').pop().toLowerCase();
-    
+
     let jsonContent = f.content;
     let jsonFileName = f.name;
-    
+
     // If it's an XML file, convert it to JSON
     if (fileExtension === 'xml') {
       try {
@@ -1024,7 +1023,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
         throw err;
       }
     }
-    
+
     // Append the JSON file (either original or converted)
     formData.append(
       "jsonFile",
@@ -1856,7 +1855,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //             print-color-adjust: exact !important;
 //             box-sizing: border-box !important;
 //           }
-          
+
 //           html, body {
 //             margin: 0 !important;
 //             padding: 0 !important;
@@ -1867,12 +1866,12 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //             line-height: 1.4 !important;
 //             color: #333 !important;
 //           }
-          
+
 //           @page {
 //             margin: 0.5in !important;
 //             size: auto !important;
 //           }
-          
+
 //           /* Enhanced table print styles with FULL style preservation */
 //           @media print {
 //             * {
@@ -1881,7 +1880,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               print-color-adjust: exact !important;
 //               box-sizing: border-box !important;
 //             }
-            
+
 //             /* Table-specific print styles - preserve ALL styling */
 //             table.print-table,
 //             table.table,
@@ -1897,7 +1896,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               opacity: 1 !important;
 //               /* Preserve custom styling - DO NOT override border, background, colors if already set */
 //             }
-            
+
 //             table.print-table thead,
 //             table.table thead,
 //             table.dataTable thead,
@@ -1909,7 +1908,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               break-after: avoid !important;
 //               break-inside: avoid !important;
 //             }
-            
+
 //             table.print-table tbody,
 //             table.table tbody,
 //             table.dataTable tbody,
@@ -1917,7 +1916,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //             [data-i_designer-type="custom_table"] table tbody {
 //               display: table-row-group !important;
 //             }
-            
+
 //             table.print-table tr,
 //             table.table tr,
 //             table.dataTable tr,
@@ -1927,7 +1926,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               page-break-inside: avoid !important;
 //               break-inside: avoid !important;
 //             }
-            
+
 //             table.print-table th,
 //             table.print-table td,
 //             table.table th,
@@ -1943,36 +1942,36 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               position: relative !important;
 //               /* DO NOT override styling that was already preserved inline */
 //             }
-            
+
 //             /* Only apply fallback styling if no inline styles exist */
 //             table th:not([style*="border"]),
 //             table td:not([style*="border"]) {
 //               border: 1px solid #333 !important;
 //             }
-            
+
 //             table th:not([style*="padding"]),
 //             table td:not([style*="padding"]) {
 //               padding: 6px 8px !important;
 //             }
-            
+
 //             table th:not([style*="text-align"]),
 //             table td:not([style*="text-align"]) {
 //               text-align: left !important;
 //             }
-            
+
 //             table th:not([style*="vertical-align"]),
 //             table td:not([style*="vertical-align"]) {
 //               vertical-align: middle !important;
 //             }
-            
+
 //             table th:not([style*="background"]) {
 //               background-color: #f2f2f2 !important;
 //             }
-            
+
 //             table th:not([style*="font-weight"]) {
 //               font-weight: bold !important;
 //             }
-            
+
 //             /* Hide all input elements in tables */
 //             table input,
 //             table .cell-input,
@@ -1986,7 +1985,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               width: 0 !important;
 //               height: 0 !important;
 //             }
-            
+
 //             /* Ensure display spans are visible */
 //             table .cell-display,
 //             [data-i_designer-type="custom_table"] .cell-display {
@@ -1997,7 +1996,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               width: 100% !important;
 //               height: auto !important;
 //             }
-            
+
 //             /* Hide DataTables controls */
 //             .dataTables_wrapper .dataTables_length,
 //             .dataTables_wrapper .dataTables_filter,
@@ -2014,7 +2013,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               margin: 0 !important;
 //               padding: 0 !important;
 //             }
-            
+
 //             /* Force table visibility on all pages */
 //             .dataTables_wrapper,
 //             .dataTables_scroll,
@@ -2025,7 +2024,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               overflow: visible !important;
 //               position: static !important;
 //             }
-            
+
 //             /* Custom table containers - Enhanced for JSON tables */
 //             [data-i_designer-type="custom_table"] {
 //               display: block !important;
@@ -2036,7 +2035,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               overflow: visible !important;
 //               position: static !important;
 //             }
-            
+
 //             /* Enhanced JSON table styling with stronger specificity */
 //             [data-i_designer-type="custom_table"] table {
 //               width: 100% !important;
@@ -2048,7 +2047,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               visibility: visible !important;
 //               opacity: 1 !important;
 //             }
-            
+
 //             [data-i_designer-type="custom_table"] table th,
 //             [data-i_designer-type="custom_table"] table td {
 //               display: table-cell !important;
@@ -2059,7 +2058,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               position: relative !important;
 //               word-break: break-word !important;
 //             }
-            
+
 //             [data-i_designer-type="custom_table"] table th {
 //               font-weight: bold !important;
 //               background-color: #e0e0e0 !important;
@@ -2067,43 +2066,43 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               color-adjust: exact !important;
 //               print-color-adjust: exact !important;
 //             }
-            
+
 //             [data-i_designer-type="custom_table"] table td {
 //               background-color: #fff !important;
 //               -webkit-print-color-adjust: exact !important;
 //               color-adjust: exact !important;
 //               print-color-adjust: exact !important;
 //             }
-            
+
 //             /* Override any conflicting styles for JSON tables */
 //             [data-i_designer-type="custom_table"] table[style*="border-collapse"] {
 //               border-collapse: collapse !important;
 //             }
-            
+
 //             [data-i_designer-type="custom_table"] table th[style*="border"],
 //             [data-i_designer-type="custom_table"] table td[style*="border"] {
 //               /* Keep existing border styles if they exist */
 //             }
-            
+
 //             /* Fallback styling for JSON tables if no inline styles */
 //             [data-i_designer-type="custom_table"] table th:not([style*="border"]),
 //             [data-i_designer-type="custom_table"] table td:not([style*="border"]) {
 //               border: 1px solid #000 !important;
 //             }
-            
+
 //             [data-i_designer-type="custom_table"] table th:not([style*="padding"]),
 //             [data-i_designer-type="custom_table"] table td:not([style*="padding"]) {
 //               padding: 8px !important;
 //             }
-            
+
 //             [data-i_designer-type="custom_table"] table th:not([style*="background"]) {
 //               background-color: #e0e0e0 !important;
 //             }
-            
+
 //             [data-i_designer-type="custom_table"] table td:not([style*="background"]) {
 //               background-color: #fff !important;
 //             }
-            
+
 //             /* Preserve all background colors and images */
 //             *[style*="background-color"],
 //             *[style*="background"],
@@ -2112,7 +2111,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               color-adjust: exact !important;
 //               print-color-adjust: exact !important;
 //             }
-            
+
 //             /* Bootstrap Grid System - Force Layout */
 //             .container,
 //             .container-fluid {
@@ -2122,7 +2121,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               padding: 0 !important;
 //               display: block !important;
 //             }
-            
+
 //             .row {
 //               display: flex !important;
 //               flex-wrap: wrap !important;
@@ -2131,7 +2130,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               min-height: auto !important;
 //               height: auto !important;
 //             }
-            
+
 //             /* Force all column classes to work with proper height */
 //             [class*="col-"] {
 //               position: relative !important;
@@ -2142,7 +2141,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               height: auto !important;
 //               box-sizing: border-box !important;
 //             }
-            
+
 //             /* Specific column widths with proper height handling */
 //             .col-1, .col-sm-1, .col-md-1, .col-lg-1, .col-xl-1 { 
 //               flex: 0 0 8.333333% !important; 
@@ -2216,7 +2215,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               min-height: auto !important;
 //               height: auto !important;
 //             }
-            
+
 //             /* Auto columns */
 //             .col, .col-sm, .col-md, .col-lg, .col-xl {
 //               flex: 1 0 0% !important;
@@ -2224,31 +2223,31 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               min-height: auto !important;
 //               height: auto !important;
 //             }
-            
+
 //             /* Bootstrap utility classes */
 //             .d-flex { display: flex !important; }
 //             .d-block { display: block !important; }
 //             .d-inline { display: inline !important; }
 //             .d-inline-block { display: inline-block !important; }
-            
+
 //             .justify-content-start { justify-content: flex-start !important; }
 //             .justify-content-end { justify-content: flex-end !important; }
 //             .justify-content-center { justify-content: center !important; }
 //             .justify-content-between { justify-content: space-between !important; }
 //             .justify-content-around { justify-content: space-around !important; }
-            
+
 //             .align-items-start { align-items: flex-start !important; }
 //             .align-items-end { align-items: flex-end !important; }
 //             .align-items-center { align-items: center !important; }
 //             .align-items-baseline { align-items: baseline !important; }
 //             .align-items-stretch { align-items: stretch !important; }
-            
+
 //             /* Text alignment */
 //             .text-left { text-align: left !important; }
 //             .text-center { text-align: center !important; }
 //             .text-right { text-align: right !important; }
 //             .text-justify { text-align: justify !important; }
-            
+
 //             /* Hide on print */
 //             .${HIDE_CLASS} {
 //               display: none !important;
@@ -2261,7 +2260,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               border: none !important;
 //               overflow: hidden !important;
 //             }
-            
+
 //             /* Page break handling */
 //             .page-break {
 //               display: none !important;
@@ -2273,17 +2272,17 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               page-break-before: always !important;
 //               break-before: page !important;
 //             }
-            
+
 //             .page-break + * {
 //               page-break-before: always !important;
 //               break-before: page !important;
 //             }
-            
+
 //             .force-page-break {
 //               page-break-before: always !important;
 //               break-before: page !important;
 //             }
-            
+
 //             /* Editor specific elements */
 //             .page-indicator,
 //             .virtual-sections-panel,
@@ -2293,7 +2292,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //             .sections-container {
 //               display: none !important;
 //             }
-            
+
 //             .page-container {
 //               page-break-after: always !important;
 //               margin: 0 !important;
@@ -2304,7 +2303,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               display: block !important;
 //               overflow: visible !important;
 //             }
-            
+
 //             .page-content {
 //               width: 100% !important;
 //               height: 100% !important;
@@ -2312,7 +2311,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               padding: 0 !important;
 //               overflow: visible !important;
 //             }
-            
+
 //             .main-content-area {
 //               width: 100% !important;
 //               height: 100% !important;
@@ -2325,7 +2324,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               border: none !important;
 //               background: transparent !important;
 //             }
-            
+
 //             .page-header-element,
 //             .page-footer-element {
 //               display: flex !important;
@@ -2345,7 +2344,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //   white-space: nowrap !important;
 //   pointer-events: none !important;
 // }
-            
+
 //             .page-watermark {
 //               display: flex !important;
 //               position: absolute !important;
@@ -2356,7 +2355,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               pointer-events: none !important;
 //               z-index: 1 !important;
 //             }
-            
+
 //             /* Ensure tables appear on all pages */
 //             .page-container table,
 //             .main-content-area table,
@@ -2415,7 +2414,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //     color-adjust: exact !important;
 //     print-color-adjust: exact !important;
 //   }
-  
+
 //   /* Highcharts SVG elements */
 //   .highcharts-container svg,
 //   .highcharts-root svg {
@@ -2431,7 +2430,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //     color-adjust: exact !important;
 //     print-color-adjust: exact !important;
 //   }
-  
+
 //   /* Force chart elements to be visible */
 //   .highcharts-series,
 //   .highcharts-series-group,
@@ -2454,14 +2453,14 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //     color-adjust: exact !important;
 //     print-color-adjust: exact !important;
 //   }
-  
+
 //   /* Hide chart loading indicators */
 //   .highcharts-loading,
 //   .highcharts-loading-inner {
 //     display: none !important;
 //     visibility: hidden !important;
 //   }
-  
+
 //   /* Ensure chart labels are readable */
 //   .highcharts-axis-labels text,
 //   .highcharts-data-labels text,
@@ -2474,7 +2473,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //     font-family: Arial, sans-serif !important;
 //   }
 //           }
-          
+
 //           /* Screen styles */
 //           @media screen {
 //             body {
@@ -2485,7 +2484,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               margin: 0;
 //             }
 //           }
-          
+
 //           /* Original editor CSS */
 //           ${editorCSS}
 //         </style>
@@ -2571,53 +2570,195 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //   return tempDiv.innerHTML;
 // }
 
+
 async function generatePrintDialog() {
- const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadHtmlToPdf";
+  const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadHtmlToPdf";
 
-  // --- Create and show loading overlay ---
-  let overlay = document.createElement("div");
-  overlay.id = "pdf-loading-overlay";
-  Object.assign(overlay.style, {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    background: "rgba(0,0,0,0.5)",
-    color: "#fff",
-    fontSize: "24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-  });
-  overlay.innerText = "Generating PDF...";
-  document.body.appendChild(overlay);
+  // Get GrapesJS HTML & CSS
+  const html = editor.getHtml();
+  const css = editor.getCss();
 
-  try {
-    // Get GrapesJS HTML & CSS
-    const html = editor.getHtml();
-    const css = editor.getCss();
+  // Modal styles
+  const modalStyles = `
+    <style>
+    #pdf-preview-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #pdf-preview-content {
+      background: #fff;
+      width: 90%;
+      height: 90%;
+      display: flex;
+      flex-direction: column;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #pdf-preview-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f5f5f5;
+    }
+    #pdf-preview-controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    #pdf-preview-iframe {
+      flex: 1;
+      border: none;
+      background: #525659;
+    }
+    #pdf-preview-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #ddd;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: #f5f5f5;
+    }
+    .pdf-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .pdf-btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    .pdf-btn-primary:hover {
+      background: #0056b3;
+    }
+    .pdf-btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .pdf-btn-secondary:hover {
+      background: #545b62;
+    }
+    #page-selection-input {
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 200px;
+    }
+    #page-selection-mode {
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    </style>
+  `;
 
-    // --- Prepare Final HTML with CSS ---
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = html;
+  // Prepare base HTML
+  const tempDiv = document.createElement("div");
+  tempDiv.innerHTML = html;
 
-    // Remove margins from .page-container elements
-    const pageContainers = tempDiv.querySelectorAll(".page-container");
-    const idsToClean = [];
+  // Get all page containers
+  const allPageContainers = Array.from(tempDiv.querySelectorAll(".page-container"));
+  const totalPages = allPageContainers.length;
 
-    pageContainers.forEach(el => {
-      if (el.id) idsToClean.push(el.id);
+  // Create modal
+  const modal = document.createElement("div");
+  modal.id = "pdf-preview-modal";
+  modal.innerHTML = `
+    ${modalStyles}
+    <div id="pdf-preview-content">
+      <div id="pdf-preview-header">
+        <div>
+          <h3 style="margin: 0;">PDF Preview</h3>
+          <small style="color: #666;">Total Pages: ${totalPages}</small>
+        </div>
+        <div id="pdf-preview-controls">
+          <label>
+            Pages:
+            <select id="page-selection-mode">
+              <option value="all">All Pages</option>
+              <option value="odd">Odd Pages</option>
+              <option value="even">Even Pages</option>
+              <option value="custom">Custom Pages</option>
+            </select>
+          </label>
+          <input 
+            type="text" 
+            id="page-selection-input" 
+            placeholder="e.g., 1,3,5-7" 
+            style="display: none;"
+          />
+        </div>
+      </div>
+      <iframe id="pdf-preview-iframe"></iframe>
+      <div id="pdf-preview-footer">
+        <button class="pdf-btn pdf-btn-secondary" id="pdf-cancel-btn">Cancel</button>
+        <button class="pdf-btn pdf-btn-primary" id="pdf-generate-btn">Generate PDF</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Get elements
+  const iframe = modal.querySelector("#pdf-preview-iframe");
+  const modeSelect = modal.querySelector("#page-selection-mode");
+  const customInput = modal.querySelector("#page-selection-input");
+  const generateBtn = modal.querySelector("#pdf-generate-btn");
+  const cancelBtn = modal.querySelector("#pdf-cancel-btn");
+
+  // Function to filter pages and generate HTML
+  function getFilteredHtml(mode, customPages = "") {
+    const clone = document.createElement("div");
+    clone.innerHTML = html;
+    const containers = Array.from(clone.querySelectorAll(".page-container"));
+    
+    let pagesToKeep = [];
+    
+    if (mode === "all") {
+      pagesToKeep = containers.map((_, i) => i);
+    } else if (mode === "odd") {
+      pagesToKeep = containers.map((_, i) => i).filter(i => (i + 1) % 2 === 1);
+    } else if (mode === "even") {
+      pagesToKeep = containers.map((_, i) => i).filter(i => (i + 1) % 2 === 0);
+    } else if (mode === "custom") {
+      // Parse custom input: "1,3,5-7" -> [0,2,4,5,6]
+      const ranges = customPages.split(",").map(s => s.trim());
+      ranges.forEach(range => {
+        if (range.includes("-")) {
+          const [start, end] = range.split("-").map(n => parseInt(n.trim()));
+          for (let i = start; i <= end; i++) {
+            if (i >= 1 && i <= totalPages) pagesToKeep.push(i - 1);
+          }
+        } else {
+          const page = parseInt(range);
+          if (page >= 1 && page <= totalPages) pagesToKeep.push(page - 1);
+        }
+      });
+      pagesToKeep = [...new Set(pagesToKeep)].sort((a, b) => a - b);
+    }
+    
+    // Remove pages not in selection
+    containers.forEach((container, index) => {
+      if (!pagesToKeep.includes(index)) {
+        container.remove();
+      }
     });
+    
+    return clone.innerHTML;
+  }
 
-    let cleanedCss = css;
-    idsToClean.forEach(id => {
-      const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
-      cleanedCss = cleanedCss.replace(idRegex, "$1");
-    });
-
-    // --- Add external CSS and JS resources ---
+  // Function to build final HTML
+  function buildFinalHtml(filteredBodyHtml, customCss = css) {
     const canvasResources = {
       styles: [
         "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
@@ -2678,102 +2819,175 @@ async function generatePrintDialog() {
       .map((url) => `<script src="${url}" defer></script>`)
       .join("\n");
 
-      // --- Handle Subreport Embedding ---
-const subreports = tempDiv.querySelectorAll('.subreport-container');
-for (const sub of subreports) {
-  const src = sub.getAttribute('data-subreport-src');
-  if (src) {
-    try {
-      const res = await fetch(src);
-      const subHtml = await res.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(subHtml, 'text/html');
-
-      // Remove any duplicate <html>/<body>
-      const subContent = doc.body ? doc.body.innerHTML : subHtml;
-
-      // Optional: Add subreport boundary for visual clarity
-      const wrapper = document.createElement('div');
-      wrapper.classList.add('embedded-subreport');
-      wrapper.innerHTML = subContent;
-
-      // Merge header/footer logic placeholder
-      if (sub.getAttribute('data-merge-header-footer') === 'true') {
-        // You can inject or align header/footer from main report here
-      }
-
-      sub.innerHTML = wrapper.outerHTML;
-    } catch (err) {
-      console.warn('⚠️ Subreport Load Failed:', src, err);
-      sub.innerHTML = `<div style="color:red;">Failed to embed subreport (${src})</div>`;
-    }
-  }
-}
-
-    // Combine everything into full HTML
-    const finalHtml = `
+    return `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8" />
           ${externalStyles}
-          <style>${css}</style>
+          <style>${customCss}</style>
           ${externalScripts}
         </head>
-        <body>${tempDiv.innerHTML}</body>
+        <body>${filteredBodyHtml}</body>
       </html>
     `;
-
-    // --- Debug: Log & download HTML before hitting API ---
-    console.log("🚀 Final HTML being sent to PDF API:\n", finalHtml);
-    try {
-      const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
-      const debugLink = document.createElement("a");
-      debugLink.href = debugUrl;
-      debugLink.download = "sent_to_pdf_api.html";
-      debugLink.click();
-      URL.revokeObjectURL(debugUrl);
-      console.log("💾 Debug copy of HTML downloaded for verification");
-    } catch (err) {
-      console.warn("⚠️ Could not auto-download debug HTML:", err);
-    }
-
-    // --- Prepare FormData (only HTML file) ---
-    const formData = new FormData();
-    formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
-
-    console.log("🚀 Sending HTML to PDF API:", apiUrl);
-
-    // --- Send to backend ---
-    const response = await fetch(apiUrl, { method: "POST", body: formData });
-    if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-
-    const blob = await response.blob();
-    const contentType = response.headers.get("Content-Type");
-
-    if (contentType && contentType.includes("pdf")) {
-      // ✅ Trigger browser download (opens Save As dialog in Windows)
-      const pdfUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = pdfUrl;
-      a.download = "generated.pdf"; // default filename
-      a.click();
-      URL.revokeObjectURL(pdfUrl);
-
-      console.log("✅ PDF download triggered successfully!");
-    } else {
-      console.warn("⚠️ Unexpected response type:", contentType);
-      alert("Unexpected response from server, PDF not received.");
-    }
-  } catch (err) {
-    console.error("❌ Error generating PDF:", err);
-    alert("Failed to generate PDF. Check console for details.");
-  } finally {
-    // --- Remove overlay ---
-    if (overlay && overlay.parentNode) {
-      overlay.parentNode.removeChild(overlay);
-    }
   }
+
+  // Update preview
+  function updatePreview() {
+    const mode = modeSelect.value;
+    const custom = customInput.value;
+    const filteredBodyHtml = getFilteredHtml(mode, custom);
+    const finalHtml = buildFinalHtml(filteredBodyHtml);
+    
+    const blob = new Blob([finalHtml], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    iframe.src = url;
+  }
+
+  // Event listeners
+  modeSelect.addEventListener("change", () => {
+    customInput.style.display = modeSelect.value === "custom" ? "inline-block" : "none";
+    updatePreview();
+  });
+
+  customInput.addEventListener("input", () => {
+    updatePreview();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    modal.remove();
+  });
+
+  generateBtn.addEventListener("click", async () => {
+    modal.remove();
+    
+    // Show loading overlay
+    let overlay = document.createElement("div");
+    overlay.id = "pdf-loading-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      background: "rgba(0,0,0,0.5)",
+      color: "#fff",
+      fontSize: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    });
+    overlay.innerText = "Generating PDF...";
+    document.body.appendChild(overlay);
+
+    try {
+      const mode = modeSelect.value;
+      const custom = customInput.value;
+      const filteredBodyHtml = getFilteredHtml(mode, custom);
+      
+      // Remove margin and box-shadow from page-container IDs in CSS
+      const tempContainer = document.createElement("div");
+      tempContainer.innerHTML = filteredBodyHtml;
+      const remainingPageContainers = tempContainer.querySelectorAll(".page-container");
+      const idsToClean = Array.from(remainingPageContainers)
+        .filter(el => el.id)
+        .map(el => el.id);
+      
+      let cleanedCss = css;
+      idsToClean.forEach(id => {
+        // Remove margin property
+        const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
+        cleanedCss = cleanedCss.replace(marginRegex, "$1");
+        
+        // Remove box-shadow property
+        const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
+        cleanedCss = cleanedCss.replace(boxShadowRegex, "$1");
+      });
+      
+      // Handle Subreport Embedding
+      const subreports = tempContainer.querySelectorAll('.subreport-container');
+      for (const sub of subreports) {
+        const src = sub.getAttribute('data-subreport-src');
+        if (src) {
+          try {
+            const res = await fetch(src);
+            const subHtml = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(subHtml, 'text/html');
+
+            const subContent = doc.body ? doc.body.innerHTML : subHtml;
+
+            const wrapper = document.createElement('div');
+            wrapper.classList.add('embedded-subreport');
+            wrapper.innerHTML = subContent;
+
+            if (sub.getAttribute('data-merge-header-footer') === 'true') {
+              // Merge header/footer logic placeholder
+            }
+
+            sub.innerHTML = wrapper.outerHTML;
+          } catch (err) {
+            console.warn('⚠️ Subreport Load Failed:', src, err);
+            sub.innerHTML = `<div style="color:red;">Failed to embed subreport (${src})</div>`;
+          }
+        }
+      }
+      
+      const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss);
+
+      // Debug download
+      console.log("🚀 Final HTML being sent to PDF API:\n", finalHtml);
+      try {
+        const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+        const debugLink = document.createElement("a");
+        debugLink.href = debugUrl;
+        debugLink.download = "sent_to_pdf_api.html";
+        debugLink.click();
+        URL.revokeObjectURL(debugUrl);
+        console.log("💾 Debug copy of HTML downloaded for verification");
+      } catch (err) {
+        console.warn("⚠️ Could not auto-download debug HTML:", err);
+      }
+
+      // Send to backend
+      const formData = new FormData();
+      formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
+
+      console.log("🚀 Sending HTML to PDF API:", apiUrl);
+
+      const response = await fetch(apiUrl, { method: "POST", body: formData });
+      if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+      const blob = await response.blob();
+      const contentType = response.headers.get("Content-Type");
+
+      if (contentType && contentType.includes("pdf")) {
+        const pdfUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = pdfUrl;
+        a.download = "generated.pdf";
+        a.click();
+        URL.revokeObjectURL(pdfUrl);
+
+        console.log("✅ PDF download triggered successfully!");
+      } else {
+        console.warn("⚠️ Unexpected response type:", contentType);
+        alert("Unexpected response from server, PDF not received.");
+      }
+    } catch (err) {
+      console.error("❌ Error generating PDF:", err);
+      alert("Failed to generate PDF. Check console for details.");
+    } finally {
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+    }
+  });
+
+  // Initial preview
+  updatePreview();
 }
 
 
@@ -2806,9 +3020,9 @@ function savePage() {
   el.addEventListener("click", downloadPage, true);
 }
 
-function downloadPage(){
-  pageName = document.getElementById('singleSavePageName').value; 
-  if(pageName === null ||pageName ===undefined || pageName ===''){
+function downloadPage() {
+  pageName = document.getElementById('singleSavePageName').value;
+  if (pageName === null || pageName === undefined || pageName === '') {
     alert('Page name required');
     return false;
   }
@@ -2827,7 +3041,7 @@ function downloadPage(){
        width:98%; } 
     .navbar-div .tab-container{display:none}
     }` +
-    "</style></head>" + 
+    "</style></head>" +
     htmlContent + `<script>
     var hamburgerMenu = document.getElementById("hamburgerMenu"); 
         if(hamburgerMenu !==null){
@@ -2851,19 +3065,19 @@ function downloadPage(){
           window.addEventListener('resize', updateView); 
         }
     </script>` +
-    "</html>";  
-    sessionStorage.setItem('single-page',  JSON.stringify(htmlContent)); 
-    var blob = new Blob([htmlContent], {type: "text/html;charset=utf-8"});  
-    var url = URL.createObjectURL(blob);  
-    var link = document.createElement("a");
-    link.href = url;
-    link.download = pageName+".html";  
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link); 
-    URL.revokeObjectURL(url);
-    editor.Modal.close();   
-} 
+    "</html>";
+  sessionStorage.setItem('single-page', JSON.stringify(htmlContent));
+  var blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement("a");
+  link.href = url;
+  link.download = pageName + ".html";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  editor.Modal.close();
+}
 
 // *********start resize and drag code ***********
 
@@ -3052,16 +3266,16 @@ function importSinglePages() {
   el.addEventListener("click", importFile, true);
 }
 
-function importFile(){
+function importFile() {
   const input = document.getElementById('importSinglePageInput');
   const file = input.files[0];
-  if (file) { 
+  if (file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
-      const code = e.target.result;  
-      sessionStorage.setItem('single-page', JSON.stringify(code)); 
-      editor.setComponents(code); 
-      editor.Modal.close(); 
+    reader.onload = function (e) {
+      const code = e.target.result;
+      sessionStorage.setItem('single-page', JSON.stringify(code));
+      editor.setComponents(code);
+      editor.Modal.close();
 
       // ✅ Run embedded scripts manually
       const tempDiv = document.createElement('div');
@@ -3078,8 +3292,8 @@ function importFile(){
     }
     reader.readAsText(file);
   } else {
-    alert('No file selected'); 
-  } 
+    alert('No file selected');
+  }
 }
 
 function importMultipleFiles() {
@@ -3200,9 +3414,9 @@ editor.on("run:core:canvas-clear", () => {
 // window.addEventListener('beforeunload', function (e) {
 //   if (hasChanges) {
 //     // Cancel the event
-//     e.preventDefault(); 
+//     e.preventDefault();
 //     // Chrome requires returnValue to be set
-//     e.returnValue = ''; 
+//     e.returnValue = '';
 //     // The browser will display a generic confirmation message (e.g., "Changes you made may not be saved")
 //   }
 // });

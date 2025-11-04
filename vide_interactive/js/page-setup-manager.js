@@ -158,9 +158,11 @@ class PageSetupManager {
 
   init() {
     this.createInitialSetupModal()
-
     this.setupEventListeners()
     this.injectPageSetupStyles()
+    if (this.isInitialized) {
+      this.updatePageRule();
+    }
     this.addToGrapesJSSettings()
     this.setupCanvasObserver()
     this.setupContentBoundaryEnforcement()
@@ -537,7 +539,7 @@ class PageSetupManager {
 
     return `
     <div class="page-container" data-page-id="page-${Date.now()}">
-      <div class="page-content" style="width:${contentWidth}px; height:${contentHeight}px; margin:${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px; display:flex; flex-direction:column;">
+      <div class="page-content" style="height:${contentHeight}px; margin:${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px; display:flex; flex-direction:column;">
         <div class="header-wrapper"><div class="page-header-element"></div></div>
         <div class="content-wrapper" style="flex:1; display:flex; flex-direction:column;">
           <div class="main-content-area"></div>
@@ -762,38 +764,38 @@ class PageSetupManager {
         splitPointFound = true;
 
         // ✅ Handle tables specially - try to split by rows if possible
-// ✅ Handle tables specially - NEVER split mid-cell
-if (isTable || isJsonTable) {
-  // Check if table can fit at all
-  const tableHeight = this.getAccurateComponentHeight(compEl);
-  
-  if (tableHeight > effectiveMaxHeight * 0.9) {
-    // Table is too large, try splitting by complete rows only
-    const splitResult = this.handleTableSplit(component, compEl, remainingSpace, effectiveMaxHeight);
-    
-    if (splitResult.keepComponent) {
-      componentsToKeep.push(splitResult.keepComponent);
-    }
-    if (splitResult.moveComponent) {
-      componentsToMove.push(splitResult.moveComponent);
-    }
-  } else if (accumulatedHeight + compHeight > effectiveMaxHeight) {
-    // Table doesn't fit but is small enough - move entire table
-    console.log(`📊 Moving entire table to next page (height: ${compHeight}px)`);
-    componentsToMove.push(component);
-  } else {
-    // Table fits completely
-    componentsToKeep.push(component);
-    accumulatedHeight += compHeight;
-    continue; // Skip to next component
-  }
-  
-  // Move all remaining components
-  for (let j = i + 1; j < components.length; j++) {
-    componentsToMove.push(components.at(j));
-  }
-  break;
-}
+        // ✅ Handle tables specially - NEVER split mid-cell
+        if (isTable || isJsonTable) {
+          // Check if table can fit at all
+          const tableHeight = this.getAccurateComponentHeight(compEl);
+
+          if (tableHeight > effectiveMaxHeight * 0.9) {
+            // Table is too large, try splitting by complete rows only
+            const splitResult = this.handleTableSplit(component, compEl, remainingSpace, effectiveMaxHeight);
+
+            if (splitResult.keepComponent) {
+              componentsToKeep.push(splitResult.keepComponent);
+            }
+            if (splitResult.moveComponent) {
+              componentsToMove.push(splitResult.moveComponent);
+            }
+          } else if (accumulatedHeight + compHeight > effectiveMaxHeight) {
+            // Table doesn't fit but is small enough - move entire table
+            console.log(`📊 Moving entire table to next page (height: ${compHeight}px)`);
+            componentsToMove.push(component);
+          } else {
+            // Table fits completely
+            componentsToKeep.push(component);
+            accumulatedHeight += compHeight;
+            continue; // Skip to next component
+          }
+
+          // Move all remaining components
+          for (let j = i + 1; j < components.length; j++) {
+            componentsToMove.push(components.at(j));
+          }
+          break;
+        }
         // Handle conditional breaks for text
         else if (conditionalBreakActive) {
           console.log(`🔸 Conditional break triggered - moving component ${i} and all after`);
@@ -882,197 +884,178 @@ if (isTable || isJsonTable) {
 
     return true;
   }
-  handleTableSplit(component, compEl, remainingSpace, maxHeight) {
-    console.log('🔧 handleTableSplit called');
-
-    // Find the actual table element
-    let tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
-
-    if (!tableEl) {
-      console.warn('⚠️ No table element found, moving entire component');
-      return { keepComponent: null, moveComponent: component };
-    }
-
-    const tbody = tableEl.querySelector('tbody');
-    if (!tbody || tbody.rows.length === 0) {
-      console.warn('⚠️ No tbody or rows found, moving entire component');
-      return { keepComponent: null, moveComponent: component };
-    }
-
-    // ✅ Account for DataTables wrapper and controls
-    const dtWrapper = compEl.querySelector('.dataTables_wrapper');
-    const dtInfo = dtWrapper?.querySelector('.dataTables_info');
-    const dtPaginate = dtWrapper?.querySelector('.dataTables_paginate');
-    const dtButtons = dtWrapper?.querySelector('.dt-buttons');
-
-    let controlsHeight = 0;
-    if (dtInfo) controlsHeight += dtInfo.offsetHeight + 10;
-    if (dtPaginate) controlsHeight += dtPaginate.offsetHeight + 10;
-    if (dtButtons) controlsHeight += dtButtons.offsetHeight + 10;
-
-    // Calculate how many rows can fit
-// Calculate how many COMPLETE rows can fit
-const rows = Array.from(tbody.rows);
-const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
-const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
-
-// ✅ Subtract controls height from available space
-const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 50; // Increased buffer
-
-if (availableHeight < 100) { // Minimum height for at least one row
-  console.log('⚠️ Not enough space for table rows, moving entire table');
-  return { keepComponent: null, moveComponent: component };
-}
-
-let accumulatedRowHeight = 0;
-let rowsToKeep = 0;
-
-// ✅ Only count COMPLETE rows that fit
-for (let i = 0; i < rows.length; i++) {
-  const rowHeight = rows[i].offsetHeight;
   
-  // Check if ENTIRE row would fit
-  if (accumulatedRowHeight + rowHeight <= availableHeight) {
-    accumulatedRowHeight += rowHeight;
-    rowsToKeep++;
-  } else {
-    // Stop at first row that doesn't fit completely
-    break;
+handleTableSplit(component, compEl, remainingSpace, maxHeight) {
+  console.log('🔧 handleTableSplit called');
+
+  // Find the actual table element
+  let tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
+
+  if (!tableEl) {
+    console.warn('⚠️ No table element found, moving entire component');
+    return { keepComponent: null, moveComponent: component };
   }
-}
 
-// ✅ Require at least 3 rows on current page, otherwise move entire table
-const MIN_ROWS_TO_SPLIT = 3;
-if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
-  console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
-  return { keepComponent: null, moveComponent: component };
-}
+  const tbody = tableEl.querySelector('tbody');
+  if (!tbody || tbody.rows.length === 0) {
+    console.warn('⚠️ No tbody or rows found, moving entire component');
+    return { keepComponent: null, moveComponent: component };
+  }
 
-// If all rows fit, keep component as is
-if (rowsToKeep === rows.length) {
-  console.log('✅ All table rows fit on current page');
-  return { keepComponent: component, moveComponent: null };
-}
+  // ✅ Account for DataTables wrapper and controls
+  const dtWrapper = compEl.querySelector('.dataTables_wrapper');
+  const dtInfo = dtWrapper?.querySelector('.dataTables_info');
+  const dtPaginate = dtWrapper?.querySelector('.dataTables_paginate');
+  const dtButtons = dtWrapper?.querySelector('.dt-buttons');
 
-console.log(`📊 Splitting table: ${rowsToKeep} COMPLETE rows on current page, ${rows.length - rowsToKeep} rows to next page`);
-    try {
-      // ✅ Store DataTable settings before split
-      let dtSettings = null;
-      const tableId = tableEl.id;
-      if (tableId && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
-        const dt = $(`#${tableId}`).DataTable();
-        dtSettings = {
-          paging: dt.page.info().length !== -1,
-          pageLength: dt.page.info().length,
-          searching: dt.settings()[0].oFeatures.bFilter,
-          ordering: dt.settings()[0].aaSorting,
-          buttons: dt.buttons().context[0]?.inst?.s?.buttons || []
-        };
-        dt.destroy();
+  let controlsHeight = 0;
+  if (dtInfo) controlsHeight += dtInfo.offsetHeight + 10;
+  if (dtPaginate) controlsHeight += dtPaginate.offsetHeight + 10;
+  if (dtButtons) controlsHeight += dtButtons.offsetHeight + 10;
+
+  // Calculate how many COMPLETE rows can fit
+  const rows = Array.from(tbody.rows);
+  const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
+  const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
+
+  // ✅ Subtract controls height from available space
+  const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 50;
+
+  if (availableHeight < 100) {
+    console.log('⚠️ Not enough space for table rows, moving entire table');
+    return { keepComponent: null, moveComponent: component };
+  }
+
+  let accumulatedRowHeight = 0;
+  let rowsToKeep = 0;
+
+  // ✅ Only count COMPLETE rows that fit
+  for (let i = 0; i < rows.length; i++) {
+    const rowHeight = rows[i].offsetHeight;
+
+    if (accumulatedRowHeight + rowHeight <= availableHeight) {
+      accumulatedRowHeight += rowHeight;
+      rowsToKeep++;
+    } else {
+      break;
+    }
+  }
+
+  // ✅ Require at least 3 rows on current page, otherwise move entire table
+  const MIN_ROWS_TO_SPLIT = 3;
+  if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
+    console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
+    return { keepComponent: null, moveComponent: component };
+  }
+
+  // If all rows fit, keep component as is
+  if (rowsToKeep === rows.length) {
+    console.log('✅ All table rows fit on current page');
+    return { keepComponent: component, moveComponent: null };
+  }
+
+  console.log(`📊 Splitting table: ${rowsToKeep} COMPLETE rows on current page, ${rows.length - rowsToKeep} rows to next page`);
+  
+  try {
+    // ✅ Store DataTable settings before split
+    let dtSettings = null;
+    const tableId = tableEl.id;
+    if (tableId && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
+      const dt = $(`#${tableId}`).DataTable();
+      dtSettings = {
+        paging: dt.page.info().length !== -1,
+        pageLength: dt.page.info().length,
+        searching: dt.settings()[0].oFeatures.bFilter,
+        ordering: dt.settings()[0].aaSorting,
+        buttons: dt.buttons().context[0]?.inst?.s?.buttons || []
+      };
+      dt.destroy();
+    }
+
+    // ✅ CRITICAL FIX: Update ONLY tbody in original table
+    const rowsToMove = rows.slice(rowsToKeep); // Get rows that need to move
+    
+    // Remove rows that should move from original table
+    rowsToMove.forEach(row => row.remove());
+    
+    // Force re-render of original component
+    component.view.render();
+
+    // ✅ Create NEW minimal table wrapper for moved rows
+    const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create a minimal table structure with only the moved rows
+    const newTableHTML = `
+      <div class="json-table-container">
+        <table id="${newTableId}" class="display json-data-table" style="width:100%">
+          <thead>${tableEl.querySelector('thead')?.outerHTML || ''}</thead>
+          <tbody>
+            ${rowsToMove.map(row => row.outerHTML).join('')}
+          </tbody>
+          ${tableEl.querySelector('tfoot') ? '<tfoot>' + tableEl.querySelector('tfoot').outerHTML + '</tfoot>' : ''}
+        </table>
+      </div>
+    `;
+
+    // ✅ Create new component with ONLY moved rows
+    const newComponent = this.editor.Components.addComponent({
+      type: component.get('type') || 'default',
+      tagName: component.get('tagName') || 'div',
+      content: newTableHTML,
+      attributes: { 
+        ...component.getAttributes(),
+        'data-split-table': 'continuation',
+        'data-original-table-id': tableId,
+        'data-continuation-start-row': rowsToKeep
+      },
+      classes: [...(component.getClasses() || [])],
+      style: { ...component.getStyle() }
+    });
+
+    // ✅ CRITICAL: Restore editability on BOTH table parts
+    setTimeout(() => {
+      // Restore on original (kept) table
+      const keptTableEl = compEl.querySelector('table') || compEl;
+      const pageSetupManager = this.editor.get('PageSetupManager');
+      if (pageSetupManager && pageSetupManager.restoreCellEditability) {
+        pageSetupManager.restoreCellEditability(keptTableEl);
       }
 
-      // Clone the wrapper structure
-      const fullHTML = compEl.outerHTML;
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(fullHTML, 'text/html');
-
-      const keepWrapper = doc.body.firstChild.cloneNode(true);
-      const moveWrapper = doc.body.firstChild.cloneNode(true);
-
-      const keepTable = keepWrapper.querySelector('table');
-      const moveTable = moveWrapper.querySelector('table');
-
-      if (!keepTable || !moveTable) {
-        console.warn('⚠️ Failed to clone table structure');
-        return { keepComponent: null, moveComponent: component };
+      // Restore on new (moved) table
+      const movedTableEl = newComponent.getEl();
+      if (movedTableEl && pageSetupManager && pageSetupManager.restoreCellEditability) {
+        const movedTable = movedTableEl.querySelector('table') || movedTableEl;
+        pageSetupManager.restoreCellEditability(movedTable);
       }
+    }, 400);
 
-      // Split the rows
-      const keepTbody = keepTable.querySelector('tbody');
-      const moveTbody = moveTable.querySelector('tbody');
-
-      if (!keepTbody || !moveTbody) {
-        console.warn('⚠️ Missing tbody in cloned tables');
-        return { keepComponent: null, moveComponent: component };
-      }
-
-      keepTbody.innerHTML = '';
-      moveTbody.innerHTML = '';
-
-      rows.forEach((row, index) => {
-        if (index < rowsToKeep) {
-          keepTbody.appendChild(row.cloneNode(true));
-        } else {
-          moveTbody.appendChild(row.cloneNode(true));
+    // ✅ Reinitialize DataTables ONLY on kept portion (not on continuation)
+    if (dtSettings && tableId) {
+      setTimeout(() => {
+        // Reinit kept table
+        if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
+          $(`#${tableId}`).DataTable().destroy();
         }
-      });
+        $(`#${tableId}`).DataTable({
+          paging: false, // Disable paging on split tables
+          pageLength: dtSettings.pageLength,
+          searching: false, // Disable search on split tables
+          ordering: false,
+          info: false // Disable info on split tables
+        });
 
-      // ✅ Update original component with kept rows
-      compEl.innerHTML = keepWrapper.innerHTML;
-      component.view.render();
-
-      // ✅ Create new component for moved rows - preserve ALL attributes
-      const newComponent = this.editor.Components.addComponent({
-        type: component.get('type') || 'default',
-        tagName: component.get('tagName') || 'div',
-        content: moveWrapper.innerHTML,
-        attributes: { ...component.getAttributes() },
-        classes: [...(component.getClasses() || [])],
-        style: { ...component.getStyle() }
-      });
-// ✅ CRITICAL: Restore editability on BOTH table parts
-setTimeout(() => {
-  // Restore on original (kept) table
-  const keptTableEl = compEl.querySelector('table') || compEl;
-  const pageSetupManager = editor.get('PageSetupManager');
-  if (pageSetupManager && pageSetupManager.restoreCellEditability) {
-    pageSetupManager.restoreCellEditability(keptTableEl);
-  }
-  
-  // Restore on new (moved) table
-  const movedTableEl = newComponent.getEl();
-  if (movedTableEl && pageSetupManager && pageSetupManager.restoreCellEditability) {
-    const movedTable = movedTableEl.querySelector('table') || movedTableEl;
-    pageSetupManager.restoreCellEditability(movedTable);
-  }
-}, 400);
-      // ✅ Reinitialize DataTables on both parts
-      if (dtSettings && tableId) {
-        setTimeout(() => {
-          // Reinit kept table
-          if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
-            $(`#${tableId}`).DataTable().destroy();
-          }
-          $(`#${tableId}`).DataTable({
-            paging: dtSettings.paging,
-            pageLength: dtSettings.pageLength,
-            searching: dtSettings.searching,
-            ordering: false,
-            buttons: dtSettings.buttons
-          });
-
-          // Reinit moved table
-          const newTableId = newComponent.getEl()?.querySelector('table')?.id;
-          if (newTableId && $.fn.DataTable) {
-            $(`#${newTableId}`).DataTable({
-              paging: dtSettings.paging,
-              pageLength: dtSettings.pageLength,
-              searching: dtSettings.searching,
-              ordering: false,
-              buttons: dtSettings.buttons
-            });
-          }
-        }, 500);
-      }
-
-      console.log(`✅ Table split successful with DataTables preservation`);
-      return { keepComponent: component, moveComponent: newComponent };
-
-    } catch (error) {
-      console.error('❌ Error splitting table:', error);
-      return { keepComponent: null, moveComponent: component };
+        console.log('🔁 Reinitialized DataTable on kept portion');
+      }, 500);
     }
+
+    console.log(`✅ Table split successful - kept ${rowsToKeep} rows, moved ${rowsToMove.length} rows`);
+    return { keepComponent: component, moveComponent: newComponent };
+
+  } catch (error) {
+    console.error('❌ Error splitting table:', error);
+    return { keepComponent: null, moveComponent: component };
   }
+}
 
 
   splitLargeComponent(component, availableSpace) {
@@ -1264,264 +1247,270 @@ setTimeout(() => {
   }
 
 
-async moveComponentsToPage(components, targetPageIndex) {
-  console.log('🟦 moveComponentsToPage called for page:', targetPageIndex);
+  async moveComponentsToPage(components, targetPageIndex) {
+    console.log('🟦 moveComponentsToPage called for page:', targetPageIndex);
 
-  try {
-    const wrapper = this.editor.getWrapper();
-    const targetPageComponent = wrapper.find(`[data-page-index="${targetPageIndex}"]`)[0];
-    if (!targetPageComponent) {
-      console.error(`❌ Target page ${targetPageIndex} not found`);
-      return false;
-    }
+    try {
+      const wrapper = this.editor.getWrapper();
+      const targetPageComponent = wrapper.find(`[data-page-index="${targetPageIndex}"]`)[0];
+      if (!targetPageComponent) {
+        console.error(`❌ Target page ${targetPageIndex} not found`);
+        return false;
+      }
 
-    let targetContentArea = targetPageComponent.find(".main-content-area")[0];
-    if (!targetContentArea) {
-      console.error(`❌ Target content area not found`);
-      return false;
-    }
+      let targetContentArea = targetPageComponent.find(".main-content-area")[0];
+      if (!targetContentArea) {
+        console.error(`❌ Target content area not found`);
+        return false;
+      }
 
-    // Wait for DOM to stabilize
-    await new Promise(resolve => setTimeout(resolve, 150));
+      // Wait for DOM to stabilize
+      await new Promise(resolve => setTimeout(resolve, 150));
 
-    // Determine final target
-    let finalTarget = targetContentArea;
-    const sectionContent = targetContentArea.find('.section-content')[0];
-    if (sectionContent) {
-      finalTarget = sectionContent;
-      console.log(`✅ Using '.section-content' as target on page ${targetPageIndex}`);
-    } else {
-      const sectionsContainer = targetContentArea.find('.sections-container')[0];
-      if (sectionsContainer) {
-        const namedContent = sectionsContainer.components()
-          .find(c => c.get('name') === 'Content');
-        if (namedContent) {
-          finalTarget = namedContent;
-          console.log(`✅ Using named 'Content' section as target on page ${targetPageIndex}`);
+      // Determine final target
+      let finalTarget = targetContentArea;
+      const sectionContent = targetContentArea.find('.section-content')[0];
+      if (sectionContent) {
+        finalTarget = sectionContent;
+        console.log(`✅ Using '.section-content' as target on page ${targetPageIndex}`);
+      } else {
+        const sectionsContainer = targetContentArea.find('.sections-container')[0];
+        if (sectionsContainer) {
+          const namedContent = sectionsContainer.components()
+            .find(c => c.get('name') === 'Content');
+          if (namedContent) {
+            finalTarget = namedContent;
+            console.log(`✅ Using named 'Content' section as target on page ${targetPageIndex}`);
+          }
         }
       }
-    }
 
-    targetContentArea = finalTarget;
+      targetContentArea = finalTarget;
 
-    // Temporarily disconnect observer
-    const observer = this.pageObservers.get(targetPageIndex);
-    if (observer) observer.disconnect();
+      // Temporarily disconnect observer
+      const observer = this.pageObservers.get(targetPageIndex);
+      if (observer) observer.disconnect();
 
-    let moved = 0;
+      let moved = 0;
 
-    for (const [index, component] of components.entries()) {
-      if (!component) continue;
+      for (const [index, component] of components.entries()) {
+        if (!component) continue;
 
-      try {
-        const compEl = component.getEl();
-        const isTable =
-          compEl &&
-          (compEl.tagName === 'TABLE' ||
-            compEl.querySelector('table') !== null ||
-            compEl.classList.contains('json-table-container') ||
-            compEl.classList.contains('json-data-table'));
+        try {
+          const compEl = component.getEl();
+          const isTable =
+            compEl &&
+            (compEl.tagName === 'TABLE' ||
+              compEl.querySelector('table') !== null ||
+              compEl.classList.contains('json-table-container') ||
+              compEl.classList.contains('json-data-table'));
 
-        // ✅ Handle table components
-        if (isTable) {
-          console.log(`📊 Handling table component ${index}`);
+          // ✅ Handle table components
+          // ✅ Handle table components
+          if (isTable) {
+            console.log(`📊 Handling table component ${index}`);
 
-          let dtData = null;
-          const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
-          if (tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
-            const dt = $(tableEl).DataTable();
-            dtData = {
-              data: dt.rows().data().toArray(),
-              columns: dt.settings()[0].aoColumns,
-              order: dt.order()
-            };
-            dt.destroy();
-            console.log('📦 Preserved DataTable state');
-          }
+            // Check if this is a split table continuation
+            const isSplitTable = component.getAttributes()['data-split-table'] === 'true';
 
-          const fullHTML = component.toHTML();
-          component.remove();
+            let dtData = null;
+            const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
 
-          const newComponent = targetContentArea.append(fullHTML)[0];
-          console.log("🧩 New table component added:", newComponent?.getId?.() || '(unknown)');
-
-          // Wait for GrapesJS to render internal DOM
-          setTimeout(() => {
-            const newEl = newComponent.getEl();
-            if (!newEl) {
-              console.warn("⚠️ newComponent element not yet available");
-              return;
+            // Only preserve DataTable state for non-split tables
+            if (!isSplitTable && tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
+              const dt = $(tableEl).DataTable();
+              dtData = {
+                data: dt.rows().data().toArray(),
+                columns: dt.settings()[0].aoColumns,
+                order: dt.order()
+              };
+              dt.destroy();
+              console.log('📦 Preserved DataTable state');
             }
 
-            // Find nested table
-            const tableEl = newEl.querySelector('.json-table-wrapper table') || newEl.querySelector('table');
-            if (!tableEl) {
-              console.warn("⚠️ No <table> element found inside new component!");
-              return;
-            }
+            const fullHTML = component.toHTML();
+            component.remove();
 
-            console.log("✅ Found table element:", tableEl.id);
+            const newComponent = targetContentArea.append(fullHTML)[0];
+            console.log("🧩 New table component added:", newComponent?.getId?.() || '(unknown)');
 
-            // Apply contentEditable to all cells
-            const tdCells = tableEl.querySelectorAll('td, th');
-            tdCells.forEach((cell, i) => {
-              cell.setAttribute('contenteditable', 'true');
-              console.log(`🟩 DOM editable set for cell [${i}] → id: ${cell.id || '(no id)'}`);
-            });
-
-            // Apply via GrapesJS model layer as well
-            const cellComponents = newComponent.find('td, th');
-            console.log(`🔍 Found ${cellComponents.length} GrapesJS cell components`);
-            cellComponents.forEach((cellComp, i) => {
-              cellComp.addAttributes({ contenteditable: 'true' });
-              cellComp.set({ editable: true });
-              console.log(`🟦 GrapesJS editable set for cell component [${i}] → id: ${cellComp.getId()}`);
-            });
-
-            console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
-
-            // Reinitialize DataTable if needed
-            if (dtData) {
-              const newTableEl = tableEl;
-              if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
-                $(newTableEl).DataTable({
-                  data: dtData.data,
-                  columns: dtData.columns,
-                  order: dtData.order,
-                  paging: false,
-                  searching: false,
-                  info: false
-                });
-                console.log('🔁 Reinitialized DataTable');
-              }
-            }
-          }, 400);
-
-          // 🆕 FIX 3: Preserve contentEditable and formula attributes
-          if (newComponent) {
+            // Wait for GrapesJS to render internal DOM
             setTimeout(() => {
-              const newTableEl = newComponent.getEl();
-              if (newTableEl) {
-                const allCells = newTableEl.querySelectorAll('td, th');
-                allCells.forEach(cell => {
-                  // Restore contentEditable attribute
-                  if (!cell.hasAttribute('contenteditable')) {
-                    cell.setAttribute('contenteditable', 'true');
-                  }
+              const newEl = newComponent.getEl();
+              if (!newEl) {
+                console.warn("⚠️ newComponent element not yet available");
+                return;
+              }
 
-                  // Restore data attributes for formula handling
-                  const originalCell = compEl.querySelector(`#${cell.id}`);
-                  if (originalCell) {
-                    Array.from(originalCell.attributes).forEach(attr => {
-                      if (attr.name.startsWith('data-')) {
-                        cell.setAttribute(attr.name, attr.value);
-                      }
-                    });
-                  }
-                });
+              // Find nested table
+              const tableEl = newEl.querySelector('.json-table-wrapper table') || newEl.querySelector('table');
+              if (!tableEl) {
+                console.warn("⚠️ No <table> element found inside new component!");
+                return;
+              }
 
-                // ✅ Reattach formula handlers
-                const pageSetupManager = this.editor.get('PageSetupManager');
-                if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
-                  const tableId = newTableEl.querySelector('table')?.id;
-                  if (tableId) {
-                    pageSetupManager.reattachAllCellHandlers(tableId);
-                  }
+              console.log("✅ Found table element:", tableEl.id);
+
+              // Apply contentEditable to all cells
+              const tdCells = tableEl.querySelectorAll('td, th');
+              tdCells.forEach((cell, i) => {
+                cell.setAttribute('contenteditable', 'true');
+                console.log(`🟩 DOM editable set for cell [${i}] → id: ${cell.id || '(no id)'}`);
+              });
+
+              // Apply via GrapesJS model layer as well
+              const cellComponents = newComponent.find('td, th');
+              console.log(`🔍 Found ${cellComponents.length} GrapesJS cell components`);
+              cellComponents.forEach((cellComp, i) => {
+                cellComp.addAttributes({ contenteditable: 'true' });
+                cellComp.set({ editable: true });
+                console.log(`🟦 GrapesJS editable set for cell component [${i}] → id: ${cellComp.getId()}`);
+              });
+
+              console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
+
+              // Reinitialize DataTable if needed
+              if (dtData) {
+                const newTableEl = tableEl;
+                if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+                  $(newTableEl).DataTable({
+                    data: dtData.data,
+                    columns: dtData.columns,
+                    order: dtData.order,
+                    paging: false,
+                    searching: false,
+                    info: false
+                  });
+                  console.log('🔁 Reinitialized DataTable');
                 }
               }
-            }, 300);
+            }, 400);
 
-            moved++;
-            console.log(`✅ Moved table component ${index} with editability preserved`);
-          }
+            // 🆕 FIX 3: Preserve contentEditable and formula attributes
+            if (newComponent) {
+              setTimeout(() => {
+                const newTableEl = newComponent.getEl();
+                if (newTableEl) {
+                  const allCells = newTableEl.querySelectorAll('td, th');
+                  allCells.forEach(cell => {
+                    // Restore contentEditable attribute
+                    if (!cell.hasAttribute('contenteditable')) {
+                      cell.setAttribute('contenteditable', 'true');
+                    }
 
-          continue;
-        }
+                    // Restore data attributes for formula handling
+                    const originalCell = compEl.querySelector(`#${cell.id}`);
+                    if (originalCell) {
+                      Array.from(originalCell.attributes).forEach(attr => {
+                        if (attr.name.startsWith('data-')) {
+                          cell.setAttribute(attr.name, attr.value);
+                        }
+                      });
+                    }
+                  });
 
-        // ✅ Regular component logic
-        const clonedComponent = component.clone();
-        const fullHTML = component.toHTML();
+                  // ✅ Reattach formula handlers
+                  const pageSetupManager = this.editor.get('PageSetupManager');
+                  if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
+                    const tableId = newTableEl.querySelector('table')?.id;
+                    if (tableId) {
+                      pageSetupManager.reattachAllCellHandlers(tableId);
+                    }
+                  }
+                }
+              }, 300);
 
-        const sourceEl = component.getEl();
-        let computedStyles = {};
-        if (sourceEl) {
-          const computed = window.getComputedStyle(sourceEl);
-          const stylesToCapture = [
-            'display', 'position', 'width', 'height', 'margin', 'padding',
-            'border', 'background', 'color', 'font-family', 'font-size',
-            'font-weight', 'text-align', 'line-height', 'vertical-align',
-            'flex', 'flex-direction', 'justify-content', 'align-items',
-            'grid', 'grid-template-columns', 'grid-gap',
-            'overflow', 'white-space', 'word-wrap', 'text-overflow',
-            'box-sizing', 'z-index', 'opacity', 'transform'
-          ];
-          stylesToCapture.forEach(prop => {
-            const value = computed.getPropertyValue(prop);
-            if (value && value !== 'none' && value !== 'normal') {
-              computedStyles[prop] = value;
+              moved++;
+              console.log(`✅ Moved table component ${index} with editability preserved`);
             }
-          });
-        }
 
-        const preservedData = {
-          html: fullHTML,
-          attributes: JSON.parse(JSON.stringify(component.getAttributes() || {})),
-          classes: [...(component.getClasses() || [])],
-          style: JSON.parse(JSON.stringify(component.getStyle() || {})),
-          computedStyles,
-          name: component.get('name'),
-          editable: component.get('editable')
-        };
-
-        const parent = component.parent();
-        component.remove();
-        if (parent && parent.components().length === 0 && parent.getEl()?.innerHTML.trim() === '') {
-          console.log('🗑️ Removing empty parent container');
-          parent.remove();
-        }
-
-        // Try to add cloned version
-        try {
-          targetContentArea.components().add(clonedComponent, { at: 0 });
-          moved++;
-          console.log(`✅ Moved cloned component ${index}`);
-          continue;
-        } catch (cloneError) {
-          console.warn('⚠️ Clone failed, using HTML reconstruction:', cloneError);
-        }
-
-        // Fallback: rebuild from HTML
-        try {
-          const newComponent = targetContentArea.append(preservedData.html)[0];
-          if (newComponent) {
-            const combinedStyles = { ...preservedData.computedStyles, ...preservedData.style };
-            newComponent.setStyle(combinedStyles);
-            newComponent.addAttributes(preservedData.attributes);
-            newComponent.setClass(preservedData.classes);
-            newComponent.set({ editable: preservedData.editable });
-            moved++;
-            console.log(`✅ Moved reconstructed component ${index} with styles`);
+            continue;
           }
-        } catch (reconstructError) {
-          console.error(`❌ Failed to reconstruct component ${index}:`, reconstructError);
+
+          // ✅ Regular component logic
+          const clonedComponent = component.clone();
+          const fullHTML = component.toHTML();
+
+          const sourceEl = component.getEl();
+          let computedStyles = {};
+          if (sourceEl) {
+            const computed = window.getComputedStyle(sourceEl);
+            const stylesToCapture = [
+              'display', 'position', 'width', 'height', 'margin', 'padding',
+              'border', 'background', 'color', 'font-family', 'font-size',
+              'font-weight', 'text-align', 'line-height', 'vertical-align',
+              'flex', 'flex-direction', 'justify-content', 'align-items',
+              'grid', 'grid-template-columns', 'grid-gap',
+              'overflow', 'white-space', 'word-wrap', 'text-overflow',
+              'box-sizing', 'z-index', 'opacity', 'transform'
+            ];
+            stylesToCapture.forEach(prop => {
+              const value = computed.getPropertyValue(prop);
+              if (value && value !== 'none' && value !== 'normal') {
+                computedStyles[prop] = value;
+              }
+            });
+          }
+
+          const preservedData = {
+            html: fullHTML,
+            attributes: JSON.parse(JSON.stringify(component.getAttributes() || {})),
+            classes: [...(component.getClasses() || [])],
+            style: JSON.parse(JSON.stringify(component.getStyle() || {})),
+            computedStyles,
+            name: component.get('name'),
+            editable: component.get('editable')
+          };
+
+          const parent = component.parent();
+          component.remove();
+          if (parent && parent.components().length === 0 && parent.getEl()?.innerHTML.trim() === '') {
+            console.log('🗑️ Removing empty parent container');
+            parent.remove();
+          }
+
+          // Try to add cloned version
+          try {
+            targetContentArea.components().add(clonedComponent, { at: 0 });
+            moved++;
+            console.log(`✅ Moved cloned component ${index}`);
+            continue;
+          } catch (cloneError) {
+            console.warn('⚠️ Clone failed, using HTML reconstruction:', cloneError);
+          }
+
+          // Fallback: rebuild from HTML
+          try {
+            const newComponent = targetContentArea.append(preservedData.html)[0];
+            if (newComponent) {
+              const combinedStyles = { ...preservedData.computedStyles, ...preservedData.style };
+              newComponent.setStyle(combinedStyles);
+              newComponent.addAttributes(preservedData.attributes);
+              newComponent.setClass(preservedData.classes);
+              newComponent.set({ editable: preservedData.editable });
+              moved++;
+              console.log(`✅ Moved reconstructed component ${index} with styles`);
+            }
+          } catch (reconstructError) {
+            console.error(`❌ Failed to reconstruct component ${index}:`, reconstructError);
+          }
+
+        } catch (err) {
+          console.error(`❌ Error moving component ${index}:`, err);
         }
-
-      } catch (err) {
-        console.error(`❌ Error moving component ${index}:`, err);
       }
+
+      // Reconnect observer
+      setTimeout(() => this.setupPageObserver(targetPageIndex), 400);
+
+      console.log(`✅ Moved ${moved} component(s) to page ${targetPageIndex}`);
+      return moved > 0;
+
+    } catch (error) {
+      console.error(`❌ moveComponentsToPage failed:`, error);
+      return false;
     }
-
-    // Reconnect observer
-    setTimeout(() => this.setupPageObserver(targetPageIndex), 400);
-
-    console.log(`✅ Moved ${moved} component(s) to page ${targetPageIndex}`);
-    return moved > 0;
-
-  } catch (error) {
-    console.error(`❌ moveComponentsToPage failed:`, error);
-    return false;
   }
-}
 
 
 
@@ -1529,50 +1518,50 @@ async moveComponentsToPage(components, targetPageIndex) {
   getAccurateComponentHeight(element) {
     if (!element) return 0;
 
-// ✅ Special handling for json-table wrapper
-if (element.classList.contains('json-table-wrapper') || 
-    element.classList.contains('json-table-container')) {
-  
-  const table = element.querySelector('table');
-  if (table) {
-    // Force layout recalculation
-    table.offsetHeight;
-    
-    // ✅ Account for pagination controls
-    const wrapper = element.querySelector('.dataTables_wrapper');
-    if (wrapper) {
-      const wrapperHeight = wrapper.scrollHeight; // Use scrollHeight instead of offsetHeight
-      const computedStyle = window.getComputedStyle(wrapper);
-      const marginTop = parseFloat(computedStyle.marginTop) || 0;
-      const marginBottom = parseFloat(computedStyle.marginBottom) || 0;
-      
-      // Add extra buffer to prevent cell cutting
-      const buffer = 30;
-      return wrapperHeight + marginTop + marginBottom + buffer;
+    // ✅ Special handling for json-table wrapper
+    if (element.classList.contains('json-table-wrapper') ||
+      element.classList.contains('json-table-container')) {
+
+      const table = element.querySelector('table');
+      if (table) {
+        // Force layout recalculation
+        table.offsetHeight;
+
+        // ✅ Account for pagination controls
+        const wrapper = element.querySelector('.dataTables_wrapper');
+        if (wrapper) {
+          const wrapperHeight = wrapper.scrollHeight; // Use scrollHeight instead of offsetHeight
+          const computedStyle = window.getComputedStyle(wrapper);
+          const marginTop = parseFloat(computedStyle.marginTop) || 0;
+          const marginBottom = parseFloat(computedStyle.marginBottom) || 0;
+
+          // Add extra buffer to prevent cell cutting
+          const buffer = 30;
+          return wrapperHeight + marginTop + marginBottom + buffer;
+        }
+
+        // Fallback: Calculate from actual table content
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        const tfoot = table.querySelector('tfoot');
+
+        let totalHeight = 0;
+        if (thead) totalHeight += thead.offsetHeight;
+        if (tbody) {
+          // Sum all row heights to get accurate tbody height
+          Array.from(tbody.rows).forEach(row => {
+            totalHeight += row.offsetHeight;
+          });
+        }
+        if (tfoot) totalHeight += tfoot.offsetHeight;
+
+        const tableStyle = window.getComputedStyle(table);
+        const marginTop = parseFloat(tableStyle.marginTop) || 0;
+        const marginBottom = parseFloat(tableStyle.marginBottom) || 0;
+
+        return totalHeight + marginTop + marginBottom + 30; // Buffer for borders/spacing
+      }
     }
-    
-    // Fallback: Calculate from actual table content
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
-    const tfoot = table.querySelector('tfoot');
-    
-    let totalHeight = 0;
-    if (thead) totalHeight += thead.offsetHeight;
-    if (tbody) {
-      // Sum all row heights to get accurate tbody height
-      Array.from(tbody.rows).forEach(row => {
-        totalHeight += row.offsetHeight;
-      });
-    }
-    if (tfoot) totalHeight += tfoot.offsetHeight;
-    
-    const tableStyle = window.getComputedStyle(table);
-    const marginTop = parseFloat(tableStyle.marginTop) || 0;
-    const marginBottom = parseFloat(tableStyle.marginBottom) || 0;
-    
-    return totalHeight + marginTop + marginBottom + 30; // Buffer for borders/spacing
-  }
-}
     // Force layout
     element.offsetHeight;
 
@@ -1698,46 +1687,46 @@ if (element.classList.contains('json-table-wrapper') ||
 
     this.pageObservers.set(pageIndex, observer);
   }
-restoreCellEditability(tableElement) {
-  if (!tableElement) return;
-  
-  const allCells = tableElement.querySelectorAll('td, th');
-  
-  allCells.forEach(cell => {
-    // Make cell editable
-    cell.setAttribute('contenteditable', 'true');
-    
-    // Ensure cell has proper GrapesJS attributes
-    if (!cell.hasAttribute('data-gjs-type')) {
-      cell.setAttribute('data-gjs-type', 'json-table-cell');
-    }
-    
-    // Make cell selectable
-    cell.style.cursor = 'text';
-    
-    // Add hover effect
-    cell.addEventListener('mouseenter', () => {
-      cell.style.outline = '1px dashed #3b97e3';
-    });
-    
-    cell.addEventListener('mouseleave', () => {
-      if (!cell.matches(':focus')) {
-        cell.style.outline = '';
+  restoreCellEditability(tableElement) {
+    if (!tableElement) return;
+
+    const allCells = tableElement.querySelectorAll('td, th');
+
+    allCells.forEach(cell => {
+      // Make cell editable
+      cell.setAttribute('contenteditable', 'true');
+
+      // Ensure cell has proper GrapesJS attributes
+      if (!cell.hasAttribute('data-gjs-type')) {
+        cell.setAttribute('data-gjs-type', 'json-table-cell');
       }
+
+      // Make cell selectable
+      cell.style.cursor = 'text';
+
+      // Add hover effect
+      cell.addEventListener('mouseenter', () => {
+        cell.style.outline = '1px dashed #3b97e3';
+      });
+
+      cell.addEventListener('mouseleave', () => {
+        if (!cell.matches(':focus')) {
+          cell.style.outline = '';
+        }
+      });
+
+      // Handle focus
+      cell.addEventListener('focus', () => {
+        cell.style.outline = '2px solid #3b97e3';
+      });
+
+      cell.addEventListener('blur', () => {
+        cell.style.outline = '';
+      });
     });
-    
-    // Handle focus
-    cell.addEventListener('focus', () => {
-      cell.style.outline = '2px solid #3b97e3';
-    });
-    
-    cell.addEventListener('blur', () => {
-      cell.style.outline = '';
-    });
-  });
-  
-  console.log(`✅ Restored editability for ${allCells.length} cells`);
-}
+
+    console.log(`✅ Restored editability for ${allCells.length} cells`);
+  }
   checkPageForOverflow(pageIndex) {
     debugger;
     console.log('🟢 checkPageForOverflow:', pageIndex);
@@ -2781,6 +2770,10 @@ restoreCellEditability(tableElement) {
   injectPageSetupStyles() {
     const styles = `
       <style id="enhanced-page-setup-styles">
+            @page {
+        size: ${this.pageSettings.format.toUpperCase()} ${this.pageSettings.orientation};
+        margin: 0;
+      }
         .page-setup-modal {
           position: fixed;
           top: 0;
@@ -4074,6 +4067,27 @@ padding: 8px;
     }
   }
 
+  updatePageRule() {
+    // Remove existing @page style if it exists
+    const existingStyle = document.getElementById('dynamic-page-rule');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+
+    // Create new @page rule
+    const pageRule = `
+    @page {
+      size: ${this.pageSettings.format.toUpperCase()} ${this.pageSettings.orientation};
+      margin: ${this.pageSettings.margins.top}mm ${this.pageSettings.margins.right}mm ${this.pageSettings.margins.bottom}mm ${this.pageSettings.margins.left}mm;
+    }
+  `;
+
+    const styleElement = document.createElement('style');
+    styleElement.id = 'dynamic-page-rule';
+    styleElement.innerHTML = pageRule;
+    document.head.appendChild(styleElement);
+  }
+
   applyPageSetup() {
     const format = document.getElementById("pageFormat").value;
     const orientation = document.getElementById("pageOrientation").value;
@@ -4173,6 +4187,8 @@ padding: 8px;
         tiled: document.getElementById("watermarkTiled")?.checked || false,
       },
     };
+
+    this.updatePageRule();
 
     // ---------------- Batch Page Creation ----------------
     let created = 0;
@@ -5606,6 +5622,7 @@ padding: 8px;
       };
 
       this.pageSettings.backgroundColor = newBackgroundColor;
+      this.updatePageRule();
 
       this.pageSettings.pageNumber = {
         enabled: pageNumberEnabled,
@@ -6304,7 +6321,6 @@ padding: 8px;
         let pageHTML = `
         <div class="page-container" data-page-id="${pageData.id}" data-page-index="${i}">
           <div class="page-content" style="
-            width: ${contentWidth}px; 
             height: ${contentHeight}px; 
             margin: ${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px;
             position: relative;
@@ -6392,9 +6408,7 @@ padding: 8px;
             display: "flex",
             "flex-direction": "column",
             height: `${contentHeight}px`,
-            width: `${contentWidth}px`,
             "background-color": pageData.backgroundColor || this.pageSettings.backgroundColor,
-            border: "1px dashed #dee2e6",
             "-webkit-print-color-adjust": "exact",
             "color-adjust": "exact",
             "print-color-adjust": "exact",
@@ -7731,7 +7745,6 @@ padding: 8px;
       const pageHTML = `
         <div class="page-container" data-page-id="${newPageId}" data-page-index="${newPageIndex}">
             <div class="page-content" style="
-                width: ${contentWidth}px;
                 height: ${contentHeight}px;
                 margin: ${marginTopPx}px ${marginRightPx}px ${marginBottomPx}px ${marginLeftPx}px;
                 position: relative;

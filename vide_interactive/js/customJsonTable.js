@@ -431,36 +431,83 @@ function jsontablecustom(editor) {
             },
 
             init() {
-                // Replace the existing onChange handlers with these optimized ones:
+                console.log('🎬 JSON Table init() called for component:', this.cid);
+
+                // ✅ Flag to prevent event handlers from interfering during restoration
+                this._isRestoring = true;
+
+                // ✅ CRITICAL: Restore state IMMEDIATELY before anything else
                 try {
                     const attrs = this.getAttributes ? this.getAttributes() : {};
                     const encoded = attrs && attrs['data-json-state'];
+
                     if (encoded) {
+                        console.log('📦 Found data-json-state, restoring...');
                         const parsed = JSON.parse(decodeURIComponent(encoded));
-                        // Restore persisted state into model
-                        this.set('custom-headers', parsed.headers || null);
-                        this.set('custom-data', parsed.data || null);
-                        this.set('table-styles-applied', parsed.styles || null);
-                        this.set('highlight-conditions', parsed.highlights || null);
+
+                        console.log('📊 Restoring state:', {
+                            hasHeaders: !!parsed.headers,
+                            hasData: !!parsed.data,
+                            dataRows: parsed.data?.length || 0,
+                            headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
+                        });
+
+                        // ✅ Restore ALL state including base tables
+                        this.set('table-headers', parsed.headers || null, { silent: true });
+                        this.set('table-data', parsed.data || null, { silent: true });
+                        this.set('custom-headers', parsed.headers || null, { silent: true });
+                        this.set('custom-data', parsed.data || null, { silent: true });
+                        this.set('table-styles-applied', parsed.styles || null, { silent: true });
+                        this.set('highlight-conditions', parsed.highlights || null, { silent: true });
+
                         if (parsed.filter) {
-                            this.set('filter-column', parsed.filter.column || '');
-                            this.set('filter-value', parsed.filter.value || '');
+                            this.set('filter-column', parsed.filter.column || '', { silent: true });
+                            this.set('filter-value', parsed.filter.value || '', { silent: true });
                         }
                         if (parsed.meta) {
-                            this.set('table-type', parsed.meta.tableType || 'standard');
-                            this.set('caption', parsed.meta.caption || 'no');
-                            this.set('page-length', parsed.meta.pageLength || 10);
-                            this.set('pagination', parsed.meta.pagination || 'no');
-                            this.set('search', parsed.meta.search || 'no');
-                            this.set('file-download', parsed.meta.fileDownload || '');
+                            this.set('table-type', parsed.meta.tableType || 'standard', { silent: true });
+                            this.set('caption', parsed.meta.caption || 'no', { silent: true });
+                            this.set('page-length', parsed.meta.pageLength || 10, { silent: true });
+                            this.set('pagination', parsed.meta.pagination || 'no', { silent: true });
+                            this.set('search', parsed.meta.search || 'no', { silent: true });
+                            this.set('file-download', parsed.meta.fileDownload || '', { silent: true });
                         }
-                        // Rebuild HTML with restored state
-                        setTimeout(() => this.updateTableHTML(), 0);
+
+                        // ✅ CRITICAL: Set show-placeholder based on data presence
+                        const hasValidData = parsed.headers && parsed.data &&
+                            (Array.isArray(parsed.data) ? parsed.data.length > 0 : true);
+
+                        this.set('show-placeholder', !hasValidData, { silent: true });
+
+                        console.log('✅ State restored in init():', {
+                            showPlaceholder: this.get('show-placeholder'),
+                            hasCustomHeaders: !!this.get('custom-headers'),
+                            hasCustomData: !!this.get('custom-data')
+                        });
+
+                        // Clear restoring flag before rebuild
+                        this._isRestoring = false;
+
+                        // Rebuild HTML with restored state after a short delay
+                        setTimeout(() => {
+                            console.log('🔨 Triggering updateTableHTML from init()');
+                            this.updateTableHTML();
+                        }, 0);
+
+                        // ✅ Exit early for restored components (skip normal init)
+                        return;
+                    } else {
+                        console.log('ℹ️ No data-json-state found, this is a new component');
+                        this._isRestoring = false;
                     }
                 } catch (e) {
-                    console.warn('json-table init rehydrate failed', e);
+                    console.warn('⚠️ json-table init rehydrate failed', e);
+                    this._isRestoring = false;
                 }
+
+                // 🔹 Continue with normal initialization for NEW components only
                 this.on('change:json-file-index', () => {
+                    if (this._isRestoring) return;
                     this.set('json-path', '');
                     this.set('filter-column', '');
                     this.set('filter-value', '');
@@ -479,15 +526,14 @@ function jsontablecustom(editor) {
                 });
 
                 this.on('change:json-path', () => {
+                    if (this._isRestoring) return;
                     const tableType = this.get('table-type') || 'standard';
 
-                    // For crosstab, render immediately
                     if (tableType === 'crosstab') {
                         this.updateTableFromJson();
                         return;
                     }
 
-                    // For standard table, clear filters and wait
                     this.updateTableFromJson();
                     this.set('filter-column', '');
                     this.set('filter-value', '');
@@ -507,25 +553,21 @@ function jsontablecustom(editor) {
                         }
                     }, 100);
                 });
+
                 this.on('change:table-type', () => {
+                    if (this._isRestoring) return;
                     const tableType = this.get('table-type');
 
                     // Show/hide filter traits based on table type
                     setTimeout(() => {
                         const filterColumnTrait = this.getTrait('filter-column');
                         const filterValueTrait = this.getTrait('filter-value');
-
-                        if (filterColumnTrait && filterColumnTrait.view) {
-                            const display = tableType === 'crosstab' ? 'none' : 'block';
-                            filterColumnTrait.view.el.style.display = display;
-                        }
-                        if (filterValueTrait && filterValueTrait.view) {
-                            const display = tableType === 'crosstab' ? 'none' : 'block';
-                            filterValueTrait.view.el.style.display = display;
-                        }
+                        if (filterColumnTrait && filterColumnTrait.view)
+                            filterColumnTrait.view.el.style.display = tableType === 'crosstab' ? 'none' : 'block';
+                        if (filterValueTrait && filterValueTrait.view)
+                            filterValueTrait.view.el.style.display = tableType === 'crosstab' ? 'none' : 'block';
                     }, 100);
 
-                    // Clear filters when switching to crosstab
                     if (tableType === 'crosstab') {
                         this.set('filter-column', '');
                         this.set('filter-value', '');
@@ -533,17 +575,19 @@ function jsontablecustom(editor) {
                         this.set('custom-data', null);
                     }
 
-                    // Re-process the table if json-path exists
                     const jsonPath = this.get('json-path');
                     if (jsonPath) {
                         this.updateTableFromJson();
                     }
                 });
+
                 this.on('change:selected-running-total-columns', () => {
+                    if (this._isRestoring) return;
                     this.updateRunningTotals();
                 });
 
                 this.on('change:filter-column', () => {
+                    if (this._isRestoring) return;
                     const filterColumn = this.get('filter-column');
                     const filterValue = this.get('filter-value');
 
@@ -563,6 +607,7 @@ function jsontablecustom(editor) {
                 });
 
                 this.on('change:filter-value', () => {
+                    if (this._isRestoring) return;
                     const filterColumn = this.get('filter-column');
                     const filterValue = this.get('filter-value');
 
@@ -580,95 +625,73 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                this.on('change:table-type', () => {
-                    const tableType = this.get('table-type');
-
-                    // Clear filters when switching to crosstab
-                    if (tableType === 'crosstab') {
-                        this.set('filter-column', '');
-                        this.set('filter-value', '');
-                        this.set('custom-headers', null);
-                        this.set('custom-data', null);
-                    }
-
-                    // Re-process the table if json-path exists
-                    const jsonPath = this.get('json-path');
-                    if (jsonPath) {
-                        this.updateTableFromJson();
-                    }
-                });
-
                 this.on('change:grouping-fields change:summary-fields change:sort-order change:top-n change:summarize-group change:merge-group-cells change:show-summary-only change:grand-total', () => {
+                    if (this._isRestoring) return;
                     this.applyGroupingAndSummary();
                 });
-                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', this.updateDataTableSettings);
 
-                // Keep highlight changes separate
-                this.on('change:highlight-conditions change:highlight-color', this.handleHighlightChange);
-                this.on('change:table-border-style change:table-border-width change:table-border-color change:table-border-opacity change:table-bg-color change:table-text-color change:table-font-family change:table-text-align change:table-vertical-align', this.applyTableStyles);
+                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', () => {
+                    if (this._isRestoring) return;
+                    this.updateDataTableSettings();
+                });
+
+                this.on('change:highlight-conditions change:highlight-color', () => {
+                    if (this._isRestoring) return;
+                    this.handleHighlightChange();
+                });
+
+                this.on('change:table-border-style change:table-border-width change:table-border-color change:table-border-opacity change:table-bg-color change:table-text-color change:table-font-family change:table-text-align change:table-vertical-align', () => {
+                    if (this._isRestoring) return;
+                    this.applyTableStyles();
+                });
 
                 this.set('show-placeholder', true);
                 this.updateTableHTML();
 
-                // Add this in the model's init() function
+                // --- Preserve component data before Code panel open ---
                 editor.on('component:update', (component) => {
-                    // Preserve json-table components when code is updated
                     if (component.get('type') === 'json-table') {
                         const jsonPath = component.get('json-path');
                         const customData = component.get('custom-data');
                         const customHeaders = component.get('custom-headers');
 
-                        // Store critical data
-                        if (jsonPath) {
-                            component.set('_preserved_json_path', jsonPath);
-                        }
-                        if (customData) {
-                            component.set('_preserved_custom_data', customData);
-                        }
-                        if (customHeaders) {
-                            component.set('_preserved_custom_headers', customHeaders);
-                        }
+                        if (jsonPath) component.set('_preserved_json_path', jsonPath);
+                        if (customData) component.set('_preserved_custom_data', customData);
+                        if (customHeaders) component.set('_preserved_custom_headers', customHeaders);
                     }
                 });
 
-                // Restore after code update
+                // --- Restore after Code editor Apply ---
                 editor.on('run:core:open-code:after', () => {
                     const wrapper = editor.DomComponents.getWrapper();
                     const jsonTables = wrapper.find('[data-gjs-type="json-table"]');
-
                     jsonTables.forEach(table => {
                         const preservedPath = table.get('_preserved_json_path');
                         const preservedData = table.get('_preserved_custom_data');
                         const preservedHeaders = table.get('_preserved_custom_headers');
 
-                        if (preservedPath) {
-                            table.set('json-path', preservedPath);
-                        }
-                        if (preservedData) {
-                            table.set('custom-data', preservedData);
-                        }
-                        if (preservedHeaders) {
-                            table.set('custom-headers', preservedHeaders);
-                        }
+                        if (preservedPath) table.set('json-path', preservedPath);
+                        if (preservedData) table.set('custom-data', preservedData);
+                        if (preservedHeaders) table.set('custom-headers', preservedHeaders);
 
-                        // Force re-render
                         setTimeout(() => {
                             table.updateTableHTML();
                         }, 100);
                     });
                 });
+
                 this.on('change:custom-data change:table-data', () => {
                     setTimeout(() => {
                         this.triggerAutoPagination();
                     }, 500);
                 });
+
                 // --- rehydrate all json-table components after Code panel Apply ---
                 try {
                     const ed = this.em && this.em.get ? this.em.get('Editor') : this.em;
                     if (ed && !ed.__jsonTableCodeHydrateBound) {
                         ed.__jsonTableCodeHydrateBound = true;
 
-                        // Save freshest state right before opening the code panel
                         ed.on('run:core:open-code', () => {
                             ed.getWrapper().findType('json-table').forEach(cmp => {
                                 const st = {
@@ -693,31 +716,22 @@ function jsontablecustom(editor) {
                             });
                         });
 
-                        // Rehydrate after user clicks Apply (modal closes)
                         ed.on('stop:core:open-code', () => {
-                            ed.getWrapper().findType('json-table').forEach(cmp => {
-                                const raw = cmp.getAttributes()['data-json-state'];
-                                if (!raw) return;
-                                try {
-                                    const parsed = JSON.parse(decodeURIComponent(raw));
-                                    cmp.set('custom-headers', parsed.headers);
-                                    cmp.set('custom-data', parsed.data);
-                                    cmp.set('table-styles-applied', parsed.styles);
-                                    cmp.set('highlight-conditions', parsed.highlights);
-                                    cmp.set('filter-column', parsed.filter && parsed.filter.column || '');
-                                    cmp.set('filter-value', parsed.filter && parsed.filter.value || '');
-                                    cmp.set('table-type', parsed.meta && parsed.meta.tableType || 'standard');
-                                    cmp.set('caption', parsed.meta && parsed.meta.caption || 'no');
-                                    cmp.set('page-length', parsed.meta && parsed.meta.pageLength || 10);
-                                    cmp.set('pagination', parsed.meta && parsed.meta.pagination || 'no');
-                                    cmp.set('search', parsed.meta && parsed.meta.search || 'no');
-                                    cmp.set('file-download', parsed.meta && parsed.meta.fileDownload || '');
-                                    // rebuild with your existing routine
-                                    cmp.updateTableHTML();
-                                } catch (e) {
-                                    console.warn('json-table restore failed', e);
-                                }
-                            });
+                            console.log('🔄 Code editor closed - components will restore via init()');
+                            setTimeout(() => {
+                                console.log('✅ Rehydration should be complete');
+                                const jsonTables = ed.getWrapper().findType('json-table');
+                                jsonTables.forEach(cmp => {
+                                    const tableElement = cmp.view?.el?.querySelector('.json-data-table');
+                                    if (tableElement && tableElement.id) {
+                                        const conditions = cmp.get('highlight-conditions');
+                                        const color = cmp.get('highlight-color');
+                                        if (conditions && conditions.length > 0) {
+                                            applyHighlighting(tableElement.id, conditions, color);
+                                        }
+                                    }
+                                });
+                            }, 300);
                         });
                     }
                 } catch (e) {
@@ -820,6 +834,8 @@ function jsontablecustom(editor) {
                     borderStyle, borderWidth, borderColor, borderOpacity,
                     bgColor, textColor, fontFamily, textAlign, verticalAlign
                 });
+
+                this.updateDataJsonState();
             },
             updateDataTableSettings() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
@@ -1337,6 +1353,7 @@ function jsontablecustom(editor) {
 
                 applyHighlighting(tableId, conditions, color);
                 editor.trigger('component:update', this);
+                this.updateDataJsonState();
             },
 
             initializeDefaultTable() {
@@ -1882,6 +1899,9 @@ function jsontablecustom(editor) {
                     if (selectedRunningTotalColumns.includes(columnKey)) {
                         this.recalculateRunningTotalsForColumn(columnKey);
                     }
+
+                    // ✅ NEW: Update the data-json-state attribute immediately
+                    this.updateDataJsonState();
                 }
             },
 
@@ -2067,6 +2087,19 @@ function jsontablecustom(editor) {
             },
 
             updateTableHTML() {
+                console.log('🔨 updateTableHTML called');
+
+                // Log current state
+                const headers = this.get('custom-headers');
+                const data = this.get('custom-data');
+                console.log('📋 Current state:', {
+                    hasHeaders: !!headers,
+                    hasData: !!data,
+                    headerCount: headers ? Object.keys(headers).length : 0,
+                    dataRows: data?.length || 0,
+                    showPlaceholder: this.get('show-placeholder')
+                });
+
                 // --- persist component state so Code panel Apply can rehydrate ---
                 const _stateForDom = (() => {
                     return {
@@ -2088,13 +2121,18 @@ function jsontablecustom(editor) {
                         }
                     };
                 })();
+
+                console.log('💾 Saving state to DOM:', {
+                    hasHeaders: !!_stateForDom.headers,
+                    hasData: !!_stateForDom.data,
+                    stateSize: JSON.stringify(_stateForDom).length
+                });
+
                 this.addAttributes({
                     'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
                 });
                 // ----------------------------------------------------------------
 
-                const headers = this.get('custom-headers');
-                const data = this.get('custom-data');
                 const name = this.get('name') || 'Table';
                 const title = this.get('title') || '';
                 const footer = this.get('footer') || 'no';
@@ -2109,15 +2147,24 @@ function jsontablecustom(editor) {
                 // Generate unique table ID
                 const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
 
+                console.log('🆔 Table ID:', tableId);
+
                 // Clear existing components but preserve the main container
                 const existingComponents = this.components();
                 existingComponents.reset();
 
                 // Handle placeholder state
                 if (showPlaceholder || !headers || !data) {
+                    console.log('📝 Showing placeholder because:', {
+                        showPlaceholder,
+                        noHeaders: !headers,
+                        noData: !data
+                    });
                     this.addPlaceholderComponent();
                     return;
                 }
+
+                console.log('✅ Building table with', data.length, 'rows and', Object.keys(headers).length, 'columns');
 
                 // Add main wrapper component
                 const wrapperComponent = this.components().add({
@@ -2179,21 +2226,37 @@ function jsontablecustom(editor) {
                 const isCrosstab = this.get('crosstab-structure') !== undefined;
 
                 if (isCrosstab) {
-                    // Use special crosstab rendering with merges
+                    console.log('🔁 Crosstab table detected, using merged rendering');
                     this.addCrosstabTableWithMerges(tableComponent, tableId);
                 } else {
-                    // Standard table rendering
+                    console.log('📊 Rendering standard table (no merges)');
                     this.addTableHeader(tableComponent, headers, tableId);
                     this.addTableBody(tableComponent, headers, data, tableId);
                 }
 
                 // Add footer if enabled (for standard tables only)
                 if (!isCrosstab && footer === 'yes') {
+                    console.log('🦶 Adding table footer');
                     this.addTableFooter(tableComponent, headers);
                 }
 
                 // Add DataTables initialization script AFTER the GrapesJS components are created
-                const datatableScript = this.createDataTableScript(tableId, pagination, pageLength, search, fileDownload, Object.keys(headers).length);
+                console.log('⚙️ Adding DataTables script with settings:', {
+                    pagination,
+                    pageLength,
+                    search,
+                    fileDownload,
+                    columns: Object.keys(headers).length
+                });
+
+                const datatableScript = this.createDataTableScript(
+                    tableId,
+                    pagination,
+                    pageLength,
+                    search,
+                    fileDownload,
+                    Object.keys(headers).length
+                );
                 wrapperComponent.components().add(datatableScript);
 
                 // Apply highlighting and formulas after DOM is ready
@@ -2201,11 +2264,44 @@ function jsontablecustom(editor) {
                     const conditions = this.getHighlightConditions();
                     const color = this.get('highlight-color');
                     if (conditions && conditions.length > 0) {
+                        console.log('✨ Applying conditional highlighting:', { count: conditions.length, color });
                         applyHighlighting(tableId, conditions, color);
+                    } else {
+                        console.log('⚪ No highlight conditions found.');
                     }
+
                     // Enable formula editing on the GrapesJS components
+                    console.log('🧮 Enabling formula editing on components for', tableId);
                     this.enableFormulaEditingOnComponents(tableId);
                 }, 500);
+            },
+
+            updateDataJsonState() {
+                // Update the data-json-state attribute with current state
+                const _stateForDom = {
+                    headers: this.get('custom-headers') || this.get('table-headers') || null,
+                    data: this.get('custom-data') || this.get('table-data') || null,
+                    styles: this.get('table-styles-applied') || null,
+                    highlights: this.get('highlight-conditions') || null,
+                    filter: {
+                        column: this.get('filter-column') || null,
+                        value: this.get('filter-value') || null
+                    },
+                    meta: {
+                        tableType: this.get('table-type') || 'standard',
+                        caption: this.get('caption') || 'no',
+                        pageLength: this.get('page-length') || 10,
+                        pagination: this.get('pagination') || 'no',
+                        search: this.get('search') || 'no',
+                        fileDownload: this.get('file-download') || ''
+                    }
+                };
+
+                this.addAttributes({
+                    'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
+                });
+
+                console.log('💾 Updated data-json-state after edit');
             },
 
             applyGroupingAndSummary() {
@@ -2230,6 +2326,7 @@ function jsontablecustom(editor) {
                 setTimeout(() => {
                     this.triggerAutoPagination();
                 }, 500);
+                this.updateDataJsonState();
             },
 
             getTableContainer() {
@@ -3754,7 +3851,30 @@ function jsontablecustom(editor) {
         }
 
     });
+    // Define json-table-cell component type
+    editor.DomComponents.addType('json-table-cell', {
+        isComponent: el => {
+            if (!el || !el.getAttribute) return false;
+            if (el.getAttribute('data-gjs-type') === 'json-table-cell') return { type: 'json-table-cell' };
+            return false;
+        },
 
+        model: {
+            defaults: {
+                tagName: 'td',
+                draggable: false,
+                droppable: false,
+                editable: true,
+                selectable: true,
+                hoverable: true,
+                attributes: { 'data-gjs-type': 'json-table-cell' }
+            }
+        },
+
+        view: {
+            // Optional: Add any custom view behavior here if needed
+        }
+    });
 
     // Add the component to blocks panel
     editor.BlockManager.add('json-table', {
