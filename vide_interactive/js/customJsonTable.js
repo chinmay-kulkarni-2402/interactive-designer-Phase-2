@@ -330,8 +330,8 @@ function jsontablecustom(editor) {
                         type: 'select',
                         name: 'json-file-index',
                         label: 'JSON File',
-                        options: getJsonFileOptions(),
-                        changeProp: 1
+                        options: [],
+                        changeProp: 1,
                     },
                     {
                         type: 'button',
@@ -435,6 +435,101 @@ function jsontablecustom(editor) {
 
                 // ✅ Flag to prevent event handlers from interfering during restoration
                 this._isRestoring = true;
+                try {
+      const attrs = this.getAttributes ? this.getAttributes() : {};
+      const encoded = attrs && attrs['data-json-state'];
+
+      if (encoded) {
+        console.log('📦 Found data-json-state, restoring...');
+        const parsed = JSON.parse(decodeURIComponent(encoded));
+
+        console.log('📊 Restoring state:', {
+          hasHeaders: !!parsed.headers,
+          hasData: !!parsed.data,
+          dataRows: parsed.data?.length || 0,
+          headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
+        });
+
+        // ✅ NEW: Check if this is a continuation table
+        const isContinuation = attrs['data-continuation-table'] === 'true';
+        const rowsKept = parseInt(attrs['data-rows-kept']) || 0;
+
+        if (isContinuation && rowsKept > 0) {
+          console.log(`🔄 Continuation table detected: ${rowsKept} rows were kept on previous page`);
+          // Data has already been sliced in the state, just use it as-is
+          console.log(`📝 Using modified state with ${parsed.data?.length || 0} rows for continuation`);
+        }
+
+        // ✅ Restore ALL state including base tables
+        this.set('table-headers', parsed.headers || null, { silent: true });
+        this.set('table-data', parsed.data || null, { silent: true });
+        this.set('custom-headers', parsed.headers || null, { silent: true });
+        this.set('custom-data', parsed.data || null, { silent: true });
+        this.set('table-styles-applied', parsed.styles || null, { silent: true });
+        this.set('highlight-conditions', parsed.highlights || null, { silent: true });
+
+        // ... rest of restoration code ...
+      }
+    } catch (e) {
+      console.warn('⚠️ json-table init rehydrate failed', e);
+      this._isRestoring = false;
+    }
+                // -- per-instance refresh for JSON File trait (no global flag) --
+                const refreshJsonFileTrait = () => {
+                    const trait = this.getTrait('json-file-index');
+                    if (!trait) return;
+
+                    const opts = getJsonFileOptions(); // reads fresh from localStorage
+                    trait.set('options', opts);
+
+                    if (!opts.length) {
+                        this.set({ 'json-file-index': '', 'json-path': '' });
+                        ['json-path', 'filter-column', 'running-total-column'].forEach(n => {
+                            const t = this.getTrait(n);
+                            if (t) {
+                                t.set('options', []);
+                                t.set('value', '');
+                                if (t.view && t.view.render) t.view.render();
+                            }
+                        });
+                        if (trait.view && trait.view.render) trait.view.render();
+                        return;
+                    }
+
+                    const current = String(this.get('json-file-index') ?? '');
+                    const stillExists = opts.some(o => String(o.value) === current);
+                    const nextVal = stillExists ? current : String(opts[0].value);
+
+                    trait.set('value', nextVal);
+                    this.set('json-file-index', nextVal);
+
+                    if (trait.view && trait.view.render) trait.view.render();
+
+                    if (this.get('json-path')) {
+                        this.updateFilterColumnOptions?.();
+                        this.updateRunningTotalColumnOptions?.();
+                    }
+
+                    if (nextVal !== current) {
+                        if (typeof this.handleJsonFileChange === 'function') {
+                            this.handleJsonFileChange();
+                        } else {
+                            this.trigger('change:json-file-index');
+                        }
+                    }
+                };
+
+                // 1) immediately populate for this instance (new OR restored)
+                refreshJsonFileTrait();
+
+                // 2) listen for add/delete updates for THIS instance
+                const onFilesUpdated = () => refreshJsonFileTrait();
+                window.addEventListener('common-json-files-updated', onFilesUpdated);
+
+                // 3) clean up when this component is removed
+                this.once('remove', () => {
+                    window.removeEventListener('common-json-files-updated', onFilesUpdated);
+                });
 
                 // ✅ CRITICAL: Restore state IMMEDIATELY before anything else
                 try {
@@ -5997,3 +6092,4 @@ function jsontablecustom(editor) {
         return keys;
     }
 }
+

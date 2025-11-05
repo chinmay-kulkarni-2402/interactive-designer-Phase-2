@@ -201,6 +201,11 @@ function customChartCommonJson(editor) {
                 },
                 script: function () {
                     const initializeChart = () => {
+                        if (!window.Highcharts) {
+                            console.warn('Highcharts not loaded yet, retrying...');
+                            setTimeout(initializeChart, 500);
+                            return;
+                        }
                         const ctx = this.id;
                         const element = document.getElementById(ctx);
 
@@ -2036,31 +2041,82 @@ function customChartCommonJson(editor) {
                                 return;
                             }
 
+                            // Check if scripts are already loading
+                            if (window.highchartsLoading) {
+                                const checkInterval = setInterval(() => {
+                                    if (window.Highcharts) {
+                                        clearInterval(checkInterval);
+                                        resolve();
+                                    } else if (!window.highchartsLoading) {
+                                        clearInterval(checkInterval);
+                                        reject(new Error('Highcharts loading failed'));
+                                    }
+                                }, 100);
+                                return;
+                            }
+
+                            window.highchartsLoading = true;
+
                             const script = document.createElement("script");
                             script.src = "{[ custom_line_chartsrc ]}";
+
                             script.onload = () => {
                                 const drilldownScript = document.createElement("script");
                                 drilldownScript.src = "https://code.highcharts.com/11.4.8/modules/drilldown.js";
-                                drilldownScript.onload = resolve;
-                                drilldownScript.onerror = resolve;
+
+                                drilldownScript.onload = () => {
+                                    window.highchartsLoading = false;
+                                    resolve();
+                                };
+
+                                drilldownScript.onerror = () => {
+                                    window.highchartsLoading = false;
+                                    // Drilldown module is optional, continue anyway
+                                    resolve();
+                                };
+
                                 document.head.appendChild(drilldownScript);
                             };
-                            script.onerror = reject;
+
+                            script.onerror = () => {
+                                window.highchartsLoading = false;
+                                reject(new Error('Failed to load Highcharts'));
+                            };
+
                             document.head.appendChild(script);
                         });
                     };
 
                     const init = async () => {
-                        try {
-                            await loadHighcharts();
-                            if (document.readyState === 'loading') {
-                                document.addEventListener('DOMContentLoaded', initializeChart);
-                            } else {
-                                setTimeout(initializeChart, 50);
+                        let retryCount = 0;
+                        const maxRetries = 3;
+
+                        const attemptLoad = async () => {
+                            try {
+                                await loadHighcharts();
+                                if (document.readyState === 'loading') {
+                                    document.addEventListener('DOMContentLoaded', initializeChart);
+                                } else {
+                                    setTimeout(initializeChart, 100);
+                                }
+                            } catch (error) {
+                                console.error('Failed to load Highcharts:', error);
+                                retryCount++;
+
+                                if (retryCount < maxRetries) {
+                                    console.log(`Retrying... (${retryCount}/${maxRetries})`);
+                                    // Exponential backoff: 1s, 2s, 4s
+                                    setTimeout(attemptLoad, 1000 * Math.pow(2, retryCount - 1));
+                                } else {
+                                    const element = document.getElementById(this.id);
+                                    if (element) {
+                                        element.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Failed to load chart library. Please refresh the page.</div>';
+                                    }
+                                }
                             }
-                        } catch (error) {
-                            console.error('Failed to load Highcharts:', error);
-                        }
+                        };
+
+                        await attemptLoad();
                     };
 
                     if (!this.highchartsInitialized) {
@@ -2331,6 +2387,7 @@ function customChartCommonJson(editor) {
                         if (processedCount === files.length) {
                             // Save updated file list
                             localStorage.setItem('common_json_files', allFileNames.join(', '));
+                            window.dispatchEvent(new CustomEvent('common-json-files-updated'));
 
                             common_json_file_name_text = 'Already Added File(s): ' + allFileNames.join(', ');
 
@@ -2476,6 +2533,11 @@ function customChartCommonJson(editor) {
 
                 if (fileArray.length > 0) {
                     localStorage.setItem('common_json_files', fileArray.join(', '));
+                    // after removing the item from localStorage (and updating any index/list you keep)
+window.dispatchEvent(new CustomEvent('common-json-files-updated', {
+  detail: { action: 'delete', key: fileName } // optional metadata
+}));
+
                     common_json_file_name_text = 'Already Added File(s): ' + fileArray.join(', ');
                 } else {
                     localStorage.removeItem('common_json_files');
@@ -3107,7 +3169,6 @@ function customChartCommonJson(editor) {
     }
 
     function updateComponentsWithNewJson(editor) {
-        var jsonData2 = JSON.parse(jsonData);
         var styleTags2 = editor.getCss();
         var jsonDataNew = {};
         var styleContent = styleTags2;

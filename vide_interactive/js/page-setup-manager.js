@@ -562,7 +562,7 @@ class PageSetupManager {
   }
 
   handleAutoPagination(pageIndex) {
-    debugger;
+
     console.log(pageIndex, 'handleAutoPagination ====');
 
     // ✅ FIRST: Check for manual page breaks
@@ -711,7 +711,7 @@ class PageSetupManager {
 
 
   splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
-    debugger
+
     console.log('splitContentByHeight ====');
     const contentEl = contentArea.getEl();
     const componentsToKeep = [];
@@ -765,36 +765,43 @@ class PageSetupManager {
 
         // ✅ Handle tables specially - try to split by rows if possible
         // ✅ Handle tables specially - NEVER split mid-cell
+        // ✅ Handle tables specially - ONLY split rows, never duplicate entire table
         if (isTable || isJsonTable) {
-          // Check if table can fit at all
           const tableHeight = this.getAccurateComponentHeight(compEl);
 
-          if (tableHeight > effectiveMaxHeight * 0.9) {
-            // Table is too large, try splitting by complete rows only
-            const splitResult = this.handleTableSplit(component, compEl, remainingSpace, effectiveMaxHeight);
+          if (accumulatedHeight + compHeight > effectiveMaxHeight) {
+            // Table doesn't fit - need to split or move
+            if (remainingSpace > effectiveMaxHeight * 0.15) {
+              // Enough space to split some rows
+              const splitResult = this.handleTableSplit(component, compEl, remainingSpace, effectiveMaxHeight);
 
-            if (splitResult.keepComponent) {
-              componentsToKeep.push(splitResult.keepComponent);
+              // ✅ CRITICAL: Don't push keepComponent if it has no rows
+              if (splitResult.keepComponent && splitResult.keptRowCount > 0) {
+                componentsToKeep.push(component); // Keep modified original
+                accumulatedHeight += this.getAccurateComponentHeight(compEl);
+              }
+
+              // ✅ CRITICAL: Only move continuation component with remaining rows
+              if (splitResult.moveComponent && splitResult.movedRowCount > 0) {
+                componentsToMove.push(splitResult.moveComponent);
+              }
+            } else {
+              // Not enough space - move entire table to next page
+              console.log(`📊 Moving entire table to next page (height: ${compHeight}px)`);
+              componentsToMove.push(component);
             }
-            if (splitResult.moveComponent) {
-              componentsToMove.push(splitResult.moveComponent);
+
+            // Move all remaining components
+            for (let j = i + 1; j < components.length; j++) {
+              componentsToMove.push(components.at(j));
             }
-          } else if (accumulatedHeight + compHeight > effectiveMaxHeight) {
-            // Table doesn't fit but is small enough - move entire table
-            console.log(`📊 Moving entire table to next page (height: ${compHeight}px)`);
-            componentsToMove.push(component);
+            break;
           } else {
-            // Table fits completely
+            // Table fits completely on current page
             componentsToKeep.push(component);
             accumulatedHeight += compHeight;
-            continue; // Skip to next component
+            continue;
           }
-
-          // Move all remaining components
-          for (let j = i + 1; j < components.length; j++) {
-            componentsToMove.push(components.at(j));
-          }
-          break;
         }
         // Handle conditional breaks for text
         else if (conditionalBreakActive) {
@@ -884,7 +891,7 @@ class PageSetupManager {
 
     return true;
   }
-  
+
 handleTableSplit(component, compEl, remainingSpace, maxHeight) {
   console.log('🔧 handleTableSplit called');
 
@@ -918,7 +925,6 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
   const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
   const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
 
-  // ✅ Subtract controls height from available space
   const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 50;
 
   if (availableHeight < 100) {
@@ -929,7 +935,6 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
   let accumulatedRowHeight = 0;
   let rowsToKeep = 0;
 
-  // ✅ Only count COMPLETE rows that fit
   for (let i = 0; i < rows.length; i++) {
     const rowHeight = rows[i].offsetHeight;
 
@@ -941,23 +946,21 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
     }
   }
 
-  // ✅ Require at least 3 rows on current page, otherwise move entire table
   const MIN_ROWS_TO_SPLIT = 3;
   if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
     console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
     return { keepComponent: null, moveComponent: component };
   }
 
-  // If all rows fit, keep component as is
   if (rowsToKeep === rows.length) {
     console.log('✅ All table rows fit on current page');
     return { keepComponent: component, moveComponent: null };
   }
 
-  console.log(`📊 Splitting table: ${rowsToKeep} COMPLETE rows on current page, ${rows.length - rowsToKeep} rows to next page`);
-  
+  console.log(`📊 Splitting table: ${rowsToKeep} rows on current page, ${rows.length - rowsToKeep} rows to next page`);
+
   try {
-    // ✅ Store DataTable settings before split
+    // ✅ Store DataTable settings
     let dtSettings = null;
     const tableId = tableEl.id;
     if (tableId && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
@@ -972,94 +975,130 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
       dt.destroy();
     }
 
-    // ✅ CRITICAL FIX: Update ONLY tbody in original table
-    const rowsToMove = rows.slice(rowsToKeep); // Get rows that need to move
-    
-    // Remove rows that should move from original table
-    rowsToMove.forEach(row => row.remove());
-    
-    // Force re-render of original component
-    component.view.render();
-
-    // ✅ Create NEW minimal table wrapper for moved rows
-    const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Create a minimal table structure with only the moved rows
-    const newTableHTML = `
-      <div class="json-table-container">
-        <table id="${newTableId}" class="display json-data-table" style="width:100%">
-          <thead>${tableEl.querySelector('thead')?.outerHTML || ''}</thead>
-          <tbody>
-            ${rowsToMove.map(row => row.outerHTML).join('')}
-          </tbody>
-          ${tableEl.querySelector('tfoot') ? '<tfoot>' + tableEl.querySelector('tfoot').outerHTML + '</tfoot>' : ''}
-        </table>
-      </div>
-    `;
-
-    // ✅ Create new component with ONLY moved rows
-    const newComponent = this.editor.Components.addComponent({
-      type: component.get('type') || 'default',
-      tagName: component.get('tagName') || 'div',
-      content: newTableHTML,
-      attributes: { 
-        ...component.getAttributes(),
-        'data-split-table': 'continuation',
-        'data-original-table-id': tableId,
-        'data-continuation-start-row': rowsToKeep
-      },
-      classes: [...(component.getClasses() || [])],
-      style: { ...component.getStyle() }
+    // ✅ Remove rows from ORIGINAL table that should move
+    const rowsToRemove = rows.slice(rowsToKeep);
+    rowsToRemove.forEach(row => {
+      if (row.parentNode) {
+        row.parentNode.removeChild(row);
+      }
     });
 
-    // ✅ CRITICAL: Restore editability on BOTH table parts
-    setTimeout(() => {
-      // Restore on original (kept) table
-      const keptTableEl = compEl.querySelector('table') || compEl;
-      const pageSetupManager = this.editor.get('PageSetupManager');
-      if (pageSetupManager && pageSetupManager.restoreCellEditability) {
-        pageSetupManager.restoreCellEditability(keptTableEl);
-      }
+    // Update the component's HTML
+    const updatedTableHTML = compEl.outerHTML;
+    component.set('content', updatedTableHTML);
 
-      // Restore on new (moved) table
-      const movedTableEl = newComponent.getEl();
-      if (movedTableEl && pageSetupManager && pageSetupManager.restoreCellEditability) {
-        const movedTable = movedTableEl.querySelector('table') || movedTableEl;
-        pageSetupManager.restoreCellEditability(movedTable);
-      }
-    }, 400);
+    if (component.view) {
+      component.view.render();
+    }
 
-    // ✅ Reinitialize DataTables ONLY on kept portion (not on continuation)
+// ✅ CRITICAL FIX: Modify the JSON state data BEFORE creating new component
+const originalStateAttr = component.getAttributes()['data-json-state'];
+let modifiedState = null;
+
+if (originalStateAttr) {
+  try {
+    const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
+    
+    // If customData exists, remove first N rows
+    if (stateData.data && Array.isArray(stateData.data)) {
+      stateData.data = stateData.data.slice(rowsToKeep);
+      stateData.dataRows = stateData.data.length;
+      modifiedState = encodeURIComponent(JSON.stringify(stateData));
+      
+      console.log(`✂️ Modified state: removing first ${rowsToKeep} rows, keeping ${stateData.data.length} rows`);
+    }
+  } catch (error) {
+    console.error('❌ Error parsing/modifying state:', error);
+  }
+}
+
+// Create NEW component with MODIFIED state
+const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+const fullTableHTML = component.toHTML();
+
+const newComponentConfig = {
+  type: component.get('type') || 'default',
+  tagName: component.get('tagName') || 'div',
+  content: fullTableHTML,
+  attributes: {
+    ...component.getAttributes(),
+    'data-continuation-table': 'true',
+    'data-original-table-id': tableId,
+    'data-rows-kept': rowsToKeep
+  },
+  classes: [...(component.getClasses() || [])],
+  style: { ...component.getStyle() }
+};
+
+// ✅ Apply modified state if we have it
+if (modifiedState) {
+  newComponentConfig.attributes['data-json-state'] = modifiedState;
+}
+
+const newComponent = this.editor.Components.addComponent(newComponentConfig);
+
+// ✅ Verify the continuation table was created correctly
+setTimeout(() => {
+  const newCompEl = newComponent.getEl();
+  if (newCompEl) {
+    const newTable = newCompEl.querySelector('table') || newCompEl;
+    const newTbody = newTable.querySelector('tbody');
+    
+    if (newTbody) {
+      const actualRows = newTbody.rows.length;
+      const expectedRows = rows.length - rowsToKeep;
+      
+      console.log(`✅ Continuation table verification:
+        - Expected rows: ${expectedRows}
+        - Actual rows: ${actualRows}
+        - Match: ${actualRows === expectedRows ? '✅' : '❌'}`);
+      
+      if (actualRows !== expectedRows) {
+        console.error('❌ Row count mismatch! State modification may have failed.');
+      }
+    }
+  }
+}, 500);
+
+    // ✅ Reinitialize DataTable on kept portion
     if (dtSettings && tableId) {
       setTimeout(() => {
-        // Reinit kept table
         if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
           $(`#${tableId}`).DataTable().destroy();
         }
         $(`#${tableId}`).DataTable({
-          paging: false, // Disable paging on split tables
-          pageLength: dtSettings.pageLength,
-          searching: false, // Disable search on split tables
+          paging: false,
+          searching: false,
           ordering: false,
-          info: false // Disable info on split tables
+          info: false
         });
 
-        console.log('🔁 Reinitialized DataTable on kept portion');
+        console.log('🔁 Reinitialized kept table');
       }, 500);
     }
 
-    console.log(`✅ Table split successful - kept ${rowsToKeep} rows, moved ${rowsToMove.length} rows`);
-    return { keepComponent: component, moveComponent: newComponent };
+    console.log(`✅ Table split successful - kept ${rowsToKeep} rows, continuation has ${rows.length - rowsToKeep} rows`);
+    return {
+      keepComponent: component,
+      moveComponent: newComponent,
+      keptRowCount: rowsToKeep,
+      movedRowCount: rows.length - rowsToKeep
+    };
 
   } catch (error) {
     console.error('❌ Error splitting table:', error);
-    return { keepComponent: null, moveComponent: component };
+    return {
+      keepComponent: null,
+      moveComponent: component,
+      keptRowCount: 0,
+      movedRowCount: 0
+    };
   }
 }
 
 
   splitLargeComponent(component, availableSpace) {
-    debugger
+
     console.log('splitLargeComponent ====');
     const compEl = component.getEl();
 
@@ -1306,12 +1345,11 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
               compEl.classList.contains('json-data-table'));
 
           // ✅ Handle table components
-          // ✅ Handle table components
           if (isTable) {
             console.log(`📊 Handling table component ${index}`);
 
             // Check if this is a split table continuation
-            const isSplitTable = component.getAttributes()['data-split-table'] === 'true';
+            const isSplitTable = component.getAttributes()['data-split-table'] === 'continuation';
 
             let dtData = null;
             const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
@@ -1343,7 +1381,7 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
               }
 
               // Find nested table
-              const tableEl = newEl.querySelector('.json-table-wrapper table') || newEl.querySelector('table');
+              const tableEl = newEl.querySelector('table') || newEl;
               if (!tableEl) {
                 console.warn("⚠️ No <table> element found inside new component!");
                 return;
@@ -1371,7 +1409,7 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
 
               // Reinitialize DataTable if needed
               if (dtData) {
-                const newTableEl = tableEl;
+                const newTableEl = newEl.querySelector('table') || newEl;
                 if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
                   $(newTableEl).DataTable({
                     data: dtData.data,
@@ -1382,6 +1420,20 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
                     info: false
                   });
                   console.log('🔁 Reinitialized DataTable');
+                }
+              } else {
+                const newTableEl = newEl.querySelector('table') || newEl;
+                if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+                  if ($.fn.DataTable.isDataTable(newTableEl)) {
+                    $(newTableEl).DataTable().destroy();
+                  }
+                  $(newTableEl).DataTable({
+                    paging: false,
+                    searching: false,
+                    ordering: false,
+                    info: false
+                  });
+                  console.log('🔁 Initialized new DataTable on moved/continuation table');
                 }
               }
             }, 400);
@@ -1501,13 +1553,13 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
       }
 
       // Reconnect observer
-      setTimeout(() => this.setupPageObserver(targetPageIndex), 400);
+      setTimeout(() => {
+        this.setupPageObserver(targetPageIndex);
+      }, 300);
 
-      console.log(`✅ Moved ${moved} component(s) to page ${targetPageIndex}`);
       return moved > 0;
-
     } catch (error) {
-      console.error(`❌ moveComponentsToPage failed:`, error);
+      console.error('❌ Error in moveComponentsToPage:', error);
       return false;
     }
   }
@@ -1728,7 +1780,7 @@ handleTableSplit(component, compEl, remainingSpace, maxHeight) {
     console.log(`✅ Restored editability for ${allCells.length} cells`);
   }
   checkPageForOverflow(pageIndex) {
-    debugger;
+
     console.log('🟢 checkPageForOverflow:', pageIndex);
 
     // Run basic page break handler first

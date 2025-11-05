@@ -46,6 +46,7 @@ window.editor = InteractiveDesigner.init({
     newComponents,
     object,
     customTabWithNav,
+    customImage,
     "image-editor-component",
     "zip-export-component",
     "custom-code-component",
@@ -1040,17 +1041,17 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   console.log("👉 Payload (inputJsonMappings):", JSON.stringify(inputJsonMappings, null, 2));
   console.log("👉 Final HTML being sent:\n", finalHtml);
 
-  try {
-    const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
-    const debugLink = document.createElement("a");
-    debugLink.href = debugUrl;
-    debugLink.download = exportType === "pdf" ? "sent_to_api_pdf.html" : "sent_to_api_html.html";
-    debugLink.click();
-    URL.revokeObjectURL(debugUrl);
-    console.log("💾 Debug copy of HTML downloaded for verification");
-  } catch (err) {
-    console.warn("⚠️ Could not auto-download debug HTML:", err);
-  }
+  // try {
+  //   const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+  //   const debugLink = document.createElement("a");
+  //   debugLink.href = debugUrl;
+  //   debugLink.download = exportType === "pdf" ? "sent_to_api_pdf.html" : "sent_to_api_html.html";
+  //   debugLink.click();
+  //   URL.revokeObjectURL(debugUrl);
+  //   console.log("💾 Debug copy of HTML downloaded for verification");
+  // } catch (err) {
+  //   console.warn("⚠️ Could not auto-download debug HTML:", err);
+  // }
 
   const response = await fetch(apiUrl, { method: "POST", body: formData });
 
@@ -2299,7 +2300,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //               box-shadow: none !important;
 //               border: none !important;
 //               width: 100% !important;
-//               height:297mm !important;
+//               height:1027px !important;
 //               display: block !important;
 //               overflow: visible !important;
 //             }
@@ -2570,9 +2571,8 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 //   return tempDiv.innerHTML;
 // }
 
-
 async function generatePrintDialog() {
-  const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadHtmlToPdf";
+  const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadHtmlToPdf";
 
   // Get GrapesJS HTML & CSS
   const html = editor.getHtml();
@@ -2992,13 +2992,14 @@ async function generatePrintDialog() {
 
 
 
-// Attach event listener to button
 var el = document.getElementById("exportPDF");
 if (el) {
   el.addEventListener("click", generatePrintDialog, true);
 }
 
-// Preserve all existing functionality
+
+
+
 var singlePageData = JSON.parse(sessionStorage.getItem("single-page")) || {};
 if (Object.keys(singlePageData).length > 0) {
   editor.setComponents(singlePageData);
