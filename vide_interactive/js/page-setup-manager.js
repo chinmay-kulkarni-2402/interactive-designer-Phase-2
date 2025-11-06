@@ -2439,6 +2439,34 @@ setTimeout(() => {
   initSharedRegionSync() {
     const editor = this.editor
     if (!editor) return
+// ⬇️ place immediately after you set this.editor = editor (and pass the early-return)
+if (!this._patchedGetCss) {
+  const originalGetCss = editor.getCss.bind(editor);
+  editor.getCss = (opts = {}) => {
+    const raw = originalGetCss(opts);
+
+    // strip any existing @page to avoid duplicates from styles/components
+    const cleaned = raw.replace(/@page\s*{[^}]*}/g, '').trim();
+
+    const ps = this.pageSettings || {};
+    const format = (ps.format || 'a4').toUpperCase();
+    const orientation = (ps.orientation || 'portrait').toLowerCase();
+    const m = ps.margins || { top: 0, right: 0, bottom: 0, left: 0 };
+
+    // Use named sizes for standard formats; fallback to mm only for custom
+    const sizeValue = format === 'CUSTOM'
+      ? (orientation === 'landscape'
+          ? `${ps.height}mm ${ps.width}mm`
+          : `${ps.width}mm ${ps.height}mm`)
+      : `${format} ${orientation}`;
+
+    const pageRule = `@page { size: ${sizeValue}; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; }`;
+
+    return `${pageRule}\n${cleaned}`;
+  };
+  this._patchedGetCss = true;
+}
+
 
     // Track sync operations to prevent infinite loops
     this._syncInProgress = false

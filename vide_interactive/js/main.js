@@ -37,7 +37,7 @@ window.editor = InteractiveDesigner.init({
     linkTrackerPlugin,
     backgroundMusic,
     // customFlowColumns,
-    // initNotificationsPlugin,
+    //initNotificationsPlugin,
     subreportPlugin,
     "basic-block-component",
     "countdown-component",
@@ -2572,7 +2572,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 // }
 
 async function generatePrintDialog() {
-  const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadHtmlToPdf";
+  const apiUrl = "http://192.168.0.221:3011/api/v1/s3Upload/uploadHTML5";
 
   // Get GrapesJS HTML & CSS
   const html = editor.getHtml();
@@ -2721,9 +2721,9 @@ async function generatePrintDialog() {
     const clone = document.createElement("div");
     clone.innerHTML = html;
     const containers = Array.from(clone.querySelectorAll(".page-container"));
-    
+
     let pagesToKeep = [];
-    
+
     if (mode === "all") {
       pagesToKeep = containers.map((_, i) => i);
     } else if (mode === "odd") {
@@ -2746,14 +2746,14 @@ async function generatePrintDialog() {
       });
       pagesToKeep = [...new Set(pagesToKeep)].sort((a, b) => a - b);
     }
-    
+
     // Remove pages not in selection
     containers.forEach((container, index) => {
       if (!pagesToKeep.includes(index)) {
         container.remove();
       }
     });
-    
+
     return clone.innerHTML;
   }
 
@@ -2839,7 +2839,7 @@ async function generatePrintDialog() {
     const custom = customInput.value;
     const filteredBodyHtml = getFilteredHtml(mode, custom);
     const finalHtml = buildFinalHtml(filteredBodyHtml);
-    
+
     const blob = new Blob([finalHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     iframe.src = url;
@@ -2861,7 +2861,7 @@ async function generatePrintDialog() {
 
   generateBtn.addEventListener("click", async () => {
     modal.remove();
-    
+
     // Show loading overlay
     let overlay = document.createElement("div");
     overlay.id = "pdf-loading-overlay";
@@ -2886,7 +2886,7 @@ async function generatePrintDialog() {
       const mode = modeSelect.value;
       const custom = customInput.value;
       const filteredBodyHtml = getFilteredHtml(mode, custom);
-      
+
       // Remove margin and box-shadow from page-container IDs in CSS
       const tempContainer = document.createElement("div");
       tempContainer.innerHTML = filteredBodyHtml;
@@ -2894,18 +2894,18 @@ async function generatePrintDialog() {
       const idsToClean = Array.from(remainingPageContainers)
         .filter(el => el.id)
         .map(el => el.id);
-      
+
       let cleanedCss = css;
       idsToClean.forEach(id => {
         // Remove margin property
         const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
         cleanedCss = cleanedCss.replace(marginRegex, "$1");
-        
+
         // Remove box-shadow property
         const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
         cleanedCss = cleanedCss.replace(boxShadowRegex, "$1");
       });
-      
+
       // Handle Subreport Embedding
       const subreports = tempContainer.querySelectorAll('.subreport-container');
       for (const sub of subreports) {
@@ -2934,7 +2934,7 @@ async function generatePrintDialog() {
           }
         }
       }
-      
+
       const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss);
 
       // Debug download
@@ -2952,30 +2952,86 @@ async function generatePrintDialog() {
       }
 
       // Send to backend
-      const formData = new FormData();
-      formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
+// Send to backend
+const formData = new FormData();
 
-      console.log("🚀 Sending HTML to PDF API:", apiUrl);
+// 🔍 Extract @page rule from CSS
+let pageSize = null;
+let orientation = null;
+let width = null;
+let height = null;
 
-      const response = await fetch(apiUrl, { method: "POST", body: formData });
-      if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
+if (pageRuleMatch) {
+  const rule = pageRuleMatch[0];
 
-      const blob = await response.blob();
-      const contentType = response.headers.get("Content-Type");
+  // Example: size: A4 portrait; OR size: 400mm 600mm;
+  const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
+  if (sizeMatch) {
+    const sizeValue = sizeMatch[1].trim();
 
-      if (contentType && contentType.includes("pdf")) {
-        const pdfUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = pdfUrl;
-        a.download = "generated.pdf";
-        a.click();
-        URL.revokeObjectURL(pdfUrl);
-
-        console.log("✅ PDF download triggered successfully!");
-      } else {
-        console.warn("⚠️ Unexpected response type:", contentType);
-        alert("Unexpected response from server, PDF not received.");
+    // Check if standard format like A3, A4, etc.
+    const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
+    if (standardMatch) {
+      pageSize = standardMatch[1].toUpperCase();
+      orientation = (standardMatch[2] || "portrait").toLowerCase();
+    } else {
+      // Custom dimensions like 400mm 600mm or 900px 1400px
+      const parts = sizeValue.split(/\s+/);
+      if (parts.length >= 2) {
+        width = parts[0].trim();
+        height = parts[1].trim();
       }
+    }
+  }
+}
+
+// 🧩 Build payload only if @page found
+let hasPayload = false;
+let payload = {};
+
+if (pageRuleMatch) {
+  if (pageSize) {
+    payload = { pageSize, orientation: orientation || "portrait" };
+    hasPayload = true;
+  } else if (width && height) {
+    payload = { width, height };
+    hasPayload = true;
+  }
+}
+
+if (hasPayload) {
+  console.log("🧾 Extracted payload:", payload);
+  formData.append("payload", JSON.stringify(payload));
+} else {
+  console.log("⚠️ No @page rule found — skipping payload");
+}
+
+// Attach HTML file
+formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
+
+console.log("🚀 Sending HTML to PDF API:", apiUrl);
+
+const response = await fetch(apiUrl, { method: "POST", body: formData });
+if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+const blob = await response.blob();
+const contentType = response.headers.get("Content-Type");
+
+if (contentType && contentType.includes("pdf")) {
+  const pdfUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = pdfUrl;
+  a.download = "generated.pdf";
+  a.click();
+  URL.revokeObjectURL(pdfUrl);
+  console.log("✅ PDF download triggered successfully!");
+} else {
+  console.warn("⚠️ Unexpected response type:", contentType);
+  alert("Unexpected response from server, PDF not received.");
+}
+
+
     } catch (err) {
       console.error("❌ Error generating PDF:", err);
       alert("Failed to generate PDF. Check console for details.");
