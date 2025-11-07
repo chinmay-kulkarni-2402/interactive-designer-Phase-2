@@ -892,209 +892,209 @@ class PageSetupManager {
     return true;
   }
 
-handleTableSplit(component, compEl, remainingSpace, maxHeight) {
-  console.log('🔧 handleTableSplit called');
+  handleTableSplit(component, compEl, remainingSpace, maxHeight) {
+    console.log('🔧 handleTableSplit called');
 
-  // Find the actual table element
-  let tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
+    // Find the actual table element
+    let tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
 
-  if (!tableEl) {
-    console.warn('⚠️ No table element found, moving entire component');
-    return { keepComponent: null, moveComponent: component };
-  }
-
-  const tbody = tableEl.querySelector('tbody');
-  if (!tbody || tbody.rows.length === 0) {
-    console.warn('⚠️ No tbody or rows found, moving entire component');
-    return { keepComponent: null, moveComponent: component };
-  }
-
-  // ✅ Account for DataTables wrapper and controls
-  const dtWrapper = compEl.querySelector('.dataTables_wrapper');
-  const dtInfo = dtWrapper?.querySelector('.dataTables_info');
-  const dtPaginate = dtWrapper?.querySelector('.dataTables_paginate');
-  const dtButtons = dtWrapper?.querySelector('.dt-buttons');
-
-  let controlsHeight = 0;
-  if (dtInfo) controlsHeight += dtInfo.offsetHeight + 10;
-  if (dtPaginate) controlsHeight += dtPaginate.offsetHeight + 10;
-  if (dtButtons) controlsHeight += dtButtons.offsetHeight + 10;
-
-  // Calculate how many COMPLETE rows can fit
-  const rows = Array.from(tbody.rows);
-  const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
-  const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
-
-  const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 50;
-
-  if (availableHeight < 100) {
-    console.log('⚠️ Not enough space for table rows, moving entire table');
-    return { keepComponent: null, moveComponent: component };
-  }
-
-  let accumulatedRowHeight = 0;
-  let rowsToKeep = 0;
-
-  for (let i = 0; i < rows.length; i++) {
-    const rowHeight = rows[i].offsetHeight;
-
-    if (accumulatedRowHeight + rowHeight <= availableHeight) {
-      accumulatedRowHeight += rowHeight;
-      rowsToKeep++;
-    } else {
-      break;
-    }
-  }
-
-  const MIN_ROWS_TO_SPLIT = 3;
-  if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
-    console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
-    return { keepComponent: null, moveComponent: component };
-  }
-
-  if (rowsToKeep === rows.length) {
-    console.log('✅ All table rows fit on current page');
-    return { keepComponent: component, moveComponent: null };
-  }
-
-  console.log(`📊 Splitting table: ${rowsToKeep} rows on current page, ${rows.length - rowsToKeep} rows to next page`);
-
-  try {
-    // ✅ Store DataTable settings
-    let dtSettings = null;
-    const tableId = tableEl.id;
-    if (tableId && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
-      const dt = $(`#${tableId}`).DataTable();
-      dtSettings = {
-        paging: dt.page.info().length !== -1,
-        pageLength: dt.page.info().length,
-        searching: dt.settings()[0].oFeatures.bFilter,
-        ordering: dt.settings()[0].aaSorting,
-        buttons: dt.buttons().context[0]?.inst?.s?.buttons || []
-      };
-      dt.destroy();
+    if (!tableEl) {
+      console.warn('⚠️ No table element found, moving entire component');
+      return { keepComponent: null, moveComponent: component };
     }
 
-    // ✅ Remove rows from ORIGINAL table that should move
-    const rowsToRemove = rows.slice(rowsToKeep);
-    rowsToRemove.forEach(row => {
-      if (row.parentNode) {
-        row.parentNode.removeChild(row);
+    const tbody = tableEl.querySelector('tbody');
+    if (!tbody || tbody.rows.length === 0) {
+      console.warn('⚠️ No tbody or rows found, moving entire component');
+      return { keepComponent: null, moveComponent: component };
+    }
+
+    // ✅ Account for DataTables wrapper and controls
+    const dtWrapper = compEl.querySelector('.dataTables_wrapper');
+    const dtInfo = dtWrapper?.querySelector('.dataTables_info');
+    const dtPaginate = dtWrapper?.querySelector('.dataTables_paginate');
+    const dtButtons = dtWrapper?.querySelector('.dt-buttons');
+
+    let controlsHeight = 0;
+    if (dtInfo) controlsHeight += dtInfo.offsetHeight + 10;
+    if (dtPaginate) controlsHeight += dtPaginate.offsetHeight + 10;
+    if (dtButtons) controlsHeight += dtButtons.offsetHeight + 10;
+
+    // Calculate how many COMPLETE rows can fit
+    const rows = Array.from(tbody.rows);
+    const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
+    const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
+
+    const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 50;
+
+    if (availableHeight < 100) {
+      console.log('⚠️ Not enough space for table rows, moving entire table');
+      return { keepComponent: null, moveComponent: component };
+    }
+
+    let accumulatedRowHeight = 0;
+    let rowsToKeep = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const rowHeight = rows[i].offsetHeight;
+
+      if (accumulatedRowHeight + rowHeight <= availableHeight) {
+        accumulatedRowHeight += rowHeight;
+        rowsToKeep++;
+      } else {
+        break;
       }
-    });
-
-    // Update the component's HTML
-    const updatedTableHTML = compEl.outerHTML;
-    component.set('content', updatedTableHTML);
-
-    if (component.view) {
-      component.view.render();
     }
 
-// ✅ CRITICAL FIX: Modify the JSON state data BEFORE creating new component
-const originalStateAttr = component.getAttributes()['data-json-state'];
-let modifiedState = null;
-
-if (originalStateAttr) {
-  try {
-    const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
-    
-    // If customData exists, remove first N rows
-    if (stateData.data && Array.isArray(stateData.data)) {
-      stateData.data = stateData.data.slice(rowsToKeep);
-      stateData.dataRows = stateData.data.length;
-      modifiedState = encodeURIComponent(JSON.stringify(stateData));
-      
-      console.log(`✂️ Modified state: removing first ${rowsToKeep} rows, keeping ${stateData.data.length} rows`);
+    const MIN_ROWS_TO_SPLIT = 3;
+    if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
+      console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
+      return { keepComponent: null, moveComponent: component };
     }
-  } catch (error) {
-    console.error('❌ Error parsing/modifying state:', error);
-  }
-}
 
-// Create NEW component with MODIFIED state
-const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-const fullTableHTML = component.toHTML();
+    if (rowsToKeep === rows.length) {
+      console.log('✅ All table rows fit on current page');
+      return { keepComponent: component, moveComponent: null };
+    }
 
-const newComponentConfig = {
-  type: component.get('type') || 'default',
-  tagName: component.get('tagName') || 'div',
-  content: fullTableHTML,
-  attributes: {
-    ...component.getAttributes(),
-    'data-continuation-table': 'true',
-    'data-original-table-id': tableId,
-    'data-rows-kept': rowsToKeep
-  },
-  classes: [...(component.getClasses() || [])],
-  style: { ...component.getStyle() }
-};
+    console.log(`📊 Splitting table: ${rowsToKeep} rows on current page, ${rows.length - rowsToKeep} rows to next page`);
 
-// ✅ Apply modified state if we have it
-if (modifiedState) {
-  newComponentConfig.attributes['data-json-state'] = modifiedState;
-}
+    try {
+      // ✅ Store DataTable settings
+      let dtSettings = null;
+      const tableId = tableEl.id;
+      if (tableId && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
+        const dt = $(`#${tableId}`).DataTable();
+        dtSettings = {
+          paging: dt.page.info().length !== -1,
+          pageLength: dt.page.info().length,
+          searching: dt.settings()[0].oFeatures.bFilter,
+          ordering: dt.settings()[0].aaSorting,
+          buttons: dt.buttons().context[0]?.inst?.s?.buttons || []
+        };
+        dt.destroy();
+      }
 
-const newComponent = this.editor.Components.addComponent(newComponentConfig);
+      // ✅ Remove rows from ORIGINAL table that should move
+      const rowsToRemove = rows.slice(rowsToKeep);
+      rowsToRemove.forEach(row => {
+        if (row.parentNode) {
+          row.parentNode.removeChild(row);
+        }
+      });
 
-// ✅ Verify the continuation table was created correctly
-setTimeout(() => {
-  const newCompEl = newComponent.getEl();
-  if (newCompEl) {
-    const newTable = newCompEl.querySelector('table') || newCompEl;
-    const newTbody = newTable.querySelector('tbody');
-    
-    if (newTbody) {
-      const actualRows = newTbody.rows.length;
-      const expectedRows = rows.length - rowsToKeep;
-      
-      console.log(`✅ Continuation table verification:
+      // Update the component's HTML
+      const updatedTableHTML = compEl.outerHTML;
+      component.set('content', updatedTableHTML);
+
+      if (component.view) {
+        component.view.render();
+      }
+
+      // ✅ CRITICAL FIX: Modify the JSON state data BEFORE creating new component
+      const originalStateAttr = component.getAttributes()['data-json-state'];
+      let modifiedState = null;
+
+      if (originalStateAttr) {
+        try {
+          const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
+
+          // If customData exists, remove first N rows
+          if (stateData.data && Array.isArray(stateData.data)) {
+            stateData.data = stateData.data.slice(rowsToKeep);
+            stateData.dataRows = stateData.data.length;
+            modifiedState = encodeURIComponent(JSON.stringify(stateData));
+
+            console.log(`✂️ Modified state: removing first ${rowsToKeep} rows, keeping ${stateData.data.length} rows`);
+          }
+        } catch (error) {
+          console.error('❌ Error parsing/modifying state:', error);
+        }
+      }
+
+      // Create NEW component with MODIFIED state
+      const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const fullTableHTML = component.toHTML();
+
+      const newComponentConfig = {
+        type: component.get('type') || 'default',
+        tagName: component.get('tagName') || 'div',
+        content: fullTableHTML,
+        attributes: {
+          ...component.getAttributes(),
+          'data-continuation-table': 'true',
+          'data-original-table-id': tableId,
+          'data-rows-kept': rowsToKeep
+        },
+        classes: [...(component.getClasses() || [])],
+        style: { ...component.getStyle() }
+      };
+
+      // ✅ Apply modified state if we have it
+      if (modifiedState) {
+        newComponentConfig.attributes['data-json-state'] = modifiedState;
+      }
+
+      const newComponent = this.editor.Components.addComponent(newComponentConfig);
+
+      // ✅ Verify the continuation table was created correctly
+      setTimeout(() => {
+        const newCompEl = newComponent.getEl();
+        if (newCompEl) {
+          const newTable = newCompEl.querySelector('table') || newCompEl;
+          const newTbody = newTable.querySelector('tbody');
+
+          if (newTbody) {
+            const actualRows = newTbody.rows.length;
+            const expectedRows = rows.length - rowsToKeep;
+
+            console.log(`✅ Continuation table verification:
         - Expected rows: ${expectedRows}
         - Actual rows: ${actualRows}
         - Match: ${actualRows === expectedRows ? '✅' : '❌'}`);
-      
-      if (actualRows !== expectedRows) {
-        console.error('❌ Row count mismatch! State modification may have failed.');
-      }
-    }
-  }
-}, 500);
 
-    // ✅ Reinitialize DataTable on kept portion
-    if (dtSettings && tableId) {
-      setTimeout(() => {
-        if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
-          $(`#${tableId}`).DataTable().destroy();
+            if (actualRows !== expectedRows) {
+              console.error('❌ Row count mismatch! State modification may have failed.');
+            }
+          }
         }
-        $(`#${tableId}`).DataTable({
-          paging: false,
-          searching: false,
-          ordering: false,
-          info: false
-        });
-
-        console.log('🔁 Reinitialized kept table');
       }, 500);
+
+      // ✅ Reinitialize DataTable on kept portion
+      if (dtSettings && tableId) {
+        setTimeout(() => {
+          if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
+            $(`#${tableId}`).DataTable().destroy();
+          }
+          $(`#${tableId}`).DataTable({
+            paging: false,
+            searching: false,
+            ordering: false,
+            info: false
+          });
+
+          console.log('🔁 Reinitialized kept table');
+        }, 500);
+      }
+
+      console.log(`✅ Table split successful - kept ${rowsToKeep} rows, continuation has ${rows.length - rowsToKeep} rows`);
+      return {
+        keepComponent: component,
+        moveComponent: newComponent,
+        keptRowCount: rowsToKeep,
+        movedRowCount: rows.length - rowsToKeep
+      };
+
+    } catch (error) {
+      console.error('❌ Error splitting table:', error);
+      return {
+        keepComponent: null,
+        moveComponent: component,
+        keptRowCount: 0,
+        movedRowCount: 0
+      };
     }
-
-    console.log(`✅ Table split successful - kept ${rowsToKeep} rows, continuation has ${rows.length - rowsToKeep} rows`);
-    return {
-      keepComponent: component,
-      moveComponent: newComponent,
-      keptRowCount: rowsToKeep,
-      movedRowCount: rows.length - rowsToKeep
-    };
-
-  } catch (error) {
-    console.error('❌ Error splitting table:', error);
-    return {
-      keepComponent: null,
-      moveComponent: component,
-      keptRowCount: 0,
-      movedRowCount: 0
-    };
   }
-}
 
 
   splitLargeComponent(component, availableSpace) {
@@ -2439,33 +2439,33 @@ setTimeout(() => {
   initSharedRegionSync() {
     const editor = this.editor
     if (!editor) return
-// ⬇️ place immediately after you set this.editor = editor (and pass the early-return)
-if (!this._patchedGetCss) {
-  const originalGetCss = editor.getCss.bind(editor);
-  editor.getCss = (opts = {}) => {
-    const raw = originalGetCss(opts);
+    // ⬇️ place immediately after you set this.editor = editor (and pass the early-return)
+    if (!this._patchedGetCss) {
+      const originalGetCss = editor.getCss.bind(editor);
+      editor.getCss = (opts = {}) => {
+        const raw = originalGetCss(opts);
 
-    // strip any existing @page to avoid duplicates from styles/components
-    const cleaned = raw.replace(/@page\s*{[^}]*}/g, '').trim();
+        // strip any existing @page to avoid duplicates from styles/components
+        const cleaned = raw.replace(/@page\s*{[^}]*}/g, '').trim();
 
-    const ps = this.pageSettings || {};
-    const format = (ps.format || 'a4').toUpperCase();
-    const orientation = (ps.orientation || 'portrait').toLowerCase();
-    const m = ps.margins || { top: 0, right: 0, bottom: 0, left: 0 };
+        const ps = this.pageSettings || {};
+        const format = (ps.format || 'a4').toUpperCase();
+        const orientation = (ps.orientation || 'portrait').toLowerCase();
+        const m = ps.margins || { top: 0, right: 0, bottom: 0, left: 0 };
 
-    // Use named sizes for standard formats; fallback to mm only for custom
-    const sizeValue = format === 'CUSTOM'
-      ? (orientation === 'landscape'
-          ? `${ps.height}mm ${ps.width}mm`
-          : `${ps.width}mm ${ps.height}mm`)
-      : `${format} ${orientation}`;
+        // Use named sizes for standard formats; fallback to mm only for custom
+        const sizeValue = format === 'CUSTOM'
+          ? (orientation === 'landscape'
+            ? `${ps.height}mm ${ps.width}mm`
+            : `${ps.width}mm ${ps.height}mm`)
+          : `${format} ${orientation}`;
 
-    const pageRule = `@page { size: ${sizeValue}; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; }`;
+        const pageRule = `@page { size: ${sizeValue}; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; }`;
 
-    return `${pageRule}\n${cleaned}`;
-  };
-  this._patchedGetCss = true;
-}
+        return `${pageRule}\n${cleaned}`;
+      };
+      this._patchedGetCss = true;
+    }
 
 
     // Track sync operations to prevent infinite loops
@@ -7929,6 +7929,39 @@ padding: 8px;
           "custom-name": "Footer"
         });
       }
+
+      // ✅✅✅ --- START OF REQUIRED FIX --- ✅✅✅
+      try {
+        const existingHeader = this.editor
+          .getWrapper()
+          .find('[data-shared-region="header"] .page-header-element')[0];
+
+        const newHeader = pageComponent.find(".page-header-element")[0];
+
+        if (existingHeader && newHeader) {
+          const clonedHeader = existingHeader.clone();
+          newHeader.components(clonedHeader.components().map(c => c.clone()));
+        }
+      } catch (e) {
+        console.warn("Header clone failed:", e);
+      }
+
+      try {
+        const existingFooter = this.editor
+          .getWrapper()
+          .find('[data-shared-region="footer"] .page-footer-element')[0];
+
+        const newFooter = pageComponent.find(".page-footer-element")[0];
+
+        if (existingFooter && newFooter) {
+          const clonedFooter = existingFooter.clone();
+          newFooter.components(clonedFooter.components().map(c => c.clone()));
+        }
+      } catch (e) {
+        console.warn("Footer clone failed:", e);
+      }
+      // ✅✅✅ --- END OF REQUIRED FIX --- ✅✅✅
+
       // Add watermark
       const pageContentComponent = pageComponent.find(".page-content")[0];
       if (pageContentComponent) {

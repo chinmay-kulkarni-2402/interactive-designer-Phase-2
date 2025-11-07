@@ -21,19 +21,12 @@ function initNotificationsPlugin(editor) {
         icons: {
             error: '✖',
             warning: '⚠',
-            success: '✔',
             info: 'ℹ',
-            debug: '•',
-            event: '⟲'
         },
         i18n: {
             error: 'Error',
             warning: 'Warning',
-            success: 'Success',
             info: 'Info',
-            debug: 'Debug',
-            event: 'Event',
-            close: 'Close'
         }
     };
 

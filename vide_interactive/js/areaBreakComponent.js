@@ -1,350 +1,492 @@
-function customFlowColumns(editor) {
-  const domc = editor.Components;
+/**
+ * GrapesJS Flow Layout (v16 - Full-Height FlowContent + Smart Drop)
+ * ---------------------------------------------------
+ * ✅ Partial overflow (only extra content moves)
+ * ✅ Live typing (no ESC)
+ * ✅ DOM + Editor sync
+ * ✅ Flow-content full height
+ * ✅ Droppable redirection into flow-content
+ * ✅ Hidden overflow restore on resize
+ *
+ * --- CRITICAL FIXES APPLIED ---
+ * 1. Optimized Node Handling: The original node is used for the visible part, and only the overflow creates a new clone.
+ * 2. Simplified Backflow: Backflow now only moves full, un-split nodes or attempts to merge the first node's content back.
+ */
 
-  // Flow Column Component (Individual Column)
-  domc.addType("flow-column", {
+function flowLayoutComponent(editor) {
+  const domc = editor.DomComponents;
+  const bm = editor.BlockManager;
+
+  const LAYOUT = "flow-layout";
+  const COL = "flow-column";
+
+  // --- Column Type ---
+  domc.addType(COL, {
     model: {
       defaults: {
-        tagName: "div",
         name: "Flow Column",
-        draggable: '[data-gjs-type="flow-columns"]',
+        tagName: "div",
         droppable: true,
-        attributes: { class: "flow-column" },
+        draggable: false,
+        removable: false,
+        style: {
+          "flex-grow": "1",
+          "flex-basis": "50%",
+          padding: "10px",
+          "box-sizing": "border-box",
+          "min-height": "100%",
+          overflow: "hidden",
+          "word-break": "break-word",
+        },
+      },
+    },
+    view: {
+      onRender() {
+        // Ensure .flow-content exists
+        if (!this.el.querySelector(".flow-content")) {
+          const flow = document.createElement("div");
+          flow.className = "flow-content";
+          flow.style.height = "100%";
+          flow.style.minHeight = "100%";
+          flow.style.boxSizing = "border-box";
+          flow.style.display = "block";
+          flow.style.position = "relative";
+          this.el.appendChild(flow);
+        }
+      },
+
+      // ✅ Redirect dropped components into .flow-content
+      appendChild(childEl) {
+        const flow = this.el.querySelector(".flow-content");
+        if (flow) flow.appendChild(childEl);
+        else this.el.appendChild(childEl);
+      },
+    },
+  });
+
+  // --- Layout Type ---
+  domc.addType(LAYOUT, {
+    isComponent(el) {
+      if (el?.classList?.contains("flow-layout")) return { type: LAYOUT };
+      if (el?.getAttribute?.("data-i_designer-type") === "flow-layout")
+        return { type: LAYOUT };
+      return false;
+    },
+
+    model: {
+      defaults: {
+        name: "Flow Layout",
+        tagName: "div",
+        droppable: false,
+        draggable: true,
+        removable: true,
+        components: [
+          { type: COL, attributes: { class: "flow-col" } },
+          { type: COL, attributes: { class: "flow-col" } },
+        ],
+        style: {
+          display: "flex",
+          "flex-direction": "row",
+          height: "300px",
+          overflow: "hidden",
+          border: "1px solid #ccc",
+          width: "100%",
+          "padding-top": "1px",
+          "padding-bottom": "1px",
+        },
         traits: [
           {
             type: "number",
-            label: "Width (%)",
-            name: "column-width",
-            placeholder: "e.g. 50",
+            label: "Columns",
+            name: "columns",
+            min: 2,
+            max: 10,
+            value: 2,
             changeProp: 1,
-            min: 10,
-            max: 100,
-            default: 50,
           },
           {
             type: "number",
             label: "Height (px)",
-            name: "column-height",
-            placeholder: "e.g. 400",
+            name: "height",
+            min: 10,
+            value: 300,
             changeProp: 1,
-            min: 100,
-            default: 400,
           },
         ],
-        style: {
-          "height": "400px",
-          "max-height": "400px",
-          "width": "50%",
-          "border": "1px solid #ddd",
-          "padding": "10px",
-          "box-sizing": "border-box",
-          "overflow": "hidden",
-          "position": "relative",
-          "page-break-inside": "avoid",
-          "break-inside": "avoid",
-          "word-wrap": "break-word",
-          "overflow-wrap": "break-word",
-        },
       },
 
       init() {
-        this.listenTo(
-          this,
-          "change:column-width change:column-height",
-          this.updateColumnStyle
-        );
-        this.listenTo(this, "component:add component:remove", this.handleContentChange);
+        this.on("change:columns", this.updateColumns);
+        this.on("change:height", this.updateHeight);
+
+        if (!this.get("columns")) this.set("columns", 2);
+        if (!this.get("height")) this.set("height", "300");
+
+        this.updateHeight();
       },
 
-      updateColumnStyle() {
-        const width = this.get("column-width") || 50;
-        const height = this.get("column-height") || 400;
-
-        this.addStyle({
-          "width": `${width}%`,
-          "height": `${height}px`,
-          "max-height": `${height}px`,
-        });
+      updateHeight() {
+        let h = parseInt(this.get("height")) || 300;
+        if (h < 10) h = 10;
+        this.set("height", h);
+        this.addStyle({ height: `${h}px` });
       },
 
-      handleContentChange() {
-        const parent = this.parent();
-        if (parent && parent.get("type") === "flow-columns") {
-          setTimeout(() => {
-            parent.trigger("redistribute:content");
-          }, 100);
+      updateColumns() {
+        let want = parseInt(this.get("columns")) || 2;
+        if (want < 2) want = 2;
+
+        const comps = this.components();
+        const cur = comps.length;
+
+        if (want > cur) {
+          for (let i = cur; i < want; i++) {
+            comps.add({ type: COL, attributes: { class: "flow-col" } });
+          }
+        } else if (want < cur) {
+          for (let i = cur - 1; i >= want; i--) comps.at(i).remove();
         }
+
+        this.set("columns", want);
+        this.view && this.view.scheduleLayout();
       },
     },
-  });
 
-  // Flow Columns Container
-  domc.addType("flow-columns", {
-    model: {
-      defaults: {
-        tagName: "div",
-        name: "Flow Columns",
-        draggable: true,
-        droppable: false,
-        attributes: { class: "flow-columns-container" },
-        traits: [
-          {
-            type: "number",
-            label: "Number of Columns",
-            name: "columns-count",
-            changeProp: 1,
-            min: 1,
-            max: 10,
-            default: 2,
-          },
-          {
-            type: "number",
-            label: "Gap (px)",
-            name: "columns-gap",
-            placeholder: "e.g. 10",
-            changeProp: 1,
-            min: 0,
-            default: 10,
-          },
-          {
-            type: "checkbox",
-            label: "Auto Flow Content",
-            name: "auto-flow",
-            changeProp: 1,
-            default: true,
-          },
-        ],
-        style: {
-          "display": "flex",
-          "flex-direction": "row",
-          "gap": "10px",
-          "width": "100%",
-          "min-height": "400px",
-          "padding": "10px",
-          "box-sizing": "border-box",
-          "page-break-inside": "avoid",
-          "break-inside": "avoid",
-        },
-        components: [],
-      },
-
+    // --- View ---
+    view: {
       init() {
-        this.listenTo(
-          this,
-          "change:columns-count change:columns-gap",
-          this.updateContainerStyle
+        this.isLayingOut = false;
+        this.debounceTimer = null;
+
+        this.listenTo(this.model.components(), "add remove", () =>
+          this.scheduleLayout()
         );
-        this.listenTo(this, "redistribute:content", this.redistributeContent);
-
-        const numCols = this.get("columns-count") || 2;
-        this.initializeColumns(numCols);
       },
 
-      updateContainerStyle() {
-        const gap = this.get("columns-gap") || 10;
-        const numCols = this.get("columns-count") || 2;
-
-        this.addStyle({
-          "gap": `${gap}px`,
-        });
-
-        this.updateColumnCount(numCols);
+      onRender() {
+        this.ensureStructure();
+        this.attachObservers();
+        this.scheduleLayout();
+        editor.trigger("component:toggled");
       },
 
-      initializeColumns(count) {
-        const colWidth = Math.floor(100 / count);
-        for (let i = 0; i < count; i++) {
-          this.append({
-            type: "flow-column",
-            "column-width": colWidth,
-            "column-height": 400,
-          });
-        }
-      },
+      // ✅ Ensure flow-content and hidden area exist, full height
+      ensureStructure() {
+        const cols = this.el.querySelectorAll(".flow-col");
 
-      updateColumnCount(count) {
-        const currentColumns = this.components().length;
-
-        if (currentColumns < count) {
-          const colWidth = Math.floor(100 / count);
-          for (let i = currentColumns; i < count; i++) {
-            this.append({
-              type: "flow-column",
-              "column-width": colWidth,
-              "column-height": 400,
-            });
+        cols.forEach((col) => {
+          let flow = col.querySelector(".flow-content");
+          if (!flow) {
+            flow = document.createElement("div");
+            flow.className = "flow-content";
+            flow.style.height = "100%";
+            flow.style.minHeight = "100%";
+            flow.style.boxSizing = "border-box";
+            flow.style.display = "block";
+            flow.style.position = "relative";
+            col.insertBefore(flow, col.firstChild);
           }
-        } else if (currentColumns > count) {
-          const toRemove = currentColumns - count;
-          for (let i = 0; i < toRemove; i++) {
-            const lastCol = this.components().at(this.components().length - 1);
-            if (lastCol) lastCol.remove();
+
+          let hidden = col.querySelector(".overflow-hidden-content");
+          if (!hidden) {
+            hidden = document.createElement("div");
+            hidden.className = "overflow-hidden-content";
+            hidden.style.display = "none";
+            col.appendChild(hidden);
           }
-        }
 
-        this.equalizeColumnWidths();
-      },
-
-      equalizeColumnWidths() {
-        const columns = this.components();
-        const count = columns.length;
-        if (count === 0) return;
-
-        const equalWidth = Math.floor(100 / count);
-        columns.each((col) => {
-          col.set("column-width", equalWidth);
-          col.updateColumnStyle();
+          // ✅ Move extra direct children inside .flow-content
+          const extras = Array.from(col.children).filter(
+            (ch) =>
+              !ch.classList.contains("flow-content") &&
+              !ch.classList.contains("overflow-hidden-content")
+          );
+          extras.forEach((node) => flow.appendChild(node));
         });
       },
 
-      redistributeContent() {
-        if (!this.get("auto-flow")) return;
+      attachObservers() {
+        const el = this.el;
+        let typing = false;
+        let typingTimer;
 
-        const columns = this.components().models;
-        if (columns.length === 0) return;
-
-        setTimeout(() => {
-          const columnsEls = columns.map(col => col.getEl()).filter(el => el);
-          if (columnsEls.length === 0) return;
-          
-          this.distributeContentAcrossColumns(columns, columnsEls);
-        }, 200);
-      },
-
-      distributeContentAcrossColumns(columns, columnsEls) {
-        let allContent = [];
-
-        columns.forEach((col) => {
-          const colComponents = col.components().models;
-          allContent = allContent.concat(colComponents);
+        el.addEventListener("focusin", (e) => {
+          if (e.target?.getAttribute("contenteditable") === "true") {
+            typing = true;
+            clearTimeout(typingTimer);
+          }
         });
 
-        columns.forEach((col) => col.components(""));
+        el.addEventListener("input", (e) => {
+          if (e.target?.getAttribute("contenteditable") === "true") {
+            typing = true;
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+              typing = false;
+              this.scheduleLayout();
+            }, 1200);
+          } else {
+            this.scheduleLayout();
+          }
+        });
 
-        let currentColumnIndex = 0;
+        el.addEventListener("focusout", () => {
+          typing = false;
+          clearTimeout(typingTimer);
+          this.scheduleLayout();
+        });
 
-        for (let i = 0; i < allContent.length; i++) {
-          if (currentColumnIndex >= columns.length) {
-            this.addOverflowIndicator(columns[columns.length - 1]);
+        this.mutObs = new MutationObserver(() => {
+          if (typing) return;
+          this.scheduleLayout();
+        });
+
+        this.mutObs.observe(el, { childList: true, subtree: true, characterData: true });
+
+        this.resizeObs = new ResizeObserver(() => {
+          if (!typing) this.scheduleLayout();
+        });
+
+        this.resizeObs.observe(el);
+      },
+
+      scheduleLayout() {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => this.layoutFlow(), 200);
+      },
+
+      // --- HELPER: Splits HTML content by pixel height (Preserves HTML) ---
+      splitHTMLByHeight(html, availableHeight, colWidth) {
+        const temp = document.createElement("div");
+        temp.style.width = `${colWidth}px`;
+        temp.style.position = "absolute";
+        temp.style.visibility = "hidden";
+        temp.style.top = "0";
+        temp.style.left = "0";
+        temp.style.whiteSpace = "normal";
+        temp.style.wordBreak = "break-word";
+        document.body.appendChild(temp);
+
+        let visible = "";
+        let overflow = "";
+
+        // 1. Tokenize HTML
+        const parts = html
+          .replace(/<br\s*\/?>/gi, " [[BR]] ")
+          .replace(/&nbsp;/gi, " [[NBSP]] ")
+          .split(/(\s+|\[\[BR\]\]|\[\[NBSP\]\]|<[^>]+>)/)
+          .filter((t) => t !== "");
+
+        let triggered = false;
+
+        for (let i = 0; i < parts.length; i++) {
+          visible += parts[i];
+
+          temp.innerHTML = visible
+            .replace(/\[\[BR\]\]/g, "<br>")
+            .replace(/\[\[NBSP\]\]/g, "&nbsp;");
+
+          if (temp.scrollHeight > availableHeight) {
+            overflow = parts.slice(i).join("");
+            visible = parts.slice(0, i).join("");
+            triggered = true;
             break;
           }
+        }
 
-          const currentColumn = columns[currentColumnIndex];
-          const currentContent = allContent[i];
-          const colEl = columnsEls[currentColumnIndex];
+        document.body.removeChild(temp);
 
-          const scrollBefore = colEl ? colEl.scrollHeight : 0;
-          const clientHeight = colEl ? colEl.clientHeight : 0;
+        const restore = (s) =>
+          s.replace(/\[\[BR\]\]/g, "<br>").replace(/\[\[NBSP\]\]/g, "&nbsp;");
 
-          currentColumn.append(currentContent);
+        if (!triggered) return { visibleHTML: html, overflowHTML: "" };
 
-          setTimeout(() => {}, 50);
+        return { visibleHTML: restore(visible), overflowHTML: restore(overflow) };
+      },
 
-          const scrollAfter = colEl ? colEl.scrollHeight : 0;
+      // --- Main layout + split ---
+      layoutFlow() {
+        const active = document.activeElement;
+        if (active?.getAttribute?.("contenteditable") === "true") return;
+        if (this.isLayingOut) return;
 
-          if (scrollAfter > clientHeight + 5) {
-            currentContent.remove();
-            currentColumnIndex++;
-            i--;
+        this.isLayingOut = true;
+        this.disableObservers();
+
+        try {
+          this.ensureStructure();
+
+          const layoutHeight =
+            this.el.querySelector(".flow-col")?.offsetHeight || this.el.offsetHeight;
+          const cols = Array.from(this.el.querySelectorAll(".flow-col"));
+          if (!cols.length) return;
+
+          // Gather all nodes
+          const all = [];
+          cols.forEach((col) => {
+            const flow = col.querySelector(".flow-content");
+            const hidden = col.querySelector(".overflow-hidden-content");
+            if (!flow) return;
+
+            const children = Array.from(flow.children);
+            children.forEach((ch) => all.push(ch));
+            flow.innerHTML = "";
+            if (hidden) hidden.innerHTML = "";
+          });
+
+          let curCol = 0;
+
+          // --- Forward pass: move overflow forward ---
+          all.forEach((node) => {
+            if (curCol >= cols.length) {
+              const lastCol = cols[cols.length - 1];
+              const hidden = lastCol.querySelector(".overflow-hidden-content");
+              if (hidden) hidden.appendChild(node);
+              return;
+            }
+
+            let flow = cols[curCol].querySelector(".flow-content");
+            const hidden = cols[curCol].querySelector(".overflow-hidden-content");
+            if (!flow) return;
+
+            flow.appendChild(node);
+
+            if (flow.scrollHeight > layoutHeight) {
+              flow.removeChild(node);
+
+              const tag = node.tagName.toLowerCase();
+              const isTextContainer =
+                ["div", "p", "span", "section", "h1", "h2", "h3"].includes(tag);
+              const hasRichContent =
+                node.innerHTML &&
+                (node.innerHTML.includes("<") || node.innerHTML.includes("&"));
+
+              if (isTextContainer && (node.textContent || hasRichContent)) {
+                const currentContentHeight = flow.scrollHeight;
+                const availableSpace = layoutHeight - currentContentHeight;
+
+                const { visibleHTML, overflowHTML } = this.splitHTMLByHeight(
+                  node.innerHTML,
+                  availableSpace,
+                  flow.clientWidth
+                );
+
+                if (visibleHTML) {
+                  node.innerHTML = visibleHTML;
+                  flow.appendChild(node);
+                }
+
+                if (overflowHTML) {
+                  const overflowNode = node.cloneNode(true);
+                  overflowNode.innerHTML = overflowHTML;
+
+                  if (cols[curCol + 1]) {
+                    cols[curCol + 1]
+                      .querySelector(".flow-content")
+                      .appendChild(overflowNode);
+                    curCol++;
+                  } else if (hidden) {
+                    hidden.appendChild(overflowNode);
+                  }
+                } else if (!visibleHTML) {
+                  if (cols[curCol + 1]) {
+                    cols[curCol + 1].querySelector(".flow-content").appendChild(node);
+                    curCol++;
+                  } else if (hidden) {
+                    hidden.appendChild(node);
+                  }
+                }
+              } else {
+                // Non-splittable content (e.g., image, complex block)
+                if (cols[curCol + 1]) {
+                  cols[curCol + 1].querySelector(".flow-content").appendChild(node);
+                  curCol++;
+                } else if (hidden) {
+                  hidden.appendChild(node);
+                }
+              }
+            }
+          });
+
+          // --- Backflow (merge available space backward) ---
+          for (let i = cols.length - 1; i > 0; i--) {
+            const curColEl = cols[i];
+            const prevColEl = cols[i - 1];
+            const flow = curColEl.querySelector(".flow-content");
+            const prevFlow = prevColEl.querySelector(".flow-content");
+            const hidden = curColEl.querySelector(".overflow-hidden-content");
+
+            // Move content from current flow to previous flow
+            if (prevFlow.scrollHeight < layoutHeight && flow.children.length > 0) {
+              const children = Array.from(flow.children);
+              for (let j = 0; j < children.length; j++) {
+                const child = children[j];
+                flow.removeChild(child);
+                prevFlow.appendChild(child);
+
+                if (prevFlow.scrollHeight > layoutHeight) {
+                  prevFlow.removeChild(child);
+                  flow.insertBefore(child, flow.firstChild);
+                  break;
+                }
+              }
+            }
+
+            // Move content from current hidden area to previous flow
+            if (
+              prevFlow.scrollHeight < layoutHeight &&
+              hidden &&
+              hidden.children.length > 0
+            ) {
+              const hiddenChildren = Array.from(hidden.children);
+              for (let j = 0; j < hiddenChildren.length; j++) {
+                const restoreNode = hiddenChildren[j];
+                hidden.removeChild(restoreNode);
+                prevFlow.appendChild(restoreNode);
+
+                if (prevFlow.scrollHeight > layoutHeight) {
+                  prevFlow.removeChild(restoreNode);
+                  hidden.insertBefore(restoreNode, hidden.firstChild);
+                  break;
+                }
+              }
+            }
           }
-        }
-
-        if (currentColumnIndex >= columns.length && allContent.length > 0) {
-          this.addOverflowIndicator(columns[columns.length - 1]);
+        } finally {
+          setTimeout(() => {
+            this.enableObservers();
+            this.isLayingOut = false;
+            editor.trigger("component:toggled");
+          }, 300);
         }
       },
 
-      addOverflowIndicator(column) {
-        const existingIndicator = column.find('.overflow-indicator')[0];
-        if (existingIndicator) return;
+      disableObservers() {
+        this.mutObs?.disconnect();
+        this.resizeObs?.disconnect();
+      },
 
-        column.addStyle({
-          "overflow": "hidden",
-        });
-
-        column.append({
-          tagName: "div",
-          attributes: { class: "overflow-indicator" },
-          content: "...",
-          style: {
-            "position": "absolute",
-            "bottom": "5px",
-            "right": "10px",
-            "background": "#fff",
-            "padding": "2px 8px",
-            "font-weight": "bold",
-            "font-size": "18px",
-            "color": "#666",
-            "z-index": "10",
-          },
-        });
+      enableObservers() {
+        const el = this.el;
+        if (this.mutObs)
+          this.mutObs.observe(el, { childList: true, subtree: true, characterData: true });
+        if (this.resizeObs) this.resizeObs.observe(el);
       },
     },
   });
 
-  // Add Block
-  editor.BlockManager.add("flow-columns", {
-    label: "Flow Columns",
+  // --- Block ---
+  bm.add("flow-layout", {
+    label: "Flow Layout",
     category: "Layout",
-    content: {
-      type: "flow-columns",
-      "columns-count": 2,
-    },
-    media: `<svg viewBox="0 0 24 24">
-      <path fill="currentColor" d="M3,3H11V21H3V3M13,3H21V10H13V3M13,12H21V21H13V12Z"/>
-    </svg>`,
+    attributes: { class: "fa fa-columns" },
+    content: { type: LAYOUT },
   });
 
-  // Add Custom Styles
-  const styleSheet = document.createElement("style");
-  styleSheet.textContent = `
-    @media print {
-      .flow-columns-container {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      
-      .flow-column {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        overflow: hidden !important;
-      }
-      
-      .overflow-indicator {
-        display: block !important;
-      }
+  editor.on("component:selected", (cmp) => {
+    if (cmp?.get("type") === "flow-layout") {
+      editor.TraitManager.render(cmp);
     }
-    
-    .flow-column {
-      border: 1px dashed #ccc;
-    }
-    
-    .flow-column:hover {
-      border-color: #3b97e3;
-      background-color: rgba(59, 151, 227, 0.05);
-    }
-    
-    .flow-columns-container {
-      outline: 2px dashed #888;
-      outline-offset: -2px;
-    }
-    
-    .flow-column * {
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      hyphens: auto;
-    }
-    
-    .flow-column img {
-      max-width: 100%;
-      height: auto;
-    }
-    
-    .flow-column table {
-      width: 100%;
-      table-layout: fixed;
-    }
-  `;
-  document.head.appendChild(styleSheet);
+  });
 }
+ 
