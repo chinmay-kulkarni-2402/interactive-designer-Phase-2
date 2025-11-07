@@ -17,7 +17,7 @@ function initNotificationsPlugin(editor) {
         timeout: 3000,
         maxNotifications: 5,
         reverse: false,
-        recordsPerPage: 10,
+        recordsPerPage: 5,
         icons: {
             error: '✖',
             warning: '⚠',
@@ -96,17 +96,48 @@ function initNotificationsPlugin(editor) {
     `;
     document.head.appendChild(style);
 
+    // ---- XLSX loader (top-level, once) ----
+    function ensureXlsxLoaded() {
+        return new Promise((resolve, reject) => {
+            if (window.XLSX) return resolve(window.XLSX);
+            const s = document.createElement('script');
+            // Use a CDN you allow inside your network; adjust if needed
+            s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+            s.onload = () => resolve(window.XLSX);
+            s.onerror = () => reject(new Error('Failed to load XLSX library'));
+            document.head.appendChild(s);
+        });
+    }
+
+    function normalizeLevel(level) {
+        const s = String(level || '').toLowerCase();
+        if (!s) return 'info';
+        if (s.startsWith('error')) return 'error';
+        if (s.startsWith('warn')) return 'warning';
+        if (s.startsWith('succ')) return 'success';
+        if (s.startsWith('info')) return 'info';
+        if (s.startsWith('debug')) return 'debug';
+        if (s.startsWith('event')) return 'event';
+        return 'info';
+    }
+
     // ====================== API helpers ======================
-    async function logToBackend({ level, message, context }) {
+    async function logToBackend({ level, message }) {
         try {
+            // Clean up control characters from message
             const cleanMessage = typeof message === 'string'
                 ? message.replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
                 : String(message);
 
             const response = await fetch(API_ENDPOINTS.logError, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ level: level || 'info', message: cleanMessage, context: context || {} })
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    level: level || 'info',
+                    message: cleanMessage
+                })
             });
 
             if (!response.ok) {
@@ -117,19 +148,30 @@ function initNotificationsPlugin(editor) {
         }
     }
 
+
     async function fetchLogsFromBackend(fromDate = null, toDate = null) {
         try {
             let url = API_ENDPOINTS.fetchLogs;
             if (fromDate && toDate) url += `?from=${fromDate}&to=${toDate}`;
-            const response = await fetch(url);
+
+            const response = await fetch(url /*, { mode: 'cors' } if needed */);
             if (!response.ok) throw new Error('Failed to fetch logs');
+
             const data = await response.json();
-            return Array.isArray(data) ? data : [];
+
+            // Accept common shapes: array, {logs: [...]}, {data: [...]}
+            if (Array.isArray(data)) return data;
+            if (data && Array.isArray(data.logs)) return data.logs;
+            if (data && Array.isArray(data.data)) return data.data;
+
+            console.warn('Unexpected logs payload shape:', data);
+            return [];
         } catch (error) {
             console.error('Error fetching logs:', error);
             throw error;
         }
     }
+
 
     // ====================== UI helpers ======================
     function createNotificationElement(notification) {
@@ -155,6 +197,40 @@ function initNotificationsPlugin(editor) {
         return notifEl;
     }
 
+    // ======================
+    // Deduplication for notifications (to prevent double display)
+    // ======================
+    const DEDUPE_WINDOW = 700; // ms
+    if (!notificationContainer._recentNotifications) notificationContainer._recentNotifications = {};
+    function makeKey(type, message) {
+        // shorten message for key (avoid extremely long keys)
+        const msg = (typeof message === 'string') ? message.slice(0, 1000) : String(message).slice(0, 1000);
+        return `${type}|${msg}`;
+    }
+
+    function shouldAllowNotification(type, message) {
+        try {
+            const key = makeKey(type, message);
+            const now = Date.now();
+            const last = notificationContainer._recentNotifications[key] || 0;
+            if (now - last < DEDUPE_WINDOW) {
+                console.debug('notifications:dedupe: suppressed duplicate', key);
+                return false;
+            }
+            notificationContainer._recentNotifications[key] = now;
+            // cleanup after some time
+            setTimeout(() => {
+                const ts = notificationContainer._recentNotifications[key];
+                if (ts && (Date.now() - ts) > (DEDUPE_WINDOW * 2)) {
+                    delete notificationContainer._recentNotifications[key];
+                }
+            }, DEDUPE_WINDOW * 2);
+            return true;
+        } catch (e) {
+            return true;
+        }
+    }
+
     function addNotification(notification) {
         const {
             type = 'info',
@@ -168,7 +244,12 @@ function initNotificationsPlugin(editor) {
             return;
         }
 
-        // mirror to backend with level + context
+        // Dedupe quick identical messages to stop double display (type + short message)
+        if (!shouldAllowNotification(type, message)) {
+            return null;
+        }
+
+        // mirror to backend with level + context (centralized single place)
         logToBackend({ level: type, message, context });
 
         const id = Date.now() + Math.random();
@@ -252,10 +333,11 @@ function initNotificationsPlugin(editor) {
         const endIndex = startIndex + notificationConfig.recordsPerPage;
         const paginatedLogs = logs.slice(startIndex, endIndex);
 
-        const colorMap = { error:'#dc3545', warning:'#ff9800', success:'#28a745', info:'#17a2b8', debug:'#6c757d', event:'#17a2b8' };
+        const colorMap = { error: '#dc3545', warning: '#ff9800', success: '#28a745', info: '#17a2b8', debug: '#6c757d', event: '#17a2b8' };
 
         return paginatedLogs.map(log => {
-            const level = (log.type || log.level || 'error').toLowerCase();
+            const level = normalizeLevel(log.type || log.level || 'info');
+
             const icon = notificationConfig.icons[level] || notificationConfig.icons.info;
             const typeLabel = notificationConfig.i18n[level] || level;
             const color = colorMap[level] || '#17a2b8';
@@ -288,6 +370,7 @@ function initNotificationsPlugin(editor) {
         let currentPage = 1;
         let fromDate = getTodayDate();
         let toDate = getTodayDate();
+        let selectedLevel = 'all';
 
         const showLoadingState = () => {
             const modalContent = `
@@ -327,8 +410,14 @@ function initNotificationsPlugin(editor) {
         };
 
         const renderModal = () => {
-            const totalPages = Math.ceil(allLogs.length / notificationConfig.recordsPerPage);
-            const notificationsList = renderNotificationLogs(allLogs, currentPage, totalPages);
+            // 1) derive filtered array based on selectedLevel
+            const filteredLogs = selectedLevel === 'all'
+                ? allLogs
+                : allLogs.filter(l => normalizeLevel(l.type || l.level || 'info') === selectedLevel);
+
+            // 2) pagination uses filteredLogs
+            const totalPages = Math.ceil(filteredLogs.length / notificationConfig.recordsPerPage);
+            const notificationsList = renderNotificationLogs(filteredLogs, currentPage, totalPages);
 
             const modalContent = `
 <div class="date-filter-container">
@@ -340,28 +429,48 @@ function initNotificationsPlugin(editor) {
     <label class="date-filter-label">To Date</label>
     <input type="date" id="filter-to-date" class="date-filter-input" value="${toDate}">
   </div>
+
+  <!-- NEW: Level filter -->
+  <div class="date-filter-group">
+    <label class="date-filter-label">Level</label>
+    <select id="level-filter-select" class="date-filter-input">
+      <option value="all" ${selectedLevel === 'all' ? 'selected' : ''}>All</option>
+      <option value="info" ${selectedLevel === 'info' ? 'selected' : ''}>Info</option>
+      <option value="warning" ${selectedLevel === 'warning' ? 'selected' : ''}>Warning</option>
+      <option value="error" ${selectedLevel === 'error' ? 'selected' : ''}>Error</option>
+      <option value="success" ${selectedLevel === 'success' ? 'selected' : ''}>Success</option>
+      <option value="debug" ${selectedLevel === 'debug' ? 'selected' : ''}>Debug</option>
+      <option value="event" ${selectedLevel === 'event' ? 'selected' : ''}>Event</option>
+    </select>
+  </div>
+
   <button id="submit-filter-btn" class="date-filter-button submit">Submit</button>
   <button id="reset-filter-btn" class="date-filter-button reset">Reset</button>
   <button id="export-excel-btn" class="date-filter-button submit">Export Excel</button>
 </div>
+
 <div style="max-height: 400px; overflow-y: auto; padding: 10px;">
   ${notificationsList}
 </div>
+
 ${totalPages > 1 ? `
   <div class="pagination-container">
     <button id="prev-page-btn" class="pagination-button" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
     <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
     <button id="next-page-btn" class="pagination-button" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
   </div>` : ''}
+
 <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; text-align: center;">
   <div style="font-size: 12px; color: #666;">
-    Total: ${allLogs.length} notification${allLogs.length !== 1 ? 's' : ''}
+    Total: ${filteredLogs.length} notification${filteredLogs.length !== 1 ? 's' : ''}
   </div>
 </div>`;
+
             editor.Modal.setContent(modalContent);
-            attachEventListeners();
-            attachExportEventListener();
+            attachEventListeners(filteredLogs, totalPages); // pass filtered state down
+            attachExportEventListener(filteredLogs);        // export what you see
         };
+
 
         const attachFilterEventListeners = () => {
             setTimeout(() => {
@@ -372,8 +481,15 @@ ${totalPages > 1 ? `
 
                 if (submitBtn) {
                     submitBtn.addEventListener('click', async () => {
-                        fromDate = fromDateInput.value;
-                        toDate = toDateInput.value;
+                        // read current UI values
+                        const nextFrom = fromDateInput.value && fromDateInput.value.trim();
+                        const nextTo = toDateInput.value && toDateInput.value.trim();
+
+                        // update state
+                        fromDate = nextFrom || '';
+                        toDate = nextTo || '';
+
+
                         currentPage = 1;
                         await loadLogs();
                     });
@@ -381,59 +497,48 @@ ${totalPages > 1 ? `
 
                 if (resetBtn) {
                     resetBtn.addEventListener('click', async () => {
-                        fromDate = getTodayDate();
-                        toDate = getTodayDate();
+                        // clear state
+                        fromDate = '';
+                        toDate = '';
+
+                        // clear UI inputs so fields are visually blank
+                        if (fromDateInput) fromDateInput.value = '';
+                        if (toDateInput) toDateInput.value = '';
+
                         currentPage = 1;
-                        await loadLogs();
+                        await loadLogs(); // fetches ALL logs because fetchLogsFromBackend only adds ?from&to when both exist
                     });
                 }
             }, 100);
         };
 
-        function attachExportEventListener() {
+
+        function attachExportEventListener(filteredLogs = []) {
             const exportBtn = document.getElementById('export-excel-btn');
             if (!exportBtn) return;
 
-            exportBtn.addEventListener('click', () => {
-                if (!allLogs || allLogs.length === 0) {
+            exportBtn.addEventListener('click', async () => {
+                const rows = Array.isArray(filteredLogs) ? filteredLogs : [];
+                if (!rows.length) {
                     alert('No notifications to export.');
                     return;
                 }
 
-                console.log("🧾 Exporting Excel Report...", allLogs);
-
-                const wsData = allLogs.map((log, index) => {
-                    const typeValue = typeof log.type === 'string'
-                        ? log.type.toUpperCase()
-                        : (log.level ? String(log.level).toUpperCase() : 'ERROR');
-
-                    const dateValue = log.date
-                        ? log.date
-                        : log.timestamp
-                            ? formatDate(log.timestamp)
-                            : '';
-
-                    const timeValue = log.time
-                        ? log.time
-                        : log.timestamp
-                            ? new Date(log.timestamp).toLocaleTimeString()
-                            : '';
-
-                    const messageValue = log.message || '(No message)';
-
-                    return {
-                        SNo: index + 1,
-                        Type: typeValue,
-                        Message: messageValue,
-                        Date: dateValue,
-                        Time: timeValue
-                    };
-                });
-
-                if (wsData.length === 0) {
-                    alert('No valid notification data to export.');
+                try {
+                    await ensureXlsxLoaded(); // <-- ensure XLSX is available
+                } catch (e) {
+                    console.error("❌ XLSX load failed:", e);
+                    alert("Excel library failed to load. Please check network/CDN or include xlsx.full.min.js.");
                     return;
                 }
+
+                const wsData = rows.map((log, index) => {
+                    const typeValue = (normalizeLevel(log.type || log.level || 'info')).toUpperCase();
+                    const dateValue = log.date ? log.date : (log.timestamp ? formatDate(log.timestamp) : '');
+                    const timeValue = log.time ? log.time : (log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : '');
+                    const messageValue = log.message || '(No message)';
+                    return { SNo: index + 1, Type: typeValue, Message: messageValue, Date: dateValue, Time: timeValue };
+                });
 
                 try {
                     const ws = XLSX.utils.json_to_sheet(wsData);
@@ -449,10 +554,12 @@ ${totalPages > 1 ? `
             });
         }
 
-        const attachEventListeners = () => {
+
+        const attachEventListeners = (filteredLogs, totalPages) => {
             setTimeout(() => {
                 const prevBtn = document.getElementById('prev-page-btn');
                 const nextBtn = document.getElementById('next-page-btn');
+                const levelSelect = document.getElementById('level-filter-select');
 
                 if (prevBtn) {
                     prevBtn.addEventListener('click', () => {
@@ -465,7 +572,6 @@ ${totalPages > 1 ? `
 
                 if (nextBtn) {
                     nextBtn.addEventListener('click', () => {
-                        const totalPages = Math.ceil(allLogs.length / notificationConfig.recordsPerPage);
                         if (currentPage < totalPages) {
                             currentPage++;
                             renderModal();
@@ -473,9 +579,19 @@ ${totalPages > 1 ? `
                     });
                 }
 
+                // NEW: level filter change re-renders from page 1
+                if (levelSelect) {
+                    levelSelect.addEventListener('change', () => {
+                        selectedLevel = levelSelect.value || 'all';
+                        currentPage = 1;
+                        renderModal();
+                    });
+                }
+
                 attachFilterEventListeners();
             }, 100);
         };
+
 
         const loadLogs = async () => {
             try {
@@ -534,25 +650,28 @@ ${totalPages > 1 ? `
         get: (id) => notifications.find(n => n.id === id)
     };
 
-    // ====================== DesignerLogger (no console interception) ======================
+    // ====================== DesignerLogger (UI-only; console hooks will call into it) ======================
     (function exposeDesignerLogger() {
         let DEFAULT_CONTEXT = {};
         const emit = (level, message, ctx = {}) => {
             const merged = Object.assign({}, DEFAULT_CONTEXT, ctx);
-            // mirror to UI
-            editor.Notifications.add({ type: level, message: (typeof message === 'string' ? message : JSON.stringify(message, null, 2)), context: merged, timeout: level === 'error' ? 0 : notificationConfig.timeout });
-            // ship to backend
-            logToBackend({ level, message, context: merged });
+            // mirror to UI only; avoid calling logToBackend here so backend shipping stays centralized in addNotification
+            try {
+                editor.Notifications.add({ type: level, message: (typeof message === 'string' ? message : JSON.stringify(message, null, 2)), context: merged, timeout: level === 'error' ? 0 : notificationConfig.timeout });
+            } catch (e) {
+                // fallback to console if notifications system not available
+                try { console.log(`[DesignerLogger:${level}]`, message, merged); } catch (err) {}
+            }
         };
 
         const api = {
-            log:    (m, c) => emit('info', m, c),
-            info:   (m, c) => emit('info', m, c),
-            warn:   (m, c) => emit('warning', m, c),
-            error:  (m, c) => emit('error', m, c),
-            success:(m, c) => emit('success', m, c),
-            debug:  (m, c) => emit('debug', m, c),
-            event:  (name, c = {}) => emit('event', `EVENT: ${name}`, c),
+            log: (m, c) => emit('info', m, c),
+            info: (m, c) => emit('info', m, c),
+            warn: (m, c) => emit('warning', m, c),
+            error: (m, c) => emit('error', m, c),
+            success: (m, c) => emit('success', m, c),
+            debug: (m, c) => emit('debug', m, c),
+            event: (name, c = {}) => emit('event', `EVENT: ${name}`, c),
             try(fn, ctx = {}, onError) {
                 try { return fn(); }
                 catch (err) {
@@ -565,6 +684,42 @@ ${totalPages > 1 ? `
 
         // make globally reachable
         window.DesignerLogger = api;
+
+        // ----------------------
+        // Hook console.warn and console.error (preserve originals) — only hook once
+        // ----------------------
+        try {
+            if (!window.__designerLogger_consoleHooked) {
+                window.__designerLogger_consoleHooked = true;
+                const origError = console.error && console.error.bind(console) || function () {};
+                const origWarn = console.warn && console.warn.bind(console) || function () {};
+
+                console.error = function (...args) {
+                    try { origError.apply(console, args); } catch (e) {}
+                    try {
+                        const combined = args.map(a => {
+                            if (a instanceof Error) return `${a.message}\n${a.stack || ''}`;
+                            try { return typeof a === 'string' ? a : JSON.stringify(a); } catch (e) { return String(a); }
+                        }).join(' ');
+                        // call DesignerLogger.error (UI-only) — addNotification will handle backend shipping and dedupe
+                        window.DesignerLogger.error(combined, { source: 'console.error' });
+                    } catch (e) { /* swallow */ }
+                };
+
+                console.warn = function (...args) {
+                    try { origWarn.apply(console, args); } catch (e) {}
+                    try {
+                        const combined = args.map(a => {
+                            if (a instanceof Error) return `${a.message}\n${a.stack || ''}`;
+                            try { return typeof a === 'string' ? a : JSON.stringify(a); } catch (e) { return String(a); }
+                        }).join(' ');
+                        window.DesignerLogger.warn(combined, { source: 'console.warn' });
+                    } catch (e) { /* swallow */ }
+                };
+            }
+        } catch (e) {
+            console.warn('Failed to hook console:', e);
+        }
     })();
 
     console.log("✅ Notifications Plugin initialized successfully");

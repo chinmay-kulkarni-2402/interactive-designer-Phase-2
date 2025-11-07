@@ -21,19 +21,19 @@ function jsontablecustom(editor) {
             formulaScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
             head.appendChild(formulaScript);
 
-            formulaScript.onload = () => {
-                try {
-                    if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
-                        window.formulaParser = iframe.contentWindow.formulaParser;
-                        window.HotFormulaParser = new window.formulaParser.Parser();
+            // formulaScript.onload = () => {
+            //     try {
+            //         if (iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
+            //             window.formulaParser = iframe.contentWindow.formulaParser;
+            //             window.HotFormulaParser = new window.formulaParser.Parser();
 
-                        // Register custom formulas if needed
-                        registerCustomFormulas();
-                    }
-                } catch (error) {
-                    console.warn('Could not access formula parser:', error);
-                }
-            };
+            //             // Register custom formulas if needed
+            //             registerCustomFormulas();
+            //         }
+            //     } catch (error) {
+            //         console.warn('Could not access formula parser:', error);
+            //     }
+            // };
 
             // Add jQuery and DataTables scripts if not already present
             const jqueryScript = document.createElement('script');
@@ -4298,10 +4298,10 @@ function jsontablecustom(editor) {
             }));
 
             const modalContent = `
-<div class="table-settings-modal" style="width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+<div class="table-settings-modal" style="width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
     <!-- Navbar -->
     <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
-        <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; background: white; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
+        <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
         <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
         <button class="nav-tab" data-tab="running-total" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Running Total</button>
         <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
@@ -4358,8 +4358,9 @@ function jsontablecustom(editor) {
 
 <!-- Grouping & Summary Tab -->
 <div id="grouping-tab" class="tab-pane" style="display: none;">
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-    <!-- Available Fields -->
+  <!-- Main Grid Layout -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+    <!-- LEFT: Available Fields -->
     <div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <h4 style="margin: 0;">Available Fields</h4>
@@ -4368,70 +4369,60 @@ function jsontablecustom(editor) {
           <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
         </div>
       </div>
-      <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; max-height: 300px; overflow-y: auto;">
+      <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
         <!-- Dynamically populated -->
       </div>
     </div>
 
-    <!-- Selected Grouping Fields -->
+    <!-- RIGHT: Selected Grouping Fields -->
     <div>
-      <h4 style="margin-bottom: 10px;">Selected Grouping Fields</h4>
-      <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; min-height: 100px; max-height: 300px; overflow-y: auto;">
+      <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Grouping Fields</h4>
+      <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
         <p style="color: #999; text-align: center;">No fields selected</p>
       </div>
     </div>
   </div>
 
-  <hr style="margin: 20px 0;">
-
   <!-- Summary Fields Section -->
-  <div>
-    <h4 style="margin-bottom: 10px;">Summary Fields</h4>
-    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-      <select id="summary-field" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-        <option value="">Select Field</option>
-      </select>
-      <select id="summary-function" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-        <option value="sum">Sum</option>
-        <option value="average">Average</option>
-        <option value="min">Minimum</option>
-        <option value="max">Maximum</option>
-        <option value="count">Count</option>
-      </select>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+    <!-- LEFT: Available Fields -->
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h4 style="margin: 0;">Available Fields</h4>
+        <div style="display: flex; gap: 5px;">
+          <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+          <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+        </div>
+      </div>
+      <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+        <!-- Dynamically populated -->
+      </div>
     </div>
-    <div id="query-fields" style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; min-height: 100px; max-height: 300px; overflow-y: auto;">
-      <p style="color: #999; text-align: center;">No summary fields added</p>
+
+    <!-- RIGHT: Selected Summary Fields -->
+    <div>
+      <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Summary Fields</h4>
+      <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
+        <p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>
+      </div>
     </div>
   </div>
 
-  <hr style="margin: 20px 0;">
-
-  <!-- Grouping Options -->
-  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-    <legend style="font-weight: bold;">Grouping Options</legend>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-      <div>
-        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Sort Order:</label>
+  <!-- Grouping Options Grid -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+    <!-- Sort & Top N -->
+    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+      <legend style="font-weight: bold; padding: 0 10px;">Sort & Filter</legend>
+      <div style="margin-bottom: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Sort Order:</label>
         <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
           <option value="ascending">Ascending</option>
           <option value="descending">Descending</option>
           <option value="original">Original Order</option>
         </select>
       </div>
-      <div>
-        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Percentage:</label>
-        <select id="summary-percentage" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-          <option value="none">None</option>
-          <option value="of-group">Of Group</option>
-          <option value="of-total">Of Total</option>
-        </select>
-      </div>
-    </div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-      <div>
-        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Top N:</label>
+      <div style="margin-bottom: 10px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Top N:</label>
         <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
           <option value="none">None</option>
           <option value="top">Top N Groups</option>
@@ -4440,66 +4431,35 @@ function jsontablecustom(editor) {
         </select>
       </div>
       <div>
-        <label style="font-weight: bold; display: block; margin-bottom: 5px;">N Value:</label>
-        <input type="number" id="top-n-value" value="10" min="1" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">N Value:</label>
+        <input type="number" id="top-n-value" value="10" min="1" style="width: calc(100% - 16px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
       </div>
-    </div>
+    </fieldset>
 
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-      <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
-      <span>Merge Group Cells</span>
-    </label>
-    
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-      <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
-      <span>Hide Subtotal for Single Row Groups</span>
-    </label>
+    <!-- Group Options -->
+    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+      <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
+      <label style="display: flex; align-items: center; margin-bottom: 10px;">
+          <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
+          <span style="font-weight: bold;">Summarize Group</span>
+      </label>
+      <label style="display: flex; align-items: center;">
+          <input type="checkbox" id="page-break" style="margin-right: 8px;">
+          <span style="font-weight: bold;">Page Break After Group</span>
+      </label>
+    </fieldset>
+  </div>
 
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-      <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
-      <span>Show Group Subtotals</span>
+  <!-- Named Groups Section -->
+  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+    <legend style="font-weight: bold; padding: 0 10px;">Named Groups</legend>
+    <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
+      <input type="checkbox" id="define-named-group" style="margin-right: 8px; width: 16px; height: 16px;">
+      <span style="font-size: 13px;">Define Named Group</span>
     </label>
+    <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; width: 100%; font-size: 13px;">Configure Named Groups</button>
   </fieldset>
-
-  <!-- Grouping Type -->
-  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-    <legend style="font-weight: bold;">Display Mode</legend>
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-      <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
-      <span>Show All Records</span>
-    </label>
-    <label style="display: flex; align-items: center;">
-      <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
-      <span>Show Summary Only</span>
-    </label>
-    <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
-      <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
-      <span>Keep Group Hierarchy</span>
-    </label>
-  </fieldset>
-
-  <!-- Grand Total -->
-  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-    <legend style="font-weight: bold;">Grand Total</legend>
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-      <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
-      <span>Show Grand Total</span>
-    </label>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-      <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-      <input type="text" id="summary-label" placeholder="Subtotal Label" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-    </div>
-  </fieldset>
-
-  <!-- Named Groups -->
-  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-    <legend style="font-weight: bold;">Named Groups</legend>
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-      <input type="checkbox" id="define-named-group" style="margin-right: 8px;">
-      <span>Define Named Group</span>
-    </label>
-    <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; width: 100%;">Configure Named Groups</button>
-  </fieldset>
+</div>
 </div>
 
 
@@ -4581,73 +4541,6 @@ function jsontablecustom(editor) {
         </label>
     </fieldset>
     
-
-    <!--
-    <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        <div>
-            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Sort Order:</label>
-            <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <option value="ascending">Ascending</option>
-                <option value="descending">Descending</option>
-            </select>
-        </div>
-        <div>
-            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Percentage:</label>
-            <select id="summary-percentage" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <option value="none">None</option>
-                <option value="of-group">Of Group</option>
-                <option value="of-total">Of Total</option>
-            </select>
-        </div>
-    </div>
-    
-    <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-        <div>
-            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Top N:</label>
-            <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <option value="none">None</option>
-                <option value="top">Top</option>
-                <option value="bottom">Bottom</option>
-            </select>
-        </div>
-        <div>
-            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Value:</label>
-            <input type="number" id="top-n-value" value="10" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-        </div>
-    </div>
-    
-    <div style="margin-top: 15px;">
-        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-            <input type="checkbox" id="define-named-group" style="margin-right: 8px;">
-            <span style="font-weight: bold;">Define Named Group</span>
-        </label>
-        <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; margin-bottom: 10px;">Configure Named Groups</button>
-        <div id="named-groups-list" style="display: none; border: 1px solid #ddd; padding: 10px; border-radius: 4px; min-height: 50px;"></div>
-    </div>
-    
-    <div style="margin-top: 15px;">
-        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-            <input type="checkbox" id="predefined-named-group" style="margin-right: 8px;">
-            <span style="font-weight: bold;">Use Predefined Named Group</span>
-        </label>
-        <select id="predefined-group-select" disabled style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f0f0f0;">
-            <option value="">Select Group</option>
-        </select>
-    </div>
-    -->
-    <div style="margin-top: 15px;">
-        <label style="display: flex; align-items: center;">
-            <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
-            <span style="font-weight: bold;">Summarize Group</span>
-        </label>
-    </div>
-    
-    <div style="margin-top: 15px;">
-        <label style="display: flex; align-items: center;">
-            <input type="checkbox" id="page-break" style="margin-right: 8px;">
-            <span style="font-weight: bold;">Page Break After Group</span>
-        </label>
-    </div>
 </div>
         </div>
 
@@ -4666,17 +4559,29 @@ function jsontablecustom(editor) {
             setTimeout(() => {
                 // Populate available fields
                 const availableFieldsDiv = document.getElementById('available-fields');
-                availableFieldsDiv.innerHTML = availableFields.map(field => `
+                let groupingHTML = availableFields.map(field => `
         <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
             <input type="checkbox" class="field-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('grouping-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
             <span>${field.name}</span>
         </div>
     `).join('');
+                if (!availableFields.length) {
+                    groupingHTML = '<p style="color: #999; text-align: center; font-size: 12px">No fields available</p>';
+                }
+                availableFieldsDiv.innerHTML = groupingHTML;
 
-                // Populate summary field dropdown
-                const summaryFieldSelect = document.getElementById('summary-field');
-                summaryFieldSelect.innerHTML = '<option value="">Select Field</option>' +
-                    availableFields.map(field => `<option value="${field.key}">${field.name}</option>`).join('');
+                // Populate available summary fields
+                const availableSummaryFieldsDiv = document.getElementById('available-summary-fields');
+                let summaryHTML = availableFields.map(field => `
+        <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+            <input type="checkbox" class="summary-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('summary-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+            <span>${field.name}</span>
+        </div>
+    `).join('');
+                if (!availableFields.length) {
+                    summaryHTML = '<p style="color: #999; text-align: center; font-size:12px;">No fields available</p>';
+                }
+                availableSummaryFieldsDiv.innerHTML = summaryHTML;
 
                 initializeTableSettingsModal(selected, availableFields);
             }, 100);
@@ -4910,7 +4815,23 @@ function jsontablecustom(editor) {
         if (component.get('show-summary-only')) {
             document.querySelector('input[name="grouping-type"][value="summary"]').checked = true;
         }
-
+// Top N value enable/disable logic
+document.getElementById('top-n').addEventListener('change', function () {
+    const topNValue = document.getElementById('top-n-value');
+    const isEnabled = this.value !== 'none' && this.value !== 'sort-all';
+    
+    topNValue.disabled = !isEnabled;
+    topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+    topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+});
+// Grand Total checkbox - Enable/disable labels
+document.getElementById('grand-total').addEventListener('change', function () {
+    const grandTotalLabel = document.getElementById('grand-total-label');
+    const isEnabled = this.checked;
+    
+    grandTotalLabel.disabled = !isEnabled;
+    grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
+});
         // Grouping field selection
         document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
@@ -4935,7 +4856,7 @@ function jsontablecustom(editor) {
             }
 
             if (selectedGroupingFields.length === 0) {
-                selectedFieldsDiv.innerHTML = '<p style="color: #999; padding: 10px; text-align: center; font-size: 12px;">No fields selected</p>';
+                selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
             } else {
                 selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
             <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
@@ -4966,64 +4887,39 @@ function jsontablecustom(editor) {
         }
 
         // Add this new function for summary fields
-        function updateSummaryFieldsList() {
-            const queryFields = document.getElementById('query-fields');
+function updateSummaryFieldsList() {
+    const queryFields = document.getElementById('query-fields');
 
-            // Add null check
-            if (!queryFields) {
-                console.warn('Query fields div not found');
-                return;
-            }
+    if (!queryFields) {
+        console.warn('Query fields div not found');
+        return;
+    }
 
-            if (selectedSummaryFields.length === 0) {
-                queryFields.innerHTML = '<p style="color: #999; text-align: center;">No summary fields added</p>';
-                return;
-            }
+    if (selectedSummaryFields.length === 0) {
+        queryFields.innerHTML = '<p style="color: #999; text-align: center; margin: 0;">No summary fields added</p>';
+        return;
+    }
 
-            queryFields.innerHTML = selectedSummaryFields.map((field, idx) => `
-        <div class="field-item" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-            <span>${availableFields.find(f => f.key === field.key)?.name || field.key} (${field.function})</span>
-            <button class="remove-summary-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-        </div>
-    `).join('');
+    queryFields.innerHTML = selectedSummaryFields.map((field, idx) => {
+        const fieldInfo = availableFields.find(f => f.key === field.key);
+        const fieldName = fieldInfo ? fieldInfo.name : field.key;
+        
+        return `
+        <div class="field-item" data-index="${idx}" style="padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px;"><strong>${fieldName}</strong> - ${field.function}</span>
+            <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 3px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Remove</button>
+        </div>`;
+    }).join('');
 
-            // Add remove functionality
-            queryFields.querySelectorAll('.remove-summary-field').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
-                    selectedSummaryFields.splice(idx, 1);
-                    updateSummaryFieldsList();
-                });
-            });
-        }
-        // Summary field addition - Update this section
-        const summaryAddBtn = document.createElement('button');
-        summaryAddBtn.textContent = 'Add Summary';
-        summaryAddBtn.style.cssText = 'margin-top: 10px; padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;';
-        document.getElementById('summary-function').parentElement.parentElement.appendChild(summaryAddBtn);
-
-        summaryAddBtn.addEventListener('click', function () {
-            const summaryField = document.getElementById('summary-field').value;
-            const summaryFunction = document.getElementById('summary-function').value;
-
-            if (!summaryField) {
-                alert('Please select a field');
-                return;
-            }
-
-            if (selectedSummaryFields.find(f => f.key === summaryField)) {
-                alert('This field is already added');
-                return;
-            }
-
-            selectedSummaryFields.push({
-                key: summaryField,
-                function: summaryFunction
-            });
-
+    // Add remove functionality
+    queryFields.querySelectorAll('.remove-summary-field').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const idx = parseInt(this.getAttribute('data-index'));
+            selectedSummaryFields.splice(idx, 1);
             updateSummaryFieldsList();
-            document.getElementById('summary-field').value = '';
         });
+    });
+}
 
         // Sort buttons
         document.getElementById('sort-asc').addEventListener('click', () => {
@@ -5071,12 +4967,20 @@ function jsontablecustom(editor) {
         // });
 
         // Show Summary Only radio
-        document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
-            radio.addEventListener('change', function () {
-                const keepHierarchy = document.getElementById('keep-group-hierarchy');
-                keepHierarchy.disabled = this.value !== 'summary';
-            });
-        });
+// Grouping type radio buttons - Enable/disable Keep Group Hierarchy
+document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+        const keepHierarchy = document.getElementById('keep-group-hierarchy');
+        const isSummaryOnly = this.value === 'summary';
+        
+        keepHierarchy.disabled = !isSummaryOnly;
+        keepHierarchy.parentElement.querySelector('span').style.color = isSummaryOnly ? '#000' : '#999';
+        
+        if (!isSummaryOnly) {
+            keepHierarchy.checked = false;
+        }
+    });
+});
 
         // Cancel button
         document.getElementById('cancel-settings').addEventListener('click', () => {
@@ -5084,77 +4988,49 @@ function jsontablecustom(editor) {
         });
 
         // Apply button - FIX: Save selectedSummaryFields
-        document.getElementById('apply-settings').addEventListener('click', () => {
-            // Validate grouping before applying
-            if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
-                alert('Please select at least one grouping field before adding summaries');
-                return;
-            }
-            // Options Tab - Make all checkboxes functional
-            document.querySelectorAll('#options-tab input[type="checkbox"]').forEach(checkbox => {
-                checkbox.addEventListener('change', function () {
-                    const id = this.id;
-                    const isChecked = this.checked;
+// Apply button - Save ALL settings
+document.getElementById('apply-settings').addEventListener('click', () => {
+    // Validate grouping before applying
+    if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
+        alert('Please select at least one grouping field before adding summaries');
+        return;
+    }
 
-                    // Handle each checkbox
-                    switch (id) {
-                        case 'merge-group-cells':
-                            component.set('merge-group-cells', isChecked);
-                            break;
-                        case 'group-header-inplace':
-                            component.set('group-header-inplace', isChecked);
-                            break;
-                        case 'hide-subtotal-single-row':
-                            component.set('hide-subtotal-single-row', isChecked);
-                            break;
-                        case 'repeat-group-header':
-                            component.set('repeat-group-header', isChecked);
-                            break;
-                        case 'show-group-column':
-                            component.set('show-group-column', isChecked);
-                            break;
-                        case 'keep-group-hierarchy':
-                            component.set('keep-group-hierarchy', isChecked);
-                            break;
-                        case 'grand-total':
-                            const grandTotalLabel = document.getElementById('grand-total-label');
-                            grandTotalLabel.disabled = !isChecked;
-                            grandTotalLabel.style.background = isChecked ? 'white' : '#f0f0f0';
-                            component.set('grand-total', isChecked);
-                            break;
-                    }
-                });
-            });
-
-            // Grouping type radio buttons
-            document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
-                radio.addEventListener('change', function () {
-                    const isSummaryOnly = this.value === 'summary';
-                    document.getElementById('keep-group-hierarchy').disabled = !isSummaryOnly;
-                    component.set('show-summary-only', isSummaryOnly);
-                });
-            });
-            // Save all settings
-            component.set('grouping-fields', selectedGroupingFields);
-            component.set('summary-fields', selectedSummaryFields); // Use the tracked selectedSummaryFields
-            component.set('sort-order', document.getElementById('sort-order').value);
-            component.set('top-n', document.getElementById('top-n').value);
-            component.set('top-n-value', document.getElementById('top-n-value').value);
-            component.set('define-named-group', document.getElementById('define-named-group').checked);
-            component.set('summarize-group', document.getElementById('summarize-group').checked);
-            component.set('page-break', document.getElementById('page-break').checked);
-            component.set('summary-percentage', document.getElementById('summary-percentage').value);
-            component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
-            component.set('group-header-inplace', document.getElementById('group-header-inplace').checked);
-            component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
-            component.set('show-summary-only', document.querySelector('input[name="grouping-type"]:checked').value === 'summary');
-            component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
-            component.set('grand-total', document.getElementById('grand-total').checked);
-            component.set('grand-total-label', document.getElementById('grand-total-label').value);
-            component.set('summary-label', document.getElementById('summary-label').value);
-
-            editor.Modal.close();
-        });
+    // Save grouping fields
+    component.set('grouping-fields', selectedGroupingFields);
+    
+    // Save summary fields
+    component.set('summary-fields', selectedSummaryFields);
+    
+    // Save sort options
+    component.set('sort-order', document.getElementById('sort-order').value);
+    component.set('top-n', document.getElementById('top-n').value);
+    component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
+    
+    // Save display options
+    component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+    component.set('summarize-group', document.getElementById('summarize-group').checked);
+    component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
+    component.set('page-break', document.getElementById('page-break').checked);
+    
+    // Save display mode
+    const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
+    component.set('show-summary-only', showSummaryOnly);
+    component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
+    
+    // Save totals & labels
+    component.set('grand-total', document.getElementById('grand-total').checked);
+    component.set('grand-total-label', document.getElementById('grand-total-label').value);
+    component.set('summary-label', document.getElementById('summary-label').value);
+    
+    // Save named groups
+    component.set('define-named-group', document.getElementById('define-named-group').checked);
+    
+    editor.Modal.close();
+    
+    // Show success message
+    alert('Grouping & Summary settings applied successfully!');
+});
     }
 
     function initializeRunningTotalTab(component) {

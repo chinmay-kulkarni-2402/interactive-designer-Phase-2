@@ -14,6 +14,7 @@ window.editor = InteractiveDesigner.init({
     componentFirst: true,
   },
   plugins: [
+    initNotificationsPlugin,
     "code-editor-component",
     "postcss-parser-component",
     "webpage-component",
@@ -37,7 +38,6 @@ window.editor = InteractiveDesigner.init({
     linkTrackerPlugin,
     backgroundMusic,
     // customFlowColumns,
-    //initNotificationsPlugin,
     subreportPlugin,
     "basic-block-component",
     "countdown-component",
@@ -1041,38 +1041,85 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
   console.log("👉 Payload (inputJsonMappings):", JSON.stringify(inputJsonMappings, null, 2));
   console.log("👉 Final HTML being sent:\n", finalHtml);
 
-  // try {
-  //   const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
-  //   const debugLink = document.createElement("a");
-  //   debugLink.href = debugUrl;
-  //   debugLink.download = exportType === "pdf" ? "sent_to_api_pdf.html" : "sent_to_api_html.html";
-  //   debugLink.click();
-  //   URL.revokeObjectURL(debugUrl);
-  //   console.log("💾 Debug copy of HTML downloaded for verification");
-  // } catch (err) {
-  //   console.warn("⚠️ Could not auto-download debug HTML:", err);
-  // }
+  // ---------- Loader UI (same as generatePrintDialog) ----------
+  let overlay = document.createElement("div");
+  overlay.id = "pdf-loading-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "rgba(0,0,0,0.5)",
+    color: "#fff",
+    fontSize: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+    flexDirection: "column",
+    gap: "12px",
+  });
 
-  const response = await fetch(apiUrl, { method: "POST", body: formData });
+  // spinner + text (keeps style similar to your modal)
+  const spinner = document.createElement("div");
+  Object.assign(spinner.style, {
+    width: "60px",
+    height: "60px",
+    borderRadius: "50%",
+    border: "6px solid rgba(255,255,255,0.2)",
+    borderTopColor: "#fff",
+    animation: "spin 1s linear infinite",
+  });
+  // keyframes
+  const styleTag = document.createElement("style");
+  styleTag.innerHTML = `
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  `;
+  document.head.appendChild(styleTag);
 
-  console.log("📩 Raw response headers:", [...response.headers.entries()]);
+  const overlayText = document.createElement("div");
+  overlayText.style.fontSize = "18px";
+  overlayText.style.textAlign = "center";
+  overlayText.style.maxWidth = "90%";
+  overlayText.innerText = exportType === "pdf" ? "Generating Bulk PDF..." : "Generating Bulk HTML...";
 
-  if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+  overlay.appendChild(spinner);
+  overlay.appendChild(overlayText);
+  document.body.appendChild(overlay);
 
-  const blob = await response.blob();
-  const filename = getFilenameFromResponse(response, "export.zip");
+  try {
+    const response = await fetch(apiUrl, { method: "POST", body: formData });
 
-  console.log("📦 ZIP filename resolved:", filename);
+    console.log("📩 Raw response headers:", [...response.headers.entries()]);
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+    if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
-  return "Export sent & ZIP file downloaded successfully!";
+    const blob = await response.blob();
+    const filename = getFilenameFromResponse(response, "export.zip");
+
+    console.log("📦 ZIP filename resolved:", filename);
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    return "Export sent & ZIP file downloaded successfully!";
+  } catch (err) {
+    console.error("❌ Export failure:", err);
+    // show helpful alert, same style as other error handling you had
+    alert("Failed to export. Check console for details.");
+    throw err;
+  } finally {
+    // cleanup overlay and style tag
+    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    if (styleTag && styleTag.parentNode) styleTag.parentNode.removeChild(styleTag);
+  }
 }
+
 
 
 
@@ -2935,6 +2982,65 @@ async function generatePrintDialog() {
         }
       }
 
+      // ----------------------------
+      // Extract @page rule from cleanedCss BEFORE building finalHtml,
+      // then REMOVE the @page rule(s) from cleanedCss so it is not sent embedded.
+      // ----------------------------
+      let pageSize = null;
+      let orientation = null;
+      let width = null;
+      let height = null;
+
+      // Find the first @page rule (if any)
+      const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
+      if (pageRuleMatch) {
+        const rule = pageRuleMatch[0];
+
+        // Example: size: A4 portrait; OR size: 400mm 600mm;
+        const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
+        if (sizeMatch) {
+          const sizeValue = sizeMatch[1].trim();
+
+          // Check if standard format like A3, A4, etc.
+          const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
+          if (standardMatch) {
+            pageSize = standardMatch[1].toUpperCase();
+            orientation = (standardMatch[2] || "portrait").toLowerCase();
+          } else {
+            // Custom dimensions like 400mm 600mm or 900px 1400px
+            const parts = sizeValue.split(/\s+/);
+            if (parts.length >= 2) {
+              width = parts[0].trim();
+              height = parts[1].trim();
+            }
+          }
+        }
+
+        // Remove ALL @page rules from the CSS before building/sending final HTML
+        cleanedCss = cleanedCss.replace(/@page\s*{[^}]*}/g, "").trim();
+      }
+
+      // 🧩 Build payload only if @page found
+      let hasPayload = false;
+      let payload = {};
+
+      if (pageRuleMatch) {
+        if (pageSize) {
+          payload = { pageSize, orientation: orientation || "portrait" };
+          hasPayload = true;
+        } else if (width && height) {
+          payload = { width, height };
+          hasPayload = true;
+        }
+      }
+
+      if (hasPayload) {
+        console.log("🧾 Extracted payload:", payload);
+      } else {
+        console.log("⚠️ No @page rule found — skipping payload");
+      }
+
+      // Build finalHtml AFTER we removed the @page rules from cleanedCss
       const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss);
 
       // Debug download
@@ -2952,85 +3058,35 @@ async function generatePrintDialog() {
       }
 
       // Send to backend
-// Send to backend
-const formData = new FormData();
+      const formData = new FormData();
 
-// 🔍 Extract @page rule from CSS
-let pageSize = null;
-let orientation = null;
-let width = null;
-let height = null;
-
-const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
-if (pageRuleMatch) {
-  const rule = pageRuleMatch[0];
-
-  // Example: size: A4 portrait; OR size: 400mm 600mm;
-  const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
-  if (sizeMatch) {
-    const sizeValue = sizeMatch[1].trim();
-
-    // Check if standard format like A3, A4, etc.
-    const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
-    if (standardMatch) {
-      pageSize = standardMatch[1].toUpperCase();
-      orientation = (standardMatch[2] || "portrait").toLowerCase();
-    } else {
-      // Custom dimensions like 400mm 600mm or 900px 1400px
-      const parts = sizeValue.split(/\s+/);
-      if (parts.length >= 2) {
-        width = parts[0].trim();
-        height = parts[1].trim();
+      if (hasPayload) {
+        formData.append("payload", JSON.stringify(payload));
       }
-    }
-  }
-}
 
-// 🧩 Build payload only if @page found
-let hasPayload = false;
-let payload = {};
+      // Attach HTML file
+      formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
 
-if (pageRuleMatch) {
-  if (pageSize) {
-    payload = { pageSize, orientation: orientation || "portrait" };
-    hasPayload = true;
-  } else if (width && height) {
-    payload = { width, height };
-    hasPayload = true;
-  }
-}
+      console.log("🚀 Sending HTML to PDF API:", apiUrl);
 
-if (hasPayload) {
-  console.log("🧾 Extracted payload:", payload);
-  formData.append("payload", JSON.stringify(payload));
-} else {
-  console.log("⚠️ No @page rule found — skipping payload");
-}
+      const response = await fetch(apiUrl, { method: "POST", body: formData });
+      if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
 
-// Attach HTML file
-formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
+      const blob = await response.blob();
+      const contentType = response.headers.get("Content-Type");
 
-console.log("🚀 Sending HTML to PDF API:", apiUrl);
-
-const response = await fetch(apiUrl, { method: "POST", body: formData });
-if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-
-const blob = await response.blob();
-const contentType = response.headers.get("Content-Type");
-
-if (contentType && contentType.includes("pdf")) {
-  const pdfUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = pdfUrl;
-  a.download = "generated.pdf";
-  a.click();
-  URL.revokeObjectURL(pdfUrl);
-  console.log("✅ PDF download triggered successfully!");
-} else {
-  console.warn("⚠️ Unexpected response type:", contentType);
-  alert("Unexpected response from server, PDF not received.");
-}
-
+      if (contentType && contentType.includes("pdf")) {
+        const pdfUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = pdfUrl;
+        a.download = "generated.pdf";
+        a.click();
+        URL.revokeObjectURL(pdfUrl);
+        console.log("✅ PDF download triggered successfully!");
+      } else {
+        console.warn("⚠️ Unexpected response type:", contentType);
+        alert("Unexpected response from server, PDF not received.");
+      }
 
     } catch (err) {
       console.error("❌ Error generating PDF:", err);
@@ -3045,6 +3101,7 @@ if (contentType && contentType.includes("pdf")) {
   // Initial preview
   updatePreview();
 }
+
 
 
 
