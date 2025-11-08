@@ -2388,26 +2388,49 @@ function jsontablecustom(editor) {
 
             applyGroupingAndSummary() {
                 const groupingFields = this.get('grouping-fields') || [];
+                const summarizeGroup = this.get('summarize-group') || false;
+                const summaryFields = this.get('summary-fields') || [];
                 const data = this.get('table-data') || [];
 
+                console.log('🔧 applyGroupingAndSummary called:', {
+                    groupingFields: groupingFields.length,
+                    summarizeGroup,
+                    summaryFields: summaryFields.length,
+                    dataRows: data.length
+                });
+
+                // ✅ If no grouping fields, reset to original data
                 if (groupingFields.length === 0) {
-                    // No grouping, reset to original data
+                    console.log('✅ No grouping fields - resetting to original data');
                     this.set('custom-data', null);
+                    this.set('show-placeholder', false);
                     this.updateTableHTML();
+                    return;
+                }
+
+                // ✅ If summarize is enabled but no summary fields, show warning
+                if (summarizeGroup && summaryFields.length === 0) {
+                    console.warn('⚠️ Summarize enabled but no summary fields selected');
+                    alert('Please add at least one summary field before enabling "Summarize Group"');
+                    this.set('summarize-group', false);
                     return;
                 }
 
                 // Apply grouping logic
                 const groupedData = this.groupData(data, groupingFields);
 
+                // console.log('📊 Grouped data result:', groupedData.length, 'rows');
+
                 // Update custom data with processed data (including page breaks)
                 this.set('custom-data', groupedData);
+                this.set('show-placeholder', false);
                 this.updateTableHTML();
 
                 // ✅ TRIGGER AUTOPAGINATION AFTER GROUPING
                 setTimeout(() => {
                     this.triggerAutoPagination();
                 }, 500);
+
                 this.updateDataJsonState();
             },
 
@@ -2502,6 +2525,7 @@ function jsontablecustom(editor) {
 
                 sortedGroupKeys.forEach((groupKey, groupIndex) => {
                     const group = grouped[groupKey];
+                    const selectedSummaryFields = this.get('summary-fields') || [];
                     // ✅ Load grouping type correctly
                     if (showSummaryOnly) {
                         document.querySelector('input[name="grouping-type"][value="summary"]').checked = true;
@@ -2525,6 +2549,7 @@ function jsontablecustom(editor) {
                         }
                     } else {
                         // Add all rows in group
+                        // Add all rows in group
                         group.rows.forEach((row, rowIdx) => {
                             const newRow = { ...row };
 
@@ -2540,6 +2565,24 @@ function jsontablecustom(editor) {
 
                             result.push(newRow);
                         });
+
+                        // ✅ Get summary fields from component
+                        const selectedSummaryFields = this.get('summary-fields') || [];
+
+                        // ✅ Only add summary row if:
+                        // 1. Summarize is enabled
+                        // 2. Summary fields are configured
+                        // 3. Not hiding subtotal for single row (or more than 1 row)
+                        if (summarizeGroup && selectedSummaryFields.length > 0 &&
+                            !(hideSubtotalSingleRow && group.rows.length === 1)) {
+
+                            console.log(`➕ Adding summary row for group ${groupIndex}`);
+                            const summaryRow = this.createSummaryRow(group.rows, groupKey);
+                            summaryRow._isSummary = true;
+                            summaryRow._groupIndex = groupIndex;
+                            result.push(summaryRow);
+                        }
+
 
                         // ✅ Add summary row if enabled AND has summary fields
                         if (summarizeGroup && !(hideSubtotalSingleRow && group.rows.length === 1)) {
@@ -2557,11 +2600,7 @@ function jsontablecustom(editor) {
                     grandTotalRow._isGrandTotal = true;
                     result.push(grandTotalRow);
                 }
-
-                // ✅ INSERT PAGE BREAKS AFTER GROUPS
-                const resultWithPageBreaks = insertPageBreaksAfterGroups(this, result);
-
-                return resultWithPageBreaks;
+                return result;
             },
 
             applyNamedGroups(data, fieldKey, namedGroupsConfig) {
@@ -4401,30 +4440,52 @@ function jsontablecustom(editor) {
     </div>
   </div>
 
-  <!-- Summary Fields Section -->
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+<!-- Summary Fields Section -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
     <!-- LEFT: Available Fields -->
     <div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h4 style="margin: 0;">Available Fields</h4>
-        <div style="display: flex; gap: 5px;">
-          <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
-          <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0;">Available Fields for Summary</h4>
+            <div style="display: flex; gap: 5px;">
+                <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+                <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+            </div>
         </div>
-      </div>
-      <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
-        <!-- Dynamically populated -->
-      </div>
+        <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+            <!-- Dynamically populated -->
+        </div>
     </div>
 
-    <!-- RIGHT: Selected Summary Fields -->
+    <!-- RIGHT: Selected Summary Fields with Add Button -->
     <div>
-      <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Summary Fields</h4>
-      <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
-        <p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>
-      </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0;">Summary Configuration</h4>
+        </div>
+        
+        <!-- Summary Function Selector -->
+        <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;">
+            <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Function:</label>
+            <select id="summary-function" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
+                <option value="sum">Sum</option>
+                <option value="average">Average</option>
+                <option value="count">Count</option>
+                <option value="min">Min</option>
+                <option value="max">Max</option>
+            </select>
+            <button id="add-summary-field" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                + Add Summary
+            </button>
+        </div>
+        
+        <!-- Active Summary Fields List -->
+        <div>
+            <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Active Summaries:</label>
+            <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 100px; max-height: 150px; overflow-y: auto; padding: 5px;">
+                <p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>
+            </div>
+        </div>
     </div>
-  </div>
+</div>
 
   <!-- Grouping Options Grid -->
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
@@ -4481,20 +4542,20 @@ function jsontablecustom(editor) {
 </div>
 
 
-            <!-- Running Total Tab (NEW) -->
+<!-- Running Total Tab (NEW) -->
 <div id="running-total-tab" class="tab-pane" style="display: none;">
-    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px; align-items: start;"> <!-- Added align-items: start -->
+    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px; align-items: start; max-height: 500px; overflow: hidden;"> <!-- Added max-height and overflow -->
         <!-- Left: Column Selection -->
-        <div>
+        <div style="overflow-y: auto; max-height: 500px;"> <!-- Added overflow -->
             <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
-            <div id="running-total-columns" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; max-height: 400px; overflow-y: auto;">
+            <div id="running-total-columns" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
                 <!-- Will be populated with numeric columns -->
             </div>
         </div>
 
         <!-- Right: Configuration Panel -->
-        <div style="display: flex; flex-direction: column; gap: 15px;"> <!-- Changed to flex layout -->
-            <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; min-height: 200px;"> <!-- Added min-height -->
+        <div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; max-height: 500px;"> <!-- Added overflow -->
+            <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; min-height: 200px;">
                 <p style="color: #666; text-align: center;">Select a column to configure running total</p>
             </div>
 
@@ -4605,40 +4666,10 @@ function jsontablecustom(editor) {
             }, 100);
         }
     });
-    // Add this function in the jsontablecustom file (around line 1500, after groupData function)
 
-    function insertPageBreaksAfterGroups(component, groupedData) {
-        const pageBreakEnabled = component.get('page-break') || false;
-        if (!pageBreakEnabled) return groupedData;
-
-        const result = [];
-        const groupingFields = component.get('grouping-fields') || [];
-
-        if (groupingFields.length === 0) return groupedData;
-
-        let currentGroupKey = null;
-
-        groupedData.forEach((row, index) => {
-            // Detect group change
-            const rowGroupKey = groupingFields.map(field => row[field.key] || '').join('|');
-
-            if (currentGroupKey !== null && currentGroupKey !== rowGroupKey) {
-                // Insert page break marker row
-                result.push({
-                    _isPageBreak: true,
-                    _pageBreakId: `pb-${Date.now()}-${index}`
-                });
-            }
-
-            result.push(row);
-            currentGroupKey = rowGroupKey;
-        });
-
-        return result;
-    }
     function initializeTableSettingsModal(component, availableFields) {
-        let selectedGroupingFields = [];
-        let selectedSummaryFields = [];
+        let selectedGroupingFields = component.get('grouping-fields') || [];
+        let selectedSummaryFields = component.get('summary-fields') || [];
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', function () {
                 // Remove active class and styles from all tabs
@@ -4799,15 +4830,69 @@ function jsontablecustom(editor) {
         selectedSummaryFields = [...savedSummaryFields]; // Add this
         updateSelectedFields();
         updateSummaryFieldsList(); // Add this function call
+        // Summary field add button handler
+        // ✅ Summary field add button handler - Fixed
+        document.getElementById('add-summary-field').addEventListener('click', function () {
+            const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
+            const summaryFunction = document.getElementById('summary-function').value;
 
-        // Load other saved options
+            if (summaryCheckboxes.length === 0) {
+                alert('Please select at least one field for summary');
+                return;
+            }
+
+            let addedCount = 0;
+            summaryCheckboxes.forEach(checkbox => {
+                const fieldItem = checkbox.closest('.field-item');
+                const fieldKey = fieldItem.getAttribute('data-key');
+                const fieldName = fieldItem.querySelector('span').textContent;
+
+                // Check if already added with same function
+                const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
+                if (!exists) {
+                    selectedSummaryFields.push({
+                        key: fieldKey,
+                        name: fieldName,
+                        function: summaryFunction
+                    });
+                    addedCount++;
+                }
+
+                // Uncheck after adding
+                checkbox.checked = false;
+            });
+
+            // ✅ Always update the list
+            updateSummaryFieldsList();
+
+            if (addedCount > 0) {
+                console.log(`Added ${addedCount} summary field(s)`);
+            }
+        });
+
+        // Sort summary fields
+        document.getElementById('sort-summary-asc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+            items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+            const container = document.getElementById('available-summary-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
+        document.getElementById('sort-summary-desc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+            items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+            const container = document.getElementById('available-summary-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
         // Load other saved options with null checks
         const sortOrder = document.getElementById('sort-order');
         const topN = document.getElementById('top-n');
         const topNValue = document.getElementById('top-n-value');
         const summarizeGroup = document.getElementById('summarize-group');
         const pageBreak = document.getElementById('page-break');
-        const summaryPercentage = document.getElementById('summary-percentage');
         const mergeGroupCells = document.getElementById('merge-group-cells');
         const groupHeaderInplace = document.getElementById('group-header-inplace');
         const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
@@ -4819,29 +4904,59 @@ function jsontablecustom(editor) {
         if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
         if (topN) topN.value = component.get('top-n') || 'none';
         if (topNValue) topNValue.value = component.get('top-n-value') || '10';
-        if (summarizeGroup) summarizeGroup.checked = component.get('summarize-group') || false;
-        if (pageBreak) pageBreak.checked = component.get('page-break') || false;
-        if (summaryPercentage) summaryPercentage.value = component.get('summary-percentage') || 'none';
-        if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') || false;
+        if (summarizeGroup) {
+            summarizeGroup.checked = component.get('summarize-group') === true; // ✅ Fixed strict comparison
+        }
+        if (pageBreak) pageBreak.checked = component.get('page-break') === true;
+        if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') === true;
         if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
-        if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') || false;
-        if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') || false;
+        if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') === true;
+        if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') === true;
         if (grandTotal) grandTotal.checked = component.get('grand-total') !== false;
         if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
         if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
 
-        if (component.get('show-summary-only')) {
-            document.querySelector('input[name="grouping-type"][value="summary"]').checked = true;
+        // ✅ Load grouping type correctly
+        if (component.get('show-summary-only') === true) {
+            const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
+            if (summaryRadio) {
+                summaryRadio.checked = true;
+                if (keepGroupHierarchy) keepGroupHierarchy.disabled = false;
+            }
+        } else {
+            const normalRadio = document.querySelector('input[name="grouping-type"][value="normal"]');
+            if (normalRadio) {
+                normalRadio.checked = true;
+                if (keepGroupHierarchy) {
+                    keepGroupHierarchy.disabled = true;
+                    keepGroupHierarchy.checked = false;
+                }
+            }
         }
         // Top N value enable/disable logic
+        // ✅ Top N value enable/disable logic - Fixed
         document.getElementById('top-n').addEventListener('change', function () {
             const topNValue = document.getElementById('top-n-value');
-            const isEnabled = this.value !== 'none' && this.value !== 'sort-all';
+            const isEnabled = this.value === 'top' || this.value === 'bottom'; // ✅ Only enable for top/bottom
 
             topNValue.disabled = !isEnabled;
             topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
             topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+            topNValue.style.opacity = isEnabled ? '1' : '0.6';
         });
+
+        // ✅ Trigger on load to set initial state
+        setTimeout(() => {
+            const topNSelect = document.getElementById('top-n');
+            const topNValue = document.getElementById('top-n-value');
+            const currentValue = topNSelect.value;
+            const isEnabled = currentValue === 'top' || currentValue === 'bottom';
+
+            topNValue.disabled = !isEnabled;
+            topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+            topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+            topNValue.style.opacity = isEnabled ? '1' : '0.6';
+        }, 100);
         // Grand Total checkbox - Enable/disable labels
         document.getElementById('grand-total').addEventListener('change', function () {
             const grandTotalLabel = document.getElementById('grand-total-label');
@@ -4905,38 +5020,40 @@ function jsontablecustom(editor) {
         }
 
         // Add this new function for summary fields
+        // ✅ Fixed updateSummaryFieldsList function
         function updateSummaryFieldsList() {
-            const queryFields = document.getElementById('query-fields');
+            const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
 
-            if (!queryFields) {
-                console.warn('Query fields div not found');
+            if (!selectedSummaryFieldsDiv) {
+                console.warn('Selected summary fields div not found');
                 return;
             }
 
             if (selectedSummaryFields.length === 0) {
-                queryFields.innerHTML = '<p style="color: #999; text-align: center; margin: 0;">No summary fields added</p>';
+                selectedSummaryFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
                 return;
             }
 
-            queryFields.innerHTML = selectedSummaryFields.map((field, idx) => {
-                const fieldInfo = availableFields.find(f => f.key === field.key);
-                const fieldName = fieldInfo ? fieldInfo.name : field.key;
+            selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields.map((field, idx) => `
+        <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+            <div style="flex: 1;">
+                <strong style="font-size: 13px;">${field.name}</strong>
+                <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
+            </div>
+            <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+        </div>
+    `).join('');
 
-                return `
-        <div class="field-item" data-index="${idx}" style="padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 13px;"><strong>${fieldName}</strong> - ${field.function}</span>
-            <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 3px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Remove</button>
-        </div>`;
-            }).join('');
-
-            // Add remove functionality
-            queryFields.querySelectorAll('.remove-summary-field').forEach(btn => {
+            // ✅ Add remove functionality
+            selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
                 btn.addEventListener('click', function () {
                     const idx = parseInt(this.getAttribute('data-index'));
                     selectedSummaryFields.splice(idx, 1);
                     updateSummaryFieldsList();
                 });
             });
+
+            console.log('Summary fields list updated:', selectedSummaryFields.length);
         }
 
         // Sort buttons
@@ -5006,11 +5123,19 @@ function jsontablecustom(editor) {
         });
 
         // Apply button - FIX: Save selectedSummaryFields
-        // Apply button - Save ALL settings
         document.getElementById('apply-settings').addEventListener('click', () => {
+            console.log('📝 Applying settings...');
+
             // Validate grouping before applying
             if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
                 alert('Please select at least one grouping field before adding summaries');
+                return;
+            }
+
+            // ✅ Check if summarize is enabled but no summary fields
+            const summarizeChecked = document.getElementById('summarize-group').checked;
+            if (summarizeChecked && selectedSummaryFields.length === 0) {
+                alert('Please add at least one summary field when "Summarize Group" is enabled');
                 return;
             }
 
@@ -5019,6 +5144,11 @@ function jsontablecustom(editor) {
 
             // Save summary fields
             component.set('summary-fields', selectedSummaryFields);
+
+            console.log('💾 Saved settings:', {
+                groupingFields: selectedGroupingFields.length,
+                summaryFields: selectedSummaryFields.length
+            });
 
             // Save sort options
             component.set('sort-order', document.getElementById('sort-order').value);
@@ -5044,10 +5174,30 @@ function jsontablecustom(editor) {
             // Save named groups
             component.set('define-named-group', document.getElementById('define-named-group').checked);
 
+            // ✅ Save running totals if configured
+            const runningTotals = component.get('running-totals') || [];
+            if (runningTotals.length > 0) {
+                console.log('💾 Applying running totals:', runningTotals.length);
+                applyRunningTotalsToTable(component);
+            }
+
             editor.Modal.close();
 
+            // ✅ Apply grouping AFTER modal closes
+            setTimeout(() => {
+                if (selectedGroupingFields.length > 0) {
+                    console.log('🔄 Applying grouping...');
+                    component.applyGroupingAndSummary();
+                } else {
+                    console.log('✅ No grouping - keeping data as is');
+                    // Ensure table is visible
+                    component.set('show-placeholder', false);
+                    component.updateTableHTML();
+                }
+            }, 100);
+
             // Show success message
-            alert('Grouping & Summary settings applied successfully!');
+            alert('Settings applied successfully!');
         });
     }
 
@@ -5090,7 +5240,6 @@ function jsontablecustom(editor) {
         </div>
     `).join('');
 
-        // Add click handlers
         // Add click handlers
         document.querySelectorAll('.rt-column-item').forEach(item => {
             item.addEventListener('click', function () {
@@ -5201,118 +5350,189 @@ function jsontablecustom(editor) {
         component.reorderColumns(newOrder);
     }
 
+    // function showRunningTotalConfig(component, columnKey, columnName, runningTotals) {
+    //     const existing = runningTotals.find(rt => rt.columnKey === columnKey);
+
+    //     const configPanel = document.getElementById('rt-config-panel');
+    //     configPanel.innerHTML = `
+    //     <h4 style="margin-top: 0;">${columnName}</h4>
+
+    //     <!-- Summary -->
+    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; ">
+    //         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Field:</label>
+    //         <select id="rt-summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+    //             <option value="sum" ${existing?.operation === 'sum' ? 'selected' : ''}>Sum</option>
+    //             <option value="count" ${existing?.operation === 'count' ? 'selected' : ''}>Count</option>
+    //             <option value="distinct-count" ${existing?.operation === 'distinct-count' ? 'selected' : ''}>Distinct Count</option>
+    //             <option value="average" ${existing?.operation === 'average' ? 'selected' : ''}>Average</option>
+    //             <option value="max" ${existing?.operation === 'max' ? 'selected' : ''}>Max</option>
+    //             <option value="min" ${existing?.operation === 'min' ? 'selected' : ''}>Min</option>
+    //             <option value="product" ${existing?.operation === 'product' ? 'selected' : ''}>Product</option>
+    //             <option value="std-dev" ${existing?.operation === 'std-dev' ? 'selected' : ''}>Std Deviation (Population)</option>
+    //             <option value="variance" ${existing?.operation === 'variance' ? 'selected' : ''}>Variance (Population)</option>
+    //             <option value="weighted-avg" ${existing?.operation === 'weighted-avg' ? 'selected' : ''}>Weighted Average</option>
+    //         </select>
+    //     </div>
+
+    //     <!-- Evaluate -->
+    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+    //         <label style="font-weight: bold; display: block; margin-bottom: 10px;">Evaluate:</label>
+    //         <label style="display: flex; align-items: center; margin-bottom: 8px;">
+    //             <input type="radio" name="rt-evaluate" value="for-each-record" ${!existing || existing.evaluate === 'for-each-record' ? 'checked' : ''} style="margin-right: 8px;">
+    //             <span>For each record</span>
+    //         </label>
+    //         <label style="display: flex; align-items: center;">
+    //             <input type="radio" name="rt-evaluate" value="on-change-of" ${existing?.evaluate === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
+    //             <span>On change of</span>
+    //         </label>
+    //         <select id="rt-evaluate-field" ${existing?.evaluate !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.evaluate !== 'on-change-of' ? '#f0f0f0' : 'white'};">
+    //             ${getGroupingFieldsOptions(component, existing?.evaluateField)}
+    //         </select>
+    //     </div>
+
+    //     <!-- Reset -->
+    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+    //         <label style="font-weight: bold; display: block; margin-bottom: 10px;">Reset:</label>
+    //         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+    //             <label style="display: flex; align-items: center;">
+    //                 <input type="radio" name="rt-reset" value="never" ${!existing || existing.reset === 'never' ? 'checked' : ''} style="margin-right: 8px;">
+    //                 <span>Never</span>
+    //             </label>
+    //             <label style="display: flex; align-items: center;">
+    //                 <input type="radio" name="rt-reset" value="on-pagebreak" ${existing?.reset === 'on-pagebreak' ? 'checked' : ''} style="margin-right: 8px;">
+    //                 <span>On Pagebreak</span>
+    //             </label>
+    //         </div>
+    //         <label style="display: flex; align-items: center;">
+    //             <input type="radio" name="rt-reset" value="on-change-of" ${existing?.reset === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
+    //             <span>On change of</span>
+    //         </label>
+    //         <select id="rt-reset-field" ${existing?.reset !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.reset !== 'on-change-of' ? '#f0f0f0' : 'white'};">
+    //             ${getGroupingFieldsOptions(component, existing?.resetField)}
+    //         </select>
+    //     </div>
+
+    //     <!-- Styling -->
+    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; display: none">
+    //         <label style="font-weight: bold; display: block; margin-bottom: 10px;">Styling:</label>
+    //         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+    //             <div>
+    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Background Color:</label>
+    //                 <input type="color" id="rt-bg-color" value="${existing?.bgColor || '#f0f8ff'}" style="width: 100%; height: 35px;">
+    //             </div>
+    //             <div>
+    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Text Color:</label>
+    //                 <input type="color" id="rt-text-color" value="${existing?.textColor || '#1976d2'}" style="width: 100%; height: 35px;">
+    //             </div>
+    //             <div>
+    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Family:</label>
+    //                 <select id="rt-font-family" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+    //                     <option value="">Default</option>
+    //                     <option value="Arial, sans-serif" ${existing?.fontFamily === 'Arial, sans-serif' ? 'selected' : ''}>Arial</option>
+    //                     <option value="'Courier New', monospace" ${existing?.fontFamily === "'Courier New', monospace" ? 'selected' : ''}>Courier New</option>
+    //                     <option value="Georgia, serif" ${existing?.fontFamily === 'Georgia, serif' ? 'selected' : ''}>Georgia</option>
+    //                     <option value="Verdana, sans-serif" ${existing?.fontFamily === 'Verdana, sans-serif' ? 'selected' : ''}>Verdana</option>
+    //                 </select>
+    //             </div>
+    //             <div>
+    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Size (px):</label>
+    //                 <input type="number" id="rt-font-size" value="${existing?.fontSize || 14}" min="8" max="72" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+    //             </div>
+    //             <div>
+    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Horizontal Align:</label>
+    //                 <select id="rt-h-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+    //                     <option value="left" ${existing?.hAlign === 'left' ? 'selected' : ''}>Left</option>
+    //                     <option value="center" ${existing?.hAlign === 'center' ? 'selected' : ''}>Center</option>
+    //                     <option value="right" ${existing?.hAlign === 'right' ? 'selected' : ''}>Right</option>
+    //                 </select>
+    //             </div>
+    //             <div>
+    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Vertical Align:</label>
+    //                 <select id="rt-v-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+    //                     <option value="top" ${existing?.vAlign === 'top' ? 'selected' : ''}>Top</option>
+    //                     <option value="middle" ${existing?.vAlign === 'middle' ? 'selected' : ''}>Middle</option>
+    //                     <option value="bottom" ${existing?.vAlign === 'bottom' ? 'selected' : ''}>Bottom</option>
+    //                 </select>
+    //             </div>
+    //         </div>
+    //     </div>
+
+
+    //     <!-- Action Buttons -->
+    //     <div style="display: flex; gap: 10px;">
+    //         ${existing ? `<button id="rt-remove-btn" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Running Total</button>` : ''}
+    //         <button id="rt-apply-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${existing ? 'Update' : 'Add'} Running Total</button>
+    //     </div>
+    // `;
+
     function showRunningTotalConfig(component, columnKey, columnName, runningTotals) {
         const existing = runningTotals.find(rt => rt.columnKey === columnKey);
 
         const configPanel = document.getElementById('rt-config-panel');
         configPanel.innerHTML = `
-        <h4 style="margin-top: 0;">${columnName}</h4>
-        
-        <!-- Summary -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; ">
-            <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Field:</label>
-            <select id="rt-summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
-                <option value="sum" ${existing?.operation === 'sum' ? 'selected' : ''}>Sum</option>
-                <option value="count" ${existing?.operation === 'count' ? 'selected' : ''}>Count</option>
-                <option value="distinct-count" ${existing?.operation === 'distinct-count' ? 'selected' : ''}>Distinct Count</option>
-                <option value="average" ${existing?.operation === 'average' ? 'selected' : ''}>Average</option>
-                <option value="max" ${existing?.operation === 'max' ? 'selected' : ''}>Max</option>
-                <option value="min" ${existing?.operation === 'min' ? 'selected' : ''}>Min</option>
-                <option value="product" ${existing?.operation === 'product' ? 'selected' : ''}>Product</option>
-                <option value="std-dev" ${existing?.operation === 'std-dev' ? 'selected' : ''}>Std Deviation (Population)</option>
-                <option value="variance" ${existing?.operation === 'variance' ? 'selected' : ''}>Variance (Population)</option>
-                <option value="weighted-avg" ${existing?.operation === 'weighted-avg' ? 'selected' : ''}>Weighted Average</option>
-            </select>
-        </div>
+        <div style="max-height: 450px; overflow-y: auto; padding-right: 10px;">
+            <h4 style="margin-top: 0;">${columnName}</h4>
+            
+            <!-- Summary -->
+            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Field:</label>
+                <select id="rt-summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                    <option value="sum" ${existing?.operation === 'sum' ? 'selected' : ''}>Sum</option>
+                    <option value="count" ${existing?.operation === 'count' ? 'selected' : ''}>Count</option>
+                    <option value="distinct-count" ${existing?.operation === 'distinct-count' ? 'selected' : ''}>Distinct Count</option>
+                    <option value="average" ${existing?.operation === 'average' ? 'selected' : ''}>Average</option>
+                    <option value="max" ${existing?.operation === 'max' ? 'selected' : ''}>Max</option>
+                    <option value="min" ${existing?.operation === 'min' ? 'selected' : ''}>Min</option>
+                    <option value="product" ${existing?.operation === 'product' ? 'selected' : ''}>Product</option>
+                    <option value="std-dev" ${existing?.operation === 'std-dev' ? 'selected' : ''}>Std Deviation (Population)</option>
+                    <option value="variance" ${existing?.operation === 'variance' ? 'selected' : ''}>Variance (Population)</option>
+                    <option value="weighted-avg" ${existing?.operation === 'weighted-avg' ? 'selected' : ''}>Weighted Average</option>
+                </select>
+            </div>
 
-        <!-- Evaluate -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Evaluate:</label>
-            <label style="display: flex; align-items: center; margin-bottom: 8px;">
-                <input type="radio" name="rt-evaluate" value="for-each-record" ${!existing || existing.evaluate === 'for-each-record' ? 'checked' : ''} style="margin-right: 8px;">
-                <span>For each record</span>
-            </label>
-            <label style="display: flex; align-items: center;">
-                <input type="radio" name="rt-evaluate" value="on-change-of" ${existing?.evaluate === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
-                <span>On change of</span>
-            </label>
-            <select id="rt-evaluate-field" ${existing?.evaluate !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.evaluate !== 'on-change-of' ? '#f0f0f0' : 'white'};">
-                ${getGroupingFieldsOptions(component, existing?.evaluateField)}
-            </select>
-        </div>
-
-        <!-- Reset -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Reset:</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
-                <label style="display: flex; align-items: center;">
-                    <input type="radio" name="rt-reset" value="never" ${!existing || existing.reset === 'never' ? 'checked' : ''} style="margin-right: 8px;">
-                    <span>Never</span>
+            <!-- Evaluate -->
+            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 10px;">Evaluate:</label>
+                <label style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <input type="radio" name="rt-evaluate" value="for-each-record" ${!existing || existing.evaluate === 'for-each-record' ? 'checked' : ''} style="margin-right: 8px;">
+                    <span>For each record</span>
                 </label>
                 <label style="display: flex; align-items: center;">
-                    <input type="radio" name="rt-reset" value="on-pagebreak" ${existing?.reset === 'on-pagebreak' ? 'checked' : ''} style="margin-right: 8px;">
-                    <span>On Pagebreak</span>
+                    <input type="radio" name="rt-evaluate" value="on-change-of" ${existing?.evaluate === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
+                    <span>On change of</span>
                 </label>
+                <select id="rt-evaluate-field" ${existing?.evaluate !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.evaluate !== 'on-change-of' ? '#f0f0f0' : 'white'};">
+                    ${getGroupingFieldsOptions(component, existing?.evaluateField)}
+                </select>
             </div>
-            <label style="display: flex; align-items: center;">
-                <input type="radio" name="rt-reset" value="on-change-of" ${existing?.reset === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
-                <span>On change of</span>
-            </label>
-            <select id="rt-reset-field" ${existing?.reset !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.reset !== 'on-change-of' ? '#f0f0f0' : 'white'};">
-                ${getGroupingFieldsOptions(component, existing?.resetField)}
-            </select>
-        </div>
 
-        <!-- Styling -->
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; display: none">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Styling:</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Background Color:</label>
-                    <input type="color" id="rt-bg-color" value="${existing?.bgColor || '#f0f8ff'}" style="width: 100%; height: 35px;">
+            <!-- Reset -->
+            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 10px;">Reset:</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                    <label style="display: flex; align-items: center;">
+                        <input type="radio" name="rt-reset" value="never" ${!existing || existing.reset === 'never' ? 'checked' : ''} style="margin-right: 8px;">
+                        <span>Never</span>
+                    </label>
+                    <label style="display: flex; align-items: center;">
+                        <input type="radio" name="rt-reset" value="on-pagebreak" ${existing?.reset === 'on-pagebreak' ? 'checked' : ''} style="margin-right: 8px;">
+                        <span>On Pagebreak</span>
+                    </label>
                 </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Text Color:</label>
-                    <input type="color" id="rt-text-color" value="${existing?.textColor || '#1976d2'}" style="width: 100%; height: 35px;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Family:</label>
-                    <select id="rt-font-family" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="">Default</option>
-                        <option value="Arial, sans-serif" ${existing?.fontFamily === 'Arial, sans-serif' ? 'selected' : ''}>Arial</option>
-                        <option value="'Courier New', monospace" ${existing?.fontFamily === "'Courier New', monospace" ? 'selected' : ''}>Courier New</option>
-                        <option value="Georgia, serif" ${existing?.fontFamily === 'Georgia, serif' ? 'selected' : ''}>Georgia</option>
-                        <option value="Verdana, sans-serif" ${existing?.fontFamily === 'Verdana, sans-serif' ? 'selected' : ''}>Verdana</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Size (px):</label>
-                    <input type="number" id="rt-font-size" value="${existing?.fontSize || 14}" min="8" max="72" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Horizontal Align:</label>
-                    <select id="rt-h-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="left" ${existing?.hAlign === 'left' ? 'selected' : ''}>Left</option>
-                        <option value="center" ${existing?.hAlign === 'center' ? 'selected' : ''}>Center</option>
-                        <option value="right" ${existing?.hAlign === 'right' ? 'selected' : ''}>Right</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-size: 12px;">Vertical Align:</label>
-                    <select id="rt-v-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="top" ${existing?.vAlign === 'top' ? 'selected' : ''}>Top</option>
-                        <option value="middle" ${existing?.vAlign === 'middle' ? 'selected' : ''}>Middle</option>
-                        <option value="bottom" ${existing?.vAlign === 'bottom' ? 'selected' : ''}>Bottom</option>
-                    </select>
-                </div>
+                <label style="display: flex; align-items: center;">
+                    <input type="radio" name="rt-reset" value="on-change-of" ${existing?.reset === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
+                    <span>On change of</span>
+                </label>
+                <select id="rt-reset-field" ${existing?.reset !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.reset !== 'on-change-of' ? '#f0f0f0' : 'white'};">
+                    ${getGroupingFieldsOptions(component, existing?.resetField)}
+                </select>
             </div>
-        </div>
-        
 
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 10px;">
-            ${existing ? `<button id="rt-remove-btn" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Running Total</button>` : ''}
-            <button id="rt-apply-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${existing ? 'Update' : 'Add'} Running Total</button>
+            <!-- Action Buttons - Fixed positioning -->
+            <div style="display: flex; gap: 10px; margin-top: 20px; margin-bottom: 10px;">
+                ${existing ? `<button id="rt-remove-btn" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Running Total</button>` : ''}
+                <button id="rt-apply-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${existing ? 'Update' : 'Add'} Running Total</button>
+            </div>
         </div>
     `;
 
