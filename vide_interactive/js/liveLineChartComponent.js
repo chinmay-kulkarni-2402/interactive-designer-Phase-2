@@ -2,7 +2,6 @@ function addLiveLineChartComponent(editor) {
   const domc = editor.DomComponents;
   const blockManager = editor.BlockManager;
 
-  // Add Block to Block Manager
   blockManager.add('live-areaspline-chart', {
     label: '📊 Live AreaSpline',
     category: 'Charts',
@@ -10,7 +9,6 @@ function addLiveLineChartComponent(editor) {
     content: { type: 'live-areaspline-chart' }
   });
 
-  // Define Component
   domc.addType('live-areaspline-chart', {
     model: {
       defaults: {
@@ -70,8 +68,8 @@ function addLiveLineChartComponent(editor) {
                   const series = this.series[0];
                   if (pollingEnabled) {
                     setInterval(function () {
-                      const x = (new Date()).getTime(); // current time
-                      const y = Math.random(); // simulated data
+                      const x = (new Date()).getTime(); 
+                      const y = Math.random(); 
                       series.addPoint([x, y], true, true);
                     }, pollingInterval * 1000);
                   }

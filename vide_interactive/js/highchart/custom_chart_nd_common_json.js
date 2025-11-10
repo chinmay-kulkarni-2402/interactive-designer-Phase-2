@@ -190,7 +190,7 @@ function customChartCommonJson(editor) {
                 ...test_chart_Props,
                 tagName: "figure",
                 resizable: 1,
-                custom_line_chartsrc: "https://code.highcharts.com/11.4.8/highcharts.js",
+                custom_line_chartsrc: "https://code.highcharts.com/stock/11.4.8/highstock.js",
                 droppable: 0,
                 stylable: 1,
                 attributes: { 'data-i_designer-type': 'custom_line_chart' },
@@ -200,9 +200,36 @@ function customChartCommonJson(editor) {
                     width: "100%",
                 },
                 script: function () {
+                    const scripts = [
+                        "https://code.highcharts.com/stock/11.4.8/highstock.js",
+                        "https://code.highcharts.com/modules/drilldown.js",
+                        "https://code.highcharts.com/highcharts-3d.js",
+                        "https://code.highcharts.com/highcharts-more.js",
+                        "https://code.highcharts.com/modules/data.js",
+                        "https://code.highcharts.com/modules/exporting.js",
+                        "https://code.highcharts.com/modules/accessibility.js",
+                    ];
+
+                    function loadScript(src) {
+                        return new Promise((resolve, reject) => {
+                            if (document.querySelector(`script[src="${src}"]`)) return resolve();
+                            const s = document.createElement("script");
+                            s.src = src;
+                            s.onload = resolve;
+                            s.onerror = reject;
+                            document.head.appendChild(s);
+                        });
+                    }
+
+                    async function ensureHighchartsLoaded() {
+                        for (const src of scripts) {
+                            await loadScript(src);
+                        }
+                    }
+
                     const initializeChart = () => {
                         if (!window.Highcharts) {
-                            console.warn('Highcharts not loaded yet, retrying...');
+                            console.warn("Highcharts not loaded yet, retrying...");
                             setTimeout(initializeChart, 500);
                             return;
                         }
@@ -2041,7 +2068,6 @@ function customChartCommonJson(editor) {
                                 return;
                             }
 
-                            // Check if scripts are already loading
                             if (window.highchartsLoading) {
                                 const checkInterval = setInterval(() => {
                                     if (window.Highcharts) {
@@ -2071,7 +2097,6 @@ function customChartCommonJson(editor) {
 
                                 drilldownScript.onerror = () => {
                                     window.highchartsLoading = false;
-                                    // Drilldown module is optional, continue anyway
                                     resolve();
                                 };
 
@@ -2105,7 +2130,6 @@ function customChartCommonJson(editor) {
 
                                 if (retryCount < maxRetries) {
                                     console.log(`Retrying... (${retryCount}/${maxRetries})`);
-                                    // Exponential backoff: 1s, 2s, 4s
                                     setTimeout(attemptLoad, 1000 * Math.pow(2, retryCount - 1));
                                 } else {
                                     const element = document.getElementById(this.id);
@@ -2143,6 +2167,7 @@ function customChartCommonJson(editor) {
                         });
                     }
                 },
+                
             }),
             init() {
                 this.on('change:SelectChart', () => {
@@ -2534,9 +2559,9 @@ function customChartCommonJson(editor) {
                 if (fileArray.length > 0) {
                     localStorage.setItem('common_json_files', fileArray.join(', '));
                     // after removing the item from localStorage (and updating any index/list you keep)
-window.dispatchEvent(new CustomEvent('common-json-files-updated', {
-  detail: { action: 'delete', key: fileName } // optional metadata
-}));
+                    window.dispatchEvent(new CustomEvent('common-json-files-updated', {
+                        detail: { action: 'delete', key: fileName } // optional metadata
+                    }));
 
                     common_json_file_name_text = 'Already Added File(s): ' + fileArray.join(', ');
                 } else {

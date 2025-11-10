@@ -880,14 +880,48 @@ class PageSetupManager {
     console.log(`📦 Moving ${componentsToMove.length} components to next page`);
 
     const nextPageIndex = pageIndex + 1;
-    if (nextPageIndex >= this.pageSettings.numberOfPages) {
-      this.addNewPage();
-      setTimeout(() => {
-        this.moveComponentsToPage(componentsToMove, nextPageIndex);
-      }, 2000);
-    } else {
-      this.moveComponentsToPage(componentsToMove, nextPageIndex);
+    const wrapper = this.editor.getWrapper();
+    let newPage = wrapper.find(`[data-page-index="${nextPageIndex}"]`)[0];
+
+    // ✅ Step 1 – Ensure new page exists & is registered
+    if (!newPage) {
+      console.log(`📄 Creating missing page ${nextPageIndex}...`);
+      newPage = this.addNewPage();
+      this.pageSettings.numberOfPages = nextPageIndex + 1; // immediate register
     }
+
+    // ✅ Step 2 – Wait until GrapesJS adds it to DOM
+    setTimeout(() => {
+      try {
+        const currentPage = wrapper.find(`[data-page-index="${pageIndex}"]`)[0];
+        const newPageRef = wrapper.find(`[data-page-index="${nextPageIndex}"]`)[0];
+
+        if (currentPage && newPageRef) {
+          // 🔁 Copy section-header content if sections exist
+          const oldSections = currentPage.find(".sections-container")[0];
+          const newSections = newPageRef.find(".sections-container")[0];
+
+          if (oldSections && newSections) {
+            const oldHeader = oldSections.find(".section-header")[0];
+            const newHeader = newSections.find(".section-header")[0];
+
+            if (oldHeader && newHeader) {
+              newHeader.components().reset();
+              oldHeader.components().forEach((comp) => {
+                newHeader.append(comp.clone());
+              });
+              console.log(`✅ Copied section-header to page ${nextPageIndex}`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Header copy skipped:", err);
+      }
+
+      // ✅ Step 3 – Now safely move overflow components
+      this.moveComponentsToPage(componentsToMove, nextPageIndex);
+    }, 700);
+
 
     return true;
   }
@@ -960,7 +994,7 @@ class PageSetupManager {
     console.log(`📊 Splitting table: ${rowsToKeep} rows on current page, ${rows.length - rowsToKeep} rows to next page`);
 
     try {
-      // ✅ Store DataTable settings
+      // ✅ Store DataTable settings BEFORE any modifications
       let dtSettings = null;
       const tableId = tableEl.id;
       if (tableId && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
@@ -975,15 +1009,22 @@ class PageSetupManager {
         dt.destroy();
       }
 
-      // ✅ Remove rows from ORIGINAL table that should move
-      const rowsToRemove = rows.slice(rowsToKeep);
-      rowsToRemove.forEach(row => {
-        if (row.parentNode) {
-          row.parentNode.removeChild(row);
-        }
-      });
+      console.log(`📊 Splitting table: keeping first ${rowsToKeep} rows, moving ${rows.length - rowsToKeep} rows`);
 
-      // Update the component's HTML
+      // ✅ STEP 1: Extract rows to move as plain HTML (to avoid reference issues)
+      const rowsToMoveHTML = [];
+      for (let i = rowsToKeep; i < rows.length; i++) {
+        rowsToMoveHTML.push(rows[i].outerHTML);
+      }
+
+      // ✅ STEP 2: Remove moving rows from original tbody
+      for (let i = rows.length - 1; i >= rowsToKeep; i--) {
+        if (rows[i].parentNode) {
+          rows[i].parentNode.removeChild(rows[i]);
+        }
+      }
+
+      // ✅ STEP 3: Force update original component
       const updatedTableHTML = compEl.outerHTML;
       component.set('content', updatedTableHTML);
 
@@ -991,98 +1032,102 @@ class PageSetupManager {
         component.view.render();
       }
 
-      // ✅ CRITICAL FIX: Modify the JSON state data BEFORE creating new component
-      const originalStateAttr = component.getAttributes()['data-json-state'];
+      console.log(`✂️ Removed ${rowsToMoveHTML.length} rows from original table`);
+
+      // ✅ STEP 4: Create fresh continuation table structure
+      const continuationTableEl = tableEl.cloneNode(false); // Clone only structure
+      const continuationThead = tableEl.querySelector('thead')?.cloneNode(true);
+      const continuationTbody = document.createElement('tbody');
+      const continuationTfoot = tableEl.querySelector('tfoot')?.cloneNode(true);
+
+      if (continuationThead) continuationTableEl.appendChild(continuationThead);
+      continuationTableEl.appendChild(continuationTbody);
+      if (continuationTfoot) continuationTableEl.appendChild(continuationTfoot);
+
+      // ✅ STEP 5: Add moved rows to continuation tbody using innerHTML
+      continuationTbody.innerHTML = rowsToMoveHTML.join('');
+
+      console.log(`✅ Created continuation table with ${continuationTbody.rows.length} rows`);
+
+      // ✅ STEP 6: Wrap continuation table in container
+      const continuationWrapper = compEl.cloneNode(false);
+      continuationWrapper.innerHTML = '';
+
+      // Generate unique ID
+      const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      continuationTableEl.id = newTableId;
+
+      continuationWrapper.appendChild(continuationTableEl);
+
+      // ✅ STEP 7: Modify JSON state for continuation table
       let modifiedState = null;
+      const originalStateAttr = component.getAttributes()['data-json-state'];
 
       if (originalStateAttr) {
         try {
           const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
 
-          // If customData exists, remove first N rows
           if (stateData.data && Array.isArray(stateData.data)) {
+            // Keep only rows that were moved
             stateData.data = stateData.data.slice(rowsToKeep);
             stateData.dataRows = stateData.data.length;
             modifiedState = encodeURIComponent(JSON.stringify(stateData));
 
-            console.log(`✂️ Modified state: removing first ${rowsToKeep} rows, keeping ${stateData.data.length} rows`);
+            console.log(`🔧 Modified state: ${stateData.data.length} data rows in continuation`);
           }
         } catch (error) {
-          console.error('❌ Error parsing/modifying state:', error);
+          console.error('❌ Error modifying state:', error);
         }
       }
 
-      // Create NEW component with MODIFIED state
-      const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const fullTableHTML = component.toHTML();
-
+      // ✅ STEP 8: Create NEW component (not duplicate)
       const newComponentConfig = {
         type: component.get('type') || 'default',
         tagName: component.get('tagName') || 'div',
-        content: fullTableHTML,
+        content: continuationWrapper.outerHTML,
         attributes: {
           ...component.getAttributes(),
           'data-continuation-table': 'true',
           'data-original-table-id': tableId,
-          'data-rows-kept': rowsToKeep
+          'data-rows-kept': rowsToKeep,
+          'data-split-table': 'continuation' // Mark as split table
         },
         classes: [...(component.getClasses() || [])],
         style: { ...component.getStyle() }
       };
 
-      // ✅ Apply modified state if we have it
+      // Apply modified state
       if (modifiedState) {
         newComponentConfig.attributes['data-json-state'] = modifiedState;
       }
 
       const newComponent = this.editor.Components.addComponent(newComponentConfig);
 
-      // ✅ Verify the continuation table was created correctly
-      setTimeout(() => {
-        const newCompEl = newComponent.getEl();
-        if (newCompEl) {
-          const newTable = newCompEl.querySelector('table') || newCompEl;
-          const newTbody = newTable.querySelector('tbody');
-
-          if (newTbody) {
-            const actualRows = newTbody.rows.length;
-            const expectedRows = rows.length - rowsToKeep;
-
-            console.log(`✅ Continuation table verification:
-        - Expected rows: ${expectedRows}
-        - Actual rows: ${actualRows}
-        - Match: ${actualRows === expectedRows ? '✅' : '❌'}`);
-
-            if (actualRows !== expectedRows) {
-              console.error('❌ Row count mismatch! State modification may have failed.');
-            }
-          }
-        }
-      }, 500);
-
-      // ✅ Reinitialize DataTable on kept portion
+      // ✅ STEP 9: Reinitialize DataTable on kept portion ONLY
       if (dtSettings && tableId) {
         setTimeout(() => {
-          if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
-            $(`#${tableId}`).DataTable().destroy();
+          const keptTableEl = component.getEl()?.querySelector('table');
+          if (keptTableEl && $.fn.DataTable) {
+            if ($.fn.DataTable.isDataTable(keptTableEl)) {
+              $(keptTableEl).DataTable().destroy();
+            }
+            $(keptTableEl).DataTable({
+              paging: false,
+              searching: false,
+              ordering: false,
+              info: false
+            });
           }
-          $(`#${tableId}`).DataTable({
-            paging: false,
-            searching: false,
-            ordering: false,
-            info: false
-          });
-
-          console.log('🔁 Reinitialized kept table');
-        }, 500);
+        }, 300);
       }
 
-      console.log(`✅ Table split successful - kept ${rowsToKeep} rows, continuation has ${rows.length - rowsToKeep} rows`);
+      console.log(`✅ Table split complete - original: ${rowsToKeep} rows, continuation: ${rowsToMoveHTML.length} rows`);
+
       return {
         keepComponent: component,
         moveComponent: newComponent,
         keptRowCount: rowsToKeep,
-        movedRowCount: rows.length - rowsToKeep
+        movedRowCount: rowsToMoveHTML.length
       };
 
     } catch (error) {
@@ -1349,7 +1394,8 @@ class PageSetupManager {
             console.log(`📊 Handling table component ${index}`);
 
             // Check if this is a split table continuation
-            const isSplitTable = component.getAttributes()['data-split-table'] === 'continuation';
+            const isSplitTable = component.getAttributes()['data-split-table'] === 'continuation' ||
+              component.getAttributes()['data-continuation-table'] === 'true';
 
             let dtData = null;
             const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
@@ -4735,6 +4781,11 @@ padding: 8px;
             <label>Background:</label>
             <input type="color" id="pageNumberBackgroundColor" class="page-setup-control" value="${globalPageNumber.backgroundColor || "#ffffff"}">
           </div>
+            <div>
+    <label>Rotation:</label>
+    <input type="range" id="pageNumberRotation" class="page-setup-control" value="${globalPageNumber.rotation || 0}" min="-90" max="90">
+    <span id="pageNumberRotationValue" style="font-size: 11px; color: #666;">${globalPageNumber.rotation || 0}°</span>
+  </div>
           <div>
             <label>
               <input type="checkbox" id="pageNumberShowBorder" ${globalPageNumber.showBorder ? "checked" : ""} style="border: 2px solid #000 !important;"> Show Border
@@ -4839,7 +4890,14 @@ padding: 8px;
       if (borderCheckbox) {
         borderCheckbox.checked = !!pageNumberSettings.showBorder;
       }
-
+      // ✅ 8. Rotation slider and display value
+      const rotationInput = document.getElementById("pageNumberRotation");
+      const rotationValue = document.getElementById("pageNumberRotationValue");
+      if (rotationInput && rotationValue) {
+        const rotation = pageNumberSettings.rotation || 0;
+        rotationInput.value = rotation;
+        rotationValue.textContent = `${rotation}°`;
+      }
       // 8. Position grid - restore selected position
       const savedPosition = pageNumberSettings.position || "bottom-center";
       setTimeout(() => {
@@ -5205,7 +5263,19 @@ padding: 8px;
         this.pageSettings.pageNumber.showBorder = e.target.checked;
       });
     }
-
+    // Add this after the borderToggle listener
+    const rotationInput = document.getElementById("pageNumberRotation");
+    const rotationValue = document.getElementById("pageNumberRotationValue");
+    if (rotationInput && rotationValue) {
+      rotationInput.addEventListener("input", (e) => {
+        const value = parseInt(e.target.value, 10);
+        rotationValue.textContent = `${value}°`;
+        if (!this.pageSettings.pageNumber) {
+          this.pageSettings.pageNumber = {};
+        }
+        this.pageSettings.pageNumber.rotation = value;
+      });
+    }
     // === Watermark Text Settings Listeners ===
     const watermarkTextInput = document.getElementById("settingsWatermarkText");
     if (watermarkTextInput) {
@@ -5672,6 +5742,8 @@ padding: 8px;
       const conditionalBreakDistance = parseFloat(document.getElementById("conditionalBreakDistance")?.value) || 50;
       const conditionalBreakUnit = document.getElementById("conditionalBreakUnit")?.value || "mm";
 
+      const pageNumberRotation = parseInt(document.getElementById("pageNumberRotation")?.value || "0", 10);
+
       // --- Store settings for persistence ---
       this._lastHeaderApplyMode = headerApplyMode;
       this._lastFooterApplyMode = footerApplyMode;
@@ -5704,6 +5776,7 @@ padding: 8px;
       this.pageSettings.backgroundColor = newBackgroundColor;
       this.updatePageRule();
 
+
       this.pageSettings.pageNumber = {
         enabled: pageNumberEnabled,
         startFrom: pageNumberStartFrom,
@@ -5714,6 +5787,7 @@ padding: 8px;
         color: pageNumberColor,
         backgroundColor: pageNumberBackgroundColor,
         showBorder: pageNumberShowBorder,
+        rotation: pageNumberRotation,
         visibility: storedPageNumber.visibility || "all",
       };
 
@@ -7133,7 +7207,9 @@ padding: 8px;
             borderRadius: "3px",
             border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
             zIndex: "99",
-            fontFamily: this.pageSettings.pageNumber.fontFamily || "Arial"
+            fontFamily: this.pageSettings.pageNumber.fontFamily || "Arial",
+            transform: `rotate(${this.pageSettings.pageNumber.rotation || 0}deg)`, // ✅ ADD THIS LINE
+            transformOrigin: "center center" // ✅ ADD THIS LINE
           };
 
           const position = this.pageSettings.pageNumber.position || "bottom-center";
@@ -7150,8 +7226,22 @@ padding: 8px;
             styleMap.right = "10px";
           } else {
             styleMap.left = "50%";
-            styleMap.transform = "translateX(-50%)";
           }
+
+          // ✅ NEW: Combine transforms for rotation and centering
+          const rotation = this.pageSettings.pageNumber.rotation || 0;
+          let transformValue = '';
+
+          if (position.includes("center") && !position.includes("left") && !position.includes("right")) {
+            // Horizontal centering needed
+            transformValue = `translateX(-50%) rotate(${rotation}deg)`;
+          } else {
+            // No centering, just rotation
+            transformValue = `rotate(${rotation}deg)`;
+          }
+
+          styleMap.transform = transformValue;
+          styleMap.transformOrigin = "center center";
 
           Object.assign(pageNumberDiv.style, styleMap);
           pageElement.appendChild(pageNumberDiv);
@@ -7462,6 +7552,53 @@ padding: 8px;
     };
 
     return positions[position] || positions['bottom-center'];
+  }
+
+  getPageNumberPositionStylesWithRotation(position, rotation) {
+    let styles = '';
+
+    // Vertical positioning
+    if (position.includes('top')) {
+      styles += 'top: 10px; ';
+    } else if (position.includes('bottom')) {
+      styles += 'bottom: 10px; ';
+    } else {
+      styles += 'top: 50%; ';
+    }
+
+    // Horizontal positioning
+    if (position.includes('left')) {
+      styles += 'left: 10px; ';
+    } else if (position.includes('right')) {
+      styles += 'right: 10px; ';
+    } else {
+      styles += 'left: 50%; ';
+    }
+
+    // ✅ Combine transforms for rotation and centering
+    let transformValue = '';
+
+    if (position.includes('center')) {
+      // Check if both horizontal and vertical centering needed
+      const needsHorizontalCenter = !position.includes('left') && !position.includes('right');
+      const needsVerticalCenter = !position.includes('top') && !position.includes('bottom');
+
+      if (needsHorizontalCenter && needsVerticalCenter) {
+        transformValue = `translate(-50%, -50%) rotate(${rotation}deg)`;
+      } else if (needsHorizontalCenter) {
+        transformValue = `translateX(-50%) rotate(${rotation}deg)`;
+      } else if (needsVerticalCenter) {
+        transformValue = `translateY(-50%) rotate(${rotation}deg)`;
+      } else {
+        transformValue = `rotate(${rotation}deg)`;
+      }
+    } else {
+      transformValue = `rotate(${rotation}deg)`;
+    }
+
+    styles += `transform: ${transformValue}; transform-origin: center center;`;
+
+    return styles;
   }
 
   removeAllPageNumbers() {
@@ -8016,6 +8153,7 @@ padding: 8px;
             z-index: 1000;
             pointer-events: none;
             white-space: nowrap;
+${this.getPageNumberPositionStylesWithRotation(position, settings.rotation || 0)}
             ${positionStyles}
         ">${displayNumber}</div>
     `;

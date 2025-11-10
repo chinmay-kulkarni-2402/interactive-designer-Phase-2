@@ -7204,40 +7204,40 @@
                   root: {
                     "index.html": function (e) {
                       var iframe = document.querySelector('#editor iframe');
-                      var iframeContent = iframe.contentDocument.body.innerHTML;
-  // Step 1: Merge all localStorage JSONs starting with "common_json" (excluding "common_json_files")
-let mergedCommonJson = {};
+var iframeContent = e.getHtml();
+                      // Step 1: Merge all localStorage JSONs starting with "common_json" (excluding "common_json_files")
+                      let mergedCommonJson = {};
 
-for (let i = 0; i < localStorage.length; i++) {
-  const key = localStorage.key(i);
+                      for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
 
-  if (key.startsWith("common_json") && key !== "common_json_files") {
-    try {
-      const data = JSON.parse(localStorage.getItem(key));
+                        if (key.startsWith("common_json") && key !== "common_json_files") {
+                          try {
+                            const data = JSON.parse(localStorage.getItem(key));
 
-      if (Array.isArray(data)) {
-        if (!Array.isArray(mergedCommonJson)) mergedCommonJson = [];
-        mergedCommonJson = mergedCommonJson.concat(data);
-      } else if (typeof data === "object" && data !== null) {
-        mergedCommonJson = { ...mergedCommonJson, ...data };
-      }
-    } catch (e) {
-      console.warn(`Skipping invalid JSON in ${key}`, e);
-    }
-  }
-}
+                            if (Array.isArray(data)) {
+                              if (!Array.isArray(mergedCommonJson)) mergedCommonJson = [];
+                              mergedCommonJson = mergedCommonJson.concat(data);
+                            } else if (typeof data === "object" && data !== null) {
+                              mergedCommonJson = { ...mergedCommonJson, ...data };
+                            }
+                          } catch (e) {
+                            console.warn(`Skipping invalid JSON in ${key}`, e);
+                          }
+                        }
+                      }
 
-// Step 2: Save merged result as "common_json"
-localStorage.setItem("common_json", JSON.stringify(mergedCommonJson));
+                      // Step 2: Save merged result as "common_json"
+                      localStorage.setItem("common_json", JSON.stringify(mergedCommonJson));
 
-// Step 3: Prepare for export
-var exportedJsonData = [];
-var common_json = JSON.parse(localStorage.getItem("common_json"));
-if (common_json !== null) {
-  exportedJsonData.push(common_json);
-  exportedJsonData = JSON.stringify(exportedJsonData);
-}
-    localStorage.removeItem("common_json");
+                      // Step 3: Prepare for export
+                      var exportedJsonData = [];
+                      var common_json = JSON.parse(localStorage.getItem("common_json"));
+                      if (common_json !== null) {
+                        exportedJsonData.push(common_json);
+                        exportedJsonData = JSON.stringify(exportedJsonData);
+                      }
+                      localStorage.removeItem("common_json");
                       let googleTranslater = '';
                       let enableTTS = '';
                       var result = confirm("Do you want to add the google translator?");
@@ -7300,8 +7300,13 @@ if (common_json !== null) {
             <script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"></script>
             <script src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"></script>
             <script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script>
-            <script src="https://code.highcharts.com/highcharts.js"></script>
+            <script src="https://code.highcharts.com/stock/11.4.8/highstock.js"></script>
             <script src="https://code.highcharts.com/modules/drilldown.js"></script>
+            <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+            <script src="https://code.highcharts.com/highcharts-more.js"></script>
+            <script src="https://code.highcharts.com/modules/data.js"></script>
+            <script src="https://code.highcharts.com/modules/exporting.js"></script>
+            <script src="https://code.highcharts.com/modules/accessibility.js"></script>
             <style>
               ${e.getCss()} 
               .highlight_text{background-color: yellow} 
@@ -7403,7 +7408,7 @@ if (common_json !== null) {
             </style>
             </head>
             <body> 
-              <div id="AllBodyData" style="display: none;"> 
+              <div id="AllBodyData" style="display: block;"> 
                 <div id="defaultPDF" style="display:none"></div> 
                 <div id="google_translate_element"></div> 
                 <div id="tts_element"></div>
@@ -7962,9 +7967,56 @@ if (common_json !== null) {
                     if(button !==null){
                       button.addEventListener('click', generatePDF);   
                     }   
-                    setTimeout(() => {document.getElementById('AllBodyData').style.display = "block";}, 1000); 
-                </script>
-                     </body>\n</html>`;
+function initializeAllCharts() {
+  if (typeof Highcharts === 'undefined') {
+    setTimeout(initializeAllCharts, 500);
+    return;
+  }
+  const chartElements = document.querySelectorAll('[data-i_designer-type="custom_line_chart"], .highchart-live-areaspline');
+  chartElements.forEach(function(element) {
+    const chartId = element.id;
+    if (chartId && !element.hasAttribute('data-chart-initialized')) {
+      element.setAttribute('data-chart-initialized', 'true');
+      if (window.Highcharts && Array.isArray(Highcharts.charts)) {
+        const existingChart = Highcharts.charts.find(c => c && c.renderTo && c.renderTo.id === chartId);
+        if (existingChart && existingChart.reflow) {
+          existingChart.reflow();
+        }
+      }
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('AllBodyData').style.display = "block";
+  setTimeout(initializeAllCharts, 1000);
+});
+
+window.addEventListener('load', function() {
+  setTimeout(initializeAllCharts, 1500);
+});
+                    window.addEventListener('load', function() {
+  document.getElementById('AllBodyData').style.display = "block";
+  setTimeout(function() {
+    if (window.Highcharts && Array.isArray(Highcharts.charts)) {
+      Highcharts.charts.forEach(function(chart) {
+        if (chart && chart.reflow) {
+          chart.reflow();
+        }
+      });
+    }
+    const chartContainers = document.querySelectorAll('[id^="highcharts-"]');
+    chartContainers.forEach(function(container) {
+      if (container && !Highcharts.charts.find(c => c && c.renderTo === container)) {
+        const chartConfig = window[container.id + '_config'];
+        if (chartConfig) {
+          Highcharts.chart(container.id, chartConfig);
+        }
+      }
+    });
+  }, 500);
+});                </script>
+                     <script>${e.getJs()}</script></body>\n</html>`;
                       data = data.replace(/\n/g, '');
                       data = data.replace(/\t/g, ' ');
                       data = data.replace(/\s+/g, " ");
@@ -8020,7 +8072,7 @@ if (common_json !== null) {
                           alert('Template Name Required.');
                           return false
                         }
-                        const apiUrl = 'http://localhost:8080/api/uploadFile';
+                        const apiUrl = 'http://192.168.0.188:8081/api/uploadFile';
                         // const apiUrl = 'http://localhost:9998/uploadFile'; 
                         const formData = new FormData();
                         formData.append('name', templateName);
@@ -8224,10 +8276,12 @@ if (common_json !== null) {
 </head><body>
 <div id="AllBodyData">${htmlContent}</div>
 <script>var jsonData1 = ${exportedJsonData};</script>
+<script>${editor.getJs()}</script>
 </body></html>`;
 
                 var editableHtml = `<html><head><style>${cssContent}</style></head>
 ${htmlContent}
+<script>${editor.getJs()}</script>
 </html>`;
 
                 // Check localStorage for edit mode
@@ -8293,7 +8347,7 @@ ${htmlContent}
                       }
 
                       // Determine API URL
-                      let apiUrl = 'http://localhost:8080/api/uploadFile';
+                      let apiUrl = 'http://192.168.0.188:8081/api/uploadFile';
                       if (replaceCheckbox && replaceCheckbox.checked && editTemplateId) {
                         apiUrl += `/${editTemplateId}`; // edit mode
                       }

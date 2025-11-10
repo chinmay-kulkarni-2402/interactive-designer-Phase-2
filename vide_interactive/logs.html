@@ -19,13 +19,16 @@
       font-family: 'Roboto', sans-serif;
     }
 
-    /* ✅ Make the container wider */
     .container {
       max-width: 95% !important;
     }
 
     .pagination {
       justify-content: center;
+    }
+
+    .btn i {
+      margin-right: 5px;
     }
   </style>
 </head>
@@ -39,6 +42,11 @@
             <h2>API Logs Details</h2>
           </div>
           <div class="col-lg-6 text-right">
+            <!-- ✅ Back to Home Button -->
+            <button type="button" class="btn btn-secondary mr-2" onclick="goBack()">
+              <i class="fa fa-arrow-left"></i> Back to Home
+            </button>
+
             <button type="button" class="btn btn-success" onclick="downloadExcel()">
               <i class="fa fa-file-excel-o"></i> Download Excel
             </button>
@@ -96,7 +104,7 @@
   <script>
     let allpage = [];
     let filteredLogs = [];
-    const apiUrl = "http://localhost:8080/api/getErrorLogs";
+    const apiUrl = "http://192.168.0.188:8081/api/getErrorLogs";
     const logsPerPage = 10;
     let currentPage = 1;
 
@@ -115,8 +123,6 @@
       paginatedLogs.forEach((item, index) => {
         const sendTime = formatDate(item.sendRequestTime);
         const outputTime = formatDate(item.outputResponseTime);
-
-        // ✅ Use serial number (index + 1 + offset)
         const serialNo = startIndex + index + 1;
 
         const row = document.createElement("tr");
@@ -214,6 +220,11 @@
       document.getElementById("endDate").value = '';
       document.getElementById("resultFilter").value = 'ALL';
       fetchLogs();
+    }
+
+    // ✅ Back button function
+    function goBack() {
+      window.location.href = "index.html";
     }
 
     // Initial load

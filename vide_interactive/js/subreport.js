@@ -1,7 +1,7 @@
 function subreportPlugin(editor) {
   console.log("📦 Initializing Subreport Plugin (Components Approach)...");
 
-  const apiUrl = "http://localhost:8080/api/getTemplate";
+  const apiUrl = "http://192.168.0.188:8081/api/getTemplate";
 
   editor.DomComponents.addType("subreport", {
     model: {
