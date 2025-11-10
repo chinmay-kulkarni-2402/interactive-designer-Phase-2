@@ -2549,7 +2549,6 @@ function jsontablecustom(editor) {
                         }
                     } else {
                         // Add all rows in group
-                        // Add all rows in group
                         group.rows.forEach((row, rowIdx) => {
                             const newRow = { ...row };
 
@@ -2566,26 +2565,13 @@ function jsontablecustom(editor) {
                             result.push(newRow);
                         });
 
-                        // ✅ Get summary fields from component
+                        // ✅ SINGLE summary row logic - only keep this one
                         const selectedSummaryFields = this.get('summary-fields') || [];
 
-                        // ✅ Only add summary row if:
-                        // 1. Summarize is enabled
-                        // 2. Summary fields are configured
-                        // 3. Not hiding subtotal for single row (or more than 1 row)
                         if (summarizeGroup && selectedSummaryFields.length > 0 &&
                             !(hideSubtotalSingleRow && group.rows.length === 1)) {
 
                             console.log(`➕ Adding summary row for group ${groupIndex}`);
-                            const summaryRow = this.createSummaryRow(group.rows, groupKey);
-                            summaryRow._isSummary = true;
-                            summaryRow._groupIndex = groupIndex;
-                            result.push(summaryRow);
-                        }
-
-
-                        // ✅ Add summary row if enabled AND has summary fields
-                        if (summarizeGroup && !(hideSubtotalSingleRow && group.rows.length === 1)) {
                             const summaryRow = this.createSummaryRow(group.rows, groupKey);
                             summaryRow._isSummary = true;
                             summaryRow._groupIndex = groupIndex;
@@ -4670,6 +4656,17 @@ function jsontablecustom(editor) {
     function initializeTableSettingsModal(component, availableFields) {
         let selectedGroupingFields = component.get('grouping-fields') || [];
         let selectedSummaryFields = component.get('summary-fields') || [];
+        // ✅ CHECK TABLE TYPE FIRST - BEFORE ANY EVENT LISTENERS
+        const tableType = component.get('table-type') || 'standard';
+
+        // ✅ HIDE TABS IMMEDIATELY FOR CROSSTAB
+        if (tableType === 'crosstab') {
+            const settingsTab = document.querySelector('.nav-tab[data-tab="settings"]');
+            const runningTotalTab = document.querySelector('.nav-tab[data-tab="running-total"]');
+
+            if (settingsTab) settingsTab.style.display = 'none';
+            if (runningTotalTab) runningTotalTab.style.display = 'none';
+        }
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', function () {
                 // Remove active class and styles from all tabs
@@ -4704,6 +4701,12 @@ function jsontablecustom(editor) {
                 }
             });
         });
+        // ✅ AUTO-SWITCH TO GROUPING TAB IF CROSSTAB
+        if (tableType === 'crosstab') {
+            setTimeout(() => {
+                document.querySelector('.nav-tab[data-tab="grouping"]')?.click();
+            }, 50);
+        }
         initializeInlineColumnReorder(component);
         // Populate Running Total columns - STRICT numeric check
         const headers = component.get('custom-headers') || component.get('table-headers') || {};
