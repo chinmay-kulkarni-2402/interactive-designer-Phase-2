@@ -517,17 +517,17 @@ async function exportPDF(body) {
     `;
 
     // --- Debug: Log and download HTML sent to backend ---
-    // try {
-    //   const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
-    //   const debugLink = document.createElement("a");
-    //   debugLink.href = debugUrl;
-    //   debugLink.download = "sent_to_single_page_pdf_api.html";
-    //   debugLink.click();
-    //   URL.revokeObjectURL(debugUrl);
-    //   console.log("💾 Debug HTML downloaded for inspection");
-    // } catch (err) {
-    //   console.warn("⚠️ Could not auto-download debug HTML:", err);
-    // }
+    try {
+      const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+      const debugLink = document.createElement("a");
+      debugLink.href = debugUrl;
+      debugLink.download = "sent_to_single_page_pdf_api.html";
+      debugLink.click();
+      URL.revokeObjectURL(debugUrl);
+      console.log("💾 Debug HTML downloaded for inspection");
+    } catch (err) {
+      console.warn("⚠️ Could not auto-download debug HTML:", err);
+    }
 
     // --- Send to backend API ---
     const formData = new FormData();

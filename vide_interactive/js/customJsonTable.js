@@ -2402,7 +2402,9 @@ function jsontablecustom(editor) {
                 // ✅ If no grouping fields, reset to original data
                 if (groupingFields.length === 0) {
                     console.log('✅ No grouping fields - resetting to original data');
-                    this.set('custom-data', null);
+                    const groupedData = this.groupData(data, 0);
+                    console.log(" grouping 0 groupdata", groupedData)
+                    this.set('custom-data', groupedData);
                     this.set('show-placeholder', false);
                     this.updateTableHTML();
                     return;
@@ -2418,6 +2420,7 @@ function jsontablecustom(editor) {
 
                 // Apply grouping logic
                 const groupedData = this.groupData(data, groupingFields);
+                console.log(" added grouping groupdata", groupedData)
 
                 // console.log('📊 Grouped data result:', groupedData.length, 'rows');
 
@@ -4527,33 +4530,37 @@ function jsontablecustom(editor) {
 </div>
 </div>
 
-
-<!-- Running Total Tab (NEW) -->
+<!-- Running Total Tab (UPDATED) -->
 <div id="running-total-tab" class="tab-pane" style="display: none;">
-    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 20px; align-items: start; max-height: 500px; overflow: hidden;"> <!-- Added max-height and overflow -->
-        <!-- Left: Column Selection -->
-        <div style="overflow-y: auto; max-height: 500px;"> <!-- Added overflow -->
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
-            <div id="running-total-columns" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-                <!-- Will be populated with numeric columns -->
-            </div>
+  <div style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; max-height: 500px; overflow: hidden; padding: 10px;">
+    
+    <!-- Left: Column Selection + Active Running Totals -->
+    <div style="display: flex; flex-direction: column; gap: 20px; overflow: hidden; max-height: 500px;">
+      
+      <!-- Select Columns -->
+      <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
+        <div id="running-total-columns" style="overflow-y: auto; max-height: 200px;">
+          <!-- Will be populated with numeric columns -->
         </div>
+      </div>
 
-        <!-- Right: Configuration Panel -->
-        <div style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; max-height: 500px;"> <!-- Added overflow -->
-            <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 15px; min-height: 200px;">
-                <p style="color: #666; text-align: center;">Select a column to configure running total</p>
-            </div>
-
-            <!-- Running Total List -->
-            <div>
-                <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
-                <div id="rt-active-list" style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; min-height: 100px; max-height: 200px; overflow-y: auto;">
-                    <p style="color: #999; text-align: center;">No running totals configured</p>
-                </div>
-            </div>
+      <!-- Active Running Totals -->
+      <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
+        <div id="rt-active-list" style="min-height: 100px; max-height: 200px; overflow-y: auto;">
+          <p style="color: #999; text-align: center;">No running totals configured</p>
         </div>
+      </div>
     </div>
+
+    <!-- Right: Configuration Panel -->
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+      <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 5px 15px 0px 15px; min-height: 200px;overflow-y: auto; max-height: 400px;">
+        <p style="color: #666; text-align: center;">Select a column to configure running total</p>
+      </div>
+    </div>
+  </div>
 </div>
 
             <!-- Options Tab (existing content) -->
@@ -5125,83 +5132,96 @@ function jsontablecustom(editor) {
             editor.Modal.close();
         });
 
-        // Apply button - FIX: Save selectedSummaryFields
-        document.getElementById('apply-settings').addEventListener('click', () => {
-            console.log('📝 Applying settings...');
+            // Apply button - FIX: Save selectedSummaryFields
+// Update the apply-settings event listener in the 'open-table-settings-modal' command
+document.getElementById('apply-settings').addEventListener('click', () => {
+    console.log('📝 Applying settings...');
 
-            // Validate grouping before applying
-            if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
-                alert('Please select at least one grouping field before adding summaries');
-                return;
-            }
+    // Validate grouping before applying
+    if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
+        alert('Please select at least one grouping field before adding summaries');
+        return;
+    }
 
-            // ✅ Check if summarize is enabled but no summary fields
-            const summarizeChecked = document.getElementById('summarize-group').checked;
-            if (summarizeChecked && selectedSummaryFields.length === 0) {
-                alert('Please add at least one summary field when "Summarize Group" is enabled');
-                return;
-            }
+    // ✅ Check if summarize is enabled but no summary fields
+    const summarizeChecked = document.getElementById('summarize-group').checked;
+    if (summarizeChecked && selectedSummaryFields.length === 0) {
+        alert('Please add at least one summary field when "Summarize Group" is enabled');
+        return;
+    }
 
-            // Save grouping fields
-            component.set('grouping-fields', selectedGroupingFields);
+    // Save grouping fields
+    component.set('grouping-fields', selectedGroupingFields);
 
-            // Save summary fields
-            component.set('summary-fields', selectedSummaryFields);
+    // Save summary fields
+    component.set('summary-fields', selectedSummaryFields);
 
-            console.log('💾 Saved settings:', {
-                groupingFields: selectedGroupingFields.length,
-                summaryFields: selectedSummaryFields.length
-            });
+    console.log('💾 Saved settings:', {
+        groupingFields: selectedGroupingFields.length,
+        summaryFields: selectedSummaryFields.length
+    });
 
-            // Save sort options
-            component.set('sort-order', document.getElementById('sort-order').value);
-            component.set('top-n', document.getElementById('top-n').value);
-            component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
+    // Save sort options
+    component.set('sort-order', document.getElementById('sort-order').value);
+    component.set('top-n', document.getElementById('top-n').value);
+    component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
 
-            // Save display options
-            component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
-            component.set('summarize-group', document.getElementById('summarize-group').checked);
-            component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
-            component.set('page-break', document.getElementById('page-break').checked);
+    // Save display options
+    component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+    component.set('summarize-group', document.getElementById('summarize-group').checked);
+    component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
+    component.set('page-break', document.getElementById('page-break').checked);
 
-            // Save display mode
-            const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
-            component.set('show-summary-only', showSummaryOnly);
-            component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
+    // Save display mode
+    const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
+    component.set('show-summary-only', showSummaryOnly);
+    component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
 
-            // Save totals & labels
-            component.set('grand-total', document.getElementById('grand-total').checked);
-            component.set('grand-total-label', document.getElementById('grand-total-label').value);
-            component.set('summary-label', document.getElementById('summary-label').value);
+    // Save totals & labels
+    component.set('grand-total', document.getElementById('grand-total').checked);
+    component.set('grand-total-label', document.getElementById('grand-total-label').value);
+    component.set('summary-label', document.getElementById('summary-label').value);
 
-            // Save named groups
-            component.set('define-named-group', document.getElementById('define-named-group').checked);
+    // Save named groups
+    component.set('define-named-group', document.getElementById('define-named-group').checked);
 
-            // ✅ Save running totals if configured
-            const runningTotals = component.get('running-totals') || [];
-            if (runningTotals.length > 0) {
-                console.log('💾 Applying running totals:', runningTotals.length);
-                applyRunningTotalsToTable(component);
-            }
+    // Create loader
+    const loader = document.createElement('div');
+    loader.id = 'settings-loader';
+    loader.style.position = 'fixed';
+    loader.style.top = '0';
+    loader.style.left = '0';
+    loader.style.width = '100vw';
+    loader.style.height = '100vh';
+    loader.style.background = 'rgba(255,255,255,0.8)';
+    loader.style.display = 'flex';
+    loader.style.alignItems = 'center';
+    loader.style.justifyContent = 'center';
+    loader.style.zIndex = '10000';
+    loader.innerHTML = '<div style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">Applying Table settings...</div>';
+    document.body.appendChild(loader);
 
-            editor.Modal.close();
+    editor.Modal.close();
 
-            // ✅ Apply grouping AFTER modal closes
-            setTimeout(() => {
-                if (selectedGroupingFields.length > 0) {
-                    console.log('🔄 Applying grouping...');
-                    component.applyGroupingAndSummary();
-                } else {
-                    console.log('✅ No grouping - keeping data as is');
-                    // Ensure table is visible
-                    component.set('show-placeholder', false);
-                    component.updateTableHTML();
-                }
-            }, 100);
+    // ✅ Always apply grouping/summary after settings change (handles reset when empty)
+    setTimeout(() => {
+        console.log('🔄 Applying grouping...');
+        component.applyGroupingAndSummary();
 
-            // Show success message
-            alert('Settings applied successfully!');
-        });
+        // ✅ Save running totals if configured
+        const runningTotals = component.get('running-totals') || [];
+        if (runningTotals.length > 0) {
+            console.log('💾 Applying running totals:', runningTotals.length);
+            applyRunningTotalsToTable(component);
+        }
+
+        // Remove loader
+        document.getElementById('settings-loader').remove();
+
+        // Show success message
+        alert('Settings applied successfully!');
+    }, 100);
+});
     }
 
     function initializeRunningTotalTab(component) {
@@ -5212,6 +5232,7 @@ function jsontablecustom(editor) {
         // Filter numeric columns
         const numericHeaders = {};
         Object.entries(headers).forEach(([key, name]) => {
+            if (key.endsWith('_running_total')) return;
             const isStrictlyNumeric = data.every(row => {
                 let value = row[key];
                 if (value === '' || value === null || value === undefined) return true;
@@ -5238,23 +5259,35 @@ function jsontablecustom(editor) {
         }
 
         columnList.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
-        <div class="rt-column-item" data-key="${key}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+        <div class="rt-column-item" data-key="${key}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;">
+            <input type="checkbox" class="rt-checkbox" style="margin-right: 8px; opacity: 1; cursor: pointer; width: 16px; height: 16px;">
             <span>${name}</span>
         </div>
     `).join('');
 
-        // Add click handlers
-        document.querySelectorAll('.rt-column-item').forEach(item => {
-            item.addEventListener('click', function () {
-                // ✅ Highlight selected column
-                // document.querySelectorAll('.rt-column-item').forEach(i => {
-                //     i.style.background = 'white';
-                //     i.style.borderColor = '#ddd';
-                // });
-
-                const columnKey = this.getAttribute('data-key');
+        // Add change handlers
+        document.querySelectorAll('.rt-checkbox').forEach(item => {
+            item.addEventListener('change', function () {
+                const parentItem = this.closest('.rt-column-item');
+                const columnKey = parentItem.getAttribute('data-key');
                 const columnName = numericHeaders[columnKey];
-                showRunningTotalConfig(component, columnKey, columnName, runningTotals);
+
+                if (this.checked) {
+                    // Uncheck and disable others
+                    document.querySelectorAll('.rt-checkbox').forEach(cb => {
+                        if (cb !== this) {
+                            cb.checked = false;
+                            cb.disabled = true;
+                        }
+                    });
+                    showRunningTotalConfig(component, columnKey, columnName, runningTotals);
+                } else {
+                    document.getElementById('rt-config-panel').innerHTML = '<p style="color: #666; text-align: center;">Select a column to configure running total</p>';
+                    // Enable others
+                    document.querySelectorAll('.rt-checkbox').forEach(cb => {
+                        cb.disabled = false;
+                    });
+                }
             });
         });
 
@@ -5473,7 +5506,6 @@ function jsontablecustom(editor) {
 
         const configPanel = document.getElementById('rt-config-panel');
         configPanel.innerHTML = `
-        <div style="max-height: 450px; overflow-y: auto; padding-right: 10px;">
             <h4 style="margin-top: 0;">${columnName}</h4>
             
             <!-- Summary -->
@@ -5510,7 +5542,7 @@ function jsontablecustom(editor) {
             </div>
 
             <!-- Reset -->
-            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+            <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; min-hight: 180px">
                 <label style="font-weight: bold; display: block; margin-bottom: 10px;">Reset:</label>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
                     <label style="display: flex; align-items: center;">
@@ -5536,7 +5568,6 @@ function jsontablecustom(editor) {
                 ${existing ? `<button id="rt-remove-btn" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Running Total</button>` : ''}
                 <button id="rt-apply-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${existing ? 'Update' : 'Add'} Running Total</button>
             </div>
-        </div>
     `;
 
         // Add event listeners
@@ -5564,13 +5595,7 @@ function jsontablecustom(editor) {
                 evaluate: document.querySelector('input[name="rt-evaluate"]:checked').value,
                 evaluateField: document.getElementById('rt-evaluate-field').value,
                 reset: document.querySelector('input[name="rt-reset"]:checked').value,
-                resetField: document.getElementById('rt-reset-field').value,
-                bgColor: document.getElementById('rt-bg-color').value,
-                textColor: document.getElementById('rt-text-color').value,
-                fontFamily: document.getElementById('rt-font-family').value,
-                fontSize: document.getElementById('rt-font-size').value,
-                hAlign: document.getElementById('rt-h-align').value,
-                vAlign: document.getElementById('rt-v-align').value
+                resetField: document.getElementById('rt-reset-field').value
             };
 
             addOrUpdateRunningTotal(component, rtConfig);
@@ -5585,7 +5610,9 @@ function jsontablecustom(editor) {
 
     function getGroupingFieldsOptions(component, selectedField) {
         const headers = component.get('custom-headers') || component.get('table-headers') || {};
-        return Object.entries(headers).map(([key, name]) =>
+        return Object.entries(headers)
+            .filter(([key]) => !key.endsWith('_running_total'))
+            .map(([key, name]) =>
             `<option value="${key}" ${selectedField === key ? 'selected' : ''}>${name}</option>`
         ).join('');
     }
@@ -5603,10 +5630,10 @@ function jsontablecustom(editor) {
         component.set('running-totals', runningTotals);
 
         const headers = component.get('custom-headers') || component.get('table-headers') || {};
-        updateActiveRunningTotalsList(component, headers);
-        applyRunningTotalsToTable(component);
-
+        updateActiveRunningTotalsList(component);
         alert(`Running total ${existingIndex >= 0 ? 'updated' : 'added'} for ${rtConfig.columnName}`);
+
+        initializeRunningTotalTab(component);
     }
 
     function removeRunningTotal(component, columnKey) {
@@ -5615,32 +5642,40 @@ function jsontablecustom(editor) {
         component.set('running-totals', runningTotals);
 
         const headers = component.get('custom-headers') || component.get('table-headers') || {};
-        updateActiveRunningTotalsList(component, headers);
-        applyRunningTotalsToTable(component);
-
+        updateActiveRunningTotalsList(component);
         document.getElementById('rt-config-panel').innerHTML = '<p style="color: #666; text-align: center;">Select a column to configure running total</p>';
 
         alert('Running total removed');
+
+        initializeRunningTotalTab(component);
     }
 
-    function updateActiveRunningTotalsList(component, numericHeaders) {
-        const runningTotals = component.get('running-totals') || [];
-        const activeList = document.getElementById('rt-active-list');
-
-        if (runningTotals.length === 0) {
-            activeList.innerHTML = '<p style="color: #999; text-align: center;">No running totals configured</p>';
-            return;
-        }
-
-        activeList.innerHTML = runningTotals.map(rt => `
-        <div style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px;">
+function updateActiveRunningTotalsList(component) {
+    const runningTotals = component.get('running-totals') || [];
+    const activeList = document.getElementById('rt-active-list');
+    if (runningTotals.length === 0) {
+        activeList.innerHTML = '<p style="color: #999; text-align: center;">No running totals configured</p>';
+        return;
+    }
+    activeList.innerHTML = runningTotals.map(rt => `
+    <div class="rt-active-item" data-key="${rt.columnKey}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
             <strong>${rt.columnName}</strong>
             <div style="font-size: 12px; color: #666; margin-top: 3px;">
                 Operation: ${rt.operation} | Evaluate: ${rt.evaluate}
             </div>
         </div>
-    `).join('');
-    }
+        <button class="rt-remove-active" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+    </div>
+`).join('');
+    // Add remove listeners
+    activeList.querySelectorAll('.rt-remove-active').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const columnKey = this.closest('.rt-active-item').getAttribute('data-key');
+            removeRunningTotal(component, columnKey);
+        });
+    });
+}
 
     function applyRunningTotalsToTable(component) {
         const runningTotals = component.get('running-totals') || [];
