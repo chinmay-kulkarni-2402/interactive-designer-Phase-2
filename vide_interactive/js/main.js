@@ -2620,7 +2620,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 // }
 
 async function generatePrintDialog() {
-  const apiUrl = "http://192.168.0.221:3011/api/v1/s3Upload/uploadHTML5";
+  const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadHtmlToPdf?file";
 
   // Get GrapesJS HTML & CSS
   const html = editor.getHtml();

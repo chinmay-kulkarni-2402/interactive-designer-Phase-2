@@ -404,7 +404,7 @@ async function exportRTF(body) {
 
 
 async function exportPDF(body) {
-  const apiUrl = "http://192.168.0.221:9998/jsonApi/uploadSinglePagePdf";
+  const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadSinglePagePdf";
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");

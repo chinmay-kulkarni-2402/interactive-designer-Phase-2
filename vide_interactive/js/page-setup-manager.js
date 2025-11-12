@@ -6948,7 +6948,19 @@ padding: 8px;
     })
     this.setupStrictBoundaryEnforcement();
   }
-
+parsePositionStyles(styleString) {
+  const styles = {};
+  const rules = styleString.split(';').filter(r => r.trim());
+  
+  rules.forEach(rule => {
+    const [property, value] = rule.split(':').map(s => s.trim());
+    if (property && value) {
+      styles[property] = value;
+    }
+  });
+  
+  return styles;
+}
   // FIXED: Enhanced updateSinglePageVisuals method that properly creates and displays headers/footers
   updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
     const allPages = this.editor.getWrapper().find('.page-container');
@@ -7165,88 +7177,102 @@ padding: 8px;
       }
 
       // ======================================================
-      // Page Numbers (untouched)
-      // ======================================================
-      if (this.pageSettings.pageNumber?.enabled) {
-        const visibility = this.pageSettings.pageNumber.visibility || "all";
-        const startFromIndex = (this.pageSettings.pageNumber.startFrom || 1) - 1;
+// ======================================================
+// Page Numbers - ADD AS GRAPESJS COMPONENT
+// ======================================================
+if (this.pageSettings.pageNumber?.enabled) {
+  const visibility = this.pageSettings.pageNumber.visibility || "all";
+  const startFromIndex = (this.pageSettings.pageNumber.startFrom || 1) - 1;
 
-        const shouldShowPageNumber =
-          visibility === "all" ||
-          (visibility === "even" && (pageIndex + 1) % 2 === 0) ||
-          (visibility === "odd" && (pageIndex + 1) % 2 !== 0);
+  const shouldShowPageNumber =
+    visibility === "all" ||
+    (visibility === "even" && (pageIndex + 1) % 2 === 0) ||
+    (visibility === "odd" && (pageIndex + 1) % 2 !== 0);
 
-        if (pageIndex >= startFromIndex && shouldShowPageNumber) {
-          const totalPagesWithNumbers = this.editor
-            .getWrapper()
-            .find('.page-container')
-            .filter((_, i) => {
-              return (
-                i >= startFromIndex &&
-                (visibility === "all" ||
-                  (visibility === "even" && (i + 1) % 2 === 0) ||
-                  (visibility === "odd" && (i + 1) % 2 !== 0))
-              );
-            }).length;
+  if (pageIndex >= startFromIndex && shouldShowPageNumber) {
+    const totalPagesWithNumbers = this.editor
+      .getWrapper()
+      .find('.page-container')
+      .filter((_, i) => {
+        return (
+          i >= startFromIndex &&
+          (visibility === "all" ||
+            (visibility === "even" && (i + 1) % 2 === 0) ||
+            (visibility === "odd" && (i + 1) % 2 !== 0))
+        );
+      }).length;
 
-          const currentNumber = pageIndex - startFromIndex + 1;
-          const numberText = this.pageSettings.pageNumber.format
-            .replace("{n}", String(currentNumber))
-            .replace("{total}", String(totalPagesWithNumbers));
+    const currentNumber = pageIndex - startFromIndex + 1;
+    const numberText = this.pageSettings.pageNumber.format
+      .replace("{n}", String(currentNumber))
+      .replace("{total}", String(totalPagesWithNumbers));
 
-          const pageNumberDiv = document.createElement("div");
-          pageNumberDiv.className = "page-number";
-          pageNumberDiv.textContent = numberText;
+    const position = this.pageSettings.pageNumber.position || "bottom-center";
+    const rotation = this.pageSettings.pageNumber.rotation || 0;
+    
+    // Build position styles
+    let positionStyles = "position: absolute; ";
+    
+    if (position.includes("top")) {
+      positionStyles += "top: 5px; ";
+    } else {
+      positionStyles += "bottom: 5px; ";
+    }
 
-          const styleMap = {
-            position: "absolute",
-            fontSize: `${this.pageSettings.pageNumber.fontSize || 12}px`,
-            color: this.pageSettings.pageNumber.color || "#000",
-            backgroundColor: this.pageSettings.pageNumber.backgroundColor || "#fff",
-            padding: "4px 8px",
-            borderRadius: "3px",
-            border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
-            zIndex: "99",
-            fontFamily: this.pageSettings.pageNumber.fontFamily || "Arial",
-            transform: `rotate(${this.pageSettings.pageNumber.rotation || 0}deg)`, // ✅ ADD THIS LINE
-            transformOrigin: "center center" // ✅ ADD THIS LINE
-          };
+    if (position.includes("left")) {
+      positionStyles += "left: 10px; ";
+    } else if (position.includes("right")) {
+      positionStyles += "right: 10px; ";
+    } else {
+      positionStyles += "left: 50%; ";
+    }
 
-          const position = this.pageSettings.pageNumber.position || "bottom-center";
+    // Handle transform for centering + rotation
+    let transformValue = '';
+    if (position.includes("center") && !position.includes("left") && !position.includes("right")) {
+      transformValue = `translateX(-50%) rotate(${rotation}deg)`;
+    } else {
+      transformValue = `rotate(${rotation}deg)`;
+    }
 
-          if (position.includes("top")) {
-            styleMap.top = "5px";
-          } else {
-            styleMap.bottom = "5px";
-          }
+    // ✅ Remove existing page number component
+    const existingPageNumber = pageContentComponent.find('.page-number-element');
+    if (existingPageNumber && existingPageNumber.length > 0) {
+      existingPageNumber.forEach(pn => pn.remove());
+    }
 
-          if (position.includes("left")) {
-            styleMap.left = "10px";
-          } else if (position.includes("right")) {
-            styleMap.right = "10px";
-          } else {
-            styleMap.left = "50%";
-          }
+    // ✅ Add page number as GrapesJS component
+    const pageNumberComponent = pageContentComponent.append(`
+      <div class="page-number-element">${numberText}</div>
+    `)[0];
 
-          // ✅ NEW: Combine transforms for rotation and centering
-          const rotation = this.pageSettings.pageNumber.rotation || 0;
-          let transformValue = '';
+    if (pageNumberComponent) {
+      pageNumberComponent.addStyle({
+        position: "absolute",
+        fontSize: `${this.pageSettings.pageNumber.fontSize || 12}px`,
+        color: this.pageSettings.pageNumber.color || "#000",
+        backgroundColor: this.pageSettings.pageNumber.backgroundColor || "#fff",
+        padding: "4px 8px",
+        borderRadius: "3px",
+        border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
+        zIndex: "99",
+        fontFamily: this.pageSettings.pageNumber.fontFamily || "Arial",
+        transform: transformValue,
+        transformOrigin: "center center",
+        ...this.parsePositionStyles(positionStyles)
+      });
 
-          if (position.includes("center") && !position.includes("left") && !position.includes("right")) {
-            // Horizontal centering needed
-            transformValue = `translateX(-50%) rotate(${rotation}deg)`;
-          } else {
-            // No centering, just rotation
-            transformValue = `rotate(${rotation}deg)`;
-          }
-
-          styleMap.transform = transformValue;
-          styleMap.transformOrigin = "center center";
-
-          Object.assign(pageNumberDiv.style, styleMap);
-          pageElement.appendChild(pageNumberDiv);
-        }
-      }
+      // Make it non-editable
+      pageNumberComponent.set({
+        selectable: false,
+        editable: false,
+        removable: false,
+        draggable: false,
+        copyable: false,
+      });
+    }
+  }
+}
     }, 200);
 
     // ======================================================

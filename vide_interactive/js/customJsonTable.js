@@ -3466,7 +3466,7 @@ function jsontablecustom(editor) {
                 const runningTotals = this.get('running-totals') || [];
 
                 data.forEach((row, rowIndex) => {
-                    // ✅ CHECK FOR PAGE BREAK ROW
+                    // âœ… CHECK FOR PAGE BREAK ROW
                     if (row._isPageBreak) {
                         const pageBreakRow = tbodyComponent.components().add({
                             type: 'default',
@@ -3476,7 +3476,7 @@ function jsontablecustom(editor) {
                                 'id': row._pageBreakId
                             },
                             style: {
-                                'display': 'none' // Hidden in editor, will be processed by PageSetupManager
+                                'display': 'none'
                             }
                         });
 
@@ -3494,41 +3494,109 @@ function jsontablecustom(editor) {
                                 'border': 'none'
                             },
                             content: `<div class="page-break" data-page-break="true" style="
-                    width: 100%;
-                    height: 30px;
-                    background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%);
-                    border: 2px dashed #ff4757;
-                    border-radius: 6px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 10px 0;
-                    position: relative;
-                    cursor: move;
-                ">
-                    <span class="page-break-label" style="
-                        color: white;
-                        font-size: 12px;
-                        font-weight: bold;
-                        letter-spacing: 1px;
-                    ">PAGE BREAK (Auto-inserted after group)</span>
-                </div>`
+                width: 100%;
+                height: 30px;
+                background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%);
+                border: 2px dashed #ff4757;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 10px 0;
+                position: relative;
+                cursor: move;
+            ">
+                <span class="page-break-label" style="
+                    color: white;
+                    font-size: 12px;
+                    font-weight: bold;
+                    letter-spacing: 1px;
+                ">PAGE BREAK (Auto-inserted after group)</span>
+            </div>`
                         });
-                        return; // Skip normal row rendering for page break rows
+                        return;
                     }
 
-                    // NORMAL ROW RENDERING (rest of your existing code)
+                    // NORMAL ROW RENDERING
                     const isSummary = row._isSummary;
                     const isGrandTotal = row._isGrandTotal;
                     const isGroupStart = row._groupStart;
                     const groupSize = row._groupSize || 1;
+                    const mergeGroupCells = this.get('merge-group-cells') || false;
 
+                    // âœ… SPECIAL HANDLING FOR SUMMARY ROWS WITH MERGED CELLS
+                    if (isSummary && mergeGroupCells) {
+                        const summaryRowComponent = tbodyComponent.components().add({
+                            type: 'default',
+                            tagName: 'tr',
+                            classes: ['summary-row'],
+                            style: {
+                                'background-color': '#f0f8ff',
+                                'font-weight': 'bold'
+                            }
+                        });
+
+                        // âœ… Add merged cell spanning all grouping columns
+                        const groupingFields = this.get('grouping-fields') || [];
+                        const summaryFields = this.get('summary-fields') || [];
+
+                        if (groupingFields.length > 0) {
+                            const firstGroupKey = groupingFields[0].key;
+                            const summaryLabel = this.get('summary-label') || 'Subtotal';
+
+                            summaryRowComponent.components().add({
+                                type: 'json-table-cell',
+                                tagName: 'td',
+                                content: summaryLabel,
+                                selectable: true,
+                                attributes: {
+                                    'colspan': groupingFields.length.toString(),
+                                    'data-summary-label': 'true'
+                                },
+                                style: {
+                                    'padding': '8px',
+                                    'border': '1px solid #000',
+                                    'font-weight': 'bold',
+                                    'background-color': '#e3f2fd'
+                                }
+                            });
+
+                            // âœ… Add empty cells for non-summary columns
+                            Object.keys(headers).slice(groupingFields.length).forEach(key => {
+                                const isSummaryColumn = summaryFields.some(sf => sf.key === key);
+                                const displayValue = isSummaryColumn ? (row[key] || '') : '';
+
+                                summaryRowComponent.components().add({
+                                    type: 'json-table-cell',
+                                    tagName: 'td',
+                                    content: displayValue,
+                                    selectable: true,
+                                    attributes: {
+                                        'data-summary-cell': 'true',
+                                        'data-column-key': key
+                                    },
+                                    style: {
+                                        'padding': '8px',
+                                        'border': '1px solid #000',
+                                        'font-weight': isSummaryColumn ? 'bold' : 'normal',
+                                        'background-color': '#e3f2fd'
+                                    }
+                                });
+                            });
+                        }
+                        return; // Skip normal row rendering for merged summary rows
+                    }
+
+                    // NORMAL ROW (NON-MERGED SUMMARY OR REGULAR DATA)
                     const rowComponent = tbodyComponent.components().add({
                         type: 'default',
                         tagName: 'tr',
                         classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
                         style: {
-                            'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'
+                            'background-color': isSummary ? '#f0f8ff' :
+                                isGrandTotal ? '#e8f5e9' :
+                                    rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                            'font-weight': (isSummary || isGrandTotal) ? 'bold' : 'normal'
                         }
                     });
 
@@ -3541,12 +3609,10 @@ function jsontablecustom(editor) {
                         const cellId = `${tableId}-cell-${rowIndex}-${key}`;
                         const displayValue = row[key] || '';
 
-                        // Check if this is a running total column
                         const isRunningTotal = key.endsWith('_running_total');
                         const rtConfig = isRunningTotal ? runningTotals.find(rt => `${rt.columnKey}_running_total` === key) : null;
                         const tableStyles = this.get('table-styles-applied');
 
-                        // ✅ FIX: Use let instead of const
                         let appliedCellStyles = tableStyles ? {
                             'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
                             'color': tableStyles.textColor,
@@ -3557,22 +3623,12 @@ function jsontablecustom(editor) {
                             'border': '1px solid #000'
                         };
 
-                        // Override with running total styles if applicable
                         if (isRunningTotal && rtConfig) {
                             appliedCellStyles = {
                                 ...appliedCellStyles,
-                                // 'background-color': rtConfig.bgColor,
-                                // 'color': rtConfig.textColor,
-                                // 'font-family': rtConfig.fontFamily || appliedCellStyles['font-family'],
-                                // 'font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : appliedCellStyles['font-size'],
-                                // 'font-weight': 'bold',
-                                // 'border-left': '3px solid #007bff',
-                                // '--rt-bg-color': rtConfig.bgColor,
-                                // '--rt-text-color': rtConfig.textColor,
-                                // '--rt-font-family': rtConfig.fontFamily || 'inherit',
-                                // '--rt-font-size': rtConfig.fontSize ? `${rtConfig.fontSize}px` : 'inherit'
                             };
                         }
+
                         const alignStyles = tableStyles ? {
                             display: 'flex',
                             alignItems: tableStyles.verticalAlign === 'top' ? 'flex-start' :
@@ -3593,6 +3649,7 @@ function jsontablecustom(editor) {
                         if (isRunningTotal) {
                             attributes['data-running-total'] = 'true';
                         }
+
                         // Add rowspan if this cell should be merged
                         if (isGroupStart && row[`_merge_${key}`]) {
                             attributes.rowspan = groupSize.toString();
@@ -3614,7 +3671,7 @@ function jsontablecustom(editor) {
                             classes: ['json-table-cell', 'cell-content', (isSummary || isGrandTotal || isRunningTotal) ? 'readonly-cell' : 'editable-cell'],
                             attributes: {
                                 ...attributes,
-                                'data-gjs-draggable': 'false'  // ✅ Added
+                                'data-gjs-draggable': 'false'
                             },
                             style: {
                                 ...appliedCellStyles,
@@ -4506,96 +4563,96 @@ function jsontablecustom(editor) {
 
     <!-- Group Options -->
     <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
-      <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
-      <label style="display: flex; align-items: center; margin-bottom: 10px;">
-          <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
-          <span style="font-weight: bold;">Summarize Group</span>
-      </label>
-      <label style="display: flex; align-items: center;">
-          <input type="checkbox" id="page-break" style="margin-right: 8px;">
-          <span style="font-weight: bold;">Page Break After Group</span>
-      </label>
-    </fieldset>
-  </div>
-
-  <!-- Named Groups Section -->
-  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-    <legend style="font-weight: bold; padding: 0 10px;">Named Groups</legend>
-    <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
-      <input type="checkbox" id="define-named-group" style="margin-right: 8px; width: 16px; height: 16px;">
-      <span style="font-size: 13px;">Define Named Group</span>
+    <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+        <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
+        <span style="font-weight: bold;">Summarize Group</span>
     </label>
-    <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; width: 100%; font-size: 13px;">Configure Named Groups</button>
-  </fieldset>
-</div>
-</div>
-
-<!-- Running Total Tab (UPDATED) -->
-<div id="running-total-tab" class="tab-pane" style="display: none;">
-  <div style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; max-height: 500px; overflow: hidden; padding: 10px;">
-    
-    <!-- Left: Column Selection + Active Running Totals -->
-    <div style="display: flex; flex-direction: column; gap: 20px; overflow: hidden; max-height: 500px;">
-      
-      <!-- Select Columns -->
-      <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
-        <div id="running-total-columns" style="overflow-y: auto; max-height: 200px;">
-          <!-- Will be populated with numeric columns -->
-        </div>
-      </div>
-
-      <!-- Active Running Totals -->
-      <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
-        <div id="rt-active-list" style="min-height: 100px; max-height: 200px; overflow-y: auto;">
-          <p style="color: #999; text-align: center;">No running totals configured</p>
-        </div>
-      </div>
+    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+        <input type="checkbox" id="page-break" style="margin-right: 8px;">
+        <span style="font-weight: bold;">Page Break After Group</span>
+    </label>
+    <label style="display: flex; align-items: center;">
+        <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
+        <span style="font-weight: bold;">Merge Group Header Cells</span>
+    </label>
+    </fieldset>
     </div>
 
-    <!-- Right: Configuration Panel -->
-    <div style="display: flex; flex-direction: column; gap: 15px;">
-      <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 5px 15px 0px 15px; min-height: 200px;overflow-y: auto; max-height: 400px;">
-        <p style="color: #666; text-align: center;">Select a column to configure running total</p>
-      </div>
+    <!-- Named Groups Section -->
+    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+        <legend style="font-weight: bold; padding: 0 10px;">Named Groups</legend>
+        <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
+        <input type="checkbox" id="define-named-group" style="margin-right: 8px; width: 16px; height: 16px;">
+        <span style="font-size: 13px;">Define Named Group</span>
+        </label>
+        <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; width: 100%; font-size: 13px;">Configure Named Groups</button>
+    </fieldset>
     </div>
-  </div>
-</div>
+    </div>
 
-            <!-- Options Tab (existing content) -->
-<!-- Options Tab -->
-<div id="options-tab" class="tab-pane" style="display: none;">
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div>
+    <!-- Running Total Tab (UPDATED) -->
+    <div id="running-total-tab" class="tab-pane" style="display: none;">
+    <div style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; max-height: 500px; overflow: hidden; padding: 10px;">
+        
+        <!-- Left: Column Selection + Active Running Totals -->
+        <div style="display: flex; flex-direction: column; gap: 20px; overflow: hidden; max-height: 500px;">
+        
+        <!-- Select Columns -->
+        <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
+            <div id="running-total-columns" style="overflow-y: auto; max-height: 200px;">
+            <!-- Will be populated with numeric columns -->
+            </div>
+        </div>
+
+        <!-- Active Running Totals -->
+        <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
+            <div id="rt-active-list" style="min-height: 100px; max-height: 200px; overflow-y: auto;">
+            <p style="color: #999; text-align: center;">No running totals configured</p>
+            </div>
+        </div>
+        </div>
+
+        <!-- Right: Configuration Panel -->
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+        <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 5px 15px 0px 15px; min-height: 200px;overflow-y: auto; max-height: 400px;">
+            <p style="color: #666; text-align: center;">Select a column to configure running total</p>
+        </div>
+        </div>
+    </div>
+    </div>
+
+                <!-- Options Tab (existing content) -->
+    <!-- Options Tab -->
+    <div id="options-tab" class="tab-pane" style="display: none;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
             <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                 <legend style="font-weight: bold;">Display Options</legend>
-                <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
-                    <span>Merge Group Cells</span>
-                </label>
-                <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
-                    <span>Group Header In-place</span>
-                </label>
-                <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
-                    <span>Hide Subtotal for Single Row</span>
-                </label>
-            </fieldset>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
+                        <span>Group Header In-place</span>
+                    </label>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
+                        <span>Hide Subtotal for Single Row</span>
+                    </label>
+                </fieldset>
+            </div>
+            <div>
+                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                    <legend style="font-weight: bold;">Total Options</legend>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
+                        <span>Show Grand Total</span>
+                    </label>
+                    <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                    <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </fieldset>
+            </div>
         </div>
-        <div>
-            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                <legend style="font-weight: bold;">Total Options</legend>
-                <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
-                    <span>Show Grand Total</span>
-                </label>
-                <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
-                <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            </fieldset>
-        </div>
-    </div>
     
 <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
     <legend style="font-weight: bold;">Grouping Type</legend>
@@ -5132,96 +5189,96 @@ function jsontablecustom(editor) {
             editor.Modal.close();
         });
 
-            // Apply button - FIX: Save selectedSummaryFields
-// Update the apply-settings event listener in the 'open-table-settings-modal' command
-document.getElementById('apply-settings').addEventListener('click', () => {
-    console.log('📝 Applying settings...');
+        // Apply button - FIX: Save selectedSummaryFields
+        // Update the apply-settings event listener in the 'open-table-settings-modal' command
+        document.getElementById('apply-settings').addEventListener('click', () => {
+            console.log('📝 Applying settings...');
 
-    // Validate grouping before applying
-    if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
-        alert('Please select at least one grouping field before adding summaries');
-        return;
-    }
+            // Validate grouping before applying
+            if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
+                alert('Please select at least one grouping field before adding summaries');
+                return;
+            }
 
-    // ✅ Check if summarize is enabled but no summary fields
-    const summarizeChecked = document.getElementById('summarize-group').checked;
-    if (summarizeChecked && selectedSummaryFields.length === 0) {
-        alert('Please add at least one summary field when "Summarize Group" is enabled');
-        return;
-    }
+            // ✅ Check if summarize is enabled but no summary fields
+            const summarizeChecked = document.getElementById('summarize-group').checked;
+            if (summarizeChecked && selectedSummaryFields.length === 0) {
+                alert('Please add at least one summary field when "Summarize Group" is enabled');
+                return;
+            }
 
-    // Save grouping fields
-    component.set('grouping-fields', selectedGroupingFields);
+            // Save grouping fields
+            component.set('grouping-fields', selectedGroupingFields);
 
-    // Save summary fields
-    component.set('summary-fields', selectedSummaryFields);
+            // Save summary fields
+            component.set('summary-fields', selectedSummaryFields);
 
-    console.log('💾 Saved settings:', {
-        groupingFields: selectedGroupingFields.length,
-        summaryFields: selectedSummaryFields.length
-    });
+            console.log('💾 Saved settings:', {
+                groupingFields: selectedGroupingFields.length,
+                summaryFields: selectedSummaryFields.length
+            });
 
-    // Save sort options
-    component.set('sort-order', document.getElementById('sort-order').value);
-    component.set('top-n', document.getElementById('top-n').value);
-    component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
+            // Save sort options
+            component.set('sort-order', document.getElementById('sort-order').value);
+            component.set('top-n', document.getElementById('top-n').value);
+            component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
 
-    // Save display options
-    component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
-    component.set('summarize-group', document.getElementById('summarize-group').checked);
-    component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
-    component.set('page-break', document.getElementById('page-break').checked);
+            // Save display options
+            component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+            component.set('summarize-group', document.getElementById('summarize-group').checked);
+            component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
+            component.set('page-break', document.getElementById('page-break').checked);
 
-    // Save display mode
-    const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
-    component.set('show-summary-only', showSummaryOnly);
-    component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
+            // Save display mode
+            const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
+            component.set('show-summary-only', showSummaryOnly);
+            component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
 
-    // Save totals & labels
-    component.set('grand-total', document.getElementById('grand-total').checked);
-    component.set('grand-total-label', document.getElementById('grand-total-label').value);
-    component.set('summary-label', document.getElementById('summary-label').value);
+            // Save totals & labels
+            component.set('grand-total', document.getElementById('grand-total').checked);
+            component.set('grand-total-label', document.getElementById('grand-total-label').value);
+            component.set('summary-label', document.getElementById('summary-label').value);
 
-    // Save named groups
-    component.set('define-named-group', document.getElementById('define-named-group').checked);
+            // Save named groups
+            component.set('define-named-group', document.getElementById('define-named-group').checked);
 
-    // Create loader
-    const loader = document.createElement('div');
-    loader.id = 'settings-loader';
-    loader.style.position = 'fixed';
-    loader.style.top = '0';
-    loader.style.left = '0';
-    loader.style.width = '100vw';
-    loader.style.height = '100vh';
-    loader.style.background = 'rgba(255,255,255,0.8)';
-    loader.style.display = 'flex';
-    loader.style.alignItems = 'center';
-    loader.style.justifyContent = 'center';
-    loader.style.zIndex = '10000';
-    loader.innerHTML = '<div style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">Applying Table settings...</div>';
-    document.body.appendChild(loader);
+            // Create loader
+            const loader = document.createElement('div');
+            loader.id = 'settings-loader';
+            loader.style.position = 'fixed';
+            loader.style.top = '0';
+            loader.style.left = '0';
+            loader.style.width = '100vw';
+            loader.style.height = '100vh';
+            loader.style.background = 'rgba(255,255,255,0.8)';
+            loader.style.display = 'flex';
+            loader.style.alignItems = 'center';
+            loader.style.justifyContent = 'center';
+            loader.style.zIndex = '10000';
+            loader.innerHTML = '<div style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">Applying Table settings...</div>';
+            document.body.appendChild(loader);
 
-    editor.Modal.close();
+            editor.Modal.close();
 
-    // ✅ Always apply grouping/summary after settings change (handles reset when empty)
-    setTimeout(() => {
-        console.log('🔄 Applying grouping...');
-        component.applyGroupingAndSummary();
+            // ✅ Always apply grouping/summary after settings change (handles reset when empty)
+            setTimeout(() => {
+                console.log('🔄 Applying grouping...');
+                component.applyGroupingAndSummary();
 
-        // ✅ Save running totals if configured
-        const runningTotals = component.get('running-totals') || [];
-        if (runningTotals.length > 0) {
-            console.log('💾 Applying running totals:', runningTotals.length);
-            applyRunningTotalsToTable(component);
-        }
+                // ✅ Save running totals if configured
+                const runningTotals = component.get('running-totals') || [];
+                if (runningTotals.length > 0) {
+                    console.log('💾 Applying running totals:', runningTotals.length);
+                    applyRunningTotalsToTable(component);
+                }
 
-        // Remove loader
-        document.getElementById('settings-loader').remove();
+                // Remove loader
+                document.getElementById('settings-loader').remove();
 
-        // Show success message
-        alert('Settings applied successfully!');
-    }, 100);
-});
+                // Show success message
+                alert('Settings applied successfully!');
+            }, 100);
+        });
     }
 
     function initializeRunningTotalTab(component) {
@@ -5613,8 +5670,8 @@ document.getElementById('apply-settings').addEventListener('click', () => {
         return Object.entries(headers)
             .filter(([key]) => !key.endsWith('_running_total'))
             .map(([key, name]) =>
-            `<option value="${key}" ${selectedField === key ? 'selected' : ''}>${name}</option>`
-        ).join('');
+                `<option value="${key}" ${selectedField === key ? 'selected' : ''}>${name}</option>`
+            ).join('');
     }
 
     function addOrUpdateRunningTotal(component, rtConfig) {
@@ -5650,14 +5707,14 @@ document.getElementById('apply-settings').addEventListener('click', () => {
         initializeRunningTotalTab(component);
     }
 
-function updateActiveRunningTotalsList(component) {
-    const runningTotals = component.get('running-totals') || [];
-    const activeList = document.getElementById('rt-active-list');
-    if (runningTotals.length === 0) {
-        activeList.innerHTML = '<p style="color: #999; text-align: center;">No running totals configured</p>';
-        return;
-    }
-    activeList.innerHTML = runningTotals.map(rt => `
+    function updateActiveRunningTotalsList(component) {
+        const runningTotals = component.get('running-totals') || [];
+        const activeList = document.getElementById('rt-active-list');
+        if (runningTotals.length === 0) {
+            activeList.innerHTML = '<p style="color: #999; text-align: center;">No running totals configured</p>';
+            return;
+        }
+        activeList.innerHTML = runningTotals.map(rt => `
     <div class="rt-active-item" data-key="${rt.columnKey}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
             <strong>${rt.columnName}</strong>
@@ -5668,14 +5725,14 @@ function updateActiveRunningTotalsList(component) {
         <button class="rt-remove-active" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
     </div>
 `).join('');
-    // Add remove listeners
-    activeList.querySelectorAll('.rt-remove-active').forEach(btn => {
-        btn.addEventListener('click', function () {
-            const columnKey = this.closest('.rt-active-item').getAttribute('data-key');
-            removeRunningTotal(component, columnKey);
+        // Add remove listeners
+        activeList.querySelectorAll('.rt-remove-active').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const columnKey = this.closest('.rt-active-item').getAttribute('data-key');
+                removeRunningTotal(component, columnKey);
+            });
         });
-    });
-}
+    }
 
     function applyRunningTotalsToTable(component) {
         const runningTotals = component.get('running-totals') || [];
