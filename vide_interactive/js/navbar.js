@@ -282,91 +282,80 @@
                 classactive: s.classTabActive,
                 selectortab: s.selectorTab,
                 "script-props": ["classactive", "selectortab"],
-                script: function (t) {
-                  var e,
-                    n,
-                    r = this,
-                    o = t.classactive,
-                    a = t.selectortab,
-                    c = window,
-                    i = c.history,
-                    s = c._isEditor,
-                    b = "[role=tab]",
-                    p = document,
-                    l = p.body,
-                    u = p.location,
-                    f =
-                      l.matchesSelector ||
-                      l.webkitMatchesSelector ||
-                      l.mozMatchesSelector ||
-                      l.msMatchesSelector,
-                    y = function (t, e) {
-                      for (var n = t || [], r = 0; r < n.length; r++)
-                        e(n[r], r);
-                    },
-                    d = function (t) {
-                      return t.getAttribute(a);
-                    },
-                    O = function (t, e) {
-                      return t.querySelector(e);
-                    },
-                    g = function () {
-                      return r.querySelectorAll(b);
-                    },
-                    j = function (t, e) {
-                      return !s && (t.tabIndex = e);
-                    },
-                    h = function (t) {
-                      y(g(), function (t) {
-                        (t.className = t.className.replace(o, "").trim()),
-                          (t.ariaSelected = "false"),
-                          j(t, "-1");
-                      }),
-                        y(r.querySelectorAll("[role=tabpanel]"), function (t) {
-                          return (t.hidden = !0);
-                        }),
-                        (t.className += " " + o),
-                        (t.ariaSelected = "true"),
-                        j(t, "0");
-                      var e = d(t),
-                        n = e && O(r, "#".concat(e));
-                      n && (n.hidden = !1);
-                    },
-                    v = O(r, ".".concat(o).concat(b));
-                  (v =
-                    v ||
-                    ((n = (u.hash || "").replace("#", "")) &&
-                      O(
-                        r,
-                        ((e = a),
-                        "".concat(b, "[").concat(e, "=").concat(n, "]"))
-                      )) ||
-                    O(r, b)) && h(v),
-                    r.addEventListener("click", function (t) {
-                      var e = t.target,
-                        n = f.call(e, b);
-                      if (
-                        (n ||
-                          ((e = (function (t) {
-                            var e;
-                            return (
-                              y(g(), function (n) {
-                                e || (n.contains(t) && (e = n));
-                              }),
-                              e
-                            );
-                          })(e)) &&
-                            (n = 1)),
-                        n && !t.__trg && e.className.indexOf(o) < 0)
-                      ) {
-                        t.preventDefault(), (t.__trg = 1), h(e);
-                        var r = d(e);
-                        try {
-                          i && i.pushState(null, null, "#".concat(r));
-                        } catch (t) {}
-                      }
-                    });
-                },
+script: function (t) {
+  var e,
+    n,
+    r = this,
+    o = t.classactive,
+    a = t.selectortab,
+    c = window,
+    i = c.history,
+    s = c._isEditor,
+    b = "[role=tab]",
+    p = document,
+    l = p.body,
+    u = p.location,
+    f = l.matchesSelector || l.webkitMatchesSelector || l.mozMatchesSelector || l.msMatchesSelector,
+    y = function (t, e) {
+      for (var n = t || [], r = 0; r < n.length; r++) e(n[r], r);
+    },
+    d = function (t) {
+      return t.getAttribute(a);
+    },
+    O = function (sel) {
+      return r.querySelector(sel);
+    },
+    tabCont = O('.tab-container'),
+    tabConts = O('.tab-contents'),
+    g = function () {
+      return tabCont.querySelectorAll(':scope > ' + b);
+    },
+    j = function (t, e) {
+      return !s && (t.tabIndex = e);
+    },
+    h = function (t) {
+      y(g(), function (t) {
+        (t.className = t.className.replace(o, "").trim()),
+          (t.ariaSelected = "false"),
+          j(t, "-1");
+      }),
+        y(tabConts.querySelectorAll(':scope > [role=tabpanel]'), function (t) {
+          return (t.hidden = !0);
+        }),
+        (t.className += " " + o),
+        (t.ariaSelected = "true"),
+        j(t, "0");
+      var e = d(t),
+        n = e && tabConts.querySelector('#' + e);
+      n && (n.hidden = !1);
+    },
+    v = tabCont.querySelector(':scope > .' + o + b) ||
+      ((n = (u.hash || "").replace("#", "")) &&
+        tabCont.querySelector(':scope > ' + b + '[' + a + '="' + n + '"]')) ||
+      tabCont.querySelector(':scope > ' + b);
+  v && h(v),
+    r.addEventListener("click", function (t) {
+      var e = t.target,
+        n = f.call(e, b);
+      if (!n) {
+        e = (function (t) {
+          var e;
+          y(g(), function (n) {
+            e || (n.contains(t) && (e = n));
+          });
+          return e;
+        })(e);
+        n = !!e;
+      }
+      if (n && Array.from(g()).includes(e) && !t.__trg && e.className.indexOf(o) < 0) {
+        t.preventDefault(), (t.__trg = 1), h(e);
+        var r = d(e);
+        try {
+          i && i.pushState(null, null, "#" + r);
+        } catch (t) {}
+      }
+    });
+},
                 traits: [
                   {
                     full: 1,

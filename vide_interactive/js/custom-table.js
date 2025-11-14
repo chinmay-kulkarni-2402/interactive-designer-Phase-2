@@ -1466,6 +1466,339 @@ function registerNumToWords(parser, iframeWindow) {
 
     renderConditions();
   }
+
+  // Global storage for selected cells
+window.crosstabSelectedCells = [];
+
+// Function to enable crosstab cell selection
+function enableCrosstabSelection(tableId, enabled) {
+  try {
+    const canvasBody = editor.Canvas.getBody();
+    const table = canvasBody.querySelector(`#${tableId}`);
+    if (!table) return;
+
+    const allCells = table.querySelectorAll('td, th');
+    
+    if (enabled) {
+      // Disable formula editing
+      allCells.forEach(cell => {
+        cell.contentEditable = "false";
+        cell.style.cursor = 'pointer';
+        
+        // Remove formula listeners
+        const newCell = cell.cloneNode(true);
+        cell.parentNode.replaceChild(newCell, cell);
+      });
+      
+      // Add click selection listeners
+      const updatedCells = table.querySelectorAll('td, th');
+      updatedCells.forEach(cell => {
+        cell.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleCrosstabCellClick(this, tableId);
+        });
+      });
+      
+      showToast('Crosstab mode enabled - Click cells to select for merging', 'success');
+    } else {
+      // Re-enable formula editing
+      window.crosstabSelectedCells = [];
+      allCells.forEach(cell => {
+        cell.contentEditable = "true";
+        cell.style.cursor = 'text';
+        cell.classList.remove('crosstab-selected');
+        cell.style.outline = '';
+      });
+      
+      // Re-initialize formula editing
+      setTimeout(() => {
+        enableFormulaEditing(tableId);
+      }, 100);
+      
+      showToast('Crosstab mode disabled', 'success');
+    }
+  } catch (error) {
+    console.error('Error toggling crosstab mode:', error);
+  }
+}
+
+// Handle cell click in crosstab mode
+// Helper: build a grid map of the table accounting for rowspan/colspan
+function buildTableGrid(table) {
+  const grid = []; // grid[row][col] = cellElement
+  const cellMap = new Map(); // cellElement -> {positions: [{r,c}], rowspan, colspan}
+
+  const rows = Array.from(table.rows);
+  for (let r = 0; r < rows.length; r++) {
+    if (!grid[r]) grid[r] = [];
+    const cells = Array.from(rows[r].cells);
+    let c = 0;
+    for (let ci = 0; ci < cells.length; ci++) {
+      const cell = cells[ci];
+      // find next free column index
+      while (grid[r][c]) c++;
+
+      const rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
+      const colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
+      const positions = [];
+
+      for (let rr = 0; rr < rowspan; rr++) {
+        for (let cc = 0; cc < colspan; cc++) {
+          const rrIdx = r + rr;
+          const ccIdx = c + cc;
+          if (!grid[rrIdx]) grid[rrIdx] = [];
+          grid[rrIdx][ccIdx] = cell;
+          positions.push({ r: rrIdx, c: ccIdx });
+        }
+      }
+
+      cellMap.set(cell, { positions, rowspan, colspan, firstRow: r, firstCol: c });
+      c += colspan;
+    }
+  }
+
+  return { grid, cellMap };
+}
+
+// Updated handleCrosstabCellClick to record grid coordinates (accounts for colspan/rowspan)
+function handleCrosstabCellClick(cell, tableId) {
+  try {
+    const canvasBody = editor.Canvas.getBody();
+    const table = canvasBody.querySelector(`#${tableId}`);
+    if (!table) return;
+
+    const { cellMap } = buildTableGrid(table);
+    const mapEntry = cellMap.get(cell);
+    if (!mapEntry) return;
+
+    const cellInfo = {
+      element: cell,
+      tableId,
+      gridRow: mapEntry.firstRow,
+      gridCol: mapEntry.firstCol,
+      rowspan: mapEntry.rowspan,
+      colspan: mapEntry.colspan
+    };
+
+    // Check if cell is already selected (compare element)
+    const existingIndex = window.crosstabSelectedCells.findIndex(
+      c => c.element === cell
+    );
+
+    if (existingIndex !== -1) {
+      // Deselect
+      window.crosstabSelectedCells.splice(existingIndex, 1);
+      cell.classList.remove('crosstab-selected');
+      cell.style.outline = '';
+    } else {
+      // Select
+      window.crosstabSelectedCells.push(cellInfo);
+      cell.classList.add('crosstab-selected');
+      cell.style.outline = '2px solid #007bff';
+    }
+
+    console.log('Selected cells:', window.crosstabSelectedCells.length);
+  } catch (err) {
+    console.error('handleCrosstabCellClick error:', err);
+  }
+}
+
+// Function to validate if selected cells are consecutive
+function validateConsecutiveCells(selectedCells) {
+  if (!selectedCells || selectedCells.length < 2) return false;
+
+  // Build set of occupied grid positions from selected cells
+  let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
+  const occupied = new Set(); // "r:c"
+  for (const s of selectedCells) {
+    const r0 = s.gridRow;
+    const c0 = s.gridCol;
+    const rs = s.rowspan || 1;
+    const cs = s.colspan || 1;
+
+    minRow = Math.min(minRow, r0);
+    minCol = Math.min(minCol, c0);
+    maxRow = Math.max(maxRow, r0 + rs - 1);
+    maxCol = Math.max(maxCol, c0 + cs - 1);
+
+    for (let rr = r0; rr < r0 + rs; rr++) {
+      for (let cc = c0; cc < c0 + cs; cc++) {
+        occupied.add(`${rr}:${cc}`);
+      }
+    }
+  }
+
+  const expectedCellsCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+
+  // Ensure every position inside the bounding rectangle is occupied by the selection
+  for (let rr = minRow; rr <= maxRow; rr++) {
+    for (let cc = minCol; cc <= maxCol; cc++) {
+      if (!occupied.has(`${rr}:${cc}`)) {
+        return false; // hole found
+      }
+    }
+  }
+
+  // Passed: selection forms a filled rectangle
+  return true;
+}
+
+// Function to merge selected cells
+function mergeCrosstabCells() {
+  try {
+    if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 1) {
+      showToast('Select at least 2 cells to merge', 'warning');
+      return;
+    }
+
+    // Get the table from any selected cell
+    const anyCell = window.crosstabSelectedCells[0].element;
+    const table = anyCell.closest('table');
+    const tableId = table.id;
+
+    // Build cellMap with logical positions
+    const cellMap = new Map();
+    let maxLogicalRow = table.rows.length - 1;
+    let maxLogicalCol = 0;
+
+    for (let r = 0; r < table.rows.length; r++) {
+      const row = table.rows[r];
+      let colIndex = 0;
+      for (let c = 0; c < row.cells.length; c++) {
+        const cell = row.cells[c];
+        const rowspan = parseInt(cell.rowSpan || 1);
+        const colspan = parseInt(cell.colSpan || 1);
+        const positions = [];
+
+        for (let rs = 0; rs < rowspan; rs++) {
+          for (let cs = 0; cs < colspan; cs++) {
+            const logR = r + rs;
+            const logC = colIndex + cs;
+            positions.push({ r: logR, c: logC });
+            maxLogicalRow = Math.max(maxLogicalRow, logR);
+            maxLogicalCol = Math.max(maxLogicalCol, logC);
+          }
+        }
+
+        cellMap.set(cell, {
+          positions,
+          startRow: r,
+          startCol: colIndex,
+          endRow: r + rowspan - 1,
+          endCol: colIndex + colspan - 1
+        });
+
+        colIndex += colspan;
+      }
+    }
+
+    // Collect all selected physical cells
+    const selectedPhysicalCells = new Set(window.crosstabSelectedCells.map(s => s.element));
+
+    // Collect all covered logical positions from selected physical cells
+    const selectedPositions = new Set();
+    selectedPhysicalCells.forEach(cell => {
+      const meta = cellMap.get(cell);
+      if (meta) {
+        meta.positions.forEach(pos => {
+          selectedPositions.add(`${pos.r},${pos.c}`);
+        });
+      }
+    });
+
+    if (selectedPositions.size < 2) {
+      showToast('Select at least 2 cells to merge', 'warning');
+      return;
+    }
+
+    // Determine bounding box
+    let minRow = Infinity, maxRow = -Infinity;
+    let minCol = Infinity, maxCol = -Infinity;
+    selectedPositions.forEach(key => {
+      const [r, c] = key.split(',').map(Number);
+      minRow = Math.min(minRow, r);
+      maxRow = Math.max(maxRow, r);
+      minCol = Math.min(minCol, c);
+      maxCol = Math.max(maxCol, c);
+    });
+
+    // Validate full contiguous rectangle (no gaps)
+    const expectedSize = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+    if (selectedPositions.size !== expectedSize) {
+      showToast('Selected cells must form a complete rectangle without gaps', 'warning');
+      return;
+    }
+
+    // Find the physical top-left cell covering minRow, minCol
+    let topLeftCell = null;
+    cellMap.forEach((meta, cell) => {
+      if (meta.positions.some(pos => pos.r === minRow && pos.c === minCol)) {
+        topLeftCell = cell;
+      }
+    });
+
+    if (!topLeftCell) {
+      showToast('Unable to find top-left cell', 'error');
+      return;
+    }
+
+    // Calculate new spans
+    const newRowspan = maxRow - minRow + 1;
+    const newColspan = maxCol - minCol + 1;
+
+    // Update top-left cell
+    topLeftCell.rowSpan = newRowspan;
+    topLeftCell.colSpan = newColspan;
+
+    // Preserve and clean content
+    let currentContent = topLeftCell.querySelector('div') ? topLeftCell.querySelector('div').textContent : topLeftCell.textContent;
+    topLeftCell.innerHTML = `<div>${currentContent.trim() || 'Text'}</div>`;
+
+    // Collect physical cells to remove (any that overlap the merge area, except top-left)
+    const toRemove = new Set();
+    cellMap.forEach((meta, cell) => {
+      if (cell === topLeftCell) return;
+      const overlaps = meta.positions.some(pos =>
+        pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
+      );
+      if (overlaps) {
+        toRemove.add(cell);
+      }
+    });
+
+    // Remove them
+    toRemove.forEach(cell => {
+      if (cell.parentNode) cell.parentNode.removeChild(cell);
+    });
+
+    // Clear visual selections from all selected cells
+    window.crosstabSelectedCells.forEach(s => {
+      s.element.classList.remove('crosstab-selected');
+      s.element.style.outline = '';
+    });
+
+    // Clear selection array
+    window.crosstabSelectedCells = [];
+
+    // Update GrapesJS component
+    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+    if (tableComponent) {
+      editor.trigger('component:update', tableComponent);
+    }
+
+    // Update DataTable structure
+    updateDataTableStructure(tableId);
+
+    showToast('Cells merged successfully', 'success');
+  } catch (error) {
+    console.error('Error merging cells:', error);
+    showToast('Error merging cells', 'error');
+  }
+}
+
+
+
   // Override the default HTML export to include running total data
   const originalGetHtml = editor.getHtml;
   editor.getHtml = function () {
@@ -1549,7 +1882,7 @@ function registerNumToWords(parser, iframeWindow) {
         removable: true,
         copyable: true,
         resizable: false,
-        traits: [
+traits: [
           {
             type: 'button',
             name: 'manage-highlight-conditions',
@@ -1559,15 +1892,31 @@ function registerNumToWords(parser, iframeWindow) {
             command: 'open-table-condition-manager-local-table',
             changeProp: 1
           },
+          {
+            type: 'checkbox',
+            name: 'crosstab-mode',
+            label: 'Stop (Enable Crosstab Mode)',
+            changeProp: 1
+          },
+          {
+            type: 'button',
+            name: 'merge-cells',
+            label: 'Merge Selected Cells',
+            text: 'Merge',
+            full: true,
+            command: 'merge-table-cells',
+            changeProp: 1
+          },
         ],
         'custom-name': 'Enhanced Table',
         'highlight-conditions': [],
         'highlight-color': '#ffff99'
       },
 
-      init() {
-        this.on('change:highlight-condition-type change:highlight-words change:highlight-color', this.handleHighlightChange);
-      },
+init() {
+  this.on('change:highlight-condition-type change:highlight-words change:highlight-color', this.handleHighlightChange);
+  this.on('change:crosstab-mode', this.handleCrosstabModeChange);
+},
 
       getHighlightConditions() {
         return this.get('highlight-conditions') || [];
@@ -1600,7 +1949,12 @@ function registerNumToWords(parser, iframeWindow) {
 
         applyMultipleHighlightingWithStyles(tableId, conditions, styles);
         editor.trigger('component:update', this);
-      }
+      },
+      handleCrosstabModeChange() {
+  const tableId = this.getId();
+  const enabled = this.get('crosstab-mode');
+  enableCrosstabSelection(tableId, enabled);
+},
     }
   });
 
@@ -1659,6 +2013,22 @@ function registerNumToWords(parser, iframeWindow) {
       showAllFormulasModal();
     }
   });
+
+  editor.Commands.add('merge-table-cells', {
+  run(editor) {
+    const selected = editor.getSelected();
+    if (selected && selected.get('tagName') === 'table') {
+      const crosstabMode = selected.get('crosstab-mode');
+      
+      if (!crosstabMode) {
+        showToast('Please enable "Stop" mode first to merge cells', 'warning');
+        return;
+      }
+      
+      mergeCrosstabCells();
+    }
+  }
+});
 
   editor.DomComponents.addType('enhanced-table-cell', {
     isComponent: el => ( el.tagName === 'TH') &&

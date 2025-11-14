@@ -184,8 +184,8 @@
                   media:
                     '<svg viewBox="0 0 23 24">\n        <path fill="currentColor" d="M2 20h8V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM13 20h8V4h-8v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1Z"/>\n      </svg>',
                   content: `<div class="row" style="width:100%;padding:10px 0px;margin-left:0px">
-                      <div class="col-lg-6" style="min-height:45px;"></div>
-                      <div class="col-lg-6" style="min-height:45px;"></div> 
+                      <div class="col-lg-6 col-sm-6 col-md-6 " style="min-height:45px;"></div>
+                      <div class="col-lg-6 col-sm-6 col-md-6 " style="min-height:45px;"></div>
                     </div>`,
                 })
               ),
@@ -197,9 +197,9 @@
                   media:
                     '<svg viewBox="0 0 23 24">\n        <path fill="currentColor" d="M2 20h4V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM17 20h4V4h-4v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1ZM9.5 20h4V4h-4v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1Z"/>\n      </svg>',
                   content: `<div class="row" style="width:100%;padding:10px 0px;margin-left:0px">
-                      <div class="col-lg-4" style="min-height:45px;"></div>
-                      <div class="col-lg-4" style="min-height:45px;"></div>
-                      <div class="col-lg-4" style="min-height:45px;"></div>
+                      <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
+                      <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
+                      <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
                     </div>`,
                 })
               ),
@@ -211,8 +211,8 @@
                   media:
                     '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h5V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM10 20h12V4H10v16Zm-1 0V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1Z"/>\n      </svg>',
                   content: `<div class="row" style="width:100%;padding: 10px 0px;margin-left:0px">
-                      <div class="col-lg-3" style="min-height:45px;"></div>
-                      <div class="col-lg-9" style="min-height:45px;"></div>
+                      <div class="col-lg-3 col-sm-3" col-md-3 style="min-height:45px;"></div>
+                      <div class="col-lg-9 col-sm-9 col-md-9" style="min-height:45px;"></div>
                     </div>`,
                 })
               ),
