@@ -182,71 +182,6 @@ function customTable(editor) {
   }
 
   // Function to apply multiple highlighting conditions to table cells
-  function applyMultipleHighlighting(tableId, conditions, highlightColor) {
-    try {
-      const canvasBody = editor.Canvas.getBody();
-      const table = canvasBody.querySelector(`#${tableId}`);
-      if (!table) return;
-
-      const wrapper = editor.DomComponents.getWrapper();
-
-      // Clear previous highlights
-      const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
-      prev.forEach(td => {
-        td.style.backgroundColor = '';
-        td.removeAttribute('data-highlighted');
-
-        const id = td.id;
-        if (id) {
-          const comp = wrapper.find(`#${id}`)[0];
-          if (comp) {
-            comp.removeStyle('background-color');
-            comp.removeStyle('background');
-          }
-        }
-      });
-
-      // Apply highlights only if conditions exist
-      if (conditions && conditions.length > 0) {
-        const bodyCells = table.querySelectorAll('tbody td');
-        bodyCells.forEach(td => {
-          const div = td.querySelector('div');
-          const val = div ? div.textContent.trim() : td.textContent.trim();
-
-          // Check if any condition matches
-          let shouldHighlight = false;
-          for (let condition of conditions) {
-            if (evaluateCondition(val, condition.type, condition.value)) {
-              shouldHighlight = true;
-              break;
-            }
-          }
-
-          if (shouldHighlight) {
-            const bg = highlightColor || '#ffff99';
-            td.style.backgroundColor = bg;
-            td.setAttribute('data-highlighted', 'true');
-
-            const id = td.id;
-            if (id) {
-              const comp = wrapper.find(`#${id}`)[0];
-              if (comp) {
-                comp.addStyle({
-                  'background-color': bg,
-                  '-webkit-print-color-adjust': 'exact',
-                  'color-adjust': 'exact',
-                  'print-color-adjust': 'exact'
-                });
-              }
-            }
-          }
-        });
-      }
-
-    } catch (err) {
-      console.warn('Error applying multiple highlighting:', err);
-    }
-  }
 
   function applyMultipleHighlightingWithStyles(tableId, conditions, styles = {}) {
     try {
@@ -1467,9 +1402,20 @@ function registerNumToWords(parser, iframeWindow) {
     renderConditions();
   }
 
+  function getComponentFromDom(el) {
+  if (!el) return null;
+
+  // GrapesJS adds this automatically for every component element
+  const cid = el.getAttribute('data-gjs-cid');
+  if (!cid) return null;
+
+  return editor.DomComponents.getById(cid);
+}
+
   // Global storage for selected cells
 window.crosstabSelectedCells = [];
 
+// Function to enable crosstab cell selection
 // Function to enable crosstab cell selection
 function enableCrosstabSelection(tableId, enabled) {
   try {
@@ -1478,51 +1424,211 @@ function enableCrosstabSelection(tableId, enabled) {
     if (!table) return;
 
     const allCells = table.querySelectorAll('td, th');
+    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
     
     if (enabled) {
-      // Disable formula editing
+      // Store original listeners before disabling
+      if (!table._originalCellListeners) {
+        table._originalCellListeners = new Map();
+        allCells.forEach(cell => {
+          table._originalCellListeners.set(cell, {
+            contentEditable: cell.contentEditable,
+            cursor: cell.style.cursor
+          });
+        });
+      }
+
+      // **NEW: Disable GrapesJS interactions for all cells**
       allCells.forEach(cell => {
+const cellComponent = getComponentFromDom(cell);
+
+
+        if (cellComponent) {
+          // Store original GrapesJS properties
+          if (!table._originalGjsProps) {
+            table._originalGjsProps = new Map();
+          }
+          table._originalGjsProps.set(cell, {
+            selectable: cellComponent.get('selectable'),
+            hoverable: cellComponent.get('hoverable'),
+            editable: cellComponent.get('editable')
+          });
+          
+          // Disable GrapesJS interactions
+          cellComponent.set({
+            selectable: false,
+            hoverable: false,
+            editable: false
+          });
+        }
+        
         cell.contentEditable = "false";
         cell.style.cursor = 'pointer';
         
-        // Remove formula listeners
+        // Remove i_designer classes
+        cell.classList.remove('i_designer-hovered', 'i_designer-selected');
+        
+        // Remove existing click listeners by cloning
         const newCell = cell.cloneNode(true);
         cell.parentNode.replaceChild(newCell, cell);
       });
       
-      // Add click selection listeners
+      // Add click selection listeners to newly cloned cells
       const updatedCells = table.querySelectorAll('td, th');
       updatedCells.forEach(cell => {
+        // Remove any GrapesJS classes
+        cell.classList.remove('i_designer-hovered', 'i_designer-selected');
+        
         cell.addEventListener('click', function(e) {
           e.preventDefault();
           e.stopPropagation();
           handleCrosstabCellClick(this, tableId);
         });
+        
+        // **NEW: Prevent GrapesJS hover/select**
+        cell.addEventListener('mouseenter', function(e) {
+          e.stopPropagation();
+          this.classList.remove('i_designer-hovered');
+        });
+        
+        cell.addEventListener('mouseover', function(e) {
+          e.stopPropagation();
+          this.classList.remove('i_designer-hovered');
+        });
+      });
+      
+      // **NEW: Also make table rows non-selectable**
+      const allRows = table.querySelectorAll('tr');
+      allRows.forEach(row => {
+const rowComponent = getComponentFromDom(row);
+
+        if (rowComponent) {
+          if (!table._originalRowGjsProps) {
+            table._originalRowGjsProps = new Map();
+          }
+          table._originalRowGjsProps.set(row, {
+            selectable: rowComponent.get('selectable'),
+            hoverable: rowComponent.get('hoverable')
+          });
+          
+          rowComponent.set({
+            selectable: false,
+            hoverable: false
+          });
+        }
       });
       
       showToast('Crosstab mode enabled - Click cells to select for merging', 'success');
-    } else {
-      // Re-enable formula editing
-      window.crosstabSelectedCells = [];
-      allCells.forEach(cell => {
+} else {
+  // Clear crosstab selection state
+  window.crosstabSelectedCells = [];
+  
+  // **CRITICAL FIX: Get fresh references BEFORE cloning**
+  const cellComponentMap = new Map();
+  const rowComponentMap = new Map();
+  
+  allCells.forEach(cell => {
+    const comp = getComponentFromDom(cell);
+    if (comp) cellComponentMap.set(cell, comp);
+  });
+  
+  const allRows = table.querySelectorAll('tr');
+  allRows.forEach(row => {
+    const comp = getComponentFromDom(row);
+    if (comp) rowComponentMap.set(row, comp);
+  });
+  
+  // Remove crosstab styling
+  allCells.forEach(cell => {
+    cell.classList.remove('crosstab-selected');
+    cell.style.outline = '';
+    
+    // Restore GrapesJS properties using saved map
+    if (table._originalGjsProps) {
+      const original = table._originalGjsProps.get(cell);
+      const comp = cellComponentMap.get(cell);
+      if (comp && original) {
+        comp.set({
+          selectable: original.selectable,
+          hoverable: original.hoverable,
+          editable: original.editable
+        });
+      }
+    }
+  });
+  
+  // Restore row GrapesJS properties using saved map
+  if (table._originalRowGjsProps) {
+    allRows.forEach(row => {
+      const original = table._originalRowGjsProps.get(row);
+      const comp = rowComponentMap.get(row);
+      if (comp && original) {
+        comp.set({
+          selectable: original.selectable,
+          hoverable: original.hoverable
+        });
+      }
+    });
+    delete table._originalRowGjsProps;
+  }
+  
+  // Restore original cell properties
+  if (table._originalCellListeners) {
+    allCells.forEach(cell => {
+      const original = table._originalCellListeners.get(cell);
+      if (original) {
+        cell.contentEditable = original.contentEditable;
+        cell.style.cursor = original.cursor;
+      } else {
         cell.contentEditable = "true";
         cell.style.cursor = 'text';
-        cell.classList.remove('crosstab-selected');
-        cell.style.outline = '';
-      });
-      
-      // Re-initialize formula editing
-      setTimeout(() => {
-        enableFormulaEditing(tableId);
-      }, 100);
-      
-      showToast('Crosstab mode disabled', 'success');
+      }
+    });
+    delete table._originalCellListeners;
+  }
+  
+  if (table._originalGjsProps) {
+    delete table._originalGjsProps;
+  }
+  
+  // **CRITICAL: Don't clone cells - this breaks GrapesJS references**
+  // Instead, just remove event listeners manually
+  const updatedCells = table.querySelectorAll('td, th');
+  updatedCells.forEach(cell => {
+    // Remove crosstab event listeners by replacing with new ones that do nothing
+    const oldClick = cell.onclick;
+    const oldMouseenter = cell.onmouseenter;
+    const oldMouseover = cell.onmouseover;
+    
+    cell.onclick = null;
+    cell.onmouseenter = null;
+    cell.onmouseover = null;
+    
+    // Remove any attached event listeners (can't remove all, but remove the ones we know about)
+    cell.removeEventListener('click', handleCrosstabCellClick);
+  });
+  
+  // **NEW: Force refresh GrapesJS selection system**
+  editor.trigger('component:deselected');
+  setTimeout(() => {
+    // Ensure table cells are properly registered
+    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+    if (tableComponent) {
+      editor.trigger('component:update', tableComponent);
     }
+  }, 100);
+  
+  // Re-initialize formula editing with a delay
+  setTimeout(() => {
+    enableFormulaEditing(tableId);
+  }, 200);
+  
+  showToast('Crosstab mode disabled - Normal cell editing restored', 'success');
+}
   } catch (error) {
     console.error('Error toggling crosstab mode:', error);
   }
 }
-
 // Handle cell click in crosstab mode
 // Helper: build a grid map of the table accounting for rowspan/colspan
 function buildTableGrid(table) {
@@ -1644,59 +1750,60 @@ function validateConsecutiveCells(selectedCells) {
   return true;
 }
 
+// Add this helper function before mergeCrosstabCells
+function forceTableComponentRefresh(tableId) {
+  try {
+    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+    if (!tableComponent) return;
+    
+    const canvasBody = editor.Canvas.getBody();
+    const table = canvasBody.querySelector(`#${tableId}`);
+    if (!table) return;
+    
+    // Get current HTML state
+    const tableHTML = table.outerHTML;
+    const parent = tableComponent.parent();
+    const index = parent.components().indexOf(tableComponent);
+    
+    // Remove old component
+    parent.components().remove(tableComponent);
+    
+    // Add back with fresh HTML
+    const newComponent = parent.components().add(tableHTML, { at: index })[0];
+    
+    // Set type back to enhanced-table
+    const newTable = newComponent.find('table')[0] || newComponent;
+    if (newTable && newTable.get('tagName') === 'table') {
+      newTable.set('type', 'enhanced-table');
+    }
+    
+    // Force refresh
+    editor.trigger('component:update', newTable);
+    
+    return newTable;
+  } catch (error) {
+    console.error('Error refreshing table component:', error);
+  }
+}
+
+// Function to merge selected cells
 // Function to merge selected cells
 function mergeCrosstabCells() {
   try {
-    if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 1) {
+    if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 2) {
       showToast('Select at least 2 cells to merge', 'warning');
       return;
     }
 
-    // Get the table from any selected cell
     const anyCell = window.crosstabSelectedCells[0].element;
     const table = anyCell.closest('table');
     const tableId = table.id;
 
-    // Build cellMap with logical positions
-    const cellMap = new Map();
-    let maxLogicalRow = table.rows.length - 1;
-    let maxLogicalCol = 0;
-
-    for (let r = 0; r < table.rows.length; r++) {
-      const row = table.rows[r];
-      let colIndex = 0;
-      for (let c = 0; c < row.cells.length; c++) {
-        const cell = row.cells[c];
-        const rowspan = parseInt(cell.rowSpan || 1);
-        const colspan = parseInt(cell.colSpan || 1);
-        const positions = [];
-
-        for (let rs = 0; rs < rowspan; rs++) {
-          for (let cs = 0; cs < colspan; cs++) {
-            const logR = r + rs;
-            const logC = colIndex + cs;
-            positions.push({ r: logR, c: logC });
-            maxLogicalRow = Math.max(maxLogicalRow, logR);
-            maxLogicalCol = Math.max(maxLogicalCol, logC);
-          }
-        }
-
-        cellMap.set(cell, {
-          positions,
-          startRow: r,
-          startCol: colIndex,
-          endRow: r + rowspan - 1,
-          endCol: colIndex + colspan - 1
-        });
-
-        colIndex += colspan;
-      }
-    }
-
-    // Collect all selected physical cells
+    // Build grid considering existing rowspan/colspan
+    const { grid, cellMap } = buildTableGrid(table);
+    
     const selectedPhysicalCells = new Set(window.crosstabSelectedCells.map(s => s.element));
 
-    // Collect all covered logical positions from selected physical cells
     const selectedPositions = new Set();
     selectedPhysicalCells.forEach(cell => {
       const meta = cellMap.get(cell);
@@ -1730,11 +1837,13 @@ function mergeCrosstabCells() {
       return;
     }
 
-    // Find the physical top-left cell covering minRow, minCol
+    // Find the physical top-left cell
     let topLeftCell = null;
+    let topLeftMeta = null;
     cellMap.forEach((meta, cell) => {
-      if (meta.positions.some(pos => pos.r === minRow && pos.c === minCol)) {
+      if (meta.firstRow === minRow && meta.firstCol === minCol) {
         topLeftCell = cell;
+        topLeftMeta = meta;
       }
     });
 
@@ -1747,15 +1856,68 @@ function mergeCrosstabCells() {
     const newRowspan = maxRow - minRow + 1;
     const newColspan = maxCol - minCol + 1;
 
-    // Update top-left cell
+    // Collect content from all selected cells
+    let mergedContent = [];
+    selectedPhysicalCells.forEach(cell => {
+      const div = cell.querySelector('div');
+      const content = div ? div.textContent : cell.textContent;
+      const trimmed = content.trim();
+      if (trimmed && trimmed !== 'Text' && !mergedContent.includes(trimmed)) {
+        mergedContent.push(trimmed);
+      }
+    });
+
+    // **NEW: Update GrapesJS component first**
+    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+    if (tableComponent) {
+const topLeftComponent = getComponentFromDom(topLeftCell);
+
+      
+      if (topLeftComponent) {
+        // Update top-left component attributes
+        topLeftComponent.addAttributes({
+          rowspan: newRowspan.toString(),
+          colspan: newColspan.toString()
+        });
+        
+        // Update content
+        const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : 'Text';
+        topLeftComponent.components(`<div>${finalContent}</div>`);
+      }
+      
+      // **NEW: Remove components from GrapesJS structure**
+      const toRemoveComponents = [];
+      cellMap.forEach((meta, cell) => {
+        if (cell === topLeftCell) return;
+        const overlaps = meta.positions.some(pos =>
+          pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
+        );
+        if (overlaps) {
+const cellComponent = getComponentFromDom(cell);
+
+          if (cellComponent) {
+            toRemoveComponents.push(cellComponent);
+          }
+        }
+      });
+      
+      // Remove components from their parent rows
+      toRemoveComponents.forEach(comp => {
+        const parent = comp.parent();
+        if (parent) {
+          parent.components().remove(comp);
+        }
+      });
+    }
+
+    // Update DOM: Update top-left cell
     topLeftCell.rowSpan = newRowspan;
     topLeftCell.colSpan = newColspan;
+    
+    const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : 'Text';
+    topLeftCell.innerHTML = `<div>${finalContent}</div>`;
 
-    // Preserve and clean content
-    let currentContent = topLeftCell.querySelector('div') ? topLeftCell.querySelector('div').textContent : topLeftCell.textContent;
-    topLeftCell.innerHTML = `<div>${currentContent.trim() || 'Text'}</div>`;
-
-    // Collect physical cells to remove (any that overlap the merge area, except top-left)
+    // Collect and remove physical cells from DOM
     const toRemove = new Set();
     cellMap.forEach((meta, cell) => {
       if (cell === topLeftCell) return;
@@ -1767,24 +1929,39 @@ function mergeCrosstabCells() {
       }
     });
 
-    // Remove them
     toRemove.forEach(cell => {
       if (cell.parentNode) cell.parentNode.removeChild(cell);
     });
 
-    // Clear visual selections from all selected cells
+    // Clear visual selections
     window.crosstabSelectedCells.forEach(s => {
-      s.element.classList.remove('crosstab-selected');
-      s.element.style.outline = '';
+      if (s.element && s.element.classList) {
+        s.element.classList.remove('crosstab-selected');
+        s.element.style.outline = '';
+      }
     });
 
-    // Clear selection array
     window.crosstabSelectedCells = [];
 
-    // Update GrapesJS component
-    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+    // **NEW: Force GrapesJS to refresh and recognize the structure**
     if (tableComponent) {
+      // Trigger multiple updates to ensure layer manager refreshes
       editor.trigger('component:update', tableComponent);
+      
+      setTimeout(() => {
+        // Force re-render of the component tree
+        const wrapper = editor.getWrapper();
+        editor.trigger('component:toggled', wrapper);
+        editor.trigger('layer:refresh');
+        
+        // Update each row component
+        const allRows = tableComponent.find('tr');
+        allRows.forEach(row => {
+          editor.trigger('component:update', row);
+        });
+        
+        editor.trigger('component:update', tableComponent);
+      }, 100);
     }
 
     // Update DataTable structure
@@ -1793,10 +1970,9 @@ function mergeCrosstabCells() {
     showToast('Cells merged successfully', 'success');
   } catch (error) {
     console.error('Error merging cells:', error);
-    showToast('Error merging cells', 'error');
+    showToast('Error merging cells: ' + error.message, 'error');
   }
 }
-
 
 
   // Override the default HTML export to include running total data
