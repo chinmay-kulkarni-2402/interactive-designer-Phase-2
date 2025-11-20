@@ -87,16 +87,16 @@ function customChartCommonJson(editor) {
     const json_path_Trait = ["jsonpath"].map((name) => ({
         changeProp: 1,
         type: "text",
-        label: "Json Path",
-        placeholder: "Enter Json Path",
+        label: "DataSource Path",
+        placeholder: "Enter DataSource Path",
         name,
     }));
 
     const json_button_sugesstionTrait = ["jsonButtonSugesstionTrait"].map((name) => ({
         changeProp: 1,
         type: "button",
-        label: "Json Suggestion",
-        placeholder: "Json Suggestion",
+        label: "DataSource Suggestion",
+        placeholder: "DataSource Suggestion",
         name,
         id: "json-suggestion-btn",
         text: "Suggestion",
@@ -309,7 +309,7 @@ function customChartCommonJson(editor) {
                                 }
                             }
                         } catch (e) {
-                            console.warn("JSON path evaluation failed, using default data:", e.message);
+                            console.warn("DataSource path evaluation failed, using default data:", e.message);
                             seriesData = {};
                         }
 
@@ -2242,7 +2242,7 @@ function customChartCommonJson(editor) {
 
         if (existingFileNames) {
             const namesArray = existingFileNames.split(',').map(n => n.trim());
-            displayFileNames = 'Already Added File(s): <br><ul style="margin:5px 0; padding-left:18px;">';
+            displayFileNames = 'Already Added Files <br><ul style="margin:5px 0; padding-left:18px;">';
             namesArray.forEach(name => {
                 displayFileNames += `
                 <li style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
@@ -2254,7 +2254,7 @@ function customChartCommonJson(editor) {
             displayFileNames += '</ul>';
         }
 
-        editor.Modal.setTitle('Import Json File');
+        editor.Modal.setTitle('Import Json/XML File');
         editor.Modal.setContent(`
         <div class="new-table-form">
             <div style="padding-bottom:10px">${displayFileNames}</div>
@@ -2532,7 +2532,7 @@ function customChartCommonJson(editor) {
                     const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
                     if (jsonPathInput) {
                         const button = document.createElement('button');
-                        button.innerHTML = 'Json Suggestion';
+                        button.innerHTML = 'DataSource Suggestion';
                         button.id = 'json-suggestion-btn';
                         button.style.marginLeft = '0px';
                         jsonPathInput.parentNode.appendChild(button);
@@ -2713,7 +2713,7 @@ function customChartCommonJson(editor) {
                             }, 100);
                         }
                     } catch (e) {
-                        console.error("Error evaluating JSON path:", e);
+                        console.error("Error evaluating DataSource path:", e);
                     }
                 }
             }
@@ -2726,7 +2726,7 @@ function customChartCommonJson(editor) {
             const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
             if (jsonPathInput) {
                 const button = document.createElement('button');
-                button.innerHTML = 'Json Suggestion';
+                button.innerHTML = 'DataSource Suggestion';
                 button.id = 'json-suggestion-btn';
                 button.style.marginLeft = '0px';
                 jsonPathInput.parentNode.appendChild(button);
@@ -2809,7 +2809,7 @@ function customChartCommonJson(editor) {
     </div>
   `;
 
-        editor.Modal.setTitle('Json Suggestion');
+        editor.Modal.setTitle('DataSource Suggestion');
         editor.Modal.setContent(modalContent);
         editor.Modal.open();
 
@@ -2977,10 +2977,10 @@ function customChartCommonJson(editor) {
                             openSuggestionJsonModalChartTable('chart');
                         });
                     } else {
-                        console.error('Json Suggestion button not found within the wrapper element');
+                        console.error('DataSource Suggestion button not found within the wrapper element');
                     }
                 } else {
-                    console.error('Json Suggestion button wrapper not found within the selected component');
+                    console.error('DataSource Suggestion button wrapper not found within the selected component');
                 }
             }, 1000);
         }
@@ -3031,7 +3031,7 @@ function customChartCommonJson(editor) {
     </div>
   `;
 
-        editor.Modal.setTitle('Json Suggestion - Select Language');
+        editor.Modal.setTitle('DataSource Suggestion - Select Language');
         editor.Modal.setContent(modalContent);
         editor.Modal.open();
 

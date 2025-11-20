@@ -433,48 +433,48 @@ function customTable(editor) {
 
   // Function to get available formulas
   // Function to get available formulas
-function getAvailableFormulas() {
-  try {
-    const iframe = editor.getContainer().querySelector('iframe');
-    let formulas = [];
+  function getAvailableFormulas() {
+    try {
+      const iframe = editor.getContainer().querySelector('iframe');
+      let formulas = [];
 
-    if (iframe && iframe.contentWindow && iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
-      // Get supported formulas from the loaded parser
-      formulas = [...iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS];
-    } else {
-      // Fallback list of common Excel formulas
-      formulas = [
-        'ABS', 'ACOS', 'ACOSH', 'AND', 'ASIN', 'ASINH', 'ATAN', 'ATAN2', 'ATANH',
-        'AVERAGE', 'AVERAGEA', 'AVERAGEIF', 'AVERAGEIFS', 'CEILING', 'CHOOSE',
-        'CONCATENATE', 'COS', 'COSH', 'COUNT', 'COUNTA', 'COUNTBLANK', 'COUNTIF',
-        'COUNTIFS', 'DATE', 'DATEVALUE', 'DAY', 'EVEN', 'EXP', 'FACT', 'FALSE',
-        'FIND', 'FLOOR', 'IF', 'INDEX', 'INT', 'ISBLANK', 'ISERROR', 'ISEVEN',
-        'ISLOGICAL', 'ISNA', 'ISNONTEXT', 'ISNUMBER', 'ISODD', 'ISTEXT', 'LEFT',
-        'LEN', 'LN', 'LOG', 'LOG10', 'LOWER', 'MATCH', 'MAX', 'MAXA', 'MID',
-        'MIN', 'MINA', 'MOD', 'MONTH', 'NOT', 'NOW', 'ODD', 'OR', 'PI', 'POWER',
-        'PRODUCT', 'PROPER', 'RAND', 'RANDBETWEEN', 'REPLACE', 'REPT', 'RIGHT',
-        'ROUND', 'ROUNDDOWN', 'ROUNDUP', 'SEARCH', 'SIN', 'SINH', 'SQRT', 'SUBSTITUTE',
-        'SUM', 'SUMIF', 'SUMIFS', 'SUMPRODUCT', 'TAN', 'TANH', 'TIME', 'TIMEVALUE',
-        'TODAY', 'TRIM', 'TRUE', 'TRUNC', 'UPPER', 'VALUE', 'VLOOKUP', 'WEEKDAY',
-        'YEAR'
-      ];
-    }
-
-    // Add our custom formulas
-    const customFormulas = ['PERCENT', 'NUMTOWORDS'];
-    customFormulas.forEach(f => {
-      if (!formulas.includes(f)) {
-        formulas.push(f);
+      if (iframe && iframe.contentWindow && iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
+        // Get supported formulas from the loaded parser
+        formulas = [...iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS];
+      } else {
+        // Fallback list of common Excel formulas
+        formulas = [
+          'ABS', 'ACOS', 'ACOSH', 'AND', 'ASIN', 'ASINH', 'ATAN', 'ATAN2', 'ATANH',
+          'AVERAGE', 'AVERAGEA', 'AVERAGEIF', 'AVERAGEIFS', 'CEILING', 'CHOOSE',
+          'CONCATENATE', 'COS', 'COSH', 'COUNT', 'COUNTA', 'COUNTBLANK', 'COUNTIF',
+          'COUNTIFS', 'DATE', 'DATEVALUE', 'DAY', 'EVEN', 'EXP', 'FACT', 'FALSE',
+          'FIND', 'FLOOR', 'IF', 'INDEX', 'INT', 'ISBLANK', 'ISERROR', 'ISEVEN',
+          'ISLOGICAL', 'ISNA', 'ISNONTEXT', 'ISNUMBER', 'ISODD', 'ISTEXT', 'LEFT',
+          'LEN', 'LN', 'LOG', 'LOG10', 'LOWER', 'MATCH', 'MAX', 'MAXA', 'MID',
+          'MIN', 'MINA', 'MOD', 'MONTH', 'NOT', 'NOW', 'ODD', 'OR', 'PI', 'POWER',
+          'PRODUCT', 'PROPER', 'RAND', 'RANDBETWEEN', 'REPLACE', 'REPT', 'RIGHT',
+          'ROUND', 'ROUNDDOWN', 'ROUNDUP', 'SEARCH', 'SIN', 'SINH', 'SQRT', 'SUBSTITUTE',
+          'SUM', 'SUMIF', 'SUMIFS', 'SUMPRODUCT', 'TAN', 'TANH', 'TIME', 'TIMEVALUE',
+          'TODAY', 'TRIM', 'TRUE', 'TRUNC', 'UPPER', 'VALUE', 'VLOOKUP', 'WEEKDAY',
+          'YEAR'
+        ];
       }
-    });
 
-    return formulas.sort();
+      // Add our custom formulas
+      const customFormulas = ['PERCENT', 'NUMTOWORDS'];
+      customFormulas.forEach(f => {
+        if (!formulas.includes(f)) {
+          formulas.push(f);
+        }
+      });
 
-  } catch (error) {
-    console.warn('Error getting formulas:', error);
-    return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'PERCENT', 'NUMTOWORDS'].sort();
+      return formulas.sort();
+
+    } catch (error) {
+      console.warn('Error getting formulas:', error);
+      return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'PERCENT', 'NUMTOWORDS'].sort();
+    }
   }
-}
 
 
   // Function to show all formulas in modal
@@ -746,12 +746,12 @@ function getAvailableFormulas() {
   });
 
   // Load CSS inside GrapesJS iframe
-editor.on('load', () => {
-  const iframe = editor.getContainer().querySelector('iframe');
-  const head = iframe.contentDocument.head;
-  const style = document.createElement('style');
-  style.type = 'text/css';
-  style.innerHTML = `
+  editor.on('load', () => {
+    const iframe = editor.getContainer().querySelector('iframe');
+    const head = iframe.contentDocument.head;
+    const style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = `
   a.dt-button { border: 1px solid #ccc !important; }
   .dataTables_wrapper .dataTables_filter input {
     border: 1px solid #ccc !important;
@@ -856,35 +856,35 @@ editor.on('load', () => {
     }
   }
 `;
-  head.appendChild(style);
+    head.appendChild(style);
 
-  // Inject formula parser library into iframe
-  const script = document.createElement('script');
-  script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
-  script.crossOrigin = "anonymous";
-  
-  script.onload = () => {
-    // Wait a bit for the library to fully initialize
-    setTimeout(() => {
-      registerCustomFormulas();
-    }, 300);
-  };
+    // Inject formula parser library into iframe
+    const script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
+    script.crossOrigin = "anonymous";
 
-  script.onerror = (error) => {
-    console.error('Failed to load hot-formula-parser:', error);
-  };
+    script.onload = () => {
+      // Wait a bit for the library to fully initialize
+      setTimeout(() => {
+        registerCustomFormulas();
+      }, 300);
+    };
 
-  // Append to iframe head instead of main document head
-  iframe.contentDocument.head.appendChild(script);
+    script.onerror = (error) => {
+      console.error('Failed to load hot-formula-parser:', error);
+    };
 
-  // Add the table condition manager command
-  editor.Commands.add('open-table-condition-manager-local-table', {
-    run() {
-      const selected = editor.getSelected();
-      if (!selected || selected.get('type') !== 'enhanced-table') return;
+    // Append to iframe head instead of main document head
+    iframe.contentDocument.head.appendChild(script);
 
-      const conditions = selected.getHighlightConditions();
-      const highlightColor = selected.get('highlight-color') || '#ffff99';
+    // Add the table condition manager command
+    editor.Commands.add('open-table-condition-manager-local-table', {
+      run() {
+        const selected = editor.getSelected();
+        if (!selected || selected.get('type') !== 'enhanced-table') return;
+
+        const conditions = selected.getHighlightConditions();
+        const highlightColor = selected.get('highlight-color') || '#ffff99';
 
         const modalContent = `
         <div class="table-condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;">
@@ -1006,163 +1006,163 @@ editor.on('load', () => {
       }
     });
     // ✅ Custom formula registration
-function registerCustomFormulas() {
-  try {
-    const iframe = editor.getContainer().querySelector('iframe');
-    if (!iframe || !iframe.contentWindow) {
-      console.warn('Iframe not available for formula registration');
-      setTimeout(registerCustomFormulas, 500);
-      return;
-    }
+    function registerCustomFormulas() {
+      try {
+        const iframe = editor.getContainer().querySelector('iframe');
+        if (!iframe || !iframe.contentWindow) {
+          console.warn('Iframe not available for formula registration');
+          setTimeout(registerCustomFormulas, 500);
+          return;
+        }
 
-    const iframeWindow = iframe.contentWindow;
-    
-    // Wait for formulaParser to be available in iframe
-    if (!iframeWindow.formulaParser || !iframeWindow.formulaParser.Parser) {
-      console.warn('Formula parser not available in iframe, retrying...');
-      setTimeout(registerCustomFormulas, 500);
-      return;
-    }
+        const iframeWindow = iframe.contentWindow;
 
-    // ✅ Store the parser constructor globally in iframe for enableFormulaEditing to use
-    if (!iframeWindow.globalFormulaParser) {
-      iframeWindow.globalFormulaParser = new iframeWindow.formulaParser.Parser();
-      
-      // ✅ Register custom formulas on the global parser instance
-      const parser = iframeWindow.globalFormulaParser;
+        // Wait for formulaParser to be available in iframe
+        if (!iframeWindow.formulaParser || !iframeWindow.formulaParser.Parser) {
+          console.warn('Formula parser not available in iframe, retrying...');
+          setTimeout(registerCustomFormulas, 500);
+          return;
+        }
 
-      // Register PERCENT formula: PERCENT(base, percent)
-      parser.setFunction('PERCENT', function (params) {
-        if (params.length !== 2) return '#N/A';
-        const base = parseFloat(params[0]);
-        const percent = parseFloat(params[1]);
-        if (isNaN(base) || isNaN(percent)) return '#VALUE!';
-        return base * (percent / 100);
-      });
+        // ✅ Store the parser constructor globally in iframe for enableFormulaEditing to use
+        if (!iframeWindow.globalFormulaParser) {
+          iframeWindow.globalFormulaParser = new iframeWindow.formulaParser.Parser();
 
-      // Register ABSOLUTE formula: ABSOLUTE(number)
-      parser.setFunction('ABSOLUTE', function (params) {
-        if (params.length !== 1) return '#N/A';
-        const num = parseFloat(params[0]);
-        if (isNaN(num)) return '#VALUE!';
-        return Math.abs(num);
-      });
+          // ✅ Register custom formulas on the global parser instance
+          const parser = iframeWindow.globalFormulaParser;
 
-      console.log('Custom formulas PERCENT and ABSOLUTE registered successfully');
-      
-      // ✅ Also register these formulas on the Parser constructor prototype
-      // so new instances will have them
-      if (iframeWindow.formulaParser.Parser.prototype.setFunction) {
-        iframeWindow.formulaParser.Parser.prototype.customFormulas = {
-          'PERCENT': function (params) {
+          // Register PERCENT formula: PERCENT(base, percent)
+          parser.setFunction('PERCENT', function (params) {
             if (params.length !== 2) return '#N/A';
             const base = parseFloat(params[0]);
             const percent = parseFloat(params[1]);
             if (isNaN(base) || isNaN(percent)) return '#VALUE!';
             return base * (percent / 100);
-          },
-          'ABSOLUTE': function (params) {
+          });
+
+          // Register ABSOLUTE formula: ABSOLUTE(number)
+          parser.setFunction('ABSOLUTE', function (params) {
             if (params.length !== 1) return '#N/A';
             const num = parseFloat(params[0]);
             if (isNaN(num)) return '#VALUE!';
             return Math.abs(num);
+          });
+
+          console.log('Custom formulas PERCENT and ABSOLUTE registered successfully');
+
+          // ✅ Also register these formulas on the Parser constructor prototype
+          // so new instances will have them
+          if (iframeWindow.formulaParser.Parser.prototype.setFunction) {
+            iframeWindow.formulaParser.Parser.prototype.customFormulas = {
+              'PERCENT': function (params) {
+                if (params.length !== 2) return '#N/A';
+                const base = parseFloat(params[0]);
+                const percent = parseFloat(params[1]);
+                if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+                return base * (percent / 100);
+              },
+              'ABSOLUTE': function (params) {
+                if (params.length !== 1) return '#N/A';
+                const num = parseFloat(params[0]);
+                if (isNaN(num)) return '#VALUE!';
+                return Math.abs(num);
+              }
+            };
+          }
+
+          // Load number-to-words library
+          loadNumberToWords(parser, iframeWindow);
+        }
+
+      } catch (error) {
+        console.error('Error registering custom formulas:', error);
+      }
+    }
+
+    function loadNumberToWords(parser, iframeWindow) {
+      try {
+        // Check if numberToWords is already available
+        if (iframeWindow.numberToWords) {
+          console.log("alrady available")
+          registerNumToWords(parser, iframeWindow);
+          return;
+        }
+
+        // Create script element in iframe document
+        const script = iframeWindow.document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
+        script.crossOrigin = "anonymous";
+
+        script.onload = function () {
+          try {
+            // Give it a moment for the library to initialize
+            setTimeout(() => {
+              console.log("number to word script is oading")
+              registerNumToWords(parser, iframeWindow);
+            }, 100);
+          } catch (error) {
+            console.error('Error after loading number-to-words:', error);
           }
         };
-      }
 
-      // Load number-to-words library
-      loadNumberToWords(parser, iframeWindow);
-    }
+        script.onerror = function (error) {
+          console.error('Failed to load number-to-words library:', error);
 
-  } catch (error) {
-    console.error('Error registering custom formulas:', error);
-  }
-}
+          // Fallback: register a simple NUMTOWORDS that converts basic numbers
+          parser.setFunction('NUMTOWORDS', function (params) {
+            if (params.length !== 1) return '#N/A';
+            const num = parseInt(params[0]);
+            if (isNaN(num)) return '#VALUE!';
 
-function loadNumberToWords(parser, iframeWindow) {
-  try {
-    // Check if numberToWords is already available
-    if (iframeWindow.numberToWords) {
-      console.log("alrady available")
-      registerNumToWords(parser, iframeWindow);
-      return;
-    }
+            // Simple fallback for numbers 0-20
+            const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+              'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
 
-    // Create script element in iframe document
-    const script = iframeWindow.document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
-    script.crossOrigin = "anonymous";
-    
-    script.onload = function () {
-      try {
-        // Give it a moment for the library to initialize
-        setTimeout(() => {
-          console.log("number to word script is oading")
-          registerNumToWords(parser, iframeWindow);
-        }, 100);
+            if (num >= 0 && num <= 20) {
+              return words[num];
+            } else if (num < 100) {
+              const tens = Math.floor(num / 10);
+              const ones = num % 10;
+              const tensWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+              return ones === 0 ? tensWords[tens] : tensWords[tens] + '-' + words[ones];
+            } else {
+              return 'Number too large for fallback';
+            }
+          });
+
+          console.log('NUMTOWORDS registered with fallback implementation');
+        };
+
+        // Append to iframe head
+        iframeWindow.document.head.appendChild(script);
+
       } catch (error) {
-        console.error('Error after loading number-to-words:', error);
+        console.error('Error loading number-to-words library:', error);
       }
-    };
-
-    script.onerror = function (error) {
-      console.error('Failed to load number-to-words library:', error);
-      
-      // Fallback: register a simple NUMTOWORDS that converts basic numbers
-      parser.setFunction('NUMTOWORDS', function (params) {
-        if (params.length !== 1) return '#N/A';
-        const num = parseInt(params[0]);
-        if (isNaN(num)) return '#VALUE!';
-        
-        // Simple fallback for numbers 0-20
-        const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-                      'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
-        
-        if (num >= 0 && num <= 20) {
-          return words[num];
-        } else if (num < 100) {
-          const tens = Math.floor(num / 10);
-          const ones = num % 10;
-          const tensWords = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-          return ones === 0 ? tensWords[tens] : tensWords[tens] + '-' + words[ones];
-        } else {
-          return 'Number too large for fallback';
-        }
-      });
-      
-      console.log('NUMTOWORDS registered with fallback implementation');
-    };
-
-    // Append to iframe head
-    iframeWindow.document.head.appendChild(script);
-    
-  } catch (error) {
-    console.error('Error loading number-to-words library:', error);
-  }
-}
-function registerNumToWords(parser, iframeWindow) {
-  try {
-    if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords) {
-      parser.setFunction('NUMTOWORDS', function (params) {
-        if (params.length !== 1) return '#N/A';
-        const num = parseInt(params[0]);
-        if (isNaN(num)) return '#VALUE!';
-        
-        try {
-          return iframeWindow.numberToWords.toWords(num);
-        } catch (error) {
-          return '#ERROR';
-        }
-      });
-      
-      console.log('NUMTOWORDS formula registered successfully with number-to-words library');
-    } else {
-      console.warn('numberToWords library not properly loaded');
     }
-  } catch (error) {
-    console.error('Error registering NUMTOWORDS:', error);
-  }
-}
+    function registerNumToWords(parser, iframeWindow) {
+      try {
+        if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords) {
+          parser.setFunction('NUMTOWORDS', function (params) {
+            if (params.length !== 1) return '#N/A';
+            const num = parseInt(params[0]);
+            if (isNaN(num)) return '#VALUE!';
+
+            try {
+              return iframeWindow.numberToWords.toWords(num);
+            } catch (error) {
+              return '#ERROR';
+            }
+          });
+
+          console.log('NUMTOWORDS formula registered successfully with number-to-words library');
+        } else {
+          console.warn('numberToWords library not properly loaded');
+        }
+      } catch (error) {
+        console.error('Error registering NUMTOWORDS:', error);
+      }
+    }
   });
 
 
@@ -1403,576 +1403,504 @@ function registerNumToWords(parser, iframeWindow) {
   }
 
   function getComponentFromDom(el) {
-  if (!el) return null;
+    if (!el) return null;
 
-  // GrapesJS adds this automatically for every component element
-  const cid = el.getAttribute('data-gjs-cid');
-  if (!cid) return null;
+    // GrapesJS adds this automatically for every component element
+    const cid = el.getAttribute('data-gjs-cid');
+    if (!cid) return null;
 
-  return editor.DomComponents.getById(cid);
-}
+    return editor.DomComponents.getById(cid);
+  }
 
   // Global storage for selected cells
-window.crosstabSelectedCells = [];
-
-// Function to enable crosstab cell selection
-// Function to enable crosstab cell selection
-function enableCrosstabSelection(tableId, enabled) {
-  try {
-    const canvasBody = editor.Canvas.getBody();
-    const table = canvasBody.querySelector(`#${tableId}`);
-    if (!table) return;
-
-    const allCells = table.querySelectorAll('td, th');
-    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
-    
-    if (enabled) {
-      // Store original listeners before disabling
-      if (!table._originalCellListeners) {
-        table._originalCellListeners = new Map();
-        allCells.forEach(cell => {
-          table._originalCellListeners.set(cell, {
-            contentEditable: cell.contentEditable,
-            cursor: cell.style.cursor
-          });
-        });
-      }
-
-      // **NEW: Disable GrapesJS interactions for all cells**
-      allCells.forEach(cell => {
-const cellComponent = getComponentFromDom(cell);
-
-
-        if (cellComponent) {
-          // Store original GrapesJS properties
-          if (!table._originalGjsProps) {
-            table._originalGjsProps = new Map();
-          }
-          table._originalGjsProps.set(cell, {
-            selectable: cellComponent.get('selectable'),
-            hoverable: cellComponent.get('hoverable'),
-            editable: cellComponent.get('editable')
-          });
-          
-          // Disable GrapesJS interactions
-          cellComponent.set({
-            selectable: false,
-            hoverable: false,
-            editable: false
-          });
-        }
-        
-        cell.contentEditable = "false";
-        cell.style.cursor = 'pointer';
-        
-        // Remove i_designer classes
-        cell.classList.remove('i_designer-hovered', 'i_designer-selected');
-        
-        // Remove existing click listeners by cloning
-        const newCell = cell.cloneNode(true);
-        cell.parentNode.replaceChild(newCell, cell);
-      });
-      
-      // Add click selection listeners to newly cloned cells
-      const updatedCells = table.querySelectorAll('td, th');
-      updatedCells.forEach(cell => {
-        // Remove any GrapesJS classes
-        cell.classList.remove('i_designer-hovered', 'i_designer-selected');
-        
-        cell.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          handleCrosstabCellClick(this, tableId);
-        });
-        
-        // **NEW: Prevent GrapesJS hover/select**
-        cell.addEventListener('mouseenter', function(e) {
-          e.stopPropagation();
-          this.classList.remove('i_designer-hovered');
-        });
-        
-        cell.addEventListener('mouseover', function(e) {
-          e.stopPropagation();
-          this.classList.remove('i_designer-hovered');
-        });
-      });
-      
-      // **NEW: Also make table rows non-selectable**
-      const allRows = table.querySelectorAll('tr');
-      allRows.forEach(row => {
-const rowComponent = getComponentFromDom(row);
-
-        if (rowComponent) {
-          if (!table._originalRowGjsProps) {
-            table._originalRowGjsProps = new Map();
-          }
-          table._originalRowGjsProps.set(row, {
-            selectable: rowComponent.get('selectable'),
-            hoverable: rowComponent.get('hoverable')
-          });
-          
-          rowComponent.set({
-            selectable: false,
-            hoverable: false
-          });
-        }
-      });
-      
-      showToast('Crosstab mode enabled - Click cells to select for merging', 'success');
-} else {
-  // Clear crosstab selection state
   window.crosstabSelectedCells = [];
-  
-  // **CRITICAL FIX: Get fresh references BEFORE cloning**
-  const cellComponentMap = new Map();
-  const rowComponentMap = new Map();
-  
-  allCells.forEach(cell => {
-    const comp = getComponentFromDom(cell);
-    if (comp) cellComponentMap.set(cell, comp);
-  });
-  
-  const allRows = table.querySelectorAll('tr');
-  allRows.forEach(row => {
-    const comp = getComponentFromDom(row);
-    if (comp) rowComponentMap.set(row, comp);
-  });
-  
-  // Remove crosstab styling
-  allCells.forEach(cell => {
-    cell.classList.remove('crosstab-selected');
-    cell.style.outline = '';
-    
-    // Restore GrapesJS properties using saved map
-    if (table._originalGjsProps) {
-      const original = table._originalGjsProps.get(cell);
-      const comp = cellComponentMap.get(cell);
-      if (comp && original) {
-        comp.set({
-          selectable: original.selectable,
-          hoverable: original.hoverable,
-          editable: original.editable
+
+  // Function to enable crosstab cell selection
+  function enableCrosstabSelection(tableId, enabled) {
+    try {
+      const canvasBody = editor.Canvas.getBody();
+      const table = canvasBody.querySelector(`#${tableId}`);
+      if (!table) return;
+
+      const allCells = table.querySelectorAll('td, th');
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+
+      if (enabled) {
+        // Store original GrapesJS properties
+        table._originalGjsProps = new Map();
+        table._originalRowGjsProps = new Map();
+
+        allCells.forEach(cell => {
+          const comp = getComponentFromDom(cell);
+          if (comp) {
+            table._originalGjsProps.set(cell, {
+              selectable: comp.get('selectable'),
+              hoverable: comp.get('hoverable'),
+              editable: comp.get('editable')
+            });
+            comp.set({ selectable: false, hoverable: false, editable: false });
+          }
+
+          cell.contentEditable = "false";
+          cell.style.cursor = 'pointer';
+          cell.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent row selection
+            handleCrosstabCellClick(cell, tableId);
+          });
         });
-      }
-    }
-  });
-  
-  // Restore row GrapesJS properties using saved map
-  if (table._originalRowGjsProps) {
-    allRows.forEach(row => {
-      const original = table._originalRowGjsProps.get(row);
-      const comp = rowComponentMap.get(row);
-      if (comp && original) {
-        comp.set({
-          selectable: original.selectable,
-          hoverable: original.hoverable
+
+        // Disable row selection
+        const allRows = table.querySelectorAll('tr');
+        allRows.forEach(row => {
+          const comp = getComponentFromDom(row);
+          if (comp) {
+            table._originalRowGjsProps.set(row, {
+              selectable: comp.get('selectable'),
+              hoverable: comp.get('hoverable')
+            });
+            comp.set({ selectable: false, hoverable: false });
+          }
         });
-      }
-    });
-    delete table._originalRowGjsProps;
-  }
-  
-  // Restore original cell properties
-  if (table._originalCellListeners) {
-    allCells.forEach(cell => {
-      const original = table._originalCellListeners.get(cell);
-      if (original) {
-        cell.contentEditable = original.contentEditable;
-        cell.style.cursor = original.cursor;
+
+        showToast('Crosstab mode enabled - Click cells to select for merging', 'success');
       } else {
-        cell.contentEditable = "true";
-        cell.style.cursor = 'text';
+        window.crosstabSelectedCells = [];
+
+        allCells.forEach(cell => {
+          cell.classList.remove('crosstab-selected');
+          cell.style.outline = '';
+          cell.contentEditable = "true";
+          cell.style.cursor = 'text';
+        });
+
+        if (table._originalGjsProps) {
+          allCells.forEach(cell => {
+            const original = table._originalGjsProps.get(cell);
+            const comp = getComponentFromDom(cell);
+            if (comp && original) {
+              comp.set({
+                selectable: original.selectable,
+                hoverable: original.hoverable,
+                editable: original.editable
+              });
+            }
+          });
+          delete table._originalGjsProps;
+        }
+
+        if (table._originalRowGjsProps) {
+          const allRows = table.querySelectorAll('tr');
+          allRows.forEach(row => {
+            const original = table._originalRowGjsProps.get(row);
+            const comp = getComponentFromDom(row);
+            if (comp && original) {
+              comp.set({
+                selectable: original.selectable,
+                hoverable: original.hoverable
+              });
+            }
+          });
+          delete table._originalRowGjsProps;
+        }
+
+        allCells.forEach(cell => {
+          const newCell = cell.cloneNode(true);
+          cell.parentNode.replaceChild(newCell, cell);
+        });
+
+        if (tableComponent) {
+          editor.trigger('component:update', tableComponent);
+
+          setTimeout(() => {
+            editor.trigger('component:deselected');
+            editor.trigger('layer:refresh');
+            enableFormulaEditing(tableId);
+          }, 200);
+        }
+
+        showToast('Crosstab mode disabled - Normal cell editing restored', 'success');
       }
-    });
-    delete table._originalCellListeners;
-  }
-  
-  if (table._originalGjsProps) {
-    delete table._originalGjsProps;
-  }
-  
-  // **CRITICAL: Don't clone cells - this breaks GrapesJS references**
-  // Instead, just remove event listeners manually
-  const updatedCells = table.querySelectorAll('td, th');
-  updatedCells.forEach(cell => {
-    // Remove crosstab event listeners by replacing with new ones that do nothing
-    const oldClick = cell.onclick;
-    const oldMouseenter = cell.onmouseenter;
-    const oldMouseover = cell.onmouseover;
-    
-    cell.onclick = null;
-    cell.onmouseenter = null;
-    cell.onmouseover = null;
-    
-    // Remove any attached event listeners (can't remove all, but remove the ones we know about)
-    cell.removeEventListener('click', handleCrosstabCellClick);
-  });
-  
-  // **NEW: Force refresh GrapesJS selection system**
-  editor.trigger('component:deselected');
-  setTimeout(() => {
-    // Ensure table cells are properly registered
-    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
-    if (tableComponent) {
-      editor.trigger('component:update', tableComponent);
+    } catch (error) {
+      console.error('Error toggling crosstab mode:', error);
     }
-  }, 100);
-  
-  // Re-initialize formula editing with a delay
-  setTimeout(() => {
-    enableFormulaEditing(tableId);
-  }, 200);
-  
-  showToast('Crosstab mode disabled - Normal cell editing restored', 'success');
-}
-  } catch (error) {
-    console.error('Error toggling crosstab mode:', error);
   }
-}
-// Handle cell click in crosstab mode
-// Helper: build a grid map of the table accounting for rowspan/colspan
-function buildTableGrid(table) {
-  const grid = []; // grid[row][col] = cellElement
-  const cellMap = new Map(); // cellElement -> {positions: [{r,c}], rowspan, colspan}
 
-  const rows = Array.from(table.rows);
-  for (let r = 0; r < rows.length; r++) {
-    if (!grid[r]) grid[r] = [];
-    const cells = Array.from(rows[r].cells);
-    let c = 0;
-    for (let ci = 0; ci < cells.length; ci++) {
-      const cell = cells[ci];
-      // find next free column index
-      while (grid[r][c]) c++;
+  // Handle cell click in crosstab mode
+  // Helper: build a grid map of the table accounting for rowspan/colspan
+  function buildTableGrid(table) {
+    const grid = []; // grid[row][col] = cellElement
+    const cellMap = new Map(); // cellElement -> {positions: [{r,c}], rowspan, colspan}
 
-      const rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
-      const colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
-      const positions = [];
+    const rows = Array.from(table.rows);
+    for (let r = 0; r < rows.length; r++) {
+      if (!grid[r]) grid[r] = [];
+      const cells = Array.from(rows[r].cells);
+      let c = 0;
+      for (let ci = 0; ci < cells.length; ci++) {
+        const cell = cells[ci];
+        // find next free column index
+        while (grid[r][c]) c++;
 
-      for (let rr = 0; rr < rowspan; rr++) {
-        for (let cc = 0; cc < colspan; cc++) {
-          const rrIdx = r + rr;
-          const ccIdx = c + cc;
-          if (!grid[rrIdx]) grid[rrIdx] = [];
-          grid[rrIdx][ccIdx] = cell;
-          positions.push({ r: rrIdx, c: ccIdx });
+        const rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
+        const colspan = parseInt(cell.getAttribute('colspan') || '1', 10);
+        const positions = [];
+
+        for (let rr = 0; rr < rowspan; rr++) {
+          for (let cc = 0; cc < colspan; cc++) {
+            const rrIdx = r + rr;
+            const ccIdx = c + cc;
+            if (!grid[rrIdx]) grid[rrIdx] = [];
+            grid[rrIdx][ccIdx] = cell;
+            positions.push({ r: rrIdx, c: ccIdx });
+          }
+        }
+
+        cellMap.set(cell, { positions, rowspan, colspan, firstRow: r, firstCol: c });
+        c += colspan;
+      }
+    }
+
+    return { grid, cellMap };
+  }
+
+  // Updated handleCrosstabCellClick to record grid coordinates (accounts for colspan/rowspan)
+  function handleCrosstabCellClick(cell, tableId) {
+    try {
+      const canvasBody = editor.Canvas.getBody();
+      const table = canvasBody.querySelector(`#${tableId}`);
+      if (!table) return;
+
+
+      // ✅ NEW: Check if cell is in thead or tbody
+      const isHeaderCell = cell.closest('thead') !== null;
+      const cellInfo = {
+        element: cell,
+        tableId,
+        isHeader: isHeaderCell
+      };
+
+      // ✅ NEW: Check if mixing header and body cells
+      if (window.crosstabSelectedCells.length > 0) {
+        const firstCellIsHeader = window.crosstabSelectedCells[0].isHeader;
+        if (firstCellIsHeader !== isHeaderCell) {
+          showToast('Cannot merge header cells with body cells', 'warning');
+          return;
         }
       }
 
-      cellMap.set(cell, { positions, rowspan, colspan, firstRow: r, firstCol: c });
-      c += colspan;
+      const { cellMap } = buildTableGrid(table);
+      const mapEntry = cellMap.get(cell);
+      if (!mapEntry) return;
+
+      cellInfo.gridRow = mapEntry.firstRow;
+      cellInfo.gridCol = mapEntry.firstCol;
+      cellInfo.rowspan = mapEntry.rowspan;
+      cellInfo.colspan = mapEntry.colspan;
+      // Check if cell is already selected (compare element)
+      const existingIndex = window.crosstabSelectedCells.findIndex(
+        c => c.element === cell
+      );
+
+      if (existingIndex !== -1) {
+        // Deselect
+        window.crosstabSelectedCells.splice(existingIndex, 1);
+        cell.classList.remove('crosstab-selected');
+        cell.style.outline = '';
+      } else {
+        // Select
+        window.crosstabSelectedCells.push(cellInfo);
+        cell.classList.add('crosstab-selected');
+        cell.style.outline = '2px solid #007bff';
+      }
+
+      console.log('Selected cells:', window.crosstabSelectedCells.length);
+    } catch (err) {
+      console.error('handleCrosstabCellClick error:', err);
     }
   }
 
-  return { grid, cellMap };
-}
+  // Function to validate if selected cells are consecutive
+  function validateConsecutiveCells(selectedCells) {
+    if (!selectedCells || selectedCells.length < 2) return false;
 
-// Updated handleCrosstabCellClick to record grid coordinates (accounts for colspan/rowspan)
-function handleCrosstabCellClick(cell, tableId) {
-  try {
-    const canvasBody = editor.Canvas.getBody();
-    const table = canvasBody.querySelector(`#${tableId}`);
-    if (!table) return;
+    // Build set of occupied grid positions from selected cells
+    let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
+    const occupied = new Set(); // "r:c"
+    for (const s of selectedCells) {
+      const r0 = s.gridRow;
+      const c0 = s.gridCol;
+      const rs = s.rowspan || 1;
+      const cs = s.colspan || 1;
 
-    const { cellMap } = buildTableGrid(table);
-    const mapEntry = cellMap.get(cell);
-    if (!mapEntry) return;
+      minRow = Math.min(minRow, r0);
+      minCol = Math.min(minCol, c0);
+      maxRow = Math.max(maxRow, r0 + rs - 1);
+      maxCol = Math.max(maxCol, c0 + cs - 1);
 
-    const cellInfo = {
-      element: cell,
-      tableId,
-      gridRow: mapEntry.firstRow,
-      gridCol: mapEntry.firstCol,
-      rowspan: mapEntry.rowspan,
-      colspan: mapEntry.colspan
-    };
-
-    // Check if cell is already selected (compare element)
-    const existingIndex = window.crosstabSelectedCells.findIndex(
-      c => c.element === cell
-    );
-
-    if (existingIndex !== -1) {
-      // Deselect
-      window.crosstabSelectedCells.splice(existingIndex, 1);
-      cell.classList.remove('crosstab-selected');
-      cell.style.outline = '';
-    } else {
-      // Select
-      window.crosstabSelectedCells.push(cellInfo);
-      cell.classList.add('crosstab-selected');
-      cell.style.outline = '2px solid #007bff';
-    }
-
-    console.log('Selected cells:', window.crosstabSelectedCells.length);
-  } catch (err) {
-    console.error('handleCrosstabCellClick error:', err);
-  }
-}
-
-// Function to validate if selected cells are consecutive
-function validateConsecutiveCells(selectedCells) {
-  if (!selectedCells || selectedCells.length < 2) return false;
-
-  // Build set of occupied grid positions from selected cells
-  let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
-  const occupied = new Set(); // "r:c"
-  for (const s of selectedCells) {
-    const r0 = s.gridRow;
-    const c0 = s.gridCol;
-    const rs = s.rowspan || 1;
-    const cs = s.colspan || 1;
-
-    minRow = Math.min(minRow, r0);
-    minCol = Math.min(minCol, c0);
-    maxRow = Math.max(maxRow, r0 + rs - 1);
-    maxCol = Math.max(maxCol, c0 + cs - 1);
-
-    for (let rr = r0; rr < r0 + rs; rr++) {
-      for (let cc = c0; cc < c0 + cs; cc++) {
-        occupied.add(`${rr}:${cc}`);
+      for (let rr = r0; rr < r0 + rs; rr++) {
+        for (let cc = c0; cc < c0 + cs; cc++) {
+          occupied.add(`${rr}:${cc}`);
+        }
       }
     }
+
+    const expectedCellsCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+
+    // Ensure every position inside the bounding rectangle is occupied by the selection
+    for (let rr = minRow; rr <= maxRow; rr++) {
+      for (let cc = minCol; cc <= maxCol; cc++) {
+        if (!occupied.has(`${rr}:${cc}`)) {
+          return false; // hole found
+        }
+      }
+    }
+
+    // Passed: selection forms a filled rectangle
+    return true;
   }
 
-  const expectedCellsCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+  // Add this helper function before mergeCrosstabCells
+  function forceTableComponentRefresh(tableId) {
+    try {
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+      if (!tableComponent) return;
 
-  // Ensure every position inside the bounding rectangle is occupied by the selection
-  for (let rr = minRow; rr <= maxRow; rr++) {
-    for (let cc = minCol; cc <= maxCol; cc++) {
-      if (!occupied.has(`${rr}:${cc}`)) {
-        return false; // hole found
+      const canvasBody = editor.Canvas.getBody();
+      const table = canvasBody.querySelector(`#${tableId}`);
+      if (!table) return;
+
+      // Get current HTML state
+      const tableHTML = table.outerHTML;
+      const parent = tableComponent.parent();
+      const index = parent.components().indexOf(tableComponent);
+
+      // Remove old component
+      parent.components().remove(tableComponent);
+
+      // Add back with fresh HTML
+      const newComponent = parent.components().add(tableHTML, { at: index })[0];
+
+      // Set type back to enhanced-table
+      const newTable = newComponent.find('table')[0] || newComponent;
+      if (newTable && newTable.get('tagName') === 'table') {
+        newTable.set('type', 'enhanced-table');
       }
+
+      // Force refresh
+      editor.trigger('component:update', newTable);
+
+      return newTable;
+    } catch (error) {
+      console.error('Error refreshing table component:', error);
     }
   }
 
-  // Passed: selection forms a filled rectangle
-  return true;
-}
-
-// Add this helper function before mergeCrosstabCells
-function forceTableComponentRefresh(tableId) {
-  try {
-    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
-    if (!tableComponent) return;
-    
-    const canvasBody = editor.Canvas.getBody();
-    const table = canvasBody.querySelector(`#${tableId}`);
-    if (!table) return;
-    
-    // Get current HTML state
-    const tableHTML = table.outerHTML;
-    const parent = tableComponent.parent();
-    const index = parent.components().indexOf(tableComponent);
-    
-    // Remove old component
-    parent.components().remove(tableComponent);
-    
-    // Add back with fresh HTML
-    const newComponent = parent.components().add(tableHTML, { at: index })[0];
-    
-    // Set type back to enhanced-table
-    const newTable = newComponent.find('table')[0] || newComponent;
-    if (newTable && newTable.get('tagName') === 'table') {
-      newTable.set('type', 'enhanced-table');
-    }
-    
-    // Force refresh
-    editor.trigger('component:update', newTable);
-    
-    return newTable;
-  } catch (error) {
-    console.error('Error refreshing table component:', error);
-  }
-}
-
-// Function to merge selected cells
-// Function to merge selected cells
-function mergeCrosstabCells() {
-  try {
-    if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 2) {
-      showToast('Select at least 2 cells to merge', 'warning');
-      return;
-    }
-
-    const anyCell = window.crosstabSelectedCells[0].element;
-    const table = anyCell.closest('table');
-    const tableId = table.id;
-
-    // Build grid considering existing rowspan/colspan
-    const { grid, cellMap } = buildTableGrid(table);
-    
-    const selectedPhysicalCells = new Set(window.crosstabSelectedCells.map(s => s.element));
-
-    const selectedPositions = new Set();
-    selectedPhysicalCells.forEach(cell => {
-      const meta = cellMap.get(cell);
-      if (meta) {
-        meta.positions.forEach(pos => {
-          selectedPositions.add(`${pos.r},${pos.c}`);
-        });
+  // Function to merge selected cells
+  function mergeCrosstabCells() {
+    try {
+      if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 2) {
+        showToast('Select at least 2 cells to merge', 'warning');
+        return;
       }
-    });
 
-    if (selectedPositions.size < 2) {
-      showToast('Select at least 2 cells to merge', 'warning');
-      return;
-    }
+      const anyCell = window.crosstabSelectedCells[0].element;
+      const table = anyCell.closest('table');
+      const tableId = table.id;
 
-    // Determine bounding box
-    let minRow = Infinity, maxRow = -Infinity;
-    let minCol = Infinity, maxCol = -Infinity;
-    selectedPositions.forEach(key => {
-      const [r, c] = key.split(',').map(Number);
-      minRow = Math.min(minRow, r);
-      maxRow = Math.max(maxRow, r);
-      minCol = Math.min(minCol, c);
-      maxCol = Math.max(maxCol, c);
-    });
+      // Build grid considering existing rowspan/colspan
+      const { grid, cellMap } = buildTableGrid(table);
 
-    // Validate full contiguous rectangle (no gaps)
-    const expectedSize = (maxRow - minRow + 1) * (maxCol - minCol + 1);
-    if (selectedPositions.size !== expectedSize) {
-      showToast('Selected cells must form a complete rectangle without gaps', 'warning');
-      return;
-    }
+      const selectedPhysicalCells = new Set(window.crosstabSelectedCells.map(s => s.element));
 
-    // Find the physical top-left cell
-    let topLeftCell = null;
-    let topLeftMeta = null;
-    cellMap.forEach((meta, cell) => {
-      if (meta.firstRow === minRow && meta.firstCol === minCol) {
-        topLeftCell = cell;
-        topLeftMeta = meta;
+      const selectedPositions = new Set();
+      selectedPhysicalCells.forEach(cell => {
+        const meta = cellMap.get(cell);
+        if (meta) {
+          meta.positions.forEach(pos => {
+            selectedPositions.add(`${pos.r},${pos.c}`);
+          });
+        }
+      });
+
+      if (selectedPositions.size < 2) {
+        showToast('Select at least 2 cells to merge', 'warning');
+        return;
       }
-    });
 
-    if (!topLeftCell) {
-      showToast('Unable to find top-left cell', 'error');
-      return;
-    }
+      // Determine bounding box
+      let minRow = Infinity, maxRow = -Infinity;
+      let minCol = Infinity, maxCol = -Infinity;
+      selectedPositions.forEach(key => {
+        const [r, c] = key.split(',').map(Number);
+        minRow = Math.min(minRow, r);
+        maxRow = Math.max(maxRow, r);
+        minCol = Math.min(minCol, c);
+        maxCol = Math.max(maxCol, c);
+      });
 
-    // Calculate new spans
-    const newRowspan = maxRow - minRow + 1;
-    const newColspan = maxCol - minCol + 1;
-
-    // Collect content from all selected cells
-    let mergedContent = [];
-    selectedPhysicalCells.forEach(cell => {
-      const div = cell.querySelector('div');
-      const content = div ? div.textContent : cell.textContent;
-      const trimmed = content.trim();
-      if (trimmed && trimmed !== 'Text' && !mergedContent.includes(trimmed)) {
-        mergedContent.push(trimmed);
+      // Validate full contiguous rectangle
+      const expectedSize = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+      if (selectedPositions.size !== expectedSize) {
+        showToast('Selected cells must form a complete rectangle without gaps', 'warning');
+        return;
       }
-    });
 
-    // **NEW: Update GrapesJS component first**
-    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
-    if (tableComponent) {
-const topLeftComponent = getComponentFromDom(topLeftCell);
+      // Find the physical top-left cell
+      let topLeftCell = null;
+      cellMap.forEach((meta, cell) => {
+        if (meta.firstRow === minRow && meta.firstCol === minCol) {
+          topLeftCell = cell;
+        }
+      });
 
-      
+      if (!topLeftCell) {
+        showToast('Unable to find top-left cell', 'error');
+        return;
+      }
+
+      // Calculate new spans
+      const newRowspan = maxRow - minRow + 1;
+      const newColspan = maxCol - minCol + 1;
+
+      // Collect content from all selected cells
+      let mergedContent = [];
+      selectedPhysicalCells.forEach(cell => {
+        const div = cell.querySelector('div');
+        const content = div ? div.textContent : cell.textContent;
+        const trimmed = content.trim();
+        if (trimmed && trimmed !== 'Text' && !mergedContent.includes(trimmed)) {
+          mergedContent.push(trimmed);
+        }
+      });
+
+      const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : 'Text';
+
+      // ✅ Get GrapesJS table component FIRST
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+      if (!tableComponent) {
+        showToast('Table component not found', 'error');
+        return;
+      }
+
+      // ✅ Find the top-left cell component in GrapesJS
+      const topLeftComponent = getComponentFromDom(topLeftCell);
+
       if (topLeftComponent) {
-        // Update top-left component attributes
+        // ✅ Update attributes in GrapesJS component
         topLeftComponent.addAttributes({
           rowspan: newRowspan.toString(),
           colspan: newColspan.toString()
         });
-        
-        // Update content
-        const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : 'Text';
+
+        // ✅ Update content in GrapesJS component
         topLeftComponent.components(`<div>${finalContent}</div>`);
+
+        // ✅ Collect cells to remove from GrapesJS
+        const toRemoveComponents = [];
+        cellMap.forEach((meta, cell) => {
+          if (cell === topLeftCell) return;
+          const overlaps = meta.positions.some(pos =>
+            pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
+          );
+          if (overlaps) {
+            const cellComponent = getComponentFromDom(cell);
+            if (cellComponent) {
+              toRemoveComponents.push(cellComponent);
+            }
+          }
+        });
+
+        // ✅ Remove components from GrapesJS structure
+        toRemoveComponents.forEach(comp => {
+          const parent = comp.parent();
+          if (parent) {
+            parent.components().remove(comp);
+          }
+        });
       }
-      
-      // **NEW: Remove components from GrapesJS structure**
-      const toRemoveComponents = [];
+
+      // ✅ Update DOM (for immediate visual feedback)
+      topLeftCell.rowSpan = newRowspan;
+      topLeftCell.colSpan = newColspan;
+      topLeftCell.innerHTML = `<div>${finalContent}</div>`;
+
+      // Remove cells from DOM
+      const toRemove = new Set();
       cellMap.forEach((meta, cell) => {
         if (cell === topLeftCell) return;
         const overlaps = meta.positions.some(pos =>
           pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
         );
         if (overlaps) {
-const cellComponent = getComponentFromDom(cell);
-
-          if (cellComponent) {
-            toRemoveComponents.push(cellComponent);
-          }
+          toRemove.add(cell);
         }
       });
-      
-      // Remove components from their parent rows
-      toRemoveComponents.forEach(comp => {
-        const parent = comp.parent();
-        if (parent) {
-          parent.components().remove(comp);
+
+      toRemove.forEach(cell => {
+        if (cell.parentNode) cell.parentNode.removeChild(cell);
+      });
+
+      // ✅ Clear selection state
+      window.crosstabSelectedCells.forEach(s => {
+        if (s.element && s.element.classList) {
+          s.element.classList.remove('crosstab-selected');
+          s.element.style.outline = '';
         }
       });
-    }
+      window.crosstabSelectedCells = [];
 
-    // Update DOM: Update top-left cell
-    topLeftCell.rowSpan = newRowspan;
-    topLeftCell.colSpan = newColspan;
-    
-    const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : 'Text';
-    topLeftCell.innerHTML = `<div>${finalContent}</div>`;
-
-    // Collect and remove physical cells from DOM
-    const toRemove = new Set();
-    cellMap.forEach((meta, cell) => {
-      if (cell === topLeftCell) return;
-      const overlaps = meta.positions.some(pos =>
-        pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
-      );
-      if (overlaps) {
-        toRemove.add(cell);
-      }
-    });
-
-    toRemove.forEach(cell => {
-      if (cell.parentNode) cell.parentNode.removeChild(cell);
-    });
-
-    // Clear visual selections
-    window.crosstabSelectedCells.forEach(s => {
-      if (s.element && s.element.classList) {
-        s.element.classList.remove('crosstab-selected');
-        s.element.style.outline = '';
-      }
-    });
-
-    window.crosstabSelectedCells = [];
-
-    // **NEW: Force GrapesJS to refresh and recognize the structure**
-    if (tableComponent) {
-      // Trigger multiple updates to ensure layer manager refreshes
+      // ✅ Force GrapesJS to refresh
       editor.trigger('component:update', tableComponent);
-      
+
+      // ✅ Force layer manager refresh
       setTimeout(() => {
-        // Force re-render of the component tree
-        const wrapper = editor.getWrapper();
-        editor.trigger('component:toggled', wrapper);
         editor.trigger('layer:refresh');
-        
-        // Update each row component
+
+        // Update each row
         const allRows = tableComponent.find('tr');
         allRows.forEach(row => {
           editor.trigger('component:update', row);
         });
-        
+
         editor.trigger('component:update', tableComponent);
       }, 100);
+
+      // Update DataTable structure
+      updateDataTableStructure(tableId);
+
+      // Re-enable cell selection for all cells
+      setTimeout(() => {
+        const allCells = table.querySelectorAll('td, th');
+        allCells.forEach(cell => {
+          const comp = getComponentFromDom(cell);
+          if (comp) {
+            comp.set({
+              selectable: true,
+              hoverable: true,
+              editable: true
+            });
+          }
+        });
+
+        // Ensure rows don't override cell selection
+        const allRows = table.querySelectorAll('tr');
+        allRows.forEach(row => {
+          const comp = getComponentFromDom(row);
+          if (comp) {
+            comp.set({
+              selectable: false,
+              hoverable: false
+            });
+          }
+        });
+      }, 300);
+
+      showToast('Cells merged successfully', 'success');
+    } catch (error) {
+      console.error('Error merging cells:', error);
+      showToast('Error merging cells: ' + error.message, 'error');
     }
-
-    // Update DataTable structure
-    updateDataTableStructure(tableId);
-
-    showToast('Cells merged successfully', 'success');
-  } catch (error) {
-    console.error('Error merging cells:', error);
-    showToast('Error merging cells: ' + error.message, 'error');
   }
-}
 
 
   // Override the default HTML export to include running total data
@@ -2058,15 +1986,30 @@ const cellComponent = getComponentFromDom(cell);
         removable: true,
         copyable: true,
         resizable: false,
-traits: [
+        traits: [
+          {
+            type: 'button',
+            name: 'table-settings-btn',
+            label: 'Table Settings',
+            text: 'Table Settings',
+            full: true,
+            command: 'open-custom-table-settings'
+          },
+          {
+            type: 'button',
+            name: 'manage-table-styles',
+            label: 'Table Styles',
+            text: 'Customize Table Styles',
+            full: true,
+            command: 'open-custom-table-style-manager'
+          },
           {
             type: 'button',
             name: 'manage-highlight-conditions',
-            label: 'Manage Highlight Conditions',
-            text: 'Add/Edit Conditions',
+            label: 'Highlight',
+            text: 'Highlight Conditions',
             full: true,
-            command: 'open-table-condition-manager-local-table',
-            changeProp: 1
+            command: 'open-table-condition-manager-local-table'
           },
           {
             type: 'checkbox',
@@ -2080,19 +2023,478 @@ traits: [
             label: 'Merge Selected Cells',
             text: 'Merge',
             full: true,
-            command: 'merge-table-cells',
-            changeProp: 1
+            command: 'merge-table-cells'
           },
         ],
         'custom-name': 'Enhanced Table',
         'highlight-conditions': [],
-        'highlight-color': '#ffff99'
+        'highlight-color': '#ffff99',
+        'highlight-styles': {},
+        // Style properties
+        'table-border-style': 'solid',
+        'table-border-width': '1',
+        'table-border-color': '#000000',
+        'table-border-opacity': '100',
+        'table-bg-color': '#ffffff',
+        'table-text-color': '#000000',
+        'table-font-family': 'Arial, sans-serif',
+        'table-text-align': 'left',
+        'table-vertical-align': 'middle',
+        // Grouping & Summary properties
+        'grouping-fields': [],
+        'summary-fields': [],
+        'sort-order': 'ascending',
+        'top-n': 'none',
+        'top-n-value': 10,
+        'define-named-group': false,
+        'named-groups': {},
+        'summarize-group': false,
+        'page-break': false,
+        'merge-group-cells': false,
+        'group-header-inplace': true,
+        'hide-subtotal-single-row': false,
+        'show-summary-only': false,
+        'keep-group-hierarchy': false,
+        'grand-total': true,
+        'grand-total-label': 'Grand Total',
+        'summary-label': 'Subtotal',
+        // Running Total properties
+        'running-totals': [],
+        'selected-running-total-columns': [],
+        // Base data storage
+        'base-headers': null,
+        'base-data': null,
       },
 
-init() {
-  this.on('change:highlight-condition-type change:highlight-words change:highlight-color', this.handleHighlightChange);
-  this.on('change:crosstab-mode', this.handleCrosstabModeChange);
-},
+      init() {
+        this.on('change:highlight-condition-type change:highlight-words change:highlight-color', this.handleHighlightChange);
+        this.on('change:crosstab-mode', this.handleCrosstabModeChange);
+        this.on('change:table-border-style change:table-border-width change:table-border-color change:table-border-opacity change:table-bg-color change:table-text-color change:table-font-family change:table-text-align change:table-vertical-align', this.applyTableStyles);
+
+        // Grouping & Summary listeners
+        this.on('change:grouping-fields change:summary-fields change:sort-order change:top-n change:summarize-group change:merge-group-cells change:show-summary-only change:grand-total', this.applyGroupingAndSummary);
+
+        // Store base table data on initialization
+        this.storeBaseTableData();
+      },
+
+      storeBaseTableData() {
+        try {
+          const tableId = this.getId();
+          const canvasDoc = editor.Canvas.getDocument();
+          const tableElement = canvasDoc.getElementById(tableId);
+          if (!tableElement) return;
+
+          const headers = {};
+          const data = [];
+
+          // Extract headers
+          const headerRow = tableElement.querySelector('thead tr');
+          if (headerRow) {
+            const headerCells = headerRow.querySelectorAll('th');
+            headerCells.forEach((th, index) => {
+              const key = `col${index}`;
+              const text = th.textContent.trim();
+              headers[key] = text;
+            });
+          }
+
+          // Extract data
+          const bodyRows = tableElement.querySelectorAll('tbody tr');
+          bodyRows.forEach(row => {
+            const rowData = {};
+            const cells = row.querySelectorAll('td');
+            cells.forEach((td, index) => {
+              const key = `col${index}`;
+              rowData[key] = td.textContent.trim();
+            });
+            if (Object.keys(rowData).length > 0) {
+              data.push(rowData);
+            }
+          });
+
+          this.set('base-headers', headers, { silent: true });
+          this.set('base-data', data, { silent: true });
+
+        } catch (error) {
+          console.warn('Error storing base table data:', error);
+        }
+      },
+
+      getTableHeaders() {
+        return this.get('base-headers') || {};
+      },
+
+      getTableData() {
+        return this.get('base-data') || [];
+      },
+
+      applyGroupingAndSummary() {
+        const groupingFields = this.get('grouping-fields') || [];
+        const summarizeGroup = this.get('summarize-group') || false;
+        const summaryFields = this.get('summary-fields') || [];
+        const data = this.getTableData();
+        const headers = this.getTableHeaders();
+
+        console.log('🔧 applyGroupingAndSummary called:', {
+          groupingFields: groupingFields.length,
+          summarizeGroup,
+          summaryFields: summaryFields.length,
+          dataRows: data.length
+        });
+
+        if (groupingFields.length === 0) {
+          console.log('✅ No grouping - restoring original data');
+          this.rebuildTableHTML(headers, data);
+          return;
+        }
+
+        if (summarizeGroup && summaryFields.length === 0) {
+          showToast('Please add at least one summary field', 'warning');
+          this.set('summarize-group', false);
+          return;
+        }
+
+        const groupedData = this.groupData(data, groupingFields);
+        this.rebuildTableHTML(headers, groupedData);
+      },
+
+      groupData(data, groupingFields) {
+        if (!groupingFields || groupingFields.length === 0) return data;
+        if (!Array.isArray(data) || data.length === 0) return data;
+
+        const grouped = {};
+        const sortOrder = this.get('sort-order') || 'ascending';
+        const topN = this.get('top-n') || 'none';
+        const topNValue = parseInt(this.get('top-n-value')) || 10;
+        const summarizeGroup = this.get('summarize-group') || false;
+        const showSummaryOnly = this.get('show-summary-only') || false;
+        const mergeGroupCells = this.get('merge-group-cells') || false;
+        const hideSubtotalSingleRow = this.get('hide-subtotal-single-row') || false;
+
+        // Group data
+        data.forEach(row => {
+          if (!row || typeof row !== 'object') return;
+          const groupKey = groupingFields.map(field => row[field.key] || '').join('|');
+          if (!grouped[groupKey]) {
+            grouped[groupKey] = {
+              key: groupKey,
+              values: groupingFields.map(field => row[field.key] || ''),
+              rows: []
+            };
+          }
+          grouped[groupKey].rows.push(row);
+        });
+
+        if (Object.keys(grouped).length === 0) return data;
+
+        // Sort groups
+        let sortedGroupKeys = Object.keys(grouped);
+        if (sortOrder === 'ascending') {
+          sortedGroupKeys.sort();
+        } else if (sortOrder === 'descending') {
+          sortedGroupKeys.sort().reverse();
+        }
+
+        // Apply Top N
+        if (topN !== 'none' && topN !== 'sort-all' && topNValue > 0) {
+          if (topN === 'top') {
+            sortedGroupKeys = sortedGroupKeys.slice(0, topNValue);
+          } else if (topN === 'bottom') {
+            sortedGroupKeys = sortedGroupKeys.slice(-topNValue);
+          }
+        }
+
+        const result = [];
+        const selectedSummaryFields = this.get('summary-fields') || [];
+
+        sortedGroupKeys.forEach((groupKey, groupIndex) => {
+          const group = grouped[groupKey];
+
+          if (showSummaryOnly) {
+            if (summarizeGroup && selectedSummaryFields.length > 0) {
+              const summaryRow = this.createSummaryRow(group.rows, groupKey);
+              summaryRow._isSummary = true;
+              summaryRow._groupIndex = groupIndex;
+              result.push(summaryRow);
+            }
+          } else {
+            group.rows.forEach((row, rowIdx) => {
+              const newRow = { ...row };
+              if (mergeGroupCells && rowIdx === 0) {
+                newRow._groupStart = true;
+                newRow._groupSize = group.rows.length;
+                newRow._groupIndex = groupIndex;
+                groupingFields.forEach(field => {
+                  newRow[`_merge_${field.key}`] = true;
+                });
+              }
+              result.push(newRow);
+            });
+
+            if (summarizeGroup && selectedSummaryFields.length > 0 &&
+              !(hideSubtotalSingleRow && group.rows.length === 1)) {
+              const summaryRow = this.createSummaryRow(group.rows, groupKey);
+              summaryRow._isSummary = true;
+              summaryRow._groupIndex = groupIndex;
+              result.push(summaryRow);
+            }
+          }
+        });
+
+        // Add grand total
+        if (this.get('grand-total')) {
+          const grandTotalRow = this.createGrandTotalRow(result.filter(r => !r._isSummary && !r._isGrandTotal));
+          grandTotalRow._isGrandTotal = true;
+          result.push(grandTotalRow);
+        }
+
+        return result;
+      },
+
+      createSummaryRow(groupRows, groupKey) {
+        const summaryFields = this.get('summary-fields') || [];
+        const headers = this.getTableHeaders();
+        const summaryLabel = this.get('summary-label') || 'Subtotal';
+
+        const summaryRow = {};
+        Object.keys(headers).forEach(key => {
+          summaryRow[key] = '';
+        });
+
+        const firstKey = Object.keys(headers)[0];
+        summaryRow[firstKey] = summaryLabel;
+
+        if (summaryFields.length > 0) {
+          summaryFields.forEach(field => {
+            const values = groupRows.map(row => parseFloat(row[field.key]) || 0);
+
+            switch (field.function) {
+              case 'sum':
+                summaryRow[field.key] = values.reduce((a, b) => a + b, 0).toFixed(2);
+                break;
+              case 'average':
+                summaryRow[field.key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
+                break;
+              case 'count':
+                summaryRow[field.key] = values.length;
+                break;
+              case 'min':
+                summaryRow[field.key] = Math.min(...values).toFixed(2);
+                break;
+              case 'max':
+                summaryRow[field.key] = Math.max(...values).toFixed(2);
+                break;
+            }
+          });
+        }
+
+        return summaryRow;
+      },
+
+      createGrandTotalRow(data) {
+        const summaryFields = this.get('summary-fields') || [];
+        const headers = this.getTableHeaders();
+        const grandTotalLabel = this.get('grand-total-label') || 'Grand Total';
+
+        const grandTotalRow = {};
+        Object.keys(headers).forEach(key => {
+          grandTotalRow[key] = '';
+        });
+
+        const firstKey = Object.keys(headers)[0];
+        grandTotalRow[firstKey] = grandTotalLabel;
+
+        // Calculate for numeric columns
+        const numericColumns = {};
+        Object.keys(headers).forEach(key => {
+          const isStrictlyNumeric = data.every(row => {
+            let value = row[key];
+            if (value === '' || value === null || value === undefined) return true;
+            value = String(value).trim();
+            if (/^\(.*\)$/.test(value)) value = '-' + value.slice(1, -1);
+            value = value.replace(/[$£€₹,\s]/g, '');
+            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+              value = value.replace(/\./g, '').replace(',', '.');
+            }
+            const numValue = Number(value);
+            return typeof numValue === 'number' && !isNaN(numValue);
+          });
+
+          if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
+            numericColumns[key] = true;
+          }
+        });
+
+        Object.keys(numericColumns).forEach(key => {
+          const values = data.map(row => {
+            let value = row[key];
+            if (value === '' || value === null || value === undefined) return 0;
+            value = String(value).trim();
+            if (/^\(.*\)$/.test(value)) value = '-' + value.slice(1, -1);
+            value = value.replace(/[$£€₹,\s]/g, '');
+            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+              value = value.replace(/\./g, '').replace(',', '.');
+            }
+            return parseFloat(value) || 0;
+          });
+
+          const summaryField = summaryFields.find(f => f.key === key);
+          const func = summaryField ? summaryField.function : 'sum';
+
+          switch (func) {
+            case 'sum':
+              grandTotalRow[key] = values.reduce((a, b) => a + b, 0).toFixed(2);
+              break;
+            case 'average':
+              grandTotalRow[key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
+              break;
+            case 'count':
+              grandTotalRow[key] = values.length;
+              break;
+            case 'min':
+              grandTotalRow[key] = Math.min(...values).toFixed(2);
+              break;
+            case 'max':
+              grandTotalRow[key] = Math.max(...values).toFixed(2);
+              break;
+          }
+        });
+
+        return grandTotalRow;
+      },
+
+      rebuildTableHTML(headers, data) {
+        try {
+          const tableId = this.getId();
+          const canvasDoc = editor.Canvas.getDocument();
+          const tableElement = canvasDoc.getElementById(tableId);
+          if (!tableElement) return;
+
+          const mergeGroupCells = this.get('merge-group-cells') || false;
+
+          // Clear tbody
+          let tbody = tableElement.querySelector('tbody');
+          if (!tbody) {
+            tbody = canvasDoc.createElement('tbody');
+            tableElement.appendChild(tbody);
+          }
+          tbody.innerHTML = '';
+
+          // Rebuild rows
+          data.forEach((row, rowIndex) => {
+            const isSummary = row._isSummary;
+            const isGrandTotal = row._isGrandTotal;
+            const isGroupStart = row._groupStart;
+            const groupSize = row._groupSize || 1;
+
+            const tr = canvasDoc.createElement('tr');
+
+            if (isSummary) {
+              tr.style.backgroundColor = '#f0f8ff';
+              tr.style.fontWeight = 'bold';
+            } else if (isGrandTotal) {
+              tr.style.backgroundColor = '#e8f5e9';
+              tr.style.fontWeight = 'bold';
+            } else {
+              tr.style.backgroundColor = rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa';
+            }
+
+            Object.keys(headers).forEach(key => {
+              if (row[`_skip_${key}`]) return;
+
+              const td = canvasDoc.createElement('td');
+              td.innerHTML = `<div>${row[key] || ''}</div>`;
+              td.style.padding = '8px';
+              td.style.border = '1px solid #000';
+
+              if (isGroupStart && row[`_merge_${key}`] && mergeGroupCells) {
+                td.setAttribute('rowspan', groupSize.toString());
+                for (let i = 1; i < groupSize; i++) {
+                  if (data[rowIndex + i]) {
+                    data[rowIndex + i][`_skip_${key}`] = true;
+                  }
+                }
+              }
+
+              tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+          });
+
+          // Update DataTable if exists
+          updateDataTableStructure(tableId);
+
+        } catch (error) {
+          console.error('Error rebuilding table HTML:', error);
+        }
+      },
+
+      applyTableStyles() {
+        const tableId = this.getId();
+        const canvasDoc = editor.Canvas.getDocument();
+        const tableElement = canvasDoc.getElementById(tableId);
+        if (!tableElement) return;
+
+        const borderStyle = this.get('table-border-style') || 'solid';
+        const borderWidth = this.get('table-border-width') || '1';
+        const borderColor = this.get('table-border-color') || '#000000';
+        const borderOpacity = this.get('table-border-opacity') || '100';
+        const bgColor = this.get('table-bg-color') || '#ffffff';
+        const textColor = this.get('table-text-color') || '#000000';
+        const fontFamily = this.get('table-font-family') || 'Arial, sans-serif';
+        const textAlign = this.get('table-text-align') || 'left';
+        const verticalAlign = this.get('table-vertical-align') || 'middle';
+
+        const opacity = parseInt(borderOpacity) / 100;
+        const rgbBorder = hexToRgb(borderColor);
+        const borderColorWithOpacity = `rgba(${rgbBorder.r}, ${rgbBorder.g}, ${rgbBorder.b}, ${opacity})`;
+
+        const wrapper = editor.DomComponents.getWrapper();
+        const tableComp = wrapper.find(`#${tableId}`)[0];
+
+        if (tableComp) {
+          tableComp.addStyle({
+            'background-color': bgColor,
+            'border-collapse': 'collapse',
+          });
+
+          const cells = tableComp.find('td, th');
+          cells.forEach(cellComp => {
+            const borderValue = borderStyle === 'none' ? 'none' : `${borderWidth}px ${borderStyle} ${borderColorWithOpacity}`;
+
+            cellComp.addStyle({
+              'border': borderValue,
+              'color': textColor,
+              'font-family': fontFamily,
+              'background-color': bgColor,
+              'padding': '8px',
+              'vertical-align': verticalAlign,
+              'text-align': textAlign,
+            });
+
+            const cellContent = cellComp.find('div')[0];
+            if (cellContent) {
+              cellContent.addStyle({
+                'display': 'flex',
+                'align-items': verticalAlign === 'top' ? 'flex-start' :
+                  verticalAlign === 'bottom' ? 'flex-end' : 'center',
+                'justify-content': textAlign === 'left' ? 'flex-start' :
+                  textAlign === 'right' ? 'flex-end' : 'center',
+                'min-height': '100%',
+                'width': '100%',
+                'box-sizing': 'border-box',
+              });
+            }
+          });
+        }
+
+        this.set('table-styles-applied', {
+          borderStyle, borderWidth, borderColor, borderOpacity,
+          bgColor, textColor, fontFamily, textAlign, verticalAlign
+        });
+      },
 
       getHighlightConditions() {
         return this.get('highlight-conditions') || [];
@@ -2114,6 +2516,7 @@ init() {
         conditions.splice(index, 1);
         this.setHighlightConditions(conditions);
       },
+
       handleHighlightChange() {
         const tableId = this.getId();
         const conditions = this.getHighlightConditions();
@@ -2126,11 +2529,12 @@ init() {
         applyMultipleHighlightingWithStyles(tableId, conditions, styles);
         editor.trigger('component:update', this);
       },
+
       handleCrosstabModeChange() {
-  const tableId = this.getId();
-  const enabled = this.get('crosstab-mode');
-  enableCrosstabSelection(tableId, enabled);
-},
+        const tableId = this.getId();
+        const enabled = this.get('crosstab-mode');
+        enableCrosstabSelection(tableId, enabled);
+      },
     }
   });
 
@@ -2191,23 +2595,409 @@ init() {
   });
 
   editor.Commands.add('merge-table-cells', {
-  run(editor) {
-    const selected = editor.getSelected();
-    if (selected && selected.get('tagName') === 'table') {
-      const crosstabMode = selected.get('crosstab-mode');
-      
-      if (!crosstabMode) {
-        showToast('Please enable "Stop" mode first to merge cells', 'warning');
-        return;
+    run(editor) {
+      const selected = editor.getSelected();
+      if (selected && selected.get('tagName') === 'table') {
+        const crosstabMode = selected.get('crosstab-mode');
+
+        if (!crosstabMode) {
+          showToast('Please enable "Stop" mode first to merge cells', 'warning');
+          return;
+        }
+
+        mergeCrosstabCells();
       }
-      
-      mergeCrosstabCells();
     }
-  }
-});
+  });
+
+  // ✅ Table Style Manager Command
+  editor.Commands.add('open-custom-table-style-manager', {
+    run(editor) {
+      const selected = editor.getSelected();
+      if (!selected || selected.get('tagName') !== 'table') return;
+
+      const modalContent = `
+      <div class="table-style-manager" style="padding: 20px; max-width: 600px;">
+        
+        <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <h4 style="margin-top: 0;">Border Settings</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Style:</label>
+              <select id="border-style" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="none">None</option>
+                <option value="solid">Solid</option>
+                <option value="double">Double</option>
+                <option value="dashed">Dashed</option>
+                <option value="dotted">Dotted</option>
+                <option value="groove">Groove</option>
+                <option value="ridge">Ridge</option>
+                <option value="inset">Inset</option>
+                <option value="outset">Outset</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Width (px):</label>
+              <input type="number" id="border-width" min="0" max="10" value="1" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Color:</label>
+              <input type="color" id="border-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Opacity (%):</label>
+              <input type="range" id="border-opacity" min="0" max="100" value="100" style="width: 100%;">
+              <span id="opacity-value">100%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <h4 style="margin-top: 0;">Colors & Font</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
+              <input type="color" id="bg-color" value="#ffffff" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
+              <input type="color" id="text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
+              <select id="font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="Tahoma, sans-serif">Tahoma</option>
+                <option value="Helvetica, sans-serif">Helvetica</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+          <h4 style="margin-top: 0;">Alignment</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Horizontal Align:</label>
+              <select id="text-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Vertical Align:</label>
+              <select id="vertical-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="top">Top</option>
+                <option value="middle">Middle</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: right;">
+          <button id="reset-styles" style="background: #ffc107; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Reset to Default</button>
+          <button id="cancel-styles" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
+          <button id="apply-styles" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Styles</button>
+        </div>
+      </div>
+    `;
+
+      editor.Modal.setTitle('Customize Table Styles');
+      editor.Modal.setContent(modalContent);
+      editor.Modal.open();
+
+      setTimeout(() => {
+        initializeCustomTableStyleManager(selected);
+      }, 100);
+    }
+  });
+
+  editor.Commands.add('open-custom-table-settings', {
+    run(editor) {
+      const selected = editor.getSelected();
+      if (!selected || selected.get('tagName') !== 'table') return;
+
+      const headers = selected.getTableHeaders();
+      const availableFields = Object.entries(headers).map(([key, name]) => ({
+        key, name
+      }));
+
+      const modalContent = `
+<div class="table-settings-modal" style="width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
+    <!-- Navbar -->
+    <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
+        <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
+        <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
+        <button class="nav-tab" data-tab="running-total" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Running Total</button>
+        <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-pane active">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                        <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
+                            <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
+                            <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
+                        </div>
+                    </fieldset>
+
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                        <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
+                            <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
+                            <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
+                        </div>
+                    </fieldset>
+                </div>
+                
+                <div>
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                        <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
+                        <div id="column-reorder-section">
+                            <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+                                <!-- Will be populated -->
+                            </div>
+                            <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+                                <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                                    Reset to Original
+                                </button>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grouping & Summary Tab -->
+        <div id="grouping-tab" class="tab-pane" style="display: none;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin: 0;">Available Fields</h4>
+                <div style="display: flex; gap: 5px;">
+                  <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+                  <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+                </div>
+              </div>
+              <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;"></div>
+            </div>
+
+            <div>
+              <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Grouping Fields</h4>
+              <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
+                <p style="color: #999; text-align: center;">No fields selected</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Fields Section -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+              <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                      <h4 style="margin: 0;">Available Fields for Summary</h4>
+                      <div style="display: flex; gap: 5px;">
+                          <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+                          <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+                      </div>
+                  </div>
+                  <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;"></div>
+              </div>
+
+              <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                      <h4 style="margin: 0;">Summary Configuration</h4>
+                  </div>
+                  
+                  <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;">
+                      <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Function:</label>
+                      <select id="summary-function" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
+                          <option value="sum">Sum</option>
+                          <option value="average">Average</option>
+                          <option value="count">Count</option>
+                          <option value="min">Min</option>
+                          <option value="max">Max</option>
+                      </select>
+                      <button id="add-summary-field" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                          + Add Summary
+                      </button>
+                  </div>
+                  
+                  <div>
+                      <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Active Summaries:</label>
+                      <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 100px; max-height: 150px; overflow-y: auto; padding: 5px;">
+                          <p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <!-- Grouping Options Grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+              <legend style="font-weight: bold; padding: 0 10px;">Sort & Filter</legend>
+              <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Sort Order:</label>
+                <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="ascending">Ascending</option>
+                  <option value="descending">Descending</option>
+                  <option value="original">Original Order</option>
+                </select>
+              </div>
+              <div style="margin-bottom: 10px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Top N:</label>
+                <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                  <option value="none">None</option>
+                  <option value="top">Top N Groups</option>
+                  <option value="bottom">Bottom N Groups</option>
+                  <option value="sort-all">Sort All (No Limit)</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">N Value:</label>
+                <input type="number" id="top-n-value" value="10" min="1" style="width: calc(100% - 16px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+              </div>
+            </fieldset>
+
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+              <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
+              <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                  <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
+                  <span style="font-weight: bold;">Summarize Group</span>
+              </label>
+              <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                  <input type="checkbox" id="page-break" style="margin-right: 8px;">
+                  <span style="font-weight: bold;">Page Break After Group</span>
+              </label>
+              <label style="display: flex; align-items: center;">
+                  <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
+                  <span style="font-weight: bold;">Merge Group Header Cells</span>
+              </label>
+            </fieldset>
+          </div>
+        </div>
+
+        <!-- Running Total Tab -->
+        <div id="running-total-tab" class="tab-pane" style="display: none;">
+          <div style="text-align: center; padding: 40px; color: #666;">
+            <p>Running Total functionality coming soon...</p>
+            <p style="font-size: 12px;">This feature will allow you to add cumulative totals to numeric columns.</p>
+          </div>
+        </div>
+
+        <!-- Options Tab -->
+        <div id="options-tab" class="tab-pane" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                        <legend style="font-weight: bold;">Display Options</legend>
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
+                            <span>Group Header In-place</span>
+                        </label>
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
+                            <span>Hide Subtotal for Single Row</span>
+                        </label>
+                    </fieldset>
+                </div>
+                <div>
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                        <legend style="font-weight: bold;">Total Options</legend>
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
+                            <span>Show Grand Total</span>
+                        </label>
+                        <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                        <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    </fieldset>
+                </div>
+            </div>
+
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                <legend style="font-weight: bold;">Grouping Type</legend>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
+                    <span>Show All Records</span>
+                </label>
+                <label style="display: flex; align-items: center;">
+                    <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
+                    <span>Show Summary Only</span>
+                </label>
+                <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
+                    <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
+                    <span>Keep Group Hierarchy</span>
+                </label>
+            </fieldset>
+        </div>
+    </div>
+
+    <!-- Footer Buttons -->
+    <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
+        <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+        <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+    </div>
+</div>
+    `;
+
+      editor.Modal.setTitle('Table Settings');
+      editor.Modal.setContent(modalContent);
+      editor.Modal.open();
+
+      setTimeout(() => {
+        // Populate available fields
+        const availableFieldsDiv = document.getElementById('available-fields');
+        let groupingHTML = availableFields.map(field => `
+        <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+            <input type="checkbox" class="field-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('grouping-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+            <span>${field.name}</span>
+        </div>
+      `).join('');
+
+        if (!availableFields.length) {
+          groupingHTML = '<p style="color: #999; text-align: center; font-size: 12px">No fields available</p>';
+        }
+        availableFieldsDiv.innerHTML = groupingHTML;
+
+        // Populate available summary fields
+        const availableSummaryFieldsDiv = document.getElementById('available-summary-fields');
+        let summaryHTML = availableFields.map(field => `
+        <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+            <input type="checkbox" class="summary-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('summary-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+            <span>${field.name}</span>
+        </div>
+      `).join('');
+
+        if (!availableFields.length) {
+          summaryHTML = '<p style="color: #999; text-align: center; font-size:12px;">No fields available</p>';
+        }
+        availableSummaryFieldsDiv.innerHTML = summaryHTML;
+
+        initializeCustomTableSettingsModal(selected, availableFields);
+      }, 100);
+    }
+  });
 
   editor.DomComponents.addType('enhanced-table-cell', {
-    isComponent: el => ( el.tagName === 'TH') &&
+    isComponent: el => (el.tagName === 'TH') &&
       el.closest('table') &&
       el.closest('table').id &&
       el.closest('table').id.startsWith('table'),
@@ -2285,27 +3075,35 @@ init() {
 
     editor.Modal.setTitle('Create New Table');
     editor.Modal.setContent(`
-      <div class="new-table-form">
-        <div>
-          <label>Number of columns</label>
-          <input type="number" value="3" id="nColumns" min="1">
-        </div>  
-        <div>
-          <label>Number of rows</label>
-          <input type="number" value="4" id="nRows" min="1">
-        </div>  
-        <div>
-          <label>Scroll Columns length</label>
-          <input type="number" value="5" id="nColumnsScroll" min="5">
-        </div> 
-        <div><label>Add File Download</label><input type="checkbox" id="tbl_file_download"></div>
-        <div><label>Add Pagination</label><input type="checkbox" id="tbl_pagination"></div>
-        <div><label>Add Search</label><input type="checkbox" id="tbl_Search"></div>
-        <div><label>Add Footer</label><input type="checkbox" id="tbl_footer"></div>
-        <div><label>Add Caption</label><input type="checkbox" id="tbl_caption"></div>
-        <div><input id="table-button-create-new" type="button" value="Create Table"></div>
-      </div>
-    `);
+  <div class="new-table-form">
+    <div>
+      <label>Header Rows</label>
+      <input type="number" value="1" id="nHeaderRows" min="0">
+    </div>
+    <div>
+      <label>Header Columns</label>
+      <input type="number" value="0" id="nHeaderColumns" min="0">
+    </div>
+    <div>
+      <label>Body Rows</label>
+      <input type="number" value="4" id="nRows" min="1">
+    </div>  
+    <div>
+      <label>Body Columns</label>
+      <input type="number" value="3" id="nColumns" min="1">
+    </div>  
+    <div>
+      <label>Scroll Columns length</label>
+      <input type="number" value="5" id="nColumnsScroll" min="5">
+    </div> 
+    <div><label>Add File Download</label><input type="checkbox" id="tbl_file_download"></div>
+    <div><label>Add Pagination</label><input type="checkbox" id="tbl_pagination"></div>
+    <div><label>Add Search</label><input type="checkbox" id="tbl_Search"></div>
+    <div><label>Add Footer</label><input type="checkbox" id="tbl_footer"></div>
+    <div><label>Add Caption</label><input type="checkbox" id="tbl_caption"></div>
+    <div><input id="table-button-create-new" type="button" value="Create Table"></div>
+  </div>
+`);
     editor.Modal.open();
 
     // Remove any existing event listeners and add a new one
@@ -2314,33 +3112,33 @@ init() {
     createBtn.addEventListener("click", () => createTable(targetContainer), true);
   }
 
-function createTable(container) {
-  let uniqueID = Math.floor(100 + Math.random() * 900);
-  let tblFileDownload = document.getElementById("tbl_file_download").checked;
-  let tblPagination = document.getElementById("tbl_pagination").checked;
-  let tblSearch = document.getElementById("tbl_Search").checked;
-  let tblFooter = document.getElementById("tbl_footer").checked;
-  let tblCaption = document.getElementById("tbl_caption").checked;
-  let tblHeader = true;
-  let downloadBtn = '[]';
+  function createTable(container) {
+    let uniqueID = Math.floor(100 + Math.random() * 900);
+    let tblFileDownload = document.getElementById("tbl_file_download").checked;
+    let tblPagination = document.getElementById("tbl_pagination").checked;
+    let tblSearch = document.getElementById("tbl_Search").checked;
+    let tblFooter = document.getElementById("tbl_footer").checked;
+    let tblCaption = document.getElementById("tbl_caption").checked;
+    let downloadBtn = '[]';
 
-  if (tblFileDownload) {
-    downloadBtn = '["copy", "csv", "excel", "pdf", "print"]';
-  }
+    if (tblFileDownload) {
+      downloadBtn = '["copy", "csv", "excel", "pdf", "print"]';
+    }
 
-  const rows = parseInt(document.getElementById('nRows').value);
-  const cols = parseInt(document.getElementById('nColumns').value);
-  const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
+    const headerRows = parseInt(document.getElementById('nHeaderRows').value) || 0;
+    const headerCols = parseInt(document.getElementById('nHeaderColumns').value) || 0;
+    const bodyCols = parseInt(document.getElementById('nColumns').value);
+    const bodyRows = parseInt(document.getElementById('nRows').value);
+    const totalCols = Math.max(headerCols + bodyCols, 1);
+    const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
 
-  // Check if target is within a page system
-  const isInPageSystem = container.closest('.page-container') ||
-    container.find('.page-container').length > 0 ||
-    container.getEl()?.closest('.page-container');
+    const isInPageSystem = container.closest('.page-container') ||
+      container.find('.page-container').length > 0 ||
+      container.getEl()?.closest('.page-container');
 
-  // Create a wrapper div for better page integration
-  let tableWrapper = document.createElement('div');
-  if (isInPageSystem) {
-    tableWrapper.style.cssText = `
+    let tableWrapper = document.createElement('div');
+    if (isInPageSystem) {
+      tableWrapper.style.cssText = `
       padding: 10px 0px;
       position: relative;
       width: 100%;
@@ -2348,62 +3146,90 @@ function createTable(container) {
       overflow: hidden;
       box-sizing: border-box;
     `;
-  }
-  tableWrapper.className = 'table-wrapper-' + uniqueID;
-
-  // Build table (same as before)
-  let table = document.createElement('table');
-  table.setAttribute('width', '100%');
-  table.setAttribute('class', 'table table-striped table-bordered');
-  table.setAttribute('id', 'table' + uniqueID);
-
-
-  if (tblCaption) {
-    let caption = document.createElement('caption');
-    caption.textContent = 'Caption Text';
-    caption.style.captionSide = 'top';
-    table.appendChild(caption);
-  }
-
-  let thead = document.createElement('thead');
-  for (let j = 0; j < cols; j++) {
-    let th = document.createElement('th');
-    th.innerHTML = `<div>Text</div>`;
-    thead.appendChild(th);
-  }
-  if (tblHeader) table.appendChild(thead);
-
-  let tbody = document.createElement('tbody');
-  for (let i = 0; i < rows; i++) {
-    let tr = document.createElement('tr');
-    for (let j = 0; j < cols; j++) {
-      let td = document.createElement('td');
-      td.innerHTML = `<div>Text</div>`;
-      tr.appendChild(td);
     }
-    tbody.appendChild(tr);
-  }
+    tableWrapper.className = 'table-wrapper-' + uniqueID;
 
-  if (tblFooter) {
-    let tr = document.createElement('tr');
-    for (let j = 0; j < cols; j++) {
-      let th = document.createElement('th');
-      th.style.fontWeight = '800';
-      th.innerHTML = `<div>Text</div>`;
-      tr.appendChild(th);
+    let table = document.createElement('table');
+    table.setAttribute('width', '100%');
+    table.setAttribute('class', 'table table-striped table-bordered');
+    table.setAttribute('id', 'table' + uniqueID);
+    table.style.paddingBottom = '10px';
+    table.style.display = 'inline';       // inline wrapper
+table.style.position = 'absolute'; 
+
+    if (tblCaption) {
+      let caption = document.createElement('caption');
+      caption.textContent = 'Caption Text';
+      caption.style.captionSide = 'top';
+      table.appendChild(caption);
     }
-    tbody.appendChild(tr);
-  }
 
-  table.appendChild(tbody);
+    // Build thead with header rows
+    let thead = document.createElement('thead');
+    for (let i = 0; i < headerRows; i++) {
+      let tr = document.createElement('tr');
+      for (let j = 0; j < totalCols; j++) {
+        let th = document.createElement('th');
+        th.innerHTML = `<div>Header</div>`;
+        th.style.padding = '8px';
+        th.style.border = '1px solid #000';
+        th.style.backgroundColor = '#f5f5f5';
+        th.style.fontWeight = 'bold';
+        tr.appendChild(th);
+      }
+      thead.appendChild(tr);
+    }
+    if (headerRows > 0) table.appendChild(thead);
 
-  // Append table to wrapper if in page system
-  if (isInPageSystem) {
-    tableWrapper.appendChild(table);
-  }
+    // Build tbody
+    let tbody = document.createElement('tbody');
+    for (let i = 0; i < bodyRows; i++) {
+      let tr = document.createElement('tr');
 
-  // ✅ FIXED DataTables script - inject enableFormulaEditing function into iframe
-let tableScript = `
+      // Header columns in body
+      for (let j = 0; j < headerCols; j++) {
+        let th = document.createElement('th');
+        th.innerHTML = `<div>Header</div>`;
+        th.style.padding = '8px';
+        th.style.border = '1px solid #000';
+        th.style.backgroundColor = '#f5f5f5';
+        th.style.fontWeight = 'bold';
+        tr.appendChild(th);
+      }
+
+      // Body columns
+      for (let j = 0; j < bodyCols; j++) {
+        let td = document.createElement('td');
+        td.innerHTML = `<div>Text</div>`;
+        td.style.padding = '8px';
+        td.style.border = '1px solid #000';
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+
+    if (tblFooter) {
+      let tr = document.createElement('tr');
+      for (let j = 0; j < totalCols; j++) {
+        let th = document.createElement('th');
+        th.style.fontWeight = '800';
+        th.innerHTML = `<div>Text</div>`;
+        th.style.padding = '8px';
+        th.style.border = '1px solid #000';
+        tr.appendChild(th);
+      }
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+
+    // Append table to wrapper if in page system
+    if (isInPageSystem) {
+      tableWrapper.appendChild(table);
+    }
+
+    // ✅ FIXED DataTables script - inject enableFormulaEditing function into iframe
+    let tableScript = `
   <script>
     (function() {
       window.enableFormulaEditing = function(tableId) {
@@ -2593,8 +3419,8 @@ let tableScript = `
             info: ${tblPagination},
             lengthChange: true,
             fixedHeader: ${!isInPageSystem},
-            scrollX: ${colsScroll < cols},
-            fixedColumns: ${colsScroll < cols},
+            scrollX: ${colsScroll < totalCols},
+            fixedColumns: ${colsScroll < totalCols},
             searching: ${tblSearch},
             buttons: ${downloadBtn},
             ordering: false,
@@ -2628,100 +3454,100 @@ let tableScript = `
     </script>
   `;
 
-  // Rest of the function remains the same...
-  try {
-    // Add the table to the selected container
-    let tableComponent;
-    if (isInPageSystem) {
-      tableComponent = container.append(tableWrapper.outerHTML)[0];
-    } else {
-      tableComponent = container.append(`<div>${table.outerHTML}</div>${tableScript}`)[0];
-    }
+    // Rest of the function remains the same...
+    try {
+      // Add the table to the selected container
+      let tableComponent;
+      if (isInPageSystem) {
+        tableComponent = container.append(tableWrapper.outerHTML)[0];
+      } else {
+        tableComponent = container.append(`<div>${table.outerHTML}</div>${tableScript}`)[0];
+      }
 
-    // Set table wrapper properties for better integration
-    if (tableComponent && isInPageSystem) {
-      tableComponent.set({
-        draggable: false,
-        droppable: false,
-        editable: false,
-        selectable: false,
-        removable: false,
-        copyable: false,
-        'custom-name': `Table Wrapper ${uniqueID}`,
-        tagName: 'div'
-      });
-    }
+      // Set table wrapper properties for better integration
+      if (tableComponent && isInPageSystem) {
+        tableComponent.set({
+          draggable: false,
+          droppable: false,
+          editable: false,
+          selectable: false,
+          removable: false,
+          copyable: false,
+          'custom-name': `Table Wrapper ${uniqueID}`,
+          tagName: 'div'
+        });
+      }
 
-    // Add the script component for page system
-    if (isInPageSystem) {
-      const scriptComponent = container.append(tableScript)[0];
-    }
+      // Add the script component for page system
+      if (isInPageSystem) {
+        const scriptComponent = container.append(tableScript)[0];
+      }
 
-    // Add the actual table component with enhanced-table type for traits
-    const actualTable = tableComponent.find('table')[0];
-    if (actualTable) {
-      actualTable.set({
-        type: 'enhanced-table',
-        'custom-name': `Enhanced Table ${uniqueID}`,
-        tagName: 'table',
-        selectable: true,
-        hoverable: true,
-        editable: true,
-        removable: true,
-        draggable: true,
-        attributes: {
-          id: `table${uniqueID}`,
-          class: 'table table-striped table-bordered',
-          width: '100%'
+      // Add the actual table component with enhanced-table type for traits
+      const actualTable = tableComponent.find('table')[0];
+      if (actualTable) {
+        actualTable.set({
+          type: 'enhanced-table',
+          'custom-name': `Enhanced Table ${uniqueID}`,
+          tagName: 'table',
+          selectable: true,
+          hoverable: true,
+          editable: true,
+          removable: true,
+          draggable: true,
+          attributes: {
+            id: `table${uniqueID}`,
+            class: 'table table-striped table-bordered',
+            width: '100%'
+          }
+        });
+      }
+
+      editor.Modal.close();
+
+      // ✅ Enable formulas with delay to ensure custom formulas are registered
+      setTimeout(() => {
+        const iframe = editor.getContainer().querySelector('iframe');
+        if (iframe && iframe.contentWindow && iframe.contentWindow.enableFormulaEditing) {
+          iframe.contentWindow.enableFormulaEditing(`table${uniqueID}`);
         }
-      });
-    }
+      }, 1000); // Increased delay to ensure custom formulas are registered
 
-    editor.Modal.close();
-
-    // ✅ Enable formulas with delay to ensure custom formulas are registered
-    setTimeout(() => {
-      const iframe = editor.getContainer().querySelector('iframe');
-      if (iframe && iframe.contentWindow && iframe.contentWindow.enableFormulaEditing) {
-        iframe.contentWindow.enableFormulaEditing(`table${uniqueID}`);
+      let containerType = 'container';
+      const pageContainer = container.closest('.page-container');
+      if (pageContainer) {
+        const pageIndex = pageContainer.getAttributes()['data-page-index'];
+      } else if (container.getEl()?.classList.contains('main-content-area')) {
+        containerType = 'content area';
+      } else if (container.get('tagName')) {
+        containerType = container.get('tagName');
       }
-    }, 1000); // Increased delay to ensure custom formulas are registered
 
-    let containerType = 'container';
-    const pageContainer = container.closest('.page-container');
-    if (pageContainer) {
-      const pageIndex = pageContainer.getAttributes()['data-page-index'];
-    } else if (container.getEl()?.classList.contains('main-content-area')) {
-      containerType = 'content area';
-    } else if (container.get('tagName')) {
-      containerType = container.get('tagName');
+      showToast(`Enhanced table with highlighting created successfully in ${containerType}!`, 'success');
+
+    } catch (error) {
+      console.error('Error creating table:', error);
+      showToast('Error creating table. Please try again.', 'error');
     }
-
-    showToast(`Enhanced table with highlighting created successfully in ${containerType}!`, 'success');
-
-  } catch (error) {
-    console.error('Error creating table:', error);
-    showToast('Error creating table. Please try again.', 'error');
   }
-}
 
-function updateDataTableStructure(tableId) {
-  try {
-    const canvasDoc = editor.Canvas.getDocument();
-    const win = canvasDoc.defaultView;
+  function updateDataTableStructure(tableId) {
+    try {
+      const canvasDoc = editor.Canvas.getDocument();
+      const win = canvasDoc.defaultView;
 
-    if (win.$ && win.$.fn.DataTable) {
-      const tableElement = canvasDoc.getElementById(tableId);
-      if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
-        // Just trigger a simple redraw without destroying
-        const dt = win.$(tableElement).DataTable();
-        dt.columns.adjust().draw(false); // false = no page reset
+      if (win.$ && win.$.fn.DataTable) {
+        const tableElement = canvasDoc.getElementById(tableId);
+        if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
+          // Just trigger a simple redraw without destroying
+          const dt = win.$(tableElement).DataTable();
+          dt.columns.adjust().draw(false); // false = no page reset
+        }
       }
+    } catch (error) {
+      console.warn('Error updating DataTable structure:', error);
     }
-  } catch (error) {
-    console.warn('Error updating DataTable structure:', error);
   }
-}
 
   function addRunningTotalColumn(tableId, sourceCell) {
     try {
@@ -2910,29 +3736,29 @@ function updateDataTableStructure(tableId) {
           }
         }
       });
-// Apply equal width to all columns
+      // Apply equal width to all columns
       const totalColumns = headerRow.children.length;
       const columnWidth = `${100 / totalColumns}%`;
-      
+
       // Set width for all header cells
       Array.from(headerRow.children).forEach(th => {
         th.style.width = columnWidth;
       });
-      
+
       // Set width for all data cells in body rows
       bodyRows.forEach(row => {
         Array.from(row.children).forEach(td => {
           td.style.width = columnWidth;
         });
       });
-      
+
       // Ensure table layout is fixed
       // Update DataTable if it exists
-// Update DataTable without destroying it
+      // Update DataTable without destroying it
       try {
         const canvasDoc = editor.Canvas.getDocument();
         const win = canvasDoc.defaultView;
-        
+
         if (win.$ && win.$.fn.DataTable) {
           const tableElement = canvasDoc.getElementById(tableId);
           if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
@@ -3016,29 +3842,29 @@ function updateDataTableStructure(tableId) {
         const runningTotalCells = row.querySelectorAll(`[data-running-total-for="${sourceCellIndex}"]`);
         runningTotalCells.forEach(cell => cell.remove());
       });
-// Apply equal width to all columns
+      // Apply equal width to all columns
       const totalColumns = headerRow.children.length;
       const columnWidth = `${100 / totalColumns}%`;
-      
+
       // Set width for all header cells
       Array.from(headerRow.children).forEach(th => {
         th.style.width = columnWidth;
       });
-      
+
       // Set width for all data cells in body rows
       bodyRows.forEach(row => {
         Array.from(row.children).forEach(td => {
           td.style.width = columnWidth;
         });
       });
-      
+
       // Ensure table layout is fixed
       // Update DataTable if it exists
-// Update DataTable without destroying it
+      // Update DataTable without destroying it
       try {
         const canvasDoc = editor.Canvas.getDocument();
         const win = canvasDoc.defaultView;
-        
+
         if (win.$ && win.$.fn.DataTable) {
           const tableElement = canvasDoc.getElementById(tableId);
           if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
@@ -3063,193 +3889,1413 @@ function updateDataTableStructure(tableId) {
     }
   }
   // Enhanced Formula editing handler with range support and suggestions
-function enableFormulaEditing(tableId) {
-  const iframeDoc = editor.Canvas.getDocument();
-  const iframeWindow = iframeDoc.defaultView;
-  
-  if (!iframeWindow.formulaParser || !iframeWindow.formulaParser.Parser) {
-    console.warn('Formula parser not available');
+  function enableFormulaEditing(tableId) {
+    const iframeDoc = editor.Canvas.getDocument();
+    const iframeWindow = iframeDoc.defaultView;
+
+    if (!iframeWindow.formulaParser || !iframeWindow.formulaParser.Parser) {
+      console.warn('Formula parser not available');
+      return;
+    }
+
+    // ✅ Use global parser if available, otherwise create new one
+    let parser = iframeWindow.globalFormulaParser;
+
+    if (!parser) {
+      parser = new iframeWindow.formulaParser.Parser();
+      iframeWindow.globalFormulaParser = parser;
+
+      // ✅ Register custom formulas
+      parser.setFunction('PERCENT', function (params) {
+        if (params.length !== 2) return '#N/A';
+        const base = parseFloat(params[0]);
+        const percent = parseFloat(params[1]);
+        if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+        const result = base * (percent / 100);
+        // ✅ Maintain decimal precision
+        return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+      });
+
+      parser.setFunction('ABSOLUTE', function (params) {
+        if (params.length !== 1) return '#N/A';
+        const num = parseFloat(params[0]);
+        if (isNaN(num)) return '#VALUE!';
+        const result = Math.abs(num);
+        // ✅ Maintain decimal precision
+        return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+      });
+
+      // ✅ Register NUMTOWORDS if available
+      if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords) {
+        parser.setFunction('NUMTOWORDS', function (params) {
+          if (params.length !== 1) return '#N/A';
+          const num = parseFloat(params[0]); // ✅ Changed from parseInt to parseFloat
+          if (isNaN(num)) return '#VALUE!';
+
+          try {
+            // ✅ Handle decimal numbers - convert to integer for word conversion
+            const integerPart = Math.floor(num);
+            const decimalPart = num - integerPart;
+
+            if (decimalPart === 0) {
+              return iframeWindow.numberToWords.toWords(integerPart);
+            } else {
+              // For decimals, show integer part in words + decimal notation
+              const integerWords = iframeWindow.numberToWords.toWords(integerPart);
+              const decimalString = decimalPart.toFixed(10).replace(/0+$/, '').substring(2);
+              return `${integerWords} point ${decimalString.split('').map(d => iframeWindow.numberToWords.toWords(parseInt(d))).join(' ')}`;
+            }
+          } catch (error) {
+            return '#ERROR';
+          }
+        });
+      }
+    }
+
+    // Enhanced parser with range support
+    parser.on('callCellValue', function (cellCoord, done) {
+      let col = cellCoord.column.index;
+      let row = cellCoord.row.index;
+      let tableElem = iframeDoc.getElementById(tableId);
+      let cell = tableElem.rows[row]?.cells[col];
+      if (cell) {
+        let val = cell.getAttribute('data-formula') || cell.innerText;
+        if (val.startsWith('=')) {
+          try {
+            let res = parser.parse(val.substring(1));
+            done(res.result);
+          } catch {
+            done('#ERROR');
+          }
+        } else {
+          const numVal = parseFloat(val);
+          done(isNaN(numVal) ? val : numVal);
+        }
+      } else {
+        done(null);
+      }
+    });
+
+    parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
+      let tableElem = iframeDoc.getElementById(tableId);
+      let values = [];
+
+      let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+      let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+      let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+      let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
+
+      for (let row = startRow; row <= endRow; row++) {
+        for (let col = startCol; col <= endCol; col++) {
+          let cell = tableElem.rows[row]?.cells[col];
+          if (cell) {
+            let val = cell.getAttribute('data-formula') || cell.innerText;
+            if (val.startsWith('=')) {
+              try {
+                let res = parser.parse(val.substring(1));
+                values.push(res.result);
+              } catch {
+                values.push(0);
+              }
+            } else {
+              values.push(parseFloat(val) || 0);
+            }
+          } else {
+            values.push(0);
+          }
+        }
+      }
+
+      done(values);
+    });
+
+    // Attach cell listeners
+    const tableElem = iframeDoc.getElementById(tableId);
+    if (!tableElem) return;
+
+    tableElem.querySelectorAll('td, th').forEach(cell => {
+      if (cell.hasAttribute('data-formula-enabled')) return;
+
+      cell.contentEditable = "true";
+      cell.setAttribute('data-formula-enabled', 'true');
+
+      cell.addEventListener('focus', function () {
+        let formula = this.getAttribute('data-formula');
+        if (formula) this.innerText = formula;
+      });
+
+      cell.addEventListener('blur', function () {
+        const cell = this;
+        let val = cell.innerText.trim();
+
+        if (val.startsWith('=')) {
+          cell.setAttribute('data-formula', val);
+          try {
+            const formulaContent = val.substring(1).trim();
+            if (!formulaContent) throw new Error('Empty formula');
+
+            const res = parser.parse(formulaContent);
+            if (res.error) throw new Error(res.error);
+
+            // ✅ Format result based on type
+            let result = res.result;
+            if (typeof result === 'number') {
+              result = Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+            }
+
+            cell.innerText = (result !== undefined && result !== null) ? result : '#ERROR';
+            cell.classList.remove('formula-error');
+
+          } catch (error) {
+            console.warn('Formula parsing error:', error);
+            cell.innerText = '#ERROR';
+            cell.classList.add('formula-error');
+          }
+        } else {
+          cell.removeAttribute('data-formula');
+          cell.innerText = val;
+          cell.classList.remove('formula-error');
+        }
+      });
+
+      cell.addEventListener('keydown', function (e) {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const table = this.closest('table');
+          const allCells = Array.from(table.querySelectorAll('td, th'));
+          const currentIndex = allCells.indexOf(this);
+
+          let nextIndex;
+          if (e.shiftKey) {
+            nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+          } else {
+            nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+          }
+          allCells[nextIndex].focus();
+        }
+      });
+    });
+  }
+  function initializeCustomTableStyleManager(component) {
+    const borderStyle = document.getElementById('border-style');
+    const borderWidth = document.getElementById('border-width');
+    const borderColor = document.getElementById('border-color');
+    const borderOpacity = document.getElementById('border-opacity');
+    const bgColor = document.getElementById('bg-color');
+    const textColor = document.getElementById('text-color');
+    const fontFamily = document.getElementById('font-family');
+    const textAlign = document.getElementById('text-align');
+    const verticalAlign = document.getElementById('vertical-align');
+
+    // Load current values
+    if (borderStyle) borderStyle.value = component.get('table-border-style') || 'solid';
+    if (borderWidth) borderWidth.value = component.get('table-border-width') || '1';
+    if (borderColor) borderColor.value = component.get('table-border-color') || '#000000';
+    if (borderOpacity) borderOpacity.value = component.get('table-border-opacity') || '100';
+    if (bgColor) bgColor.value = component.get('table-bg-color') || '#ffffff';
+    if (textColor) textColor.value = component.get('table-text-color') || '#000000';
+    if (fontFamily) fontFamily.value = component.get('table-font-family') || 'Arial, sans-serif';
+    if (textAlign) textAlign.value = component.get('table-text-align') || 'left';
+    if (verticalAlign) verticalAlign.value = component.get('table-vertical-align') || 'middle';
+
+    // Opacity slider
+    const opacitySlider = document.getElementById('border-opacity');
+    const opacityValue = document.getElementById('opacity-value');
+    opacitySlider.addEventListener('input', function () {
+      opacityValue.textContent = this.value + '%';
+    });
+
+    // Apply button
+    document.getElementById('apply-styles').addEventListener('click', function () {
+      component.set('table-border-style', borderStyle.value);
+      component.set('table-border-width', borderWidth.value);
+      component.set('table-border-color', borderColor.value);
+      component.set('table-border-opacity', borderOpacity.value);
+      component.set('table-bg-color', bgColor.value);
+      component.set('table-text-color', textColor.value);
+      component.set('table-font-family', fontFamily.value);
+      component.set('table-text-align', textAlign.value);
+      component.set('table-vertical-align', verticalAlign.value);
+
+      component.applyTableStyles();
+      editor.Modal.close();
+      showToast('Table styles applied successfully!', 'success');
+    });
+
+    // Reset button
+    document.getElementById('reset-styles').addEventListener('click', function () {
+      borderStyle.value = 'solid';
+      borderWidth.value = '1';
+      borderColor.value = '#000000';
+      borderOpacity.value = '100';
+      bgColor.value = '#ffffff';
+      textColor.value = '#000000';
+      fontFamily.value = 'Arial, sans-serif';
+      textAlign.value = 'left';
+      verticalAlign.value = 'middle';
+      opacityValue.textContent = '100%';
+    });
+
+    // Cancel button
+    document.getElementById('cancel-styles').addEventListener('click', function () {
+      editor.Modal.close();
+    });
+  }
+
+  // Add hexToRgb helper if not already present
+  function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  }
+
+  function initializeCustomTableSettingsModal(component, availableFields) {
+    let selectedGroupingFields = component.get('grouping-fields') || [];
+    let selectedSummaryFields = component.get('summary-fields') || [];
+
+    // Tab navigation
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('.nav-tab').forEach(t => {
+          t.classList.remove('active');
+          t.style.background = 'transparent';
+          t.style.borderBottom = 'none';
+          t.style.fontWeight = 'normal';
+        });
+
+        document.querySelectorAll('.tab-pane').forEach(p => {
+          p.style.display = 'none';
+        });
+
+        this.classList.add('active');
+        this.style.background = 'white';
+        this.style.borderBottom = '3px solid #007bff';
+        this.style.fontWeight = 'bold';
+
+        const tabId = this.getAttribute('data-tab') + '-tab';
+        const tabPane = document.getElementById(tabId);
+        if (tabPane) {
+          tabPane.style.display = 'block';
+        }
+      });
+    });
+
+    // Initialize column reorder
+    initializeCustomTableColumnReorder(component);
+
+    // Load saved options
+    const sortOrder = document.getElementById('sort-order');
+    const topN = document.getElementById('top-n');
+    const topNValue = document.getElementById('top-n-value');
+    const summarizeGroup = document.getElementById('summarize-group');
+    const pageBreak = document.getElementById('page-break');
+    const mergeGroupCells = document.getElementById('merge-group-cells');
+    const groupHeaderInplace = document.getElementById('group-header-inplace');
+    const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
+    const keepGroupHierarchy = document.getElementById('keep-group-hierarchy');
+    const grandTotal = document.getElementById('grand-total');
+    const grandTotalLabel = document.getElementById('grand-total-label');
+    const summaryLabel = document.getElementById('summary-label');
+
+    if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
+    if (topN) topN.value = component.get('top-n') || 'none';
+    if (topNValue) topNValue.value = component.get('top-n-value') || '10';
+    if (summarizeGroup) summarizeGroup.checked = component.get('summarize-group') === true;
+    if (pageBreak) pageBreak.checked = component.get('page-break') === true;
+    if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') === true;
+    if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
+    if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') === true;
+    if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') === true;
+    if (grandTotal) grandTotal.checked = component.get('grand-total') !== false;
+    if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
+    if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
+
+    // Load grouping type
+    if (component.get('show-summary-only') === true) {
+      const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
+      if (summaryRadio) {
+        summaryRadio.checked = true;
+        if (keepGroupHierarchy) keepGroupHierarchy.disabled = false;
+      }
+    }
+
+    // Top N enable/disable
+    document.getElementById('top-n').addEventListener('change', function () {
+      const topNValue = document.getElementById('top-n-value');
+      const isEnabled = this.value === 'top' || this.value === 'bottom';
+
+      topNValue.disabled = !isEnabled;
+      topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+      topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+      topNValue.style.opacity = isEnabled ? '1' : '0.6';
+    });
+
+    // Trigger on load
+    setTimeout(() => {
+      const topNSelect = document.getElementById('top-n');
+      const topNValue = document.getElementById('top-n-value');
+      const currentValue = topNSelect.value;
+      const isEnabled = currentValue === 'top' || currentValue === 'bottom';
+
+      topNValue.disabled = !isEnabled;
+      topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+      topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+      topNValue.style.opacity = isEnabled ? '1' : '0.6';
+    }, 100);
+
+    // Grand Total checkbox
+    document.getElementById('grand-total').addEventListener('change', function () {
+      const grandTotalLabel = document.getElementById('grand-total-label');
+      const isEnabled = this.checked;
+      grandTotalLabel.disabled = !isEnabled;
+      grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
+    });
+
+    // Grouping field selection
+    document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', function () {
+        const fieldItem = this.closest('.field-item');
+        const fieldKey = fieldItem.getAttribute('data-key');
+        const fieldName = fieldItem.querySelector('span').textContent;
+
+        if (this.checked) {
+          selectedGroupingFields.push({ key: fieldKey, name: fieldName });
+          updateSelectedFields();
+        }
+      });
+    });
+
+    function updateSelectedFields() {
+      const selectedFieldsDiv = document.getElementById('selected-fields');
+      if (!selectedFieldsDiv) return;
+
+      if (selectedGroupingFields.length === 0) {
+        selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
+      } else {
+        selectedFieldsDiv.innerHTML = selectedGroupingFields
+          .map((field, idx) => `
+        <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+            <span>${field.name}</span>
+            <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+        </div>`).join('');
+
+        selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
+          btn.addEventListener('click', function () {
+            const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
+            const fieldKey = selectedGroupingFields[idx].key;
+
+            selectedGroupingFields.splice(idx, 1);
+            updateSelectedFields();
+
+            const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
+            if (availableCheckbox) availableCheckbox.checked = false;
+          });
+        });
+      }
+    }
+
+    function updateSummaryFieldsList() {
+      const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
+      if (!selectedSummaryFieldsDiv) return;
+
+      if (selectedSummaryFields.length === 0) {
+        selectedSummaryFieldsDiv.innerHTML =
+          '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
+        return;
+      }
+
+      selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields
+        .map((field, idx) => `
+      <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex: 1;">
+              <strong style="font-size: 13px;">${field.name}</strong>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
+          </div>
+          <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+      </div>`).join('');
+
+      selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
+        btn.addEventListener('click', function () {
+          const idx = parseInt(this.getAttribute('data-index'));
+          selectedSummaryFields.splice(idx, 1);
+          updateSummaryFieldsList();
+        });
+      });
+    }
+
+    // Summary field add button
+    document.getElementById('add-summary-field').addEventListener('click', function () {
+      const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
+      const summaryFunction = document.getElementById('summary-function').value;
+
+      if (summaryCheckboxes.length === 0) {
+        showToast('Please select at least one field for summary', 'warning');
+        return;
+      }
+
+      let addedCount = 0;
+      summaryCheckboxes.forEach(checkbox => {
+        const fieldItem = checkbox.closest('.field-item');
+        const fieldKey = fieldItem.getAttribute('data-key');
+        const fieldName = fieldItem.querySelector('span').textContent;
+
+        const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
+        if (!exists) {
+          selectedSummaryFields.push({
+            key: fieldKey,
+            name: fieldName,
+            function: summaryFunction
+          });
+          addedCount++;
+        }
+
+        checkbox.checked = false;
+      });
+
+      updateSummaryFieldsList();
+
+      if (addedCount > 0) console.log(`Added ${addedCount} summary field(s)`);
+    });
+
+    // Sorting summary fields
+    document.getElementById('sort-summary-asc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+      items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+      const container = document.getElementById('available-summary-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    document.getElementById('sort-summary-desc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+      items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+      const container = document.getElementById('available-summary-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    // Sorting grouping fields
+    document.getElementById('sort-asc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+      items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+      const container = document.getElementById('available-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    document.getElementById('sort-desc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+      items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+      const container = document.getElementById('available-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    // Grouping type radio
+    document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
+      radio.addEventListener('change', function () {
+        const keepHierarchy = document.getElementById('keep-group-hierarchy');
+        const isSummaryOnly = this.value === 'summary';
+
+        keepHierarchy.disabled = !isSummaryOnly;
+        keepHierarchy.parentElement.querySelector('span').style.color =
+          isSummaryOnly ? '#000' : '#999';
+
+        if (!isSummaryOnly) keepHierarchy.checked = false;
+      });
+    });
+
+    // ************************************************************
+    // ✅ NEW FIX — Replace Row/Column Listeners by Cloning Buttons
+    // ************************************************************
+    const addRowsBtn = document.getElementById('add-rows');
+    const removeRowsBtn = document.getElementById('remove-rows');
+    const addColumnsBtn = document.getElementById('add-columns');
+    const removeColumnsBtn = document.getElementById('remove-columns');
+
+    // Clone buttons to remove previous listeners
+    const newAddRowsBtn = addRowsBtn.cloneNode(true);
+    const newRemoveRowsBtn = removeRowsBtn.cloneNode(true);
+    const newAddColumnsBtn = addColumnsBtn.cloneNode(true);
+    const newRemoveColumnsBtn = removeColumnsBtn.cloneNode(true);
+
+    addRowsBtn.parentNode.replaceChild(newAddRowsBtn, addRowsBtn);
+    removeRowsBtn.parentNode.replaceChild(newRemoveRowsBtn, removeRowsBtn);
+    addColumnsBtn.parentNode.replaceChild(newAddColumnsBtn, addColumnsBtn);
+    removeColumnsBtn.parentNode.replaceChild(newRemoveColumnsBtn, removeColumnsBtn);
+
+    newAddRowsBtn.addEventListener('click', function () {
+      const count = parseInt(document.getElementById('row-count').value) || 1;
+      addTableRows(component, count);
+      showToast(`Added ${count} row(s)`, 'success');
+    });
+
+    newRemoveRowsBtn.addEventListener('click', function () {
+      const count = parseInt(document.getElementById('row-count').value) || 1;
+      removeTableRows(component, count);
+      showToast(`Removed ${count} row(s)`, 'success');
+    });
+
+    newAddColumnsBtn.addEventListener('click', function () {
+      const count = parseInt(document.getElementById('column-count').value) || 1;
+      addTableColumns(component, count);
+      showToast(`Added ${count} column(s)`, 'success');
+    });
+
+    newRemoveColumnsBtn.addEventListener('click', function () {
+      const count = parseInt(document.getElementById('column-count').value) || 1;
+      removeTableColumns(component, count);
+      showToast(`Removed ${count} column(s)`, 'success');
+    });
+
+    // Cancel button
+    document.getElementById('cancel-settings').addEventListener('click', () => {
+      editor.Modal.close();
+    });
+
+    // Apply button
+    document.getElementById('apply-settings').addEventListener('click', () => {
+      console.log('📝 Applying settings...');
+
+      if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
+        showToast('Please select at least one grouping field before adding summaries', 'warning');
+        return;
+      }
+
+      const summarizeChecked = document.getElementById('summarize-group').checked;
+      if (summarizeChecked && selectedSummaryFields.length === 0) {
+        showToast('Please add at least one summary field when "Summarize Group" is enabled', 'warning');
+        return;
+      }
+
+      // Save settings
+      component.set('grouping-fields', selectedGroupingFields);
+      component.set('summary-fields', selectedSummaryFields);
+      component.set('sort-order', document.getElementById('sort-order').value);
+      component.set('top-n', document.getElementById('top-n').value);
+      component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
+      component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+      component.set('summarize-group', document.getElementById('summarize-group').checked);
+      component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
+      component.set('page-break', document.getElementById('page-break').checked);
+
+      const showSummaryOnly =
+        document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
+      component.set('show-summary-only', showSummaryOnly);
+
+      component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
+
+      component.set('grand-total', document.getElementById('grand-total').checked);
+      component.set('grand-total-label', document.getElementById('grand-total-label').value);
+      component.set('summary-label', document.getElementById('summary-label').value);
+
+      editor.Modal.close();
+
+      setTimeout(() => {
+        component.applyGroupingAndSummary();
+        showToast('Settings applied successfully!', 'success');
+      }, 100);
+    });
+
+    updateSelectedFields();
+    updateSummaryFieldsList();
+  }
+
+
+  function initializeCustomTableColumnReorder(component) {
+    const headers = component.getTableHeaders();
+    const columnKeys = Object.keys(headers);
+
+    const columnList = document.getElementById('column-list-inline');
+    if (!columnList) {
+      console.warn('Column list element not found');
+      return;
+    }
+
+    if (columnKeys.length === 0) {
+      columnList.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No columns available</p>';
+      return;
+    }
+
+    if (columnKeys.length <= 1) {
+      columnList.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">Need at least 2 columns to reorder</p>';
+      return;
+    }
+
+    columnList.innerHTML = columnKeys.map(key => `
+    <div class="column-item-inline" data-key="${key}" draggable="true" style="
+        margin: 2px; 
+        padding: 12px 15px; 
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 3px; 
+        cursor: move; 
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    ">
+        <span style="font-weight: 500;">${headers[key]}</span>
+        <span style="color: #666; font-size: 12px;">≡≡≡</span>
+    </div>
+  `).join('');
+
+    let draggedElement = null;
+
+    const columnItems = columnList.querySelectorAll('.column-item-inline');
+    columnItems.forEach(item => {
+      item.addEventListener('dragstart', function (e) {
+        draggedElement = this;
+        this.style.opacity = '0.5';
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      item.addEventListener('dragend', function () {
+        this.style.opacity = '1';
+        draggedElement = null;
+        columnItems.forEach(item => item.style.borderTop = '');
+      });
+
+      item.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        if (this !== draggedElement) {
+          this.style.borderTop = '2px solid #007bff';
+        }
+      });
+
+      item.addEventListener('dragleave', function () {
+        this.style.borderTop = '';
+      });
+
+      item.addEventListener('drop', function (e) {
+        e.preventDefault();
+        this.style.borderTop = '';
+
+        if (this !== draggedElement) {
+          const allItems = Array.from(columnList.children);
+          const draggedIndex = allItems.indexOf(draggedElement);
+          const targetIndex = allItems.indexOf(this);
+
+          if (draggedIndex < targetIndex) {
+            this.parentNode.insertBefore(draggedElement, this.nextSibling);
+          } else {
+            this.parentNode.insertBefore(draggedElement, this);
+          }
+
+          applyCustomTableColumnReorder(component);
+        }
+      });
+    });
+
+    document.getElementById('reset-order').addEventListener('click', function () {
+      component.storeBaseTableData();
+      const headers = component.getTableHeaders();
+      const data = component.getTableData();
+      component.rebuildTableHTML(headers, data);
+      initializeCustomTableColumnReorder(component);
+      showToast('Column order reset to original', 'success');
+    });
+  }
+
+  function applyCustomTableColumnReorder(component) {
+    const columnList = document.getElementById('column-list-inline');
+    const currentItems = columnList.querySelectorAll('.column-item-inline');
+    const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
+
+    const headers = component.getTableHeaders();
+    const data = component.getTableData();
+
+    const reorderedHeaders = {};
+    newOrder.forEach(key => {
+      if (headers[key]) {
+        reorderedHeaders[key] = headers[key];
+      }
+    });
+
+    const reorderedData = data.map(row => {
+      const newRow = {};
+      newOrder.forEach(key => {
+        if (row.hasOwnProperty(key)) {
+          newRow[key] = row[key];
+        }
+      });
+      return newRow;
+    });
+
+    component.set('base-headers', reorderedHeaders, { silent: true });
+    component.set('base-data', reorderedData, { silent: true });
+    component.rebuildTableHTML(reorderedHeaders, reorderedData);
+  }
+
+function addTableRows(component, count) {
+  const tbody = component.find('tbody')[0];
+  if (!tbody) return;
+
+  const firstBodyRow = tbody.find('tr')[0];
+  if (!firstBodyRow) return;
+
+  const cellTypes = firstBodyRow.find('> [type="cell"]').map(cell => cell.get('tagName').toLowerCase());
+
+  for (let i = 0; i < count; i++) {
+    let newRowHtml = '<tr>';
+    cellTypes.forEach(tag => {
+      const content = tag === 'th' ? '<div>Header</div>' : '<div>Text</div>';
+      newRowHtml += `<${tag}>${content}</${tag}>`;
+    });
+    newRowHtml += '</tr>';
+    tbody.append(newRowHtml);
+  }
+
+  // Re-enable formula editing and store data
+  setTimeout(() => {
+    enableFormulaEditing(component.getId());
+    component.storeBaseTableData();
+  }, 100);
+}
+
+function addTableColumns(component, count) {
+  const theadTr = component.find('thead > tr')[0];
+  const tbody = component.find('tbody')[0];
+  if (!tbody) return;
+
+  const bodyRows = tbody.find('tr');
+
+  // Add to header
+  if (theadTr) {
+    for (let i = 0; i < count; i++) {
+      theadTr.append('<th><div>Header</div></th>');
+    }
+  }
+
+  // Add to body rows (always td at end, regardless of row headers)
+  bodyRows.forEach(row => {
+    for (let i = 0; i < count; i++) {
+      row.append('<td><div>Text</div></td>');
+    }
+  });
+
+  // Re-enable formula editing and store data
+  setTimeout(() => {
+    enableFormulaEditing(component.getId());
+    component.storeBaseTableData();
+  }, 100);
+}
+function removeTableRows(component, count) {
+  const tbody = component.find('tbody')[0];
+  if (!tbody) return;
+
+  const rows = tbody.find('tr');
+  if (rows.length <= count) {
+    showToast('Cannot remove all rows', 'warning');
     return;
   }
 
-  // ✅ Use global parser if available, otherwise create new one
-  let parser = iframeWindow.globalFormulaParser;
-  
-  if (!parser) {
-    parser = new iframeWindow.formulaParser.Parser();
-    iframeWindow.globalFormulaParser = parser;
-    
-    // ✅ Register custom formulas
-    parser.setFunction('PERCENT', function (params) {
-      if (params.length !== 2) return '#N/A';
-      const base = parseFloat(params[0]);
-      const percent = parseFloat(params[1]);
-      if (isNaN(base) || isNaN(percent)) return '#VALUE!';
-      const result = base * (percent / 100);
-      // ✅ Maintain decimal precision
-      return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
-    });
-
-    parser.setFunction('ABSOLUTE', function (params) {
-      if (params.length !== 1) return '#N/A';
-      const num = parseFloat(params[0]);
-      if (isNaN(num)) return '#VALUE!';
-      const result = Math.abs(num);
-      // ✅ Maintain decimal precision
-      return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
-    });
-
-    // ✅ Register NUMTOWORDS if available
-    if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords) {
-      parser.setFunction('NUMTOWORDS', function (params) {
-        if (params.length !== 1) return '#N/A';
-        const num = parseFloat(params[0]); // ✅ Changed from parseInt to parseFloat
-        if (isNaN(num)) return '#VALUE!';
-        
-        try {
-          // ✅ Handle decimal numbers - convert to integer for word conversion
-          const integerPart = Math.floor(num);
-          const decimalPart = num - integerPart;
-          
-          if (decimalPart === 0) {
-            return iframeWindow.numberToWords.toWords(integerPart);
-          } else {
-            // For decimals, show integer part in words + decimal notation
-            const integerWords = iframeWindow.numberToWords.toWords(integerPart);
-            const decimalString = decimalPart.toFixed(10).replace(/0+$/, '').substring(2);
-            return `${integerWords} point ${decimalString.split('').map(d => iframeWindow.numberToWords.toWords(parseInt(d))).join(' ')}`;
-          }
-        } catch (error) {
-          return '#ERROR';
-        }
-      });
-    }
+  for (let i = 0; i < count; i++) {
+    const lastRow = rows[rows.length - 1 - i];
+    if (lastRow) lastRow.remove();
   }
 
-  // Enhanced parser with range support
-  parser.on('callCellValue', function (cellCoord, done) {
-    let col = cellCoord.column.index;
-    let row = cellCoord.row.index;
-    let tableElem = iframeDoc.getElementById(tableId);
-    let cell = tableElem.rows[row]?.cells[col];
-    if (cell) {
-      let val = cell.getAttribute('data-formula') || cell.innerText;
-      if (val.startsWith('=')) {
-        try {
-          let res = parser.parse(val.substring(1));
-          done(res.result);
-        } catch {
-          done('#ERROR');
-        }
-      } else {
-        const numVal = parseFloat(val);
-        done(isNaN(numVal) ? val : numVal);
-      }
-    } else {
-      done(null);
-    }
-  });
-
-  parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
-    let tableElem = iframeDoc.getElementById(tableId);
-    let values = [];
-
-    let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
-    let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
-    let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
-    let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
-
-    for (let row = startRow; row <= endRow; row++) {
-      for (let col = startCol; col <= endCol; col++) {
-        let cell = tableElem.rows[row]?.cells[col];
-        if (cell) {
-          let val = cell.getAttribute('data-formula') || cell.innerText;
-          if (val.startsWith('=')) {
-            try {
-              let res = parser.parse(val.substring(1));
-              values.push(res.result);
-            } catch {
-              values.push(0);
-            }
-          } else {
-            values.push(parseFloat(val) || 0);
-          }
-        } else {
-          values.push(0);
-        }
-      }
-    }
-
-    done(values);
-  });
-
-  // Attach cell listeners
-  const tableElem = iframeDoc.getElementById(tableId);
-  if (!tableElem) return;
-
-  tableElem.querySelectorAll('td, th').forEach(cell => {
-    if (cell.hasAttribute('data-formula-enabled')) return;
-    
-    cell.contentEditable = "true";
-    cell.setAttribute('data-formula-enabled', 'true');
-
-    cell.addEventListener('focus', function() {
-      let formula = this.getAttribute('data-formula');
-      if (formula) this.innerText = formula;
-    });
-
-    cell.addEventListener('blur', function() {
-      const cell = this;
-      let val = cell.innerText.trim();
-
-      if (val.startsWith('=')) {
-        cell.setAttribute('data-formula', val);
-        try {
-          const formulaContent = val.substring(1).trim();
-          if (!formulaContent) throw new Error('Empty formula');
-
-          const res = parser.parse(formulaContent);
-          if (res.error) throw new Error(res.error);
-
-          // ✅ Format result based on type
-          let result = res.result;
-          if (typeof result === 'number') {
-            result = Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
-          }
-          
-          cell.innerText = (result !== undefined && result !== null) ? result : '#ERROR';
-          cell.classList.remove('formula-error');
-
-        } catch (error) {
-          console.warn('Formula parsing error:', error);
-          cell.innerText = '#ERROR';
-          cell.classList.add('formula-error');
-        }
-      } else {
-        cell.removeAttribute('data-formula');
-        cell.innerText = val;
-        cell.classList.remove('formula-error');
-      }
-    });
-
-    cell.addEventListener('keydown', function(e) {
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const table = this.closest('table');
-        const allCells = Array.from(table.querySelectorAll('td, th'));
-        const currentIndex = allCells.indexOf(this);
-
-        let nextIndex;
-        if (e.shiftKey) {
-          nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
-        } else {
-          nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
-        }
-        allCells[nextIndex].focus();
-      }
-    });
-  });
+  component.storeBaseTableData();
 }
+function removeTableColumns(component, count) {
+  const theadTr = component.find('thead > tr')[0];
+  const tbody = component.find('tbody')[0];
+  if (!tbody) return;
+
+  const headerCells = theadTr ? theadTr.find('> [type="cell"]') : [];
+  if (headerCells.length <= count) {
+    showToast('Cannot remove all columns', 'warning');
+    return;
+  }
+
+  // Remove from header
+  for (let i = 0; i < count; i++) {
+    const lastHeaderCell = headerCells[headerCells.length - 1 - i];
+    if (lastHeaderCell) lastHeaderCell.remove();
+  }
+
+  // Remove from body
+  const bodyRows = tbody.find('tr');
+  bodyRows.forEach(row => {
+    const cells = row.find('> [type="cell"]');
+    for (let i = 0; i < count; i++) {
+      const lastCell = cells[cells.length - 1 - i];
+      if (lastCell) lastCell.remove();
+    }
+  });
+
+  component.storeBaseTableData();
+}
+
+  function initializeCustomTableSettingsModal(component, availableFields) {
+    let selectedGroupingFields = component.get('grouping-fields') || [];
+    let selectedSummaryFields = component.get('summary-fields') || [];
+
+    // Tab navigation
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('.nav-tab').forEach(t => {
+          t.classList.remove('active');
+          t.style.background = 'transparent';
+          t.style.borderBottom = 'none';
+          t.style.fontWeight = 'normal';
+        });
+
+        document.querySelectorAll('.tab-pane').forEach(p => {
+          p.style.display = 'none';
+        });
+
+        this.classList.add('active');
+        this.style.background = 'white';
+        this.style.borderBottom = '3px solid #007bff';
+        this.style.fontWeight = 'bold';
+
+        const tabId = this.getAttribute('data-tab') + '-tab';
+        const tabPane = document.getElementById(tabId);
+        if (tabPane) {
+          tabPane.style.display = 'block';
+        }
+      });
+    });
+
+    // Initialize column reorder
+    initializeCustomTableColumnReorder(component);
+
+    // Load saved options
+    const sortOrder = document.getElementById('sort-order');
+    const topN = document.getElementById('top-n');
+    const topNValue = document.getElementById('top-n-value');
+    const summarizeGroup = document.getElementById('summarize-group');
+    const pageBreak = document.getElementById('page-break');
+    const mergeGroupCells = document.getElementById('merge-group-cells');
+    const groupHeaderInplace = document.getElementById('group-header-inplace');
+    const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
+    const keepGroupHierarchy = document.getElementById('keep-group-hierarchy');
+    const grandTotal = document.getElementById('grand-total');
+    const grandTotalLabel = document.getElementById('grand-total-label');
+    const summaryLabel = document.getElementById('summary-label');
+
+    if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
+    if (topN) topN.value = component.get('top-n') || 'none';
+    if (topNValue) topNValue.value = component.get('top-n-value') || '10';
+    if (summarizeGroup) summarizeGroup.checked = component.get('summarize-group') === true;
+    if (pageBreak) pageBreak.checked = component.get('page-break') === true;
+    if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') === true;
+    if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
+    if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') === true;
+    if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') === true;
+    if (grandTotal) grandTotal.checked = component.get('grand-total') !== false;
+    if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
+    if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
+
+    // Load grouping type
+    if (component.get('show-summary-only') === true) {
+      const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
+      if (summaryRadio) {
+        summaryRadio.checked = true;
+        if (keepGroupHierarchy) keepGroupHierarchy.disabled = false;
+      }
+    }
+
+    // Top N value enable/disable
+    document.getElementById('top-n').addEventListener('change', function () {
+      const topNValue = document.getElementById('top-n-value');
+      const isEnabled = this.value === 'top' || this.value === 'bottom';
+
+      topNValue.disabled = !isEnabled;
+      topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+      topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+      topNValue.style.opacity = isEnabled ? '1' : '0.6';
+    });
+
+    // Trigger on load
+    setTimeout(() => {
+      const topNSelect = document.getElementById('top-n');
+      const topNValue = document.getElementById('top-n-value');
+      const currentValue = topNSelect.value;
+      const isEnabled = currentValue === 'top' || currentValue === 'bottom';
+
+      topNValue.disabled = !isEnabled;
+      topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+      topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+      topNValue.style.opacity = isEnabled ? '1' : '0.6';
+    }, 100);
+
+    // Grand Total checkbox
+    document.getElementById('grand-total').addEventListener('change', function () {
+      const grandTotalLabel = document.getElementById('grand-total-label');
+      const isEnabled = this.checked;
+      grandTotalLabel.disabled = !isEnabled;
+      grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
+    });
+
+    // Grouping field selection
+    document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', function () {
+        const fieldItem = this.closest('.field-item');
+        const fieldKey = fieldItem.getAttribute('data-key');
+        const fieldName = fieldItem.querySelector('span').textContent;
+
+        if (this.checked) {
+          selectedGroupingFields.push({ key: fieldKey, name: fieldName });
+          updateSelectedFields();
+        }
+      });
+    });
+
+    function updateSelectedFields() {
+      const selectedFieldsDiv = document.getElementById('selected-fields');
+
+      if (!selectedFieldsDiv) return;
+
+      if (selectedGroupingFields.length === 0) {
+        selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
+      } else {
+        selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
+        <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+            <span>${field.name}</span>
+            <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+        </div>
+      `).join('');
+
+        selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
+          btn.addEventListener('click', function () {
+            const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
+            const fieldKey = selectedGroupingFields[idx].key;
+            selectedGroupingFields.splice(idx, 1);
+            updateSelectedFields();
+
+            const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
+            if (availableCheckbox) availableCheckbox.checked = false;
+          });
+        });
+      }
+    }
+
+    function updateSummaryFieldsList() {
+      const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
+
+      if (!selectedSummaryFieldsDiv) return;
+
+      if (selectedSummaryFields.length === 0) {
+        selectedSummaryFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
+        return;
+      }
+
+      selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields.map((field, idx) => `
+      <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex: 1;">
+              <strong style="font-size: 13px;">${field.name}</strong>
+              <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
+          </div>
+          <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+      </div>
+    `).join('');
+
+      selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
+        btn.addEventListener('click', function () {
+          const idx = parseInt(this.getAttribute('data-index'));
+          selectedSummaryFields.splice(idx, 1);
+          updateSummaryFieldsList();
+        });
+      });
+    }
+
+    // Summary field add button
+    document.getElementById('add-summary-field').addEventListener('click', function () {
+      const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
+      const summaryFunction = document.getElementById('summary-function').value;
+
+      if (summaryCheckboxes.length === 0) {
+        showToast('Please select at least one field for summary', 'warning');
+        return;
+      }
+
+      let addedCount = 0;
+      summaryCheckboxes.forEach(checkbox => {
+        const fieldItem = checkbox.closest('.field-item');
+        const fieldKey = fieldItem.getAttribute('data-key');
+        const fieldName = fieldItem.querySelector('span').textContent;
+
+        const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
+        if (!exists) {
+          selectedSummaryFields.push({
+            key: fieldKey,
+            name: fieldName,
+            function: summaryFunction
+          });
+          addedCount++;
+        }
+
+        checkbox.checked = false;
+      });
+
+      updateSummaryFieldsList();
+
+      if (addedCount > 0) {
+        console.log(`Added ${addedCount} summary field(s)`);
+      }
+    });
+
+    // Sort summary fields
+    document.getElementById('sort-summary-asc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+      items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+      const container = document.getElementById('available-summary-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    document.getElementById('sort-summary-desc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+      items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+      const container = document.getElementById('available-summary-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    // Sort buttons for grouping fields
+    document.getElementById('sort-asc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+      items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+      const container = document.getElementById('available-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    document.getElementById('sort-desc').addEventListener('click', () => {
+      const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+      items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+      const container = document.getElementById('available-fields');
+      container.innerHTML = '';
+      items.forEach(item => container.appendChild(item));
+    });
+
+    // Grouping type radio buttons
+    document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
+      radio.addEventListener('change', function () {
+        const keepHierarchy = document.getElementById('keep-group-hierarchy');
+        const isSummaryOnly = this.value === 'summary';
+
+        keepHierarchy.disabled = !isSummaryOnly;
+        keepHierarchy.parentElement.querySelector('span').style.color = isSummaryOnly ? '#000' : '#999';
+
+        if (!isSummaryOnly) {
+          keepHierarchy.checked = false;
+        }
+      });
+    });
+
+    // Row/Column operations
+    document.getElementById('add-rows').addEventListener('click', function () {
+      const count = parseInt(document.getElementById('row-count').value) || 1;
+      addTableRows(component, count);
+      showToast(`Added ${count} row(s)`, 'success');
+    });
+
+    document.getElementById('remove-rows').addEventListener('click', function () {
+      const count = parseInt(document.getElementById('row-count').value) || 1;
+      removeTableRows(component, count);
+      showToast(`Removed ${count} row(s)`, 'success');
+    });
+
+    document.getElementById('add-columns').addEventListener('click', function () {
+      const count = parseInt(document.getElementById('column-count').value) || 1;
+      addTableColumns(component, count);
+      showToast(`Added ${count} column(s)`, 'success');
+    });
+
+    document.getElementById('remove-columns').addEventListener('click', function () {
+      const count = parseInt(document.getElementById('column-count').value) || 1;
+      removeTableColumns(component, count);
+      showToast(`Removed ${count} column(s)`, 'success');
+    });
+
+    // Cancel button
+    document.getElementById('cancel-settings').addEventListener('click', () => {
+      editor.Modal.close();
+    });
+
+    // Apply button
+    document.getElementById('apply-settings').addEventListener('click', () => {
+      console.log('📝 Applying settings...');
+
+      if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
+        showToast('Please select at least one grouping field before adding summaries', 'warning');
+        return;
+      }
+
+      const summarizeChecked = document.getElementById('summarize-group').checked;
+      if (summarizeChecked && selectedSummaryFields.length === 0) {
+        showToast('Please add at least one summary field when "Summarize Group" is enabled', 'warning');
+        return;
+      }
+
+      // Save all settings
+      component.set('grouping-fields', selectedGroupingFields);
+      component.set('summary-fields', selectedSummaryFields);
+      component.set('sort-order', document.getElementById('sort-order').value);
+      component.set('top-n', document.getElementById('top-n').value);
+      component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
+      component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+      component.set('summarize-group', document.getElementById('summarize-group').checked);
+      component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
+      component.set('page-break', document.getElementById('page-break').checked);
+
+      const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
+      component.set('show-summary-only', showSummaryOnly);
+      component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
+
+      component.set('grand-total', document.getElementById('grand-total').checked);
+      component.set('grand-total-label', document.getElementById('grand-total-label').value);
+      component.set('summary-label', document.getElementById('summary-label').value);
+
+      editor.Modal.close();
+
+      // Apply grouping
+      setTimeout(() => {
+        component.applyGroupingAndSummary();
+        showToast('Settings applied successfully!', 'success');
+      }, 100);
+    });
+
+    updateSelectedFields();
+    updateSummaryFieldsList();
+  }
+
+  function initializeCustomTableColumnReorder(component) {
+    const headers = component.getTableHeaders();
+    const columnKeys = Object.keys(headers);
+
+    if (columnKeys.length <= 1) {
+      document.getElementById('column-list-inline').innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">Need at least 2 columns to reorder</p>';
+      return;
+    }
+
+    const columnList = document.getElementById('column-list-inline');
+    columnList.innerHTML = columnKeys.map(key => `
+    <div class="column-item-inline" data-key="${key}" draggable="true" style="
+        margin: 2px; 
+        padding: 12px 15px; 
+        border-radius: 3px; 
+        cursor: move; 
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    ">
+        <span style="font-weight: 500;">${headers[key]}</span>
+        <span style="color: #666; font-size: 12px;">≡≡≡</span>
+    </div>
+  `).join('');
+
+    let draggedElement = null;
+
+    const columnItems = columnList.querySelectorAll('.column-item-inline');
+    columnItems.forEach(item => {
+      item.addEventListener('dragstart', function (e) {
+        draggedElement = this;
+        this.style.opacity = '0.5';
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      item.addEventListener('dragend', function () {
+        this.style.opacity = '1';
+        draggedElement = null;
+        columnItems.forEach(item => item.style.borderTop = '');
+      });
+
+      item.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        if (this !== draggedElement) {
+          this.style.borderTop = '2px solid #007bff';
+        }
+      });
+
+      item.addEventListener('dragleave', function () {
+        this.style.borderTop = '';
+      });
+
+      item.addEventListener('drop', function (e) {
+        e.preventDefault();
+        this.style.borderTop = '';
+
+        if (this !== draggedElement) {
+          const allItems = Array.from(columnList.children);
+          const draggedIndex = allItems.indexOf(draggedElement);
+          const targetIndex = allItems.indexOf(this);
+
+          if (draggedIndex < targetIndex) {
+            this.parentNode.insertBefore(draggedElement, this.nextSibling);
+          } else {
+            this.parentNode.insertBefore(draggedElement, this);
+          }
+
+          applyCustomTableColumnReorder(component);
+        }
+      });
+    });
+
+    document.getElementById('reset-order').addEventListener('click', function () {
+      component.storeBaseTableData();
+      const headers = component.getTableHeaders();
+      const data = component.getTableData();
+      component.rebuildTableHTML(headers, data);
+      initializeCustomTableColumnReorder(component);
+      showToast('Column order reset to original', 'success');
+    });
+  }
+
+  function applyCustomTableColumnReorder(component) {
+    const columnList = document.getElementById('column-list-inline');
+    const currentItems = columnList.querySelectorAll('.column-item-inline');
+    const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
+
+    const headers = component.getTableHeaders();
+    const data = component.getTableData();
+
+    const reorderedHeaders = {};
+    newOrder.forEach(key => {
+      if (headers[key]) {
+        reorderedHeaders[key] = headers[key];
+      }
+    });
+
+    const reorderedData = data.map(row => {
+      const newRow = {};
+      newOrder.forEach(key => {
+        if (row.hasOwnProperty(key)) {
+          newRow[key] = row[key];
+        }
+      });
+      return newRow;
+    });
+
+    component.set('base-headers', reorderedHeaders, { silent: true });
+    component.set('base-data', reorderedData, { silent: true });
+    component.rebuildTableHTML(reorderedHeaders, reorderedData);
+  }
+
+  function addTableRows(component, count) {
+    const tableId = component.getId();
+    const canvasDoc = editor.Canvas.getDocument();
+    const tableElement = canvasDoc.getElementById(tableId);
+    if (!tableElement) return;
+
+    const tbody = tableElement.querySelector('tbody');
+    const headers = component.getTableHeaders();
+    const headerKeys = Object.keys(headers);
+
+    for (let i = 0; i < count; i++) {
+      const tr = canvasDoc.createElement('tr');
+      headerKeys.forEach(key => {
+        const td = canvasDoc.createElement('td');
+        td.innerHTML = '<div>Text</div>';
+        td.style.padding = '8px';
+        td.style.border = '1px solid #000';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    }
+
+    component.storeBaseTableData();
+  }
+
+  function removeTableRows(component, count) {
+    const tableId = component.getId();
+    const canvasDoc = editor.Canvas.getDocument();
+    const tableElement = canvasDoc.getElementById(tableId);
+    if (!tableElement) return;
+
+    const tbody = tableElement.querySelector('tbody');
+    const rows = tbody.querySelectorAll('tr');
+
+    if (rows.length <= count) {
+      showToast('Cannot remove all rows', 'warning');
+      return;
+    }
+
+    for (let i = 0; i < count; i++) {
+      if (rows[rows.length - 1 - i]) {
+        rows[rows.length - 1 - i].remove();
+      }
+    }
+
+    component.storeBaseTableData();
+  }
+
+  function addTableColumns(component, count) {
+    const tableId = component.getId();
+    const canvasDoc = editor.Canvas.getDocument();
+    const tableElement = canvasDoc.getElementById(tableId);
+    if (!tableElement) return;
+
+    // Add to header
+    const thead = tableElement.querySelector('thead tr');
+    if (thead) {
+      for (let i = 0; i < count; i++) {
+        const th = canvasDoc.createElement('th');
+        th.innerHTML = '<div>Text</div>';
+        th.style.padding = '8px';
+        th.style.border = '1px solid #000';
+        thead.appendChild(th);
+      }
+    }
+
+    // Add to body rows
+    const tbody = tableElement.querySelector('tbody');
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(row => {
+      for (let i = 0; i < count; i++) {
+        const td = canvasDoc.createElement('td');
+        td.innerHTML = '<div>Text</div>';
+        td.style.padding = '8px';
+        td.style.border = '1px solid #000';
+        row.appendChild(td);
+      }
+    });
+
+    component.storeBaseTableData();
+  }
+
+  function removeTableColumns(component, count) {
+    const tableId = component.getId();
+    const canvasDoc = editor.Canvas.getDocument();
+    const tableElement = canvasDoc.getElementById(tableId);
+    if (!tableElement) return;
+
+    const thead = tableElement.querySelector('thead tr');
+    const headerCells = thead.querySelectorAll('th');
+
+    if (headerCells.length <= count) {
+      showToast('Cannot remove all columns', 'warning');
+      return;
+    }
+
+    // Remove from header
+    for (let i = 0; i < count; i++) {
+      if (headerCells[headerCells.length - 1 - i]) {
+        headerCells[headerCells.length - 1 - i].remove();
+      }
+    }
+
+    // Remove from body
+    const tbody = tableElement.querySelector('tbody');
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(row => {
+      const cells = row.querySelectorAll('td');
+      for (let i = 0; i < count; i++) {
+        if (cells[cells.length - 1 - i]) {
+          cells[cells.length - 1 - i].remove();
+        }
+      }
+    });
+
+    component.storeBaseTableData();
+  }
 
   // Enhanced event listener for table selection to apply highlighting traits
   editor.on('component:selected', function (component) {

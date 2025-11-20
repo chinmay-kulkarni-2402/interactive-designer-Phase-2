@@ -972,9 +972,9 @@ function addFormattedRichTextComponent(editor) {
       },
 
       handleJsonPathChange() {
-        console.log('=== COMPONENT JSON PATH CHANGE ===');
+        console.log('=== COMPONENT DataSource PATH CHANGE ===');
         const jsonPath = this.get('my-input-json');
-        console.log('JSON Path:', jsonPath);
+        console.log('DataSource Path:', jsonPath);
 
         if (this.view && this.view.rteActive) {
           console.log('RTE active, forcing stop before JSON update');
@@ -1032,7 +1032,7 @@ function addFormattedRichTextComponent(editor) {
               }
             }
           } catch (e) {
-            console.error("Error evaluating JSON path:", e);
+            console.error("Error evaluating DataSource path:", e);
           }
         }
       },

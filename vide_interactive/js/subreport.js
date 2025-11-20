@@ -19,12 +19,29 @@ function subreportPlugin(editor) {
           'display': 'block',
           'width': '100%'
         },
-        traits: [
-          { type: "checkbox", label: "Show Data", name: "showData", value: false },
-          { type: "checkbox", label: "Share Parameters", name: "shareParams", value: true },
-          { type: "checkbox", label: "Share Page Number", name: "sharePageNum", value: false },
-          { type: "checkbox", label: "Merge Header/Footer", name: "mergeHeaderFooter", value: false, visible: false },
-        ],
+traits: [
+        {
+          type: 'select',
+          name: 'filterColumn',
+          label: 'Select Column',
+          options: [{ value: '', label: 'None' }]
+        },
+        {
+          type: 'text',
+          name: 'filterValue',
+          label: 'Filter Value'
+        },
+        {
+          type: 'checkbox',
+          name: 'showData',
+          label: 'Show Data'
+        },
+        {
+          type: 'checkbox',
+          name: 'mergeHeaderFooter',
+          label: 'Merge Header/Footer'
+        }
+      ]
       },
 
       init() {
@@ -46,10 +63,12 @@ function subreportPlugin(editor) {
           console.warn("⚠️ Couldn't set merge trait visibility in init():", e);
         }
 
-        this.on("change:attributes:showData", this.onShowDataToggle);
-        this.on("change:attributes:filePath", this.onPathChange);
-        this.on("change:attributes:mergeHeaderFooter", this.onMergeHeaderToggle);
-        this.silentUpdate = false;
+this.on("change:attributes:showData", this.onShowDataToggle);
+      this.on("change:attributes:filePath", this.onPathChange);
+      this.on("change:attributes:mergeHeaderFooter", this.onMergeHeaderToggle);
+      this.on("change:attributes:filterColumn", this.onFilterChange);
+      this.on("change:attributes:filterValue", this.onFilterChange);
+      this.silentUpdate = false;
 
         // Add initial placeholder component if empty
         if (this.components().length === 0) {
@@ -72,6 +91,16 @@ function subreportPlugin(editor) {
           });
         }
       },
+
+      onFilterChange() {
+      const showData = this.getAttributes().showData;
+      if (showData === true || showData === "true") {
+        const view = this.view;
+        if (view && typeof view.renderSubreportAsComponents === "function") {
+          view.renderSubreportAsComponents();
+        }
+      }
+    },
 
       onPathChange() {
         const newPath = this.getAttributes().filePath;
@@ -267,38 +296,156 @@ function subreportPlugin(editor) {
         }
       },
 
-      async loadSubreportFromHTML(htmlContent, name = "") {
+async loadSubreportFromHTML(htmlContent, name = "") {
+      try {
+        const { innerContent, styles, hasHeaderOrFooter } = this.extractSubreportHTML(htmlContent);
+
+        // Extract column headers from tables
+        const columns = this.extractTableColumns(innerContent);
+        this.updateFilterColumnOptions(columns);
+
+        // Update merge trait visibility
         try {
-          const { innerContent, styles, hasHeaderOrFooter } = this.extractSubreportHTML(htmlContent);
-
-          // Update merge trait visibility
-          try {
-            const traits = this.model.get("traits");
-            if (traits && typeof traits.find === "function") {
-              const mt = traits.find(t => {
-                try { return t.get("name") === "mergeHeaderFooter"; } catch (e) { return false; }
-              });
-              if (mt) {
-                mt.set("visible", !!hasHeaderOrFooter);
-                console.log(`🔎 Merge trait visibility set to ${!!hasHeaderOrFooter}`);
-              }
+          const traits = this.model.get("traits");
+          if (traits && typeof traits.find === "function") {
+            const mt = traits.find(t => {
+              try { return t.get("name") === "mergeHeaderFooter"; } catch (e) { return false; }
+            });
+            if (mt) {
+              mt.set("visible", !!hasHeaderOrFooter);
+              console.log(`🔎 Merge trait visibility set to ${!!hasHeaderOrFooter}`);
             }
-          } catch (e) {
-            console.warn("⚠️ Couldn't update merge trait visibility:", e);
           }
-
-          this.cachedSubreport = { innerContent, styles, templateName: name, hasHeaderOrFooter };
-          this.injectStylesToCanvas(styles);
-          
-          // Show placeholder message
-          this.showPlaceholder(name);
-          
-          console.log("✅ Subreport HTML loaded successfully:", name);
-        } catch (err) {
-          console.error("❌ Error processing HTML:", err);
-          this.showErrorPlaceholder(err.message);
+        } catch (e) {
+          console.warn("⚠️ Couldn't update merge trait visibility:", e);
         }
-      },
+
+        this.cachedSubreport = { innerContent, styles, templateName: name, hasHeaderOrFooter };
+        this.injectStylesToCanvas(styles);
+        
+        // Show placeholder message
+        this.showPlaceholder(name);
+        
+        console.log("✅ Subreport HTML loaded successfully:", name);
+      } catch (err) {
+        console.error("❌ Error processing HTML:", err);
+        this.showErrorPlaceholder(err.message);
+      }
+    },
+
+    extractTableColumns(htmlText) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, "text/html");
+      const tables = doc.querySelectorAll('table');
+      const allHeaders = new Set();
+
+      tables.forEach(table => {
+        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+        headers.forEach(header => {
+          if (header) allHeaders.add(header);
+        });
+      });
+
+      return Array.from(allHeaders);
+    },
+
+    applyTableFilter(htmlText, columnName, filterValue) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, "text/html");
+      const table = doc.querySelector('table');
+      if (!table) return htmlText;
+
+      const headerRow = table.querySelector('thead tr');
+      if (!headerRow) return htmlText;
+
+      const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+      const columnIndex = headers.indexOf(columnName);
+      if (columnIndex === -1) return htmlText;
+
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td'));
+        const cellText = cells[columnIndex]?.textContent.trim().toLowerCase() || '';
+        if (cellText.includes(filterValue)) {
+          // Keep row
+        } else {
+          row.remove();
+        }
+      });
+
+      return doc.body.innerHTML; // Return filtered HTML
+    },
+
+    updateFilterColumnOptions(columns) {
+      const options = [{ value: '', label: 'None' }];
+      columns.forEach(col => {
+        options.push({ value: col, label: col });
+      });
+
+      const traits = this.model.get("traits");
+      const filterTrait = traits.find(t => t.get("name") === "filterColumn");
+      if (filterTrait) {
+        filterTrait.set("options", options);
+      }
+    },
+
+    renderSubreportAsComponents() {
+      console.log("🎨 Rendering subreport as GrapeJS components...");
+      
+      const attrs = this.model.getAttributes();
+      const merge = attrs.mergeHeaderFooter !== false && attrs.mergeHeaderFooter !== "false";
+      const filterColumn = attrs.filterColumn;
+      const filterValue = attrs.filterValue?.toLowerCase() || '';
+      const hasFilter = filterColumn && filterValue;
+      
+      // Clear existing content
+      this.model.components().reset();
+
+      // Process HTML content
+      let processed = this.getProcessedInnerContent(this.cachedSubreport.innerContent);
+      
+      if (hasFilter) {
+        processed = this.applyTableFilter(processed, filterColumn, filterValue);
+      }
+      
+      // Parse HTML and convert to components
+      const parser = new DOMParser();
+      const tempDoc = parser.parseFromString(processed, "text/html");
+      const body = tempDoc.body;
+
+      // Handle merge logic
+      if (merge && this.cachedSubreport.hasHeaderOrFooter) {
+        this.handleMergeMode(body);
+      } else {
+        this.handleNormalMode(body, merge);
+      }
+    },
+
+    applyTableFilter(htmlText, columnName, filterValue) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, "text/html");
+      const table = doc.querySelector('.json-table-container table, .table');
+      if (!table) return htmlText;
+
+      const headerRow = table.querySelector('thead tr');
+      if (!headerRow) return htmlText;
+
+      const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+      const columnIndex = headers.indexOf(columnName);
+      if (columnIndex === -1) return htmlText;
+
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td'));
+        if (cells[columnIndex]?.textContent.toLowerCase().includes(filterValue)) {
+          // Keep row
+        } else {
+          row.remove();
+        }
+      });
+
+      return doc.body.innerHTML; // Return filtered HTML
+    },
 
       showPlaceholder(templateName) {
         // Clear any existing components first
@@ -389,31 +536,6 @@ function subreportPlugin(editor) {
         const showData = this.model.getAttributes().showData;
         if (showData === true || showData === "true") {
           this.renderSubreportAsComponents();
-        }
-      },
-
-      renderSubreportAsComponents() {
-        console.log("🎨 Rendering subreport as GrapeJS components...");
-        
-        const attrs = this.model.getAttributes();
-        const merge = attrs.mergeHeaderFooter !== false && attrs.mergeHeaderFooter !== "false";
-        
-        // Clear existing content
-        this.model.components().reset();
-
-        // Process HTML content
-        const processed = this.getProcessedInnerContent(this.cachedSubreport.innerContent);
-        
-        // Parse HTML and convert to components
-        const parser = new DOMParser();
-        const tempDoc = parser.parseFromString(processed, "text/html");
-        const body = tempDoc.body;
-
-        // Handle merge logic
-        if (merge && this.cachedSubreport.hasHeaderOrFooter) {
-          this.handleMergeMode(body);
-        } else {
-          this.handleNormalMode(body, merge);
         }
       },
 
@@ -646,7 +768,7 @@ function subreportPlugin(editor) {
       extractSubreportHTML(htmlText) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, "text/html");
-
+console.log("doc", doc)
         const styles = [];
         doc.querySelectorAll("style, link[rel='stylesheet']").forEach(tag => {
           styles.push(tag.outerHTML);
@@ -654,6 +776,7 @@ function subreportPlugin(editor) {
 
         const bodyEl = doc.querySelector("body");
         let innerContent = bodyEl ? bodyEl.innerHTML.trim() : htmlText.trim();
+        console.log("innercontent", innerContent)
 
         const hasHeaderOrFooter = !!doc.querySelector(".header-wrapper, .footer-wrapper");
 

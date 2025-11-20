@@ -297,8 +297,8 @@ function jsontablecustom(editor) {
                     {
                         type: 'text',
                         name: 'json-path',
-                        label: 'Json Path',
-                        placeholder: 'Enter Json Path',
+                        label: 'DataSource Path',
+                        placeholder: 'Enter DataSource Path',
                         changeProp: 1
                     },
                     {
@@ -322,7 +322,7 @@ function jsontablecustom(editor) {
                     {
                         type: 'button',
                         name: 'json-suggestion-btn',
-                        label: 'Json Suggestion',
+                        label: 'Datasource Suggestion',
                         text: 'Suggestion',
                         full: true,
                         command: 'open-json-table-suggestion'
@@ -331,7 +331,7 @@ function jsontablecustom(editor) {
                         type: 'select',
                         name: 'filter-column',
                         label: 'Preview Column',
-                        options: [{ value: "", name: "First enter JSON path" }],
+                        options: [{ value: "", name: "First enter DataSource path" }],
                         changeProp: 1,
                         // Update this section
                         attributes: {
@@ -1050,7 +1050,7 @@ function jsontablecustom(editor) {
                         // Reset filter options when no path
                         const filterTrait = this.getTrait('filter-column');
                         if (filterTrait) {
-                            const options = [{ value: "", name: "First enter JSON path" }];
+                            const options = [{ value: "", name: "First enter DataSource path" }];
                             filterTrait.set('options', options);
                         }
                         return;
@@ -1082,7 +1082,7 @@ function jsontablecustom(editor) {
                     if (!jsonDataN || !jsonDataN[subPath]) {
                         const filterTrait = this.getTrait('filter-column');
                         if (filterTrait) {
-                            const options = [{ value: "", name: "Invalid JSON path" }];
+                            const options = [{ value: "", name: "Invalid DataSource path" }];
                             filterTrait.set('options', options);
                         }
                         return;
@@ -1451,7 +1451,7 @@ function jsontablecustom(editor) {
                 const tableType = this.get('table-type') || 'standard';
 
                 if (!jsonPath) {
-                    console.warn('No JSON path provided');
+                    console.warn('No DataSource path provided');
                     this.set('show-placeholder', true);
                     this.updateTableHTML();
                     return;
@@ -1510,7 +1510,7 @@ function jsontablecustom(editor) {
                     }
 
                     if (!jsonDataN[subPath]) {
-                        console.error(`JSON subpath "${subPath}" not found under language "${selectedLanguage}"`);
+                        console.error(`DataSource subpath "${subPath}" not found under language "${selectedLanguage}"`);
                         this.set('show-placeholder', true);
                         this.updateTableHTML();
                         return;
@@ -1556,7 +1556,7 @@ function jsontablecustom(editor) {
                         this.updateTableHTML();
                     }
                 } catch (error) {
-                    console.error('Error parsing JSON path:', error);
+                    console.error('Error parsing DataSource path:', error);
                     this.set('show-placeholder', true);
                     this.updateTableHTML();
                 }
@@ -6128,7 +6128,7 @@ function jsontablecustom(editor) {
     </div>
   `;
 
-            editor.Modal.setTitle('Json Suggestion');
+            editor.Modal.setTitle('Datasource Suggestion');
             editor.Modal.setContent(modalContent);
             editor.Modal.open();
 
@@ -6192,7 +6192,7 @@ function jsontablecustom(editor) {
         suggestionItems.forEach(item => {
             item.addEventListener('click', function () {
                 const selectedValue = this.getAttribute('data-value');
-                console.log('Setting JSON path to:', selectedValue);
+                console.log('Setting DataSource path to:', selectedValue);
 
                 // Set the json-path value in the model
                 selectedComponent.set('json-path', selectedValue);
