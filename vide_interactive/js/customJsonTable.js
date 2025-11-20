@@ -416,409 +416,419 @@ function jsontablecustom(editor) {
                 'summary-label': ''
             },
 
-            init() {
-                console.log('🎬 JSON Table init() called for component:', this.cid);
+init() {
+    console.log('🎬 JSON Table init() called for component:', this.cid);
 
-                // ✅ Flag to prevent event handlers from interfering during restoration
-                this._isRestoring = true;
-                try {
-                    const attrs = this.getAttributes ? this.getAttributes() : {};
-                    const encoded = attrs && attrs['data-json-state'];
+    // ✅ Flag to prevent event handlers from interfering during restoration
+    this._isRestoring = true;
+    try {
+        const attrs = this.getAttributes ? this.getAttributes() : {};
+        const encoded = attrs && attrs['data-json-state'];
 
-                    if (encoded) {
-                        console.log('📦 Found data-json-state, restoring...');
-                        const parsed = JSON.parse(decodeURIComponent(encoded));
+        if (encoded) {
+            console.log('📦 Found data-json-state, restoring...');
+            const parsed = JSON.parse(decodeURIComponent(encoded));
 
-                        console.log('📊 Restoring state:', {
-                            hasHeaders: !!parsed.headers,
-                            hasData: !!parsed.data,
-                            dataRows: parsed.data?.length || 0,
-                            headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
-                        });
+            console.log('📊 Restoring state:', {
+                hasHeaders: !!parsed.headers,
+                hasData: !!parsed.data,
+                dataRows: parsed.data?.length || 0,
+                headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
+            });
 
-                        // ✅ NEW: Check if this is a continuation table
-                        const isContinuation = attrs['data-continuation-table'] === 'true';
-                        const rowsKept = parseInt(attrs['data-rows-kept']) || 0;
+            // ✅ NEW: Check if this is a continuation table
+            const isContinuation = attrs['data-continuation-table'] === 'true';
+            const rowsKept = parseInt(attrs['data-rows-kept']) || 0;
 
-                        if (isContinuation && rowsKept > 0) {
-                            console.log(`🔄 Continuation table detected: ${rowsKept} rows were kept on previous page`);
-                            // Data has already been sliced in the state, just use it as-is
-                            console.log(`📝 Using modified state with ${parsed.data?.length || 0} rows for continuation`);
-                        }
+            if (isContinuation && rowsKept > 0) {
+                console.log(`🔄 Continuation table detected: ${rowsKept} rows were kept on previous page`);
 
-                        // ✅ Restore ALL state including base tables
-                        this.set('table-headers', parsed.headers || null, { silent: true });
-                        this.set('table-data', parsed.data || null, { silent: true });
-                        this.set('custom-headers', parsed.headers || null, { silent: true });
-                        this.set('custom-data', parsed.data || null, { silent: true });
-                        this.set('table-styles-applied', parsed.styles || null, { silent: true });
-                        this.set('highlight-conditions', parsed.highlights || null, { silent: true });
-
-                        // ... rest of restoration code ...
-                    }
-                } catch (e) {
-                    console.warn('⚠️ json-table init rehydrate failed', e);
-                    this._isRestoring = false;
-                }
-                // -- per-instance refresh for JSON File trait (no global flag) --
-                const refreshJsonFileTrait = () => {
-                    const trait = this.getTrait('json-file-index');
-                    if (!trait) return;
-
-                    const opts = getJsonFileOptions(); // reads fresh from localStorage
-                    trait.set('options', opts);
-
-                    if (!opts.length) {
-                        this.set({ 'json-file-index': '', 'json-path': '' });
-                        ['json-path', 'filter-column', 'running-total-column'].forEach(n => {
-                            const t = this.getTrait(n);
-                            if (t) {
-                                t.set('options', []);
-                                t.set('value', '');
-                                if (t.view && t.view.render) t.view.render();
-                            }
-                        });
-                        if (trait.view && trait.view.render) trait.view.render();
-                        return;
-                    }
-
-                    const current = String(this.get('json-file-index') ?? '');
-                    const stillExists = opts.some(o => String(o.value) === current);
-                    const nextVal = stillExists ? current : String(opts[0].value);
-
-                    trait.set('value', nextVal);
-                    this.set('json-file-index', nextVal);
-
-                    if (trait.view && trait.view.render) trait.view.render();
-
-                    if (this.get('json-path')) {
-                        this.updateFilterColumnOptions?.();
-                        this.updateRunningTotalColumnOptions?.();
-                    }
-
-                    if (nextVal !== current) {
-                        if (typeof this.handleJsonFileChange === 'function') {
-                            this.handleJsonFileChange();
-                        } else {
-                            this.trigger('change:json-file-index');
-                        }
-                    }
-                };
-
-                // 1) immediately populate for this instance (new OR restored)
-                refreshJsonFileTrait();
-
-                // 2) listen for add/delete updates for THIS instance
-                const onFilesUpdated = () => refreshJsonFileTrait();
-                window.addEventListener('common-json-files-updated', onFilesUpdated);
-
-                // 3) clean up when this component is removed
-                this.once('remove', () => {
-                    window.removeEventListener('common-json-files-updated', onFilesUpdated);
-                });
-
-                // ✅ CRITICAL: Restore state IMMEDIATELY before anything else
-                try {
-                    const attrs = this.getAttributes ? this.getAttributes() : {};
-                    const encoded = attrs && attrs['data-json-state'];
-
-                    if (encoded) {
-                        console.log('📦 Found data-json-state, restoring...');
-                        const parsed = JSON.parse(decodeURIComponent(encoded));
-
-                        console.log('📊 Restoring state:', {
-                            hasHeaders: !!parsed.headers,
-                            hasData: !!parsed.data,
-                            dataRows: parsed.data?.length || 0,
-                            headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
-                        });
-
-                        // ✅ Restore ALL state including base tables
-                        this.set('table-headers', parsed.headers || null, { silent: true });
-                        this.set('table-data', parsed.data || null, { silent: true });
-                        this.set('custom-headers', parsed.headers || null, { silent: true });
-                        this.set('custom-data', parsed.data || null, { silent: true });
-                        this.set('table-styles-applied', parsed.styles || null, { silent: true });
-                        this.set('highlight-conditions', parsed.highlights || null, { silent: true });
-
-                        if (parsed.filter) {
-                            this.set('filter-column', parsed.filter.column || '', { silent: true });
-                            this.set('filter-value', parsed.filter.value || '', { silent: true });
-                        }
-                        if (parsed.meta) {
-                            this.set('table-type', parsed.meta.tableType || 'standard', { silent: true });
-                            this.set('caption', parsed.meta.caption || 'no', { silent: true });
-                            this.set('page-length', parsed.meta.pageLength || 10, { silent: true });
-                            this.set('pagination', parsed.meta.pagination || 'no', { silent: true });
-                            this.set('search', parsed.meta.search || 'no', { silent: true });
-                            this.set('file-download', parsed.meta.fileDownload || '', { silent: true });
-                        }
-
-                        // ✅ CRITICAL: Set show-placeholder based on data presence
-                        const hasValidData = parsed.headers && parsed.data &&
-                            (Array.isArray(parsed.data) ? parsed.data.length > 0 : true);
-
-                        this.set('show-placeholder', !hasValidData, { silent: true });
-
-                        console.log('✅ State restored in init():', {
-                            showPlaceholder: this.get('show-placeholder'),
-                            hasCustomHeaders: !!this.get('custom-headers'),
-                            hasCustomData: !!this.get('custom-data')
-                        });
-
-                        // Clear restoring flag before rebuild
-                        this._isRestoring = false;
-
-                        // Rebuild HTML with restored state after a short delay
-                        setTimeout(() => {
-                            console.log('🔨 Triggering updateTableHTML from init()');
-                            this.updateTableHTML();
-                        }, 0);
-
-                        // ✅ Exit early for restored components (skip normal init)
-                        return;
-                    } else {
-                        console.log('ℹ️ No data-json-state found, this is a new component');
-                        this._isRestoring = false;
-                    }
-                } catch (e) {
-                    console.warn('⚠️ json-table init rehydrate failed', e);
-                    this._isRestoring = false;
+                // ✅ Check if header should be removed based on user preference
+                const copyHeader = attrs['data-copy-header'];
+                if (copyHeader === 'false') {
+                    console.log('🗑️ Header should be removed from this continuation table');
+                    // Set flag to remove header after table is built
+                    this.set('_remove-header-on-build', true, { silent: true });
                 }
 
-                // 🔹 Continue with normal initialization for NEW components only
-                this.on('change:json-file-index', () => {
-                    if (this._isRestoring) return;
-                    this.set('json-path', '');
-                    this.set('filter-column', '');
-                    this.set('filter-value', '');
-                    this.set('running-total-column', '');
-                    this.set('enable-running-total', false);
-                    this.set('custom-headers', null);
-                    this.set('custom-data', null);
-                    this.set('table-headers', null);
-                    this.set('table-data', null);
-                    this.set('show-placeholder', true);
-                    this.updateTableHTML();
+                // Data has already been sliced in the state, just use it as-is
+                console.log(`📝 Using modified state with ${parsed.data?.length || 0} rows for continuation`);
+            }
 
-                    setTimeout(() => {
-                        this.updateFilterColumnOptions();
-                    }, 100);
-                });
+            // ✅ Restore ALL state including base tables
+            this.set('table-headers', parsed.headers || null, { silent: true });
+            this.set('table-data', parsed.data || null, { silent: true });
+            this.set('custom-headers', parsed.headers || null, { silent: true });
+            this.set('custom-data', parsed.data || null, { silent: true });
+            this.set('table-styles-applied', parsed.styles || null, { silent: true });
+            this.set('highlight-conditions', parsed.highlights || null, { silent: true });
 
-                this.on('change:json-path', () => {
-                    if (this._isRestoring) return;
-                    const tableType = this.get('table-type') || 'standard';
+            // ... rest of restoration code ...
+        }
+    } catch (e) {
+        console.warn('⚠️ json-table init rehydrate failed', e);
+        this._isRestoring = false;
+    }
+    // -- per-instance refresh for JSON File trait (no global flag) --
+    const refreshJsonFileTrait = () => {
+        const trait = this.getTrait('json-file-index');
+        if (!trait) return;
 
-                    if (tableType === 'crosstab') {
-                        this.updateTableFromJson();
-                        return;
-                    }
+        const opts = getJsonFileOptions(); // reads fresh from localStorage
+        trait.set('options', opts);
 
-                    this.updateTableFromJson();
-                    this.set('filter-column', '');
-                    this.set('filter-value', '');
-                    this.set('running-total-column', '');
-                    this.set('enable-running-total', false);
-                    this.set('custom-headers', null);
-                    this.set('custom-data', null);
+        if (!opts.length) {
+            this.set({ 'json-file-index': '', 'json-path': '' });
+            ['json-path', 'filter-column', 'running-total-column'].forEach(n => {
+                const t = this.getTrait(n);
+                if (t) {
+                    t.set('options', []);
+                    t.set('value', '');
+                    if (t.view && t.view.render) t.view.render();
+                }
+            });
+            if (trait.view && trait.view.render) trait.view.render();
+            return;
+        }
 
-                    setTimeout(() => {
-                        const jsonPathTrait = this.getTrait('json-path');
-                        if (jsonPathTrait) {
-                            const currentPath = this.get('json-path');
-                            jsonPathTrait.set('value', currentPath);
-                            if (jsonPathTrait.view && jsonPathTrait.view.render) {
-                                jsonPathTrait.view.render();
-                            }
-                        }
-                    }, 100);
-                });
+        const current = String(this.get('json-file-index') ?? '');
+        const stillExists = opts.some(o => String(o.value) === current);
+        const nextVal = stillExists ? current : String(opts[0].value);
 
-                this.on('change:table-type', () => {
-                    if (this._isRestoring) return;
-                    const tableType = this.get('table-type');
+        trait.set('value', nextVal);
+        this.set('json-file-index', nextVal);
 
-                    // Show/hide filter traits based on table type
-                    setTimeout(() => {
-                        const filterColumnTrait = this.getTrait('filter-column');
-                        const filterValueTrait = this.getTrait('filter-value');
-                        if (filterColumnTrait && filterColumnTrait.view)
-                            filterColumnTrait.view.el.style.display = tableType === 'crosstab' ? 'none' : 'block';
-                        if (filterValueTrait && filterValueTrait.view)
-                            filterValueTrait.view.el.style.display = tableType === 'crosstab' ? 'none' : 'block';
-                    }, 100);
+        if (trait.view && trait.view.render) trait.view.render();
 
-                    if (tableType === 'crosstab') {
-                        this.set('filter-column', '');
-                        this.set('filter-value', '');
-                        this.set('custom-headers', null);
-                        this.set('custom-data', null);
-                    }
+        if (this.get('json-path')) {
+            this.updateFilterColumnOptions?.();
+            this.updateRunningTotalColumnOptions?.();
+        }
 
-                    const jsonPath = this.get('json-path');
-                    if (jsonPath) {
-                        this.updateTableFromJson();
-                    }
-                });
+        if (nextVal !== current) {
+            if (typeof this.handleJsonFileChange === 'function') {
+                this.handleJsonFileChange();
+            } else {
+                this.trigger('change:json-file-index');
+            }
+        }
+    };
 
-                this.on('change:selected-running-total-columns', () => {
-                    if (this._isRestoring) return;
-                    this.updateRunningTotals();
-                });
+    // 1) immediately populate for this instance (new OR restored)
+    refreshJsonFileTrait();
 
-                this.on('change:filter-column', () => {
-                    if (this._isRestoring) return;
-                    const filterColumn = this.get('filter-column');
-                    const filterValue = this.get('filter-value');
+    // 2) listen for add/delete updates for THIS instance
+    const onFilesUpdated = () => refreshJsonFileTrait();
+    window.addEventListener('common-json-files-updated', onFilesUpdated);
 
-                    if (filterColumn === "none") {
-                        this.loadFilteredData();
-                        return;
-                    }
+    // 3) clean up when this component is removed
+    this.once('remove', () => {
+        window.removeEventListener('common-json-files-updated', onFilesUpdated);
+    });
 
-                    if (filterColumn && filterValue && filterValue.trim() !== '') {
-                        this.loadFilteredData();
-                    } else if (!filterColumn) {
-                        this.set('custom-headers', null);
-                        this.set('custom-data', null);
-                        this.set('show-placeholder', true);
-                        this.updateTableHTML();
-                    }
-                });
+    // ✅ CRITICAL: Restore state IMMEDIATELY before anything else
+    try {
+        const attrs = this.getAttributes ? this.getAttributes() : {};
+        const encoded = attrs && attrs['data-json-state'];
 
-                this.on('change:filter-value', () => {
-                    if (this._isRestoring) return;
-                    const filterColumn = this.get('filter-column');
-                    const filterValue = this.get('filter-value');
+        if (encoded) {
+            console.log('📦 Found data-json-state, restoring...');
+            const parsed = JSON.parse(decodeURIComponent(encoded));
 
-                    if (filterColumn === "none") {
-                        return;
-                    }
+            console.log('📊 Restoring state:', {
+                hasHeaders: !!parsed.headers,
+                hasData: !!parsed.data,
+                dataRows: parsed.data?.length || 0,
+                headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
+            });
 
-                    if (filterColumn && filterValue && filterValue.trim() !== '') {
-                        this.loadFilteredData();
-                    } else if (!filterValue || filterValue.trim() === '') {
-                        this.set('custom-headers', null);
-                        this.set('custom-data', null);
-                        this.set('show-placeholder', true);
-                        this.updateTableHTML();
-                    }
-                });
+            // ✅ Restore ALL state including base tables
+            this.set('table-headers', parsed.headers || null, { silent: true });
+            this.set('table-data', parsed.data || null, { silent: true });
+            this.set('custom-headers', parsed.headers || null, { silent: true });
+            this.set('custom-data', parsed.data || null, { silent: true });
+            this.set('table-styles-applied', parsed.styles || null, { silent: true });
+            this.set('highlight-conditions', parsed.highlights || null, { silent: true });
 
-                this.on('change:grouping-fields change:summary-fields change:sort-order change:top-n change:summarize-group change:merge-group-cells change:show-summary-only change:grand-total', () => {
-                    if (this._isRestoring) return;
-                    this.applyGroupingAndSummary();
-                });
+            if (parsed.filter) {
+                this.set('filter-column', parsed.filter.column || '', { silent: true });
+                this.set('filter-value', parsed.filter.value || '', { silent: true });
+            }
+            if (parsed.meta) {
+                this.set('table-type', parsed.meta.tableType || 'standard', { silent: true });
+                this.set('caption', parsed.meta.caption || 'no', { silent: true });
+                this.set('page-length', parsed.meta.pageLength || 10, { silent: true });
+                this.set('pagination', parsed.meta.pagination || 'no', { silent: true });
+                this.set('search', parsed.meta.search || 'no', { silent: true });
+                this.set('file-download', parsed.meta.fileDownload || '', { silent: true });
+            }
 
-                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', () => {
-                    if (this._isRestoring) return;
-                    this.updateDataTableSettings();
-                });
+            // ✅ CRITICAL: Set show-placeholder based on data presence
+            const hasValidData = parsed.headers && parsed.data &&
+                (Array.isArray(parsed.data) ? parsed.data.length > 0 : true);
 
-                this.on('change:highlight-conditions change:highlight-color', () => {
-                    if (this._isRestoring) return;
-                    this.handleHighlightChange();
-                });
+            this.set('show-placeholder', !hasValidData, { silent: true });
 
-                this.on('change:table-border-style change:table-border-width change:table-border-color change:table-border-opacity change:table-bg-color change:table-text-color change:table-font-family change:table-text-align change:table-vertical-align', () => {
-                    if (this._isRestoring) return;
-                    this.applyTableStyles();
-                });
+            console.log('✅ State restored in init():', {
+                showPlaceholder: this.get('show-placeholder'),
+                hasCustomHeaders: !!this.get('custom-headers'),
+                hasCustomData: !!this.get('custom-data')
+            });
 
-                this.set('show-placeholder', true);
+            // Clear restoring flag before rebuild
+            this._isRestoring = false;
+
+            // Rebuild HTML with restored state after a short delay
+            setTimeout(() => {
+                console.log('🔨 Triggering updateTableHTML from init()');
                 this.updateTableHTML();
+            }, 0);
 
-                // --- Preserve component data before Code panel open ---
-                editor.on('component:update', (component) => {
-                    if (component.get('type') === 'json-table') {
-                        const jsonPath = component.get('json-path');
-                        const customData = component.get('custom-data');
-                        const customHeaders = component.get('custom-headers');
+            // ✅ Exit early for restored components (skip normal init)
+            return;
+        } else {
+            console.log('ℹ️ No data-json-state found, this is a new component');
+            this._isRestoring = false;
+        }
+    } catch (e) {
+        console.warn('⚠️ json-table init rehydrate failed', e);
+        this._isRestoring = false;
+    }
 
-                        if (jsonPath) component.set('_preserved_json_path', jsonPath);
-                        if (customData) component.set('_preserved_custom_data', customData);
-                        if (customHeaders) component.set('_preserved_custom_headers', customHeaders);
-                    }
-                });
+    // 🔹 Continue with normal initialization for NEW components only
+    this.on('change:json-file-index', () => {
+        if (this._isRestoring) return;
+        this.set('json-path', '');
+        this.set('filter-column', '');
+        this.set('filter-value', '');
+        this.set('running-total-column', '');
+        this.set('enable-running-total', false);
+        this.set('custom-headers', null);
+        this.set('custom-data', null);
+        this.set('table-headers', null);
+        this.set('table-data', null);
+        this.set('show-placeholder', true);
+        this.updateTableHTML();
 
-                // --- Restore after Code editor Apply ---
-                editor.on('run:core:open-code:after', () => {
-                    const wrapper = editor.DomComponents.getWrapper();
-                    const jsonTables = wrapper.find('[data-gjs-type="json-table"]');
-                    jsonTables.forEach(table => {
-                        const preservedPath = table.get('_preserved_json_path');
-                        const preservedData = table.get('_preserved_custom_data');
-                        const preservedHeaders = table.get('_preserved_custom_headers');
+        setTimeout(() => {
+            this.updateFilterColumnOptions();
+        }, 100);
+    });
 
-                        if (preservedPath) table.set('json-path', preservedPath);
-                        if (preservedData) table.set('custom-data', preservedData);
-                        if (preservedHeaders) table.set('custom-headers', preservedHeaders);
+    this.on('change:json-path', () => {
+        if (this._isRestoring) return;
+        const tableType = this.get('table-type') || 'standard';
 
-                        setTimeout(() => {
-                            table.updateTableHTML();
-                        }, 100);
-                    });
-                });
+        if (tableType === 'crosstab') {
+            this.updateTableFromJson();
+            return;
+        }
 
-                this.on('change:custom-data change:table-data', () => {
-                    setTimeout(() => {
-                        this.triggerAutoPagination();
-                    }, 500);
-                });
+        this.updateTableFromJson();
+        this.set('filter-column', '');
+        this.set('filter-value', '');
+        this.set('running-total-column', '');
+        this.set('enable-running-total', false);
+        this.set('custom-headers', null);
+        this.set('custom-data', null);
 
-                // --- rehydrate all json-table components after Code panel Apply ---
-                try {
-                    const ed = this.em && this.em.get ? this.em.get('Editor') : this.em;
-                    if (ed && !ed.__jsonTableCodeHydrateBound) {
-                        ed.__jsonTableCodeHydrateBound = true;
-
-                        ed.on('run:core:open-code', () => {
-                            ed.getWrapper().findType('json-table').forEach(cmp => {
-                                const st = {
-                                    headers: cmp.get('custom-headers') || cmp.get('table-headers') || null,
-                                    data: cmp.get('custom-data') || cmp.get('table-data') || null,
-                                    styles: cmp.get('table-styles-applied') || null,
-                                    highlights: cmp.get('highlight-conditions') || null,
-                                    filter: {
-                                        column: cmp.get('filter-column') || null,
-                                        value: cmp.get('filter-value') || null
-                                    },
-                                    meta: {
-                                        tableType: cmp.get('table-type') || 'standard',
-                                        caption: cmp.get('caption') || 'no',
-                                        pageLength: cmp.get('page-length') || 10,
-                                        pagination: cmp.get('pagination') || 'no',
-                                        search: cmp.get('search') || 'no',
-                                        fileDownload: cmp.get('file-download') || ''
-                                    }
-                                };
-                                cmp.addAttributes({ 'data-json-state': encodeURIComponent(JSON.stringify(st)) });
-                            });
-                        });
-
-                        ed.on('stop:core:open-code', () => {
-                            console.log('🔄 Code editor closed - components will restore via init()');
-                            setTimeout(() => {
-                                console.log('✅ Rehydration should be complete');
-                                const jsonTables = ed.getWrapper().findType('json-table');
-                                jsonTables.forEach(cmp => {
-                                    const tableElement = cmp.view?.el?.querySelector('.json-data-table');
-                                    if (tableElement && tableElement.id) {
-                                        const conditions = cmp.get('highlight-conditions');
-                                        const color = cmp.get('highlight-color');
-                                        if (conditions && conditions.length > 0) {
-                                            applyHighlighting(tableElement.id, conditions, color);
-                                        }
-                                    }
-                                });
-                            }, 300);
-                        });
-                    }
-                } catch (e) {
-                    console.warn('json-table rehydrate binding failed', e);
+        setTimeout(() => {
+            const jsonPathTrait = this.getTrait('json-path');
+            if (jsonPathTrait) {
+                const currentPath = this.get('json-path');
+                jsonPathTrait.set('value', currentPath);
+                if (jsonPathTrait.view && jsonPathTrait.view.render) {
+                    jsonPathTrait.view.render();
                 }
-            },
+            }
+        }, 100);
+    });
+
+    this.on('change:table-type', () => {
+        if (this._isRestoring) return;
+        const tableType = this.get('table-type');
+
+        // Show/hide filter traits based on table type
+        setTimeout(() => {
+            const filterColumnTrait = this.getTrait('filter-column');
+            const filterValueTrait = this.getTrait('filter-value');
+            if (filterColumnTrait && filterColumnTrait.view)
+                filterColumnTrait.view.el.style.display = tableType === 'crosstab' ? 'none' : 'block';
+            if (filterValueTrait && filterValueTrait.view)
+                filterValueTrait.view.el.style.display = tableType === 'crosstab' ? 'none' : 'block';
+        }, 100);
+
+        if (tableType === 'crosstab') {
+            this.set('filter-column', '');
+            this.set('filter-value', '');
+            this.set('custom-headers', null);
+            this.set('custom-data', null);
+        }
+
+        const jsonPath = this.get('json-path');
+        if (jsonPath) {
+            this.updateTableFromJson();
+        }
+    });
+
+    this.on('change:selected-running-total-columns', () => {
+        if (this._isRestoring) return;
+        this.updateRunningTotals();
+    });
+
+    this.on('change:filter-column', () => {
+        if (this._isRestoring) return;
+        const filterColumn = this.get('filter-column');
+        const filterValue = this.get('filter-value');
+
+        if (filterColumn === "none") {
+            this.loadFilteredData();
+            return;
+        }
+
+        if (filterColumn && filterValue && filterValue.trim() !== '') {
+            this.loadFilteredData();
+        } else if (!filterColumn) {
+            this.set('custom-headers', null);
+            this.set('custom-data', null);
+            this.set('show-placeholder', true);
+            this.updateTableHTML();
+        }
+    });
+
+    this.on('change:filter-value', () => {
+        if (this._isRestoring) return;
+        const filterColumn = this.get('filter-column');
+        const filterValue = this.get('filter-value');
+
+        if (filterColumn === "none") {
+            return;
+        }
+
+        if (filterColumn && filterValue && filterValue.trim() !== '') {
+            this.loadFilteredData();
+        } else if (!filterValue || filterValue.trim() === '') {
+            this.set('custom-headers', null);
+            this.set('custom-data', null);
+            this.set('show-placeholder', true);
+            this.updateTableHTML();
+        }
+    });
+
+    this.on('change:grouping-fields change:summary-fields change:sort-order change:top-n change:summarize-group change:merge-group-cells change:show-summary-only change:grand-total', () => {
+        if (this._isRestoring) return;
+        this.applyGroupingAndSummary();
+    });
+
+    this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', () => {
+        if (this._isRestoring) return;
+        this.updateDataTableSettings();
+    });
+
+    this.on('change:highlight-conditions change:highlight-color', () => {
+        if (this._isRestoring) return;
+        this.handleHighlightChange();
+    });
+
+    this.on('change:table-border-style change:table-border-width change:table-border-color change:table-border-opacity change:table-bg-color change:table-text-color change:table-font-family change:table-text-align change:table-vertical-align', () => {
+        if (this._isRestoring) return;
+        this.applyTableStyles();
+    });
+
+    this.set('show-placeholder', true);
+    this.updateTableHTML();
+
+    // --- Preserve component data before Code panel open ---
+    editor.on('component:update', (component) => {
+        if (component.get('type') === 'json-table') {
+            const jsonPath = component.get('json-path');
+            const customData = component.get('custom-data');
+            const customHeaders = component.get('custom-headers');
+
+            if (jsonPath) component.set('_preserved_json_path', jsonPath);
+            if (customData) component.set('_preserved_custom_data', customData);
+            if (customHeaders) component.set('_preserved_custom_headers', customHeaders);
+        }
+    });
+
+    // --- Restore after Code editor Apply ---
+    editor.on('run:core:open-code:after', () => {
+        const wrapper = editor.DomComponents.getWrapper();
+        const jsonTables = wrapper.find('[data-gjs-type="json-table"]');
+        jsonTables.forEach(table => {
+            const preservedPath = table.get('_preserved_json_path');
+            const preservedData = table.get('_preserved_custom_data');
+            const preservedHeaders = table.get('_preserved_custom_headers');
+
+            if (preservedPath) table.set('json-path', preservedPath);
+            if (preservedData) table.set('custom-data', preservedData);
+            if (preservedHeaders) table.set('custom-headers', preservedHeaders);
+
+            setTimeout(() => {
+                table.updateTableHTML();
+            }, 100);
+        });
+    });
+
+    this.on('change:custom-data change:table-data', () => {
+        setTimeout(() => {
+            this.triggerAutoPagination();
+        }, 500);
+    });
+
+    // --- rehydrate all json-table components after Code panel Apply ---
+    try {
+        const ed = this.em && this.em.get ? this.em.get('Editor') : this.em;
+        if (ed && !ed.__jsonTableCodeHydrateBound) {
+            ed.__jsonTableCodeHydrateBound = true;
+
+            ed.on('run:core:open-code', () => {
+                ed.getWrapper().findType('json-table').forEach(cmp => {
+                    const st = {
+                        headers: cmp.get('custom-headers') || cmp.get('table-headers') || null,
+                        data: cmp.get('custom-data') || cmp.get('table-data') || null,
+                        styles: cmp.get('table-styles-applied') || null,
+                        highlights: cmp.get('highlight-conditions') || null,
+                        filter: {
+                            column: cmp.get('filter-column') || null,
+                            value: cmp.get('filter-value') || null
+                        },
+                        meta: {
+                            tableType: cmp.get('table-type') || 'standard',
+                            caption: cmp.get('caption') || 'no',
+                            pageLength: cmp.get('page-length') || 10,
+                            pagination: cmp.get('pagination') || 'no',
+                            search: cmp.get('search') || 'no',
+                            fileDownload: cmp.get('file-download') || ''
+                        }
+                    };
+                    cmp.addAttributes({ 'data-json-state': encodeURIComponent(JSON.stringify(st)) });
+                });
+            });
+
+            ed.on('stop:core:open-code', () => {
+                console.log('🔄 Code editor closed - components will restore via init()');
+                setTimeout(() => {
+                    console.log('✅ Rehydration should be complete');
+                    const jsonTables = ed.getWrapper().findType('json-table');
+                    jsonTables.forEach(cmp => {
+                        const tableElement = cmp.view?.el?.querySelector('.json-data-table');
+                        if (tableElement && tableElement.id) {
+                            const conditions = cmp.get('highlight-conditions');
+                            const color = cmp.get('highlight-color');
+                            if (conditions && conditions.length > 0) {
+                                applyHighlighting(tableElement.id, conditions, color);
+                            }
+                        }
+                    });
+                }, 300);
+            });
+        }
+    } catch (e) {
+        console.warn('json-table rehydrate binding failed', e);
+    }
+},
+
             triggerAutoPagination() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
@@ -2166,197 +2176,225 @@ function jsontablecustom(editor) {
                 }
             },
 
-            updateTableHTML() {
-                console.log('🔨 updateTableHTML called');
+updateTableHTML() {
+    console.log('🔨 updateTableHTML called');
 
-                // Log current state
-                const headers = this.get('custom-headers');
-                const data = this.get('custom-data');
-                console.log('📋 Current state:', {
-                    hasHeaders: !!headers,
-                    hasData: !!data,
-                    headerCount: headers ? Object.keys(headers).length : 0,
-                    dataRows: data?.length || 0,
-                    showPlaceholder: this.get('show-placeholder')
-                });
+    // Log current state
+    const headers = this.get('custom-headers');
+    const data = this.get('custom-data');
+    console.log('📋 Current state:', {
+        hasHeaders: !!headers,
+        hasData: !!data,
+        headerCount: headers ? Object.keys(headers).length : 0,
+        dataRows: data?.length || 0,
+        showPlaceholder: this.get('show-placeholder')
+    });
 
-                // --- persist component state so Code panel Apply can rehydrate ---
-                const _stateForDom = (() => {
-                    return {
-                        headers: this.get('custom-headers') || this.get('table-headers') || null,
-                        data: this.get('custom-data') || this.get('table-data') || null,
-                        styles: this.get('table-styles-applied') || null,
-                        highlights: this.get('highlight-conditions') || null,
-                        filter: {
-                            column: this.get('filter-column') || null,
-                            value: this.get('filter-value') || null
-                        },
-                        meta: {
-                            tableType: this.get('table-type') || 'standard',
-                            caption: this.get('caption') || 'no',
-                            pageLength: this.get('page-length') || 10,
-                            pagination: this.get('pagination') || 'no',
-                            search: this.get('search') || 'no',
-                            fileDownload: this.get('file-download') || ''
-                        }
-                    };
-                })();
-
-                console.log('💾 Saving state to DOM:', {
-                    hasHeaders: !!_stateForDom.headers,
-                    hasData: !!_stateForDom.data,
-                    stateSize: JSON.stringify(_stateForDom).length
-                });
-
-                this.addAttributes({
-                    'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
-                });
-                // ----------------------------------------------------------------
-
-                const name = this.get('name') || 'Table';
-                const title = this.get('title') || '';
-                const footer = this.get('footer') || 'no';
-                const pagination = this.get('pagination') || 'no';
-                const pageLength = this.get('page-length') || 10;
-                const search = this.get('search') || 'no';
-                const caption = this.get('caption') || 'no';
-                const captionAlign = this.get('caption-align') || 'left';
-                const fileDownload = this.get('file-download') || '';
-                const showPlaceholder = this.get('show-placeholder');
-
-                // Generate unique table ID
-                const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
-
-                console.log('🆔 Table ID:', tableId);
-
-                // Clear existing components but preserve the main container
-                const existingComponents = this.components();
-                existingComponents.reset();
-
-                // Handle placeholder state
-                if (showPlaceholder || !headers || !data) {
-                    console.log('📝 Showing placeholder because:', {
-                        showPlaceholder,
-                        noHeaders: !headers,
-                        noData: !data
-                    });
-                    this.addPlaceholderComponent();
-                    return;
-                }
-
-                console.log('✅ Building table with', data.length, 'rows and', Object.keys(headers).length, 'columns');
-
-                // Add main wrapper component
-                const wrapperComponent = this.components().add({
-                    type: 'default',
-                    tagName: 'div',
-                    selectable: false,
-                    classes: ['json-table-wrapper'],
-                    style: {
-                        'width': '99.5%',
-                        'padding-top': '10px',      // Added
-                        'padding-bottom': '10px'    // Added
-                    }
-                });
-
-                // Add title if present
-                if (title) {
-                    wrapperComponent.components().add({
-                        type: 'text',
-                        tagName: 'h3',
-                        content: title,
-                        style: {
-                            'margin-bottom': '15px'
-                        }
-                    });
-                }
-
-                // Add the main table component - THIS IS KEY: it remains a GrapesJS component
-                const tableComponent = wrapperComponent.components().add({
-                    type: 'default',
-                    tagName: 'table',
-                    classes: ['json-data-table', 'table', 'table-striped', 'table-bordered'],
-                    attributes: {
-                        id: tableId,
-                        width: '100%',
-                    },
-                    style: {
-                        'width': '100%',
-                        'border-collapse': 'collapse',
-                        'border': '1px solid #ddd',
-                        'font-family': 'Arial, sans-serif',
-                        'my-input-json': this.get('json-path') || ''
-                    }
-                });
-
-                // Add caption if enabled
-                if (caption === 'yes' && name) {
-                    tableComponent.components().add({
-                        type: 'text',
-                        tagName: 'caption',
-                        content: name,
-                        style: {
-                            'text-align': captionAlign,
-                            'padding': '10px',
-                            'font-weight': 'bold',
-                            'background-color': '#f8f9fa'
-                        }
-                    });
-                }
-
-                // Check if this is a crosstab table
-                const isCrosstab = this.get('crosstab-structure') !== undefined;
-
-                if (isCrosstab) {
-                    console.log('🔁 Crosstab table detected, using merged rendering');
-                    this.addCrosstabTableWithMerges(tableComponent, tableId);
-                } else {
-                    console.log('📊 Rendering standard table (no merges)');
-                    this.addTableHeader(tableComponent, headers, tableId);
-                    this.addTableBody(tableComponent, headers, data, tableId);
-                }
-
-                // Add footer if enabled (for standard tables only)
-                if (!isCrosstab && footer === 'yes') {
-                    console.log('🦶 Adding table footer');
-                    this.addTableFooter(tableComponent, headers);
-                }
-
-                // Add DataTables initialization script AFTER the GrapesJS components are created
-                console.log('⚙️ Adding DataTables script with settings:', {
-                    pagination,
-                    pageLength,
-                    search,
-                    fileDownload,
-                    columns: Object.keys(headers).length
-                });
-
-                const datatableScript = this.createDataTableScript(
-                    tableId,
-                    pagination,
-                    pageLength,
-                    search,
-                    fileDownload,
-                    Object.keys(headers).length
-                );
-                wrapperComponent.components().add(datatableScript);
-
-                // Apply highlighting and formulas after DOM is ready
-                setTimeout(() => {
-                    const conditions = this.getHighlightConditions();
-                    const color = this.get('highlight-color');
-                    if (conditions && conditions.length > 0) {
-                        console.log('✨ Applying conditional highlighting:', { count: conditions.length, color });
-                        applyHighlighting(tableId, conditions, color);
-                    } else {
-                        console.log('⚪ No highlight conditions found.');
-                    }
-
-                    // Enable formula editing on the GrapesJS components
-                    console.log('🧮 Enabling formula editing on components for', tableId);
-                    this.enableFormulaEditingOnComponents(tableId);
-                }, 500);
+    // --- persist component state so Code panel Apply can rehydrate ---
+    const _stateForDom = (() => {
+        return {
+            headers: this.get('custom-headers') || this.get('table-headers') || null,
+            data: this.get('custom-data') || this.get('table-data') || null,
+            styles: this.get('table-styles-applied') || null,
+            highlights: this.get('highlight-conditions') || null,
+            filter: {
+                column: this.get('filter-column') || null,
+                value: this.get('filter-value') || null
             },
+            meta: {
+                tableType: this.get('table-type') || 'standard',
+                caption: this.get('caption') || 'no',
+                pageLength: this.get('page-length') || 10,
+                pagination: this.get('pagination') || 'no',
+                search: this.get('search') || 'no',
+                fileDownload: this.get('file-download') || ''
+            }
+        };
+    })();
+
+    console.log('💾 Saving state to DOM:', {
+        hasHeaders: !!_stateForDom.headers,
+        hasData: !!_stateForDom.data,
+        stateSize: JSON.stringify(_stateForDom).length
+    });
+
+    this.addAttributes({
+        'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
+    });
+    // ----------------------------------------------------------------
+
+    const name = this.get('name') || 'Table';
+    const title = this.get('title') || '';
+    const footer = this.get('footer') || 'no';
+    const pagination = this.get('pagination') || 'no';
+    const pageLength = this.get('page-length') || 10;
+    const search = this.get('search') || 'no';
+    const caption = this.get('caption') || 'no';
+    const captionAlign = this.get('caption-align') || 'left';
+    const fileDownload = this.get('file-download') || '';
+    const showPlaceholder = this.get('show-placeholder');
+
+    // Generate unique table ID
+    const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
+
+    console.log('🆔 Table ID:', tableId);
+
+    // Clear existing components but preserve the main container
+    const existingComponents = this.components();
+    existingComponents.reset();
+
+    // Handle placeholder state
+    if (showPlaceholder || !headers || !data) {
+        console.log('📝 Showing placeholder because:', {
+            showPlaceholder,
+            noHeaders: !headers,
+            noData: !data
+        });
+        this.addPlaceholderComponent();
+        return;
+    }
+
+    console.log('✅ Building table with', data.length, 'rows and', Object.keys(headers).length, 'columns');
+
+    // Add main wrapper component
+    const wrapperComponent = this.components().add({
+        type: 'default',
+        tagName: 'div',
+        selectable: false,
+        classes: ['json-table-wrapper'],
+        style: {
+            'width': '99.5%',
+            'padding-top': '10px',      // Added
+            'padding-bottom': '10px'    // Added
+        }
+    });
+
+    // Add title if present
+    if (title) {
+        wrapperComponent.components().add({
+            type: 'text',
+            tagName: 'h3',
+            content: title,
+            style: {
+                'margin-bottom': '15px'
+            }
+        });
+    }
+
+    // Add the main table component - THIS IS KEY: it remains a GrapesJS component
+    const tableComponent = wrapperComponent.components().add({
+        type: 'default',
+        tagName: 'table',
+        classes: ['json-data-table', 'table', 'table-striped', 'table-bordered'],
+        attributes: {
+            id: tableId,
+            width: '100%',
+        },
+        style: {
+            'width': '100%',
+            'border-collapse': 'collapse',
+            'border': '1px solid #ddd',
+            'font-family': 'Arial, sans-serif',
+            'my-input-json': this.get('json-path') || ''
+        }
+    });
+
+    // Add caption if enabled
+    if (caption === 'yes' && name) {
+        tableComponent.components().add({
+            type: 'text',
+            tagName: 'caption',
+            content: name,
+            style: {
+                'text-align': captionAlign,
+                'padding': '10px',
+                'font-weight': 'bold',
+                'background-color': '#f8f9fa'
+            }
+        });
+    }
+
+    // Check if this is a crosstab table
+    const isCrosstab = this.get('crosstab-structure') !== undefined;
+
+    if (isCrosstab) {
+        console.log('🔁 Crosstab table detected, using merged rendering');
+        this.addCrosstabTableWithMerges(tableComponent, tableId);
+    } else {
+        console.log('📊 Rendering standard table (no merges)');
+        this.addTableHeader(tableComponent, headers, tableId);
+        this.addTableBody(tableComponent, headers, data, tableId);
+    }
+
+    // Add footer if enabled (for standard tables only)
+    if (!isCrosstab && footer === 'yes') {
+        console.log('🦶 Adding table footer');
+        this.addTableFooter(tableComponent, headers);
+    }
+
+    // Add DataTables initialization script AFTER the GrapesJS components are created
+    console.log('⚙️ Adding DataTables script with settings:', {
+        pagination,
+        pageLength,
+        search,
+        fileDownload,
+        columns: Object.keys(headers).length
+    });
+
+    const datatableScript = this.createDataTableScript(
+        tableId,
+        pagination,
+        pageLength,
+        search,
+        fileDownload,
+        Object.keys(headers).length
+    );
+    wrapperComponent.components().add(datatableScript);
+
+    // Apply highlighting and formulas after DOM is ready
+    setTimeout(() => {
+        const conditions = this.getHighlightConditions();
+        const color = this.get('highlight-color');
+        if (conditions && conditions.length > 0) {
+            console.log('✨ Applying conditional highlighting:', { count: conditions.length, color });
+            applyHighlighting(tableId, conditions, color);
+        } else {
+            console.log('⚪ No highlight conditions found.');
+        }
+
+        // Enable formula editing on the GrapesJS components
+        console.log('🧮 Enabling formula editing on components for', tableId);
+        this.enableFormulaEditingOnComponents(tableId);
+    }, 500);
+
+    // ✅ Remove header if this is a continuation table without header preference
+    if (this.get('_remove-header-on-build')) {
+        setTimeout(() => {
+            try {
+                // Try to resolve editor instance reliably
+                const ed = (typeof editor !== 'undefined' && editor) ? editor : (this.em && this.em.get ? this.em.get('Editor') : this.em);
+                const canvasDoc = ed && ed.Canvas ? ed.Canvas.getDocument() : (document); // fallback to global document if necessary
+                const tableElement = canvasDoc.getElementById(tableId);
+                if (tableElement) {
+                    const thead = tableElement.querySelector('thead');
+                    if (thead) {
+                        thead.remove();
+                        console.log('🗑️ Removed header from continuation table in updateTableHTML');
+                    } else {
+                        console.log('ℹ️ No thead found to remove for', tableId);
+                    }
+                } else {
+                    console.warn('⚠️ Could not find table element to remove header:', tableId);
+                }
+            } catch (err) {
+                console.warn('⚠️ Error while attempting to remove header from continuation table:', err);
+            } finally {
+                this.set('_remove-header-on-build', false, { silent: true });
+            }
+        }, 100);
+    }
+},
+
 
             updateDataJsonState() {
                 // Update the data-json-state attribute with current state

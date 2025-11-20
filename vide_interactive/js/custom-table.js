@@ -9,7 +9,38 @@ function customTable(editor) {
       class: 'fa fa-table',
     },
   });
+  editor.Components.addType('row', {
+    isComponent: el => el.tagName === 'TR',
+    model: {
+      defaults: {
+        selectable: false,
+        hoverable: false,
+        layerable: false,
+      }
+    }
+  });
 
+  editor.Components.addType('tbody', {
+    isComponent: el => el.tagName === 'TBODY',
+    model: {
+      defaults: {
+        selectable: false,
+        hoverable: false,
+        layerable: false,
+      }
+    }
+  });
+
+  editor.Components.addType('thead', {
+    isComponent: el => el.tagName === 'THEAD',
+    model: {
+      defaults: {
+        selectable: false,
+        hoverable: false,
+        layerable: false,
+      }
+    }
+  });
   // Function to show toast/warning
   function showToast(message, type = 'warning') {
     const toast = document.createElement('div');
@@ -2769,8 +2800,9 @@ function customTable(editor) {
                     </fieldset>
                 </div>
                 
+                <!--
                 <div>
-                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
                         <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
                         <div id="column-reorder-section">
                             <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
@@ -2782,8 +2814,8 @@ function customTable(editor) {
                                 </button>
                             </div>
                         </div>
-                    </fieldset>
-                </div>
+                  </fieldset>
+                </div> -->
             </div>
         </div>
 
@@ -3082,7 +3114,7 @@ function customTable(editor) {
     </div>
     <div>
       <label>Header Columns</label>
-      <input type="number" value="0" id="nHeaderColumns" min="0">
+      <input type="number" value="1" id="nHeaderColumns" min="0">
     </div>
     <div>
       <label>Body Rows</label>
@@ -3154,8 +3186,8 @@ function customTable(editor) {
     table.setAttribute('class', 'table table-striped table-bordered');
     table.setAttribute('id', 'table' + uniqueID);
     table.style.paddingBottom = '10px';
-    table.style.display = 'inline';       // inline wrapper
-table.style.position = 'absolute'; 
+    //table.style.display = 'inline';       // inline wrapper
+    //table.style.position = 'absolute'; 
 
     if (tblCaption) {
       let caption = document.createElement('caption');
@@ -4014,57 +4046,54 @@ table.style.position = 'absolute';
     if (!tableElem) return;
 
     tableElem.querySelectorAll('td, th').forEach(cell => {
-      if (cell.hasAttribute('data-formula-enabled')) return;
-
-      cell.contentEditable = "true";
+      let inner = cell.querySelector('div');
+      if (!inner) {
+        inner = iframeDoc.createElement('div');
+        inner.textContent = cell.textContent.trim();
+        cell.innerHTML = '';
+        cell.appendChild(inner);
+      }
+      inner.contentEditable = "true";
       cell.setAttribute('data-formula-enabled', 'true');
 
-      cell.addEventListener('focus', function () {
-        let formula = this.getAttribute('data-formula');
-        if (formula) this.innerText = formula;
+      inner.addEventListener('focus', function () {
+        let formula = cell.getAttribute('data-formula');
+        if (formula) this.textContent = formula;
       });
 
-      cell.addEventListener('blur', function () {
-        const cell = this;
-        let val = cell.innerText.trim();
-
+      inner.addEventListener('blur', function () {
+        let val = this.textContent.trim();
         if (val.startsWith('=')) {
           cell.setAttribute('data-formula', val);
           try {
             const formulaContent = val.substring(1).trim();
             if (!formulaContent) throw new Error('Empty formula');
-
             const res = parser.parse(formulaContent);
             if (res.error) throw new Error(res.error);
-
-            // ✅ Format result based on type
             let result = res.result;
             if (typeof result === 'number') {
               result = Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
             }
-
-            cell.innerText = (result !== undefined && result !== null) ? result : '#ERROR';
+            this.textContent = (result !== undefined && result !== null) ? result : '#ERROR';
             cell.classList.remove('formula-error');
-
           } catch (error) {
             console.warn('Formula parsing error:', error);
-            cell.innerText = '#ERROR';
+            this.textContent = '#ERROR';
             cell.classList.add('formula-error');
           }
         } else {
           cell.removeAttribute('data-formula');
-          cell.innerText = val;
+          this.textContent = val;
           cell.classList.remove('formula-error');
         }
       });
 
-      cell.addEventListener('keydown', function (e) {
+      inner.addEventListener('keydown', function (e) {
         if (e.key === 'Tab') {
           e.preventDefault();
           const table = this.closest('table');
-          const allCells = Array.from(table.querySelectorAll('td, th'));
+          const allCells = Array.from(table.querySelectorAll('td div, th div'));
           const currentIndex = allCells.indexOf(this);
-
           let nextIndex;
           if (e.shiftKey) {
             nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
@@ -4408,46 +4437,336 @@ table.style.position = 'absolute';
       });
     });
 
-    // ************************************************************
-    // ✅ NEW FIX — Replace Row/Column Listeners by Cloning Buttons
-    // ************************************************************
-    const addRowsBtn = document.getElementById('add-rows');
-    const removeRowsBtn = document.getElementById('remove-rows');
-    const addColumnsBtn = document.getElementById('add-columns');
-    const removeColumnsBtn = document.getElementById('remove-columns');
-
-    // Clone buttons to remove previous listeners
-    const newAddRowsBtn = addRowsBtn.cloneNode(true);
-    const newRemoveRowsBtn = removeRowsBtn.cloneNode(true);
-    const newAddColumnsBtn = addColumnsBtn.cloneNode(true);
-    const newRemoveColumnsBtn = removeColumnsBtn.cloneNode(true);
-
-    addRowsBtn.parentNode.replaceChild(newAddRowsBtn, addRowsBtn);
-    removeRowsBtn.parentNode.replaceChild(newRemoveRowsBtn, removeRowsBtn);
-    addColumnsBtn.parentNode.replaceChild(newAddColumnsBtn, addColumnsBtn);
-    removeColumnsBtn.parentNode.replaceChild(newRemoveColumnsBtn, removeColumnsBtn);
-
-    newAddRowsBtn.addEventListener('click', function () {
+    // Row/Column operations - attach directly without cloning
+    document.getElementById('add-rows').addEventListener('click', function () {
       const count = parseInt(document.getElementById('row-count').value) || 1;
-      addTableRows(component, count);
-      showToast(`Added ${count} row(s)`, 'success');
+      const tableId = component.getId();
+
+      // Get the table component
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+      if (!tableComponent) {
+        showToast('Table component not found', 'error');
+        return;
+      }
+
+      // Get tbody component
+      const tbodyComponent = tableComponent.find('tbody')[0];
+      if (!tbodyComponent) {
+        showToast('Table body not found', 'error');
+        return;
+      }
+
+      // Get the first existing body row (to determine total columns)
+      const firstRowComponent = tbodyComponent.find('tr')[0];
+      if (!firstRowComponent) {
+        showToast('No rows to copy structure from', 'error');
+        return;
+      }
+
+      const cellComponents = firstRowComponent.find('td, th');
+      const cellCount = cellComponents.length;
+
+      // --- Detect header column structure ---
+      const headerRow = tableComponent.find('thead tr')[0];
+      const headerCells = headerRow ? headerRow.find('th') : null;
+
+      // Destroy DataTable first
+      const canvasDoc = editor.Canvas.getDocument();
+      const win = canvasDoc.defaultView;
+      const tableElement = canvasDoc.getElementById(tableId);
+
+      let wasDataTable = false;
+      let dtOptions = null;
+
+      if (win.$ && win.$.fn.DataTable && tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
+        wasDataTable = true;
+        const dt = win.$(tableElement).DataTable();
+        dtOptions = dt.settings()[0].oInit;
+        dt.destroy();
+      }
+
+      // --- Add rows with correct TH/TD matching header ---
+      for (let i = 0; i < count; i++) {
+        const newRowCells = [];
+
+        for (let col = 0; col < cellCount; col++) {
+          const isHeaderColumn = headerCells && headerCells[col] ? true : false;
+
+          newRowCells.push({
+            tagName: isHeaderColumn ? 'th' : 'td',
+            type: isHeaderColumn ? 'enhanced-table-cell' : 'cell',
+            attributes: {
+              'data-i_designer-highlightable': 'true',
+              'contenteditable': 'true'
+            },
+            components: [{
+              tagName: 'div',
+              type: 'text',
+              attributes: {
+                'data-i_designer-highlightable': 'true',
+                'draggable': 'true'
+              },
+              content: isHeaderColumn ? 'Header' : 'Text'
+            }],
+            style: {
+              padding: '8px',
+              border: '1px solid #000',
+              ...(isHeaderColumn
+                ? {
+                  'background-color': '#f5f5f5',
+                  'font-weight': 'bold'
+                }
+                : {})
+            }
+          });
+        }
+
+        // Append the new row
+        tbodyComponent.append({
+          tagName: 'tr',
+          components: newRowCells
+        });
+      }
+
+      // Force component refresh
+      editor.trigger('component:update', tableComponent);
+
+      // Reinitialize DataTable + formulas
+      setTimeout(() => {
+        const updatedTableElement = canvasDoc.getElementById(tableId);
+
+        if (wasDataTable && updatedTableElement && win.$ && win.$.fn.DataTable) {
+          try {
+            win.$(updatedTableElement).DataTable(dtOptions);
+            const dt = win.$(updatedTableElement).DataTable(dtOptions);
+            dt.columns.adjust().draw(false);
+          } catch (error) {
+            console.warn('Error reinitializing DataTable:', error);
+          }
+        }
+
+        enableFormulaEditing(tableId);
+        component.storeBaseTableData();
+
+        showToast(`Added ${count} row(s)`, 'success');
+      }, 300);
     });
 
-    newRemoveRowsBtn.addEventListener('click', function () {
+
+    document.getElementById('remove-rows').addEventListener('click', function () {
       const count = parseInt(document.getElementById('row-count').value) || 1;
-      removeTableRows(component, count);
-      showToast(`Removed ${count} row(s)`, 'success');
+      const tableId = component.getId();
+
+      // Get the table component
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+      if (!tableComponent) {
+        showToast('Table component not found', 'error');
+        return;
+      }
+
+      // Get tbody component
+      const tbodyComponent = tableComponent.find('tbody')[0];
+      if (!tbodyComponent) {
+        showToast('Table body not found', 'error');
+        return;
+      }
+
+      const rows = tbodyComponent.find('tr');
+
+      if (rows.length <= count) {
+        showToast('Cannot remove all rows', 'warning');
+        return;
+      }
+
+      // Destroy DataTable first
+      const canvasDoc = editor.Canvas.getDocument();
+      const win = canvasDoc.defaultView;
+      const tableElement = canvasDoc.getElementById(tableId);
+
+      let wasDataTable = false;
+      let dtOptions = null;
+
+      if (win.$ && win.$.fn.DataTable && tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
+        wasDataTable = true;
+        const dt = win.$(tableElement).DataTable();
+        dtOptions = dt.settings()[0].oInit;
+        dt.destroy();
+      }
+
+      // Remove rows from GrapesJS
+      for (let i = 0; i < count && rows.length > 0; i++) {
+        const lastRow = rows[rows.length - 1 - i];
+        if (lastRow) {
+          lastRow.remove();
+        }
+      }
+
+      // Force component refresh
+      editor.trigger('component:update', tableComponent);
+
+      // Reinitialize DataTable
+      setTimeout(() => {
+        const updatedTableElement = canvasDoc.getElementById(tableId);
+
+        if (wasDataTable && updatedTableElement && win.$ && win.$.fn.DataTable) {
+          try {
+            win.$(updatedTableElement).DataTable(dtOptions);
+          } catch (error) {
+            console.warn('Error reinitializing DataTable:', error);
+          }
+        }
+
+        component.storeBaseTableData();
+        showToast(`Removed ${count} row(s)`, 'success');
+      }, 300);
     });
 
-    newAddColumnsBtn.addEventListener('click', function () {
+    document.getElementById('add-columns').addEventListener('click', function () {
       const count = parseInt(document.getElementById('column-count').value) || 1;
-      addTableColumns(component, count);
+      const tableId = component.getId();
+      const canvasDoc = editor.Canvas.getDocument();
+      const tableElement = canvasDoc.getElementById(tableId);
+
+      if (!tableElement) {
+        showToast('Table not found', 'error');
+        return;
+      }
+
+      // Get the table component
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+      if (!tableComponent) {
+        showToast('Table component not found', 'error');
+        return;
+      }
+
+      // Add to header using GrapesJS components
+      const theadComponent = tableComponent.find('thead')[0];
+      if (theadComponent) {
+        const headerRowComponent = theadComponent.find('tr')[0];
+        if (headerRowComponent) {
+          for (let i = 0; i < count; i++) {
+            headerRowComponent.append({
+              tagName: 'th',
+              type: 'enhanced-table-cell',
+              attributes: {
+                'data-i_designer-highlightable': 'true',
+                'contenteditable': 'true'
+              },
+              components: [{
+                tagName: 'div',
+                type: 'text',
+                attributes: {
+                  'data-i_designer-highlightable': 'true',
+                  'draggable': 'true'
+                },
+                content: 'Header'
+              }],
+              style: {
+                'padding': '8px',
+                'border': '1px solid #000',
+                'background-color': '#f5f5f5',
+                'font-weight': 'bold'
+              }
+            });
+          }
+        }
+      }
+
+      // Add to body rows using GrapesJS components
+      const tbodyComponent = tableComponent.find('tbody')[0];
+      if (tbodyComponent) {
+        const bodyRowComponents = tbodyComponent.find('tr');
+        bodyRowComponents.forEach(rowComponent => {
+          for (let i = 0; i < count; i++) {
+            rowComponent.append({
+              tagName: 'td',
+              type: 'cell',
+              attributes: {
+                'data-i_designer-highlightable': 'true',
+                'contenteditable': 'true'
+              },
+              components: [{
+                tagName: 'div',
+                type: 'text',
+                attributes: {
+                  'data-i_designer-highlightable': 'true',
+                  'draggable': 'true'
+                },
+                content: 'Text'
+              }],
+              style: {
+                'padding': '8px',
+                'border': '1px solid #000'
+              }
+            });
+          }
+        });
+      }
+
+      // Trigger updates
+      editor.trigger('component:update', tableComponent);
+      updateDataTableStructure(tableId);
+      setTimeout(() => {
+        const updatedTableElement = canvasDoc.getElementById(tableId);
+        if (updatedTableElement && win.$.fn.DataTable.isDataTable(updatedTableElement)) {
+          const dt = win.$(updatedTableElement).DataTable();
+          dt.columns.adjust().draw(false);
+        }
+      }, 200);
+
+      setTimeout(() => {
+        enableFormulaEditing(tableId);
+        component.storeBaseTableData();
+      }, 200);
+
       showToast(`Added ${count} column(s)`, 'success');
     });
 
-    newRemoveColumnsBtn.addEventListener('click', function () {
+    document.getElementById('remove-columns').addEventListener('click', function () {
       const count = parseInt(document.getElementById('column-count').value) || 1;
-      removeTableColumns(component, count);
+      const tableId = component.getId();
+      const canvasDoc = editor.Canvas.getDocument();
+      const tableElement = canvasDoc.getElementById(tableId);
+
+      if (!tableElement) {
+        showToast('Table not found', 'error');
+        return;
+      }
+
+      const thead = tableElement.querySelector('thead tr');
+      const headerCells = thead ? thead.querySelectorAll('th') : [];
+
+      if (headerCells.length <= count) {
+        showToast('Cannot remove all columns', 'warning');
+        return;
+      }
+
+      // Remove from header
+      for (let i = 0; i < count; i++) {
+        const lastCell = headerCells[headerCells.length - 1 - i];
+        if (lastCell) lastCell.remove();
+      }
+
+      // Remove from body
+      const tbody = tableElement.querySelector('tbody');
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td, th');
+        for (let i = 0; i < count; i++) {
+          const lastCell = cells[cells.length - 1 - i];
+          if (lastCell) lastCell.remove();
+        }
+      });
+
+      updateDataTableStructure(tableId);
+      setTimeout(() => {
+        const updatedTableElement = canvasDoc.getElementById(tableId);
+        if (updatedTableElement && win.$.fn.DataTable.isDataTable(updatedTableElement)) {
+          const dt = win.$(updatedTableElement).DataTable();
+          dt.columns.adjust().draw(false);
+        }
+      }, 200);
+      component.storeBaseTableData();
       showToast(`Removed ${count} column(s)`, 'success');
     });
 
@@ -4630,646 +4949,82 @@ table.style.position = 'absolute';
     component.rebuildTableHTML(reorderedHeaders, reorderedData);
   }
 
-function addTableRows(component, count) {
-  const tbody = component.find('tbody')[0];
-  if (!tbody) return;
-
-  const firstBodyRow = tbody.find('tr')[0];
-  if (!firstBodyRow) return;
-
-  const cellTypes = firstBodyRow.find('> [type="cell"]').map(cell => cell.get('tagName').toLowerCase());
-
-  for (let i = 0; i < count; i++) {
-    let newRowHtml = '<tr>';
-    cellTypes.forEach(tag => {
-      const content = tag === 'th' ? '<div>Header</div>' : '<div>Text</div>';
-      newRowHtml += `<${tag}>${content}</${tag}>`;
-    });
-    newRowHtml += '</tr>';
-    tbody.append(newRowHtml);
-  }
-
-  // Re-enable formula editing and store data
-  setTimeout(() => {
-    enableFormulaEditing(component.getId());
-    component.storeBaseTableData();
-  }, 100);
-}
-
-function addTableColumns(component, count) {
-  const theadTr = component.find('thead > tr')[0];
-  const tbody = component.find('tbody')[0];
-  if (!tbody) return;
-
-  const bodyRows = tbody.find('tr');
-
-  // Add to header
-  if (theadTr) {
-    for (let i = 0; i < count; i++) {
-      theadTr.append('<th><div>Header</div></th>');
-    }
-  }
-
-  // Add to body rows (always td at end, regardless of row headers)
-  bodyRows.forEach(row => {
-    for (let i = 0; i < count; i++) {
-      row.append('<td><div>Text</div></td>');
-    }
-  });
-
-  // Re-enable formula editing and store data
-  setTimeout(() => {
-    enableFormulaEditing(component.getId());
-    component.storeBaseTableData();
-  }, 100);
-}
-function removeTableRows(component, count) {
-  const tbody = component.find('tbody')[0];
-  if (!tbody) return;
-
-  const rows = tbody.find('tr');
-  if (rows.length <= count) {
-    showToast('Cannot remove all rows', 'warning');
-    return;
-  }
-
-  for (let i = 0; i < count; i++) {
-    const lastRow = rows[rows.length - 1 - i];
-    if (lastRow) lastRow.remove();
-  }
-
-  component.storeBaseTableData();
-}
-function removeTableColumns(component, count) {
-  const theadTr = component.find('thead > tr')[0];
-  const tbody = component.find('tbody')[0];
-  if (!tbody) return;
-
-  const headerCells = theadTr ? theadTr.find('> [type="cell"]') : [];
-  if (headerCells.length <= count) {
-    showToast('Cannot remove all columns', 'warning');
-    return;
-  }
-
-  // Remove from header
-  for (let i = 0; i < count; i++) {
-    const lastHeaderCell = headerCells[headerCells.length - 1 - i];
-    if (lastHeaderCell) lastHeaderCell.remove();
-  }
-
-  // Remove from body
-  const bodyRows = tbody.find('tr');
-  bodyRows.forEach(row => {
-    const cells = row.find('> [type="cell"]');
-    for (let i = 0; i < count; i++) {
-      const lastCell = cells[cells.length - 1 - i];
-      if (lastCell) lastCell.remove();
-    }
-  });
-
-  component.storeBaseTableData();
-}
-
-  function initializeCustomTableSettingsModal(component, availableFields) {
-    let selectedGroupingFields = component.get('grouping-fields') || [];
-    let selectedSummaryFields = component.get('summary-fields') || [];
-
-    // Tab navigation
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-      tab.addEventListener('click', function () {
-        document.querySelectorAll('.nav-tab').forEach(t => {
-          t.classList.remove('active');
-          t.style.background = 'transparent';
-          t.style.borderBottom = 'none';
-          t.style.fontWeight = 'normal';
-        });
-
-        document.querySelectorAll('.tab-pane').forEach(p => {
-          p.style.display = 'none';
-        });
-
-        this.classList.add('active');
-        this.style.background = 'white';
-        this.style.borderBottom = '3px solid #007bff';
-        this.style.fontWeight = 'bold';
-
-        const tabId = this.getAttribute('data-tab') + '-tab';
-        const tabPane = document.getElementById(tabId);
-        if (tabPane) {
-          tabPane.style.display = 'block';
-        }
-      });
-    });
-
-    // Initialize column reorder
-    initializeCustomTableColumnReorder(component);
-
-    // Load saved options
-    const sortOrder = document.getElementById('sort-order');
-    const topN = document.getElementById('top-n');
-    const topNValue = document.getElementById('top-n-value');
-    const summarizeGroup = document.getElementById('summarize-group');
-    const pageBreak = document.getElementById('page-break');
-    const mergeGroupCells = document.getElementById('merge-group-cells');
-    const groupHeaderInplace = document.getElementById('group-header-inplace');
-    const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
-    const keepGroupHierarchy = document.getElementById('keep-group-hierarchy');
-    const grandTotal = document.getElementById('grand-total');
-    const grandTotalLabel = document.getElementById('grand-total-label');
-    const summaryLabel = document.getElementById('summary-label');
-
-    if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
-    if (topN) topN.value = component.get('top-n') || 'none';
-    if (topNValue) topNValue.value = component.get('top-n-value') || '10';
-    if (summarizeGroup) summarizeGroup.checked = component.get('summarize-group') === true;
-    if (pageBreak) pageBreak.checked = component.get('page-break') === true;
-    if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') === true;
-    if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
-    if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') === true;
-    if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') === true;
-    if (grandTotal) grandTotal.checked = component.get('grand-total') !== false;
-    if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
-    if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
-
-    // Load grouping type
-    if (component.get('show-summary-only') === true) {
-      const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
-      if (summaryRadio) {
-        summaryRadio.checked = true;
-        if (keepGroupHierarchy) keepGroupHierarchy.disabled = false;
-      }
-    }
-
-    // Top N value enable/disable
-    document.getElementById('top-n').addEventListener('change', function () {
-      const topNValue = document.getElementById('top-n-value');
-      const isEnabled = this.value === 'top' || this.value === 'bottom';
-
-      topNValue.disabled = !isEnabled;
-      topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
-      topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
-      topNValue.style.opacity = isEnabled ? '1' : '0.6';
-    });
-
-    // Trigger on load
-    setTimeout(() => {
-      const topNSelect = document.getElementById('top-n');
-      const topNValue = document.getElementById('top-n-value');
-      const currentValue = topNSelect.value;
-      const isEnabled = currentValue === 'top' || currentValue === 'bottom';
-
-      topNValue.disabled = !isEnabled;
-      topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
-      topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
-      topNValue.style.opacity = isEnabled ? '1' : '0.6';
-    }, 100);
-
-    // Grand Total checkbox
-    document.getElementById('grand-total').addEventListener('change', function () {
-      const grandTotalLabel = document.getElementById('grand-total-label');
-      const isEnabled = this.checked;
-      grandTotalLabel.disabled = !isEnabled;
-      grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
-    });
-
-    // Grouping field selection
-    document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
-      checkbox.addEventListener('change', function () {
-        const fieldItem = this.closest('.field-item');
-        const fieldKey = fieldItem.getAttribute('data-key');
-        const fieldName = fieldItem.querySelector('span').textContent;
-
-        if (this.checked) {
-          selectedGroupingFields.push({ key: fieldKey, name: fieldName });
-          updateSelectedFields();
-        }
-      });
-    });
-
-    function updateSelectedFields() {
-      const selectedFieldsDiv = document.getElementById('selected-fields');
-
-      if (!selectedFieldsDiv) return;
-
-      if (selectedGroupingFields.length === 0) {
-        selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
-      } else {
-        selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
-        <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-            <span>${field.name}</span>
-            <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-        </div>
-      `).join('');
-
-        selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
-          btn.addEventListener('click', function () {
-            const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
-            const fieldKey = selectedGroupingFields[idx].key;
-            selectedGroupingFields.splice(idx, 1);
-            updateSelectedFields();
-
-            const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
-            if (availableCheckbox) availableCheckbox.checked = false;
-          });
-        });
-      }
-    }
-
-    function updateSummaryFieldsList() {
-      const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
-
-      if (!selectedSummaryFieldsDiv) return;
-
-      if (selectedSummaryFields.length === 0) {
-        selectedSummaryFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
-        return;
-      }
-
-      selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields.map((field, idx) => `
-      <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-          <div style="flex: 1;">
-              <strong style="font-size: 13px;">${field.name}</strong>
-              <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
-          </div>
-          <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-      </div>
-    `).join('');
-
-      selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
-        btn.addEventListener('click', function () {
-          const idx = parseInt(this.getAttribute('data-index'));
-          selectedSummaryFields.splice(idx, 1);
-          updateSummaryFieldsList();
-        });
-      });
-    }
-
-    // Summary field add button
-    document.getElementById('add-summary-field').addEventListener('click', function () {
-      const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
-      const summaryFunction = document.getElementById('summary-function').value;
-
-      if (summaryCheckboxes.length === 0) {
-        showToast('Please select at least one field for summary', 'warning');
-        return;
-      }
-
-      let addedCount = 0;
-      summaryCheckboxes.forEach(checkbox => {
-        const fieldItem = checkbox.closest('.field-item');
-        const fieldKey = fieldItem.getAttribute('data-key');
-        const fieldName = fieldItem.querySelector('span').textContent;
-
-        const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
-        if (!exists) {
-          selectedSummaryFields.push({
-            key: fieldKey,
-            name: fieldName,
-            function: summaryFunction
-          });
-          addedCount++;
-        }
-
-        checkbox.checked = false;
-      });
-
-      updateSummaryFieldsList();
-
-      if (addedCount > 0) {
-        console.log(`Added ${addedCount} summary field(s)`);
-      }
-    });
-
-    // Sort summary fields
-    document.getElementById('sort-summary-asc').addEventListener('click', () => {
-      const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
-      items.sort((a, b) => a.textContent.localeCompare(b.textContent));
-      const container = document.getElementById('available-summary-fields');
-      container.innerHTML = '';
-      items.forEach(item => container.appendChild(item));
-    });
-
-    document.getElementById('sort-summary-desc').addEventListener('click', () => {
-      const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
-      items.sort((a, b) => b.textContent.localeCompare(a.textContent));
-      const container = document.getElementById('available-summary-fields');
-      container.innerHTML = '';
-      items.forEach(item => container.appendChild(item));
-    });
-
-    // Sort buttons for grouping fields
-    document.getElementById('sort-asc').addEventListener('click', () => {
-      const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
-      items.sort((a, b) => a.textContent.localeCompare(b.textContent));
-      const container = document.getElementById('available-fields');
-      container.innerHTML = '';
-      items.forEach(item => container.appendChild(item));
-    });
-
-    document.getElementById('sort-desc').addEventListener('click', () => {
-      const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
-      items.sort((a, b) => b.textContent.localeCompare(a.textContent));
-      const container = document.getElementById('available-fields');
-      container.innerHTML = '';
-      items.forEach(item => container.appendChild(item));
-    });
-
-    // Grouping type radio buttons
-    document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
-      radio.addEventListener('change', function () {
-        const keepHierarchy = document.getElementById('keep-group-hierarchy');
-        const isSummaryOnly = this.value === 'summary';
-
-        keepHierarchy.disabled = !isSummaryOnly;
-        keepHierarchy.parentElement.querySelector('span').style.color = isSummaryOnly ? '#000' : '#999';
-
-        if (!isSummaryOnly) {
-          keepHierarchy.checked = false;
-        }
-      });
-    });
-
-    // Row/Column operations
-    document.getElementById('add-rows').addEventListener('click', function () {
-      const count = parseInt(document.getElementById('row-count').value) || 1;
-      addTableRows(component, count);
-      showToast(`Added ${count} row(s)`, 'success');
-    });
-
-    document.getElementById('remove-rows').addEventListener('click', function () {
-      const count = parseInt(document.getElementById('row-count').value) || 1;
-      removeTableRows(component, count);
-      showToast(`Removed ${count} row(s)`, 'success');
-    });
-
-    document.getElementById('add-columns').addEventListener('click', function () {
-      const count = parseInt(document.getElementById('column-count').value) || 1;
-      addTableColumns(component, count);
-      showToast(`Added ${count} column(s)`, 'success');
-    });
-
-    document.getElementById('remove-columns').addEventListener('click', function () {
-      const count = parseInt(document.getElementById('column-count').value) || 1;
-      removeTableColumns(component, count);
-      showToast(`Removed ${count} column(s)`, 'success');
-    });
-
-    // Cancel button
-    document.getElementById('cancel-settings').addEventListener('click', () => {
-      editor.Modal.close();
-    });
-
-    // Apply button
-    document.getElementById('apply-settings').addEventListener('click', () => {
-      console.log('📝 Applying settings...');
-
-      if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
-        showToast('Please select at least one grouping field before adding summaries', 'warning');
-        return;
-      }
-
-      const summarizeChecked = document.getElementById('summarize-group').checked;
-      if (summarizeChecked && selectedSummaryFields.length === 0) {
-        showToast('Please add at least one summary field when "Summarize Group" is enabled', 'warning');
-        return;
-      }
-
-      // Save all settings
-      component.set('grouping-fields', selectedGroupingFields);
-      component.set('summary-fields', selectedSummaryFields);
-      component.set('sort-order', document.getElementById('sort-order').value);
-      component.set('top-n', document.getElementById('top-n').value);
-      component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
-      component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
-      component.set('summarize-group', document.getElementById('summarize-group').checked);
-      component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
-      component.set('page-break', document.getElementById('page-break').checked);
-
-      const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
-      component.set('show-summary-only', showSummaryOnly);
-      component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
-
-      component.set('grand-total', document.getElementById('grand-total').checked);
-      component.set('grand-total-label', document.getElementById('grand-total-label').value);
-      component.set('summary-label', document.getElementById('summary-label').value);
-
-      editor.Modal.close();
-
-      // Apply grouping
-      setTimeout(() => {
-        component.applyGroupingAndSummary();
-        showToast('Settings applied successfully!', 'success');
-      }, 100);
-    });
-
-    updateSelectedFields();
-    updateSummaryFieldsList();
-  }
-
-  function initializeCustomTableColumnReorder(component) {
-    const headers = component.getTableHeaders();
-    const columnKeys = Object.keys(headers);
-
-    if (columnKeys.length <= 1) {
-      document.getElementById('column-list-inline').innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">Need at least 2 columns to reorder</p>';
-      return;
-    }
-
-    const columnList = document.getElementById('column-list-inline');
-    columnList.innerHTML = columnKeys.map(key => `
-    <div class="column-item-inline" data-key="${key}" draggable="true" style="
-        margin: 2px; 
-        padding: 12px 15px; 
-        border-radius: 3px; 
-        cursor: move; 
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.2s ease;
-    ">
-        <span style="font-weight: 500;">${headers[key]}</span>
-        <span style="color: #666; font-size: 12px;">≡≡≡</span>
-    </div>
-  `).join('');
-
-    let draggedElement = null;
-
-    const columnItems = columnList.querySelectorAll('.column-item-inline');
-    columnItems.forEach(item => {
-      item.addEventListener('dragstart', function (e) {
-        draggedElement = this;
-        this.style.opacity = '0.5';
-        e.dataTransfer.effectAllowed = 'move';
-      });
-
-      item.addEventListener('dragend', function () {
-        this.style.opacity = '1';
-        draggedElement = null;
-        columnItems.forEach(item => item.style.borderTop = '');
-      });
-
-      item.addEventListener('dragover', function (e) {
-        e.preventDefault();
-        if (this !== draggedElement) {
-          this.style.borderTop = '2px solid #007bff';
-        }
-      });
-
-      item.addEventListener('dragleave', function () {
-        this.style.borderTop = '';
-      });
-
-      item.addEventListener('drop', function (e) {
-        e.preventDefault();
-        this.style.borderTop = '';
-
-        if (this !== draggedElement) {
-          const allItems = Array.from(columnList.children);
-          const draggedIndex = allItems.indexOf(draggedElement);
-          const targetIndex = allItems.indexOf(this);
-
-          if (draggedIndex < targetIndex) {
-            this.parentNode.insertBefore(draggedElement, this.nextSibling);
-          } else {
-            this.parentNode.insertBefore(draggedElement, this);
-          }
-
-          applyCustomTableColumnReorder(component);
-        }
-      });
-    });
-
-    document.getElementById('reset-order').addEventListener('click', function () {
-      component.storeBaseTableData();
-      const headers = component.getTableHeaders();
-      const data = component.getTableData();
-      component.rebuildTableHTML(headers, data);
-      initializeCustomTableColumnReorder(component);
-      showToast('Column order reset to original', 'success');
-    });
-  }
-
-  function applyCustomTableColumnReorder(component) {
-    const columnList = document.getElementById('column-list-inline');
-    const currentItems = columnList.querySelectorAll('.column-item-inline');
-    const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
-
-    const headers = component.getTableHeaders();
-    const data = component.getTableData();
-
-    const reorderedHeaders = {};
-    newOrder.forEach(key => {
-      if (headers[key]) {
-        reorderedHeaders[key] = headers[key];
-      }
-    });
-
-    const reorderedData = data.map(row => {
-      const newRow = {};
-      newOrder.forEach(key => {
-        if (row.hasOwnProperty(key)) {
-          newRow[key] = row[key];
-        }
-      });
-      return newRow;
-    });
-
-    component.set('base-headers', reorderedHeaders, { silent: true });
-    component.set('base-data', reorderedData, { silent: true });
-    component.rebuildTableHTML(reorderedHeaders, reorderedData);
-  }
-
   function addTableRows(component, count) {
-    const tableId = component.getId();
-    const canvasDoc = editor.Canvas.getDocument();
-    const tableElement = canvasDoc.getElementById(tableId);
-    if (!tableElement) return;
+    const tbody = component.find('tbody')[0];
+    if (!tbody) return;
 
-    const tbody = tableElement.querySelector('tbody');
-    const headers = component.getTableHeaders();
-    const headerKeys = Object.keys(headers);
+    const firstBodyRow = tbody.find('tr')[0];
+    if (!firstBodyRow) return;
+
+    const cellTypes = firstBodyRow.find('> [type="cell"]').map(cell => cell.get('tagName').toLowerCase());
 
     for (let i = 0; i < count; i++) {
-      const tr = canvasDoc.createElement('tr');
-      headerKeys.forEach(key => {
-        const td = canvasDoc.createElement('td');
-        td.innerHTML = '<div>Text</div>';
-        td.style.padding = '8px';
-        td.style.border = '1px solid #000';
-        tr.appendChild(td);
+      let newRowHtml = '<tr>';
+      cellTypes.forEach(tag => {
+        const content = tag === 'th' ? '<div>Header</div>' : '<div>Text</div>';
+        newRowHtml += `<${tag}>${content}</${tag}>`;
       });
-      tbody.appendChild(tr);
+      newRowHtml += '</tr>';
+      tbody.append(newRowHtml);
     }
 
-    component.storeBaseTableData();
+    // Re-enable formula editing and store data
+    setTimeout(() => {
+      enableFormulaEditing(component.getId());
+      component.storeBaseTableData();
+    }, 100);
   }
 
+  function addTableColumns(component, count) {
+    const theadTr = component.find('thead > tr')[0];
+    const tbody = component.find('tbody')[0];
+    if (!tbody) return;
+
+    const bodyRows = tbody.find('tr');
+
+    // Add to header
+    if (theadTr) {
+      for (let i = 0; i < count; i++) {
+        theadTr.append('<th><div>Header</div></th>');
+      }
+    }
+
+    // Add to body rows (always td at end, regardless of row headers)
+    bodyRows.forEach(row => {
+      for (let i = 0; i < count; i++) {
+        row.append('<td><div>Text</div></td>');
+      }
+    });
+
+    // Re-enable formula editing and store data
+    setTimeout(() => {
+      enableFormulaEditing(component.getId());
+      component.storeBaseTableData();
+    }, 100);
+  }
   function removeTableRows(component, count) {
-    const tableId = component.getId();
-    const canvasDoc = editor.Canvas.getDocument();
-    const tableElement = canvasDoc.getElementById(tableId);
-    if (!tableElement) return;
+    const tbody = component.find('tbody')[0];
+    if (!tbody) return;
 
-    const tbody = tableElement.querySelector('tbody');
-    const rows = tbody.querySelectorAll('tr');
-
+    const rows = tbody.find('tr');
     if (rows.length <= count) {
       showToast('Cannot remove all rows', 'warning');
       return;
     }
 
     for (let i = 0; i < count; i++) {
-      if (rows[rows.length - 1 - i]) {
-        rows[rows.length - 1 - i].remove();
-      }
+      const lastRow = rows[rows.length - 1 - i];
+      if (lastRow) lastRow.remove();
     }
 
     component.storeBaseTableData();
   }
-
-  function addTableColumns(component, count) {
-    const tableId = component.getId();
-    const canvasDoc = editor.Canvas.getDocument();
-    const tableElement = canvasDoc.getElementById(tableId);
-    if (!tableElement) return;
-
-    // Add to header
-    const thead = tableElement.querySelector('thead tr');
-    if (thead) {
-      for (let i = 0; i < count; i++) {
-        const th = canvasDoc.createElement('th');
-        th.innerHTML = '<div>Text</div>';
-        th.style.padding = '8px';
-        th.style.border = '1px solid #000';
-        thead.appendChild(th);
-      }
-    }
-
-    // Add to body rows
-    const tbody = tableElement.querySelector('tbody');
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach(row => {
-      for (let i = 0; i < count; i++) {
-        const td = canvasDoc.createElement('td');
-        td.innerHTML = '<div>Text</div>';
-        td.style.padding = '8px';
-        td.style.border = '1px solid #000';
-        row.appendChild(td);
-      }
-    });
-
-    component.storeBaseTableData();
-  }
-
   function removeTableColumns(component, count) {
-    const tableId = component.getId();
-    const canvasDoc = editor.Canvas.getDocument();
-    const tableElement = canvasDoc.getElementById(tableId);
-    if (!tableElement) return;
+    const theadTr = component.find('thead > tr')[0];
+    const tbody = component.find('tbody')[0];
+    if (!tbody) return;
 
-    const thead = tableElement.querySelector('thead tr');
-    const headerCells = thead.querySelectorAll('th');
-
+    const headerCells = theadTr ? theadTr.find('> [type="cell"]') : [];
     if (headerCells.length <= count) {
       showToast('Cannot remove all columns', 'warning');
       return;
@@ -5277,20 +5032,17 @@ function removeTableColumns(component, count) {
 
     // Remove from header
     for (let i = 0; i < count; i++) {
-      if (headerCells[headerCells.length - 1 - i]) {
-        headerCells[headerCells.length - 1 - i].remove();
-      }
+      const lastHeaderCell = headerCells[headerCells.length - 1 - i];
+      if (lastHeaderCell) lastHeaderCell.remove();
     }
 
     // Remove from body
-    const tbody = tableElement.querySelector('tbody');
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach(row => {
-      const cells = row.querySelectorAll('td');
+    const bodyRows = tbody.find('tr');
+    bodyRows.forEach(row => {
+      const cells = row.find('> [type="cell"]');
       for (let i = 0; i < count; i++) {
-        if (cells[cells.length - 1 - i]) {
-          cells[cells.length - 1 - i].remove();
-        }
+        const lastCell = cells[cells.length - 1 - i];
+        if (lastCell) lastCell.remove();
       }
     });
 

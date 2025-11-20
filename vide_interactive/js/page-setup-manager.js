@@ -168,7 +168,8 @@ class PageSetupManager {
     this.setupContentBoundaryEnforcement()
     this.initSharedRegionSync()
     this.setupSectionSelection()
-    this.setupJsonSuggestionButton()
+    this.addPageBreakComponent()
+    //  this.setupJsonSuggestionButton()
     this.initializeArrayDataListener()
     const MAX_HEIGHT = 1027;
 
@@ -194,6 +195,24 @@ class PageSetupManager {
 
   }
 
+  // Add page break component to GrapesJS
+  // Replace your existing addPageBreakComponent method with this improved version
+
+  addPageBreakComponent() {
+
+    editor.BlockManager.add('page-break', {
+      label: `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px;">
+        <div style="font-size: 20px; color: #ff6b6b;">✂️</div>
+        <span style="font-size: 10px; font-weight: bold; color: #333;">Page Break</span>
+      </div>
+    `,
+      category: 'Basic',
+      content: '<div class="page-break" style="height:0; border-top:1px dashed #999; margin:20px 0;"></div>'
+    });
+
+
+  }
 
   resetInitialization() {
     this.isInitialized = false;
@@ -608,23 +627,34 @@ class PageSetupManager {
       // ----------------------------
       // ✅ NEW: Check for Conditional Page Break
       // ----------------------------
+      // ✅ Check for Conditional Page Break
       const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
       let conditionalBreakPosition = null;
 
       if (conditionalBreakSettings?.enabled) {
-        const distanceInMm = this.convertToMm(
-          conditionalBreakSettings.distance,
-          conditionalBreakSettings.unit
-        );
+        const pageNumber = pageIndex + 1;
+        const overrides = conditionalBreakSettings.pageOverrides || {};
+
+        let distanceInMm;
+
+        if (overrides[pageNumber]) {
+          // Use page-specific override
+          distanceInMm = this.convertToMm(overrides[pageNumber].distance, overrides[pageNumber].unit);
+          console.log(`🎯 Applying override to page ${pageNumber}`);
+        } else {
+          // Use default
+          distanceInMm = this.convertToMm(
+            conditionalBreakSettings.defaultDistance || 50,
+            conditionalBreakSettings.defaultUnit || 'mm'
+          );
+          console.log(`📋 Applying default to page ${pageNumber}`);
+        }
+
         const mmToPx = 96 / 25.4;
         const distanceInPx = Math.round(distanceInMm * mmToPx);
-
-        // Calculate break position from bottom
         conditionalBreakPosition = availableHeight - distanceInPx;
-
         console.log(`🔹 Conditional break at ${distanceInPx}px from bottom (position: ${conditionalBreakPosition}px)`);
       }
-
       // ----------------------------
       // Calculate Available Height
       // ----------------------------
@@ -644,7 +674,7 @@ class PageSetupManager {
           : 0;
 
         // ✅ Add more buffer space for json-table containers
-        const bufferSpace = 60; // Increased from 40
+        const bufferSpace = 20; // Increased from 40
         availableHeight = mainContentHeight - headerHeight - footerHeight - bufferSpace;
         // ✅ Apply conditional break to section content
         if (conditionalBreakPosition !== null) {
@@ -710,7 +740,7 @@ class PageSetupManager {
   }
 
 
-  splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
+splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
 
     console.log('splitContentByHeight ====');
     const contentEl = contentArea.getEl();
@@ -721,21 +751,37 @@ class PageSetupManager {
     let splitPointFound = false;
 
     // ✅ Check if conditional break is active
+    // Find this section in splitContentByHeight() and update it:
+
+    // ✅ Check if conditional break is active
     const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
     let conditionalBreakActive = false;
     let conditionalBreakHeight = maxHeight;
 
     if (conditionalBreakSettings?.enabled) {
-      const distanceInMm = this.convertToMm(
-        conditionalBreakSettings.distance,
-        conditionalBreakSettings.unit
-      );
+      const pageNumber = pageIndex + 1;
+      const overrides = conditionalBreakSettings.pageOverrides || {};
+
+      let distanceInMm;
+
+      // Check for page-specific override first
+      if (overrides[pageNumber]) {
+        distanceInMm = this.convertToMm(overrides[pageNumber].distance, overrides[pageNumber].unit);
+        console.log(`🎯 Using override for page ${pageNumber}: ${overrides[pageNumber].distance}${overrides[pageNumber].unit}`);
+      } else {
+        distanceInMm = this.convertToMm(
+          conditionalBreakSettings.defaultDistance || 50,
+          conditionalBreakSettings.defaultUnit || 'mm'
+        );
+        console.log(`📋 Using default for page ${pageNumber}: ${conditionalBreakSettings.defaultDistance}${conditionalBreakSettings.defaultUnit}`);
+      }
+
       const mmToPx = 96 / 25.4;
       const distanceInPx = Math.round(distanceInMm * mmToPx);
       const contentAreaHeight = contentEl.clientHeight;
       conditionalBreakHeight = contentAreaHeight - distanceInPx;
       conditionalBreakActive = true;
-      console.log(`✂️ Conditional break active at ${conditionalBreakHeight}px`);
+      console.log(`✂️ Conditional break active at ${conditionalBreakHeight}px for page ${pageNumber}`);
     }
 
     for (let i = 0; i < components.length; i++) {
@@ -884,12 +930,12 @@ class PageSetupManager {
     let newPage = wrapper.find(`[data-page-index="${nextPageIndex}"]`)[0];
 
     //extra method section count
-      let sourceSectionCount = null;
-  const sourceSection = contentArea.closest('.sections-container');
-  if (sourceSection) {
-    sourceSectionCount = sourceSection.getAttributes()['data-section-count'];
-    console.log(`📦 Source section count: ${sourceSectionCount}`);
-  }
+    let sourceSectionCount = null;
+    const sourceSection = contentArea.closest('.sections-container');
+    if (sourceSection) {
+      sourceSectionCount = sourceSection.getAttributes()['data-section-count'];
+      console.log(`📦 Source section count: ${sourceSectionCount}`);
+    }
 
     // ✅ Step 1 – Ensure new page exists & is registered
     if (!newPage) {
@@ -899,85 +945,207 @@ class PageSetupManager {
     }
 
     // ✅ Step 2 – Wait until GrapesJS adds it to DOM
-// Around line where you create new sections, replace this section:
+    // Around line where you create new sections, replace this section:
 
-setTimeout(() => {
-    try {
-      const currentPage = wrapper.find(`[data-page-index="${pageIndex}"]`)[0];
-      const newPageRef = wrapper.find(`[data-page-index="${nextPageIndex}"]`)[0];
+    setTimeout(() => {
+      try {
+        const currentPage = wrapper.find(`[data-page-index="${pageIndex}"]`)[0];
+        const newPageRef = wrapper.find(`[data-page-index="${nextPageIndex}"]`)[0];
 
-      if (currentPage && newPageRef) {
-        const newMainContent = newPageRef.find('.main-content-area')[0];
-        
-        if (newMainContent && sourceSectionCount) {
-          let existingSection = newMainContent.find('.sections-container')[0];
-          
-          if (!existingSection) {
-            console.log(`🏗️ Creating section container with count=${sourceSectionCount} BEFORE moving content...`);
-            
-            existingSection = newMainContent.append({
-              type: 'Sections',
-              attributes: {
-                'data-section-count': sourceSectionCount
-              }
-            })[0];
-            
-            console.log(`✅ Section container created on page ${nextPageIndex} with count: ${sourceSectionCount}`);
+        if (currentPage && newPageRef) {
+          const newMainContent = newPageRef.find('.main-content-area')[0];
+
+          if (newMainContent && sourceSectionCount) {
+            let existingSection = newMainContent.find('.sections-container')[0];
+
+            if (!existingSection) {
+              console.log(`🏗️ Creating section container with count=${sourceSectionCount} BEFORE moving content...`);
+
+              existingSection = newMainContent.append({
+                type: 'Sections',
+                attributes: {
+                  'data-section-count': sourceSectionCount
+                }
+              })[0];
+
+              console.log(`✅ Section container created on page ${nextPageIndex} with count: ${sourceSectionCount}`);
+            }
           }
-        }
-        
-        // ✅ CRITICAL FIX: Copy section-header content BEFORE moving overflow
-        const oldSections = currentPage.find(".sections-container")[0];
-        const newSections = newPageRef.find(".sections-container")[0];
 
-        if (oldSections && newSections) {
-          const oldHeader = oldSections.find(".section-header")[0];
-          const newHeader = newSections.find(".section-header")[0];
+          // ✅ CRITICAL FIX: Copy section-header content BEFORE moving overflow
+          const oldSections = currentPage.find(".sections-container")[0];
+          const newSections = newPageRef.find(".sections-container")[0];
 
-          if (oldHeader && newHeader) {
-            // Don't reset - preserve any existing content
-            const existingComponents = newHeader.components().length;
-            if (existingComponents === 0) {
-              oldHeader.components().forEach((comp) => {
-                newHeader.append(comp.clone());
-              });
-              console.log(`✅ Copied section-header to page ${nextPageIndex}`);
+          if (oldSections && newSections) {
+            const oldHeader = oldSections.find(".section-header")[0];
+            const newHeader = newSections.find(".section-header")[0];
+
+            if (oldHeader && newHeader) {
+              // Don't reset - preserve any existing content
+              const existingComponents = newHeader.components().length;
+              if (existingComponents === 0) {
+                oldHeader.components().forEach((comp) => {
+                  newHeader.append(comp.clone());
+                });
+                console.log(`✅ Copied section-header to page ${nextPageIndex}`);
+              }
             }
           }
         }
+      } catch (err) {
+        console.warn("⚠️ Header copy skipped:", err);
       }
-    } catch (err) {
-      console.warn("⚠️ Header copy skipped:", err);
-    }
+if (!this._headerPreferenceCache) {
+  this._headerPreferenceCache = new Map();
+}
 
-    // ✅ STEP 4: NOW safely move overflow components WITH DELAY
-    setTimeout(() => {
-      this.moveComponentsToPage(componentsToMove, nextPageIndex);
-    }, 200);
-    
-  }, 700);
+// Check if any components being moved are tables with the copy-header attribute
+componentsToMove.forEach(comp => {
+  const copyHeaderAttr = comp.getAttributes?.()['data-copy-header'];
+  if (copyHeaderAttr !== undefined) {
+    const tableId = comp.getAttributes?.()['data-original-table-id'] || comp.getId();
+    this._headerPreferenceCache.set(tableId, copyHeaderAttr === 'true');
+    console.log(`📝 Cached header preference for table ${tableId}: ${copyHeaderAttr}`);
+  }
+});
+      // ✅ STEP 4: NOW safely move overflow components WITH DELAY
+      setTimeout(() => {
+        this.moveComponentsToPage(componentsToMove, nextPageIndex);
+        // Call duplicate removal after move
+        setTimeout(() => {
+          this.removeDuplicateRowsFromPreviousPage(pageIndex, componentsToMove);
+        }, 500);
+      }, 200);
+
+    }, 700);
 
     return true;
   }
 
-  handleTableSplit(component, compEl, remainingSpace, maxHeight) {
-    console.log('🔧 handleTableSplit called');
+  // Add this NEW function after splitContentByHeight (around line 1100)
 
-    // Find the actual table element
-    let tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
+removeDuplicateRowsFromPreviousPage(currentPageIndex, movedComponents) {
+    console.log('🔍 Checking for duplicate rows on previous page...');
+    
+    if (!movedComponents || movedComponents.length === 0) {
+        console.log('⚪ No components moved, skipping duplicate check');
+        return;
+    }
+
+    const wrapper = this.editor.getWrapper();
+    const currentPage = wrapper.find(`[data-page-index="${currentPageIndex}"]`)[0];
+    if (!currentPage) return;
+
+    const currentContentArea = currentPage.find('.main-content-area')[0];
+    if (!currentContentArea) return;
+
+    // Find all table components on current page
+    const currentTables = currentContentArea.find('[data-gjs-type="json-table"]');
+    
+    currentTables.forEach(tableComp => {
+        const tableEl = tableComp.getEl();
+        if (!tableEl) return;
+
+        const tbody = tableEl.querySelector('tbody');
+        if (!tbody || !tbody.rows) return;
+
+        const rows = Array.from(tbody.rows);
+        if (rows.length === 0) return;
+
+        console.log(`📊 Checking table with ${rows.length} rows for duplicates`);
+
+        // Get data from moved components to compare
+        const movedTableData = [];
+        movedComponents.forEach(comp => {
+            const compEl = comp.getEl();
+            if (compEl && (compEl.tagName === 'TABLE' || compEl.querySelector('table'))) {
+                const movedTbody = compEl.querySelector('tbody') || compEl.querySelector('table tbody');
+                if (movedTbody && movedTbody.rows) {
+                    Array.from(movedTbody.rows).forEach(row => {
+                        const cellData = Array.from(row.cells).map(cell => cell.textContent.trim());
+                        movedTableData.push(cellData);
+                    });
+                }
+            }
+        });
+
+        if (movedTableData.length === 0) return;
+
+        console.log(`📋 Found ${movedTableData.length} rows in moved components`);
+
+        // Compare from bottom up and find duplicates
+        const rowsToRemove = [];
+        for (let i = rows.length - 1; i >= 0; i--) {
+            const currentRowData = Array.from(rows[i].cells).map(cell => cell.textContent.trim());
+            
+            // Check if this row matches any moved row
+            const isDuplicate = movedTableData.some(movedRow => {
+                if (movedRow.length !== currentRowData.length) return false;
+                return movedRow.every((cell, idx) => cell === currentRowData[idx]);
+            });
+
+            if (isDuplicate) {
+                rowsToRemove.push(i);
+                console.log(`🗑️ Found duplicate row at index ${i}`);
+            } else {
+                // Stop checking once we find a non-duplicate
+                break;
+            }
+        }
+
+        // Remove duplicate rows from DOM and GrapesJS
+        if (rowsToRemove.length > 0) {
+            console.log(`✂️ Removing ${rowsToRemove.length} duplicate rows from previous page`);
+            
+            // Remove from GrapesJS component tree
+            const tbodyComp = tableComp.find('tbody')[0];
+            if (tbodyComp) {
+                const rowComps = tbodyComp.components();
+                rowsToRemove.forEach(rowIndex => {
+                    const rowComp = rowComps.at(rowIndex);
+                    if (rowComp) {
+                        rowComp.remove();
+                    }
+                });
+            }
+
+            // Remove from DOM
+            rowsToRemove.forEach(rowIndex => {
+                if (tbody.rows[rowIndex]) {
+                    tbody.deleteRow(rowIndex);
+                }
+            });
+
+            console.log(`✅ Removed ${rowsToRemove.length} duplicate rows successfully`);
+        }
+    });
+}
+
+// UPDATED handleTableSplit (replace the old implementation)
+handleTableSplit(component, compEl, remainingSpace, maxHeight) {
+  console.log('🔧 handleTableSplit called (UPDATED)');
+
+  try {
+    // Find the actual table element (support wrapped/table element)
+    let tableEl = compEl && compEl.tagName === 'TABLE' ? compEl : compEl?.querySelector?.('table');
 
     if (!tableEl) {
       console.warn('⚠️ No table element found, moving entire component');
-      return { keepComponent: null, moveComponent: component };
+      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
     }
 
-    const tbody = tableEl.querySelector('tbody');
-    if (!tbody || tbody.rows.length === 0) {
+    // Prefer GrapesJS component tree tbody if available
+    const tbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
+    const tbody = tableEl.querySelector('tbody') || (tbodyComp && tbodyComp.getEl && tbodyComp.getEl());
+
+    // If no tbody or no rows, move whole component
+    const domTbodyRows = tableEl.querySelectorAll ? Array.from(tableEl.querySelectorAll('tbody > tr')) : [];
+    if (!tbody || domTbodyRows.length === 0) {
       console.warn('⚠️ No tbody or rows found, moving entire component');
-      return { keepComponent: null, moveComponent: component };
+      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
     }
 
-    // ✅ Account for DataTables wrapper and controls
+    // Account for DataTables wrapper and controls (if present)
     const dtWrapper = compEl.querySelector('.dataTables_wrapper');
     const dtInfo = dtWrapper?.querySelector('.dataTables_info');
     const dtPaginate = dtWrapper?.querySelector('.dataTables_paginate');
@@ -988,24 +1156,24 @@ setTimeout(() => {
     if (dtPaginate) controlsHeight += dtPaginate.offsetHeight + 10;
     if (dtButtons) controlsHeight += dtButtons.offsetHeight + 10;
 
-    // Calculate how many COMPLETE rows can fit
-    const rows = Array.from(tbody.rows);
+    // Prepare rows array from DOM to measure heights reliably
+    const rows = domTbodyRows;
     const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
     const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
 
-    const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 50;
+    // Safety margin included (-50)
+    const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 10;
 
     if (availableHeight < 100) {
       console.log('⚠️ Not enough space for table rows, moving entire table');
-      return { keepComponent: null, moveComponent: component };
+      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
     }
 
+    // Determine how many COMPLETE rows will fit
     let accumulatedRowHeight = 0;
     let rowsToKeep = 0;
-
     for (let i = 0; i < rows.length; i++) {
-      const rowHeight = rows[i].offsetHeight;
-
+      const rowHeight = rows[i].offsetHeight || 0;
       if (accumulatedRowHeight + rowHeight <= availableHeight) {
         accumulatedRowHeight += rowHeight;
         rowsToKeep++;
@@ -1017,134 +1185,269 @@ setTimeout(() => {
     const MIN_ROWS_TO_SPLIT = 3;
     if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
       console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
-      return { keepComponent: null, moveComponent: component };
+      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
     }
 
     if (rowsToKeep === rows.length) {
       console.log('✅ All table rows fit on current page');
-      return { keepComponent: component, moveComponent: null };
+      return { keepComponent: component, moveComponent: null, keptRowCount: rowsToKeep, movedRowCount: 0 };
     }
 
     console.log(`📊 Splitting table: ${rowsToKeep} rows on current page, ${rows.length - rowsToKeep} rows to next page`);
 
+    // -------------------------
+    // Preserve DataTable settings (if applicable)
+    // -------------------------
+    let dtSettings = null;
+    const tableId = tableEl.id;
     try {
-      // ✅ Store DataTable settings BEFORE any modifications
-      let dtSettings = null;
-      const tableId = tableEl.id;
-      if (tableId && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
+      if (tableId && typeof $ !== 'undefined' && $.fn && $.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
         const dt = $(`#${tableId}`).DataTable();
+        const info = dt.page ? dt.page.info() : {};
         dtSettings = {
-          paging: dt.page.info().length !== -1,
-          pageLength: dt.page.info().length,
-          searching: dt.settings()[0].oFeatures.bFilter,
-          ordering: dt.settings()[0].aaSorting,
-          buttons: dt.buttons().context[0]?.inst?.s?.buttons || []
+          paging: !!info.length,
+          pageLength: info.length || dt.page.len?.() || null,
+          searching: dt.settings && dt.settings()[0]?.oFeatures?.bFilter,
+          ordering: dt.settings && dt.settings()[0]?.aaSorting,
+          buttons: (dt.buttons && dt.buttons().container && dt.buttons().context?.[0]?.inst?.s?.buttons) || []
         };
-        dt.destroy();
+        // Destroy DataTable to manipulate DOM safely
+        try { dt.destroy(); } catch (e) { /* ignore destroy errors */ }
       }
+    } catch (err) {
+      console.warn('⚠️ Error while extracting/destroying DataTable:', err);
+    }
 
-      console.log(`📊 Splitting table: keeping first ${rowsToKeep} rows, moving ${rows.length - rowsToKeep} rows`);
+    // -------------------------
+    // STEP 1: Extract rows to move as HTML to avoid DOM/component references
+    // -------------------------
+    const rowsToMoveHTML = [];
+    for (let i = rowsToKeep; i < rows.length; i++) {
+      rowsToMoveHTML.push(rows[i].outerHTML);
+    }
 
-      // ✅ STEP 1: Extract rows to move as plain HTML (to avoid reference issues)
-      const rowsToMoveHTML = [];
-      for (let i = rowsToKeep; i < rows.length; i++) {
-        rowsToMoveHTML.push(rows[i].outerHTML);
-      }
-
-      // ✅ STEP 2: Remove moving rows from original tbody
-      for (let i = rows.length - 1; i >= rowsToKeep; i--) {
-        if (rows[i].parentNode) {
-          rows[i].parentNode.removeChild(rows[i]);
-        }
-      }
-
-      // ✅ STEP 3: Force update original component
-      const updatedTableHTML = compEl.outerHTML;
-      component.set('content', updatedTableHTML);
-
-      if (component.view) {
-        component.view.render();
-      }
-
-      console.log(`✂️ Removed ${rowsToMoveHTML.length} rows from original table`);
-
-      // ✅ STEP 4: Create fresh continuation table structure
-      const continuationTableEl = tableEl.cloneNode(false); // Clone only structure
-      const continuationThead = tableEl.querySelector('thead')?.cloneNode(true);
-      const continuationTbody = document.createElement('tbody');
-      const continuationTfoot = tableEl.querySelector('tfoot')?.cloneNode(true);
-
-      if (continuationThead) continuationTableEl.appendChild(continuationThead);
-      continuationTableEl.appendChild(continuationTbody);
-      if (continuationTfoot) continuationTableEl.appendChild(continuationTfoot);
-
-      // ✅ STEP 5: Add moved rows to continuation tbody using innerHTML
-      continuationTbody.innerHTML = rowsToMoveHTML.join('');
-
-      console.log(`✅ Created continuation table with ${continuationTbody.rows.length} rows`);
-
-      // ✅ STEP 6: Wrap continuation table in container
-      const continuationWrapper = compEl.cloneNode(false);
-      continuationWrapper.innerHTML = '';
-
-      // Generate unique ID
-      const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      continuationTableEl.id = newTableId;
-
-      continuationWrapper.appendChild(continuationTableEl);
-
-      // ✅ STEP 7: Modify JSON state for continuation table
-      let modifiedState = null;
-      const originalStateAttr = component.getAttributes()['data-json-state'];
-
-      if (originalStateAttr) {
-        try {
-          const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
-
-          if (stateData.data && Array.isArray(stateData.data)) {
-            // Keep only rows that were moved
-            stateData.data = stateData.data.slice(rowsToKeep);
-            stateData.dataRows = stateData.data.length;
-            modifiedState = encodeURIComponent(JSON.stringify(stateData));
-
-            console.log(`🔧 Modified state: ${stateData.data.length} data rows in continuation`);
+    // -------------------------
+    // STEP 2: Remove moving rows from original GrapesJS component tree (if present) AND DOM
+    // -------------------------
+    // Remove from GrapesJS component tree first (safer)
+    if (tbodyComp && typeof tbodyComp.components === 'function') {
+      const rowComponents = tbodyComp.components();
+      const totalRows = rowComponents.length;
+      for (let i = totalRows - 1; i >= rowsToKeep; i--) {
+        const rowComp = rowComponents.at(i);
+        if (rowComp) {
+          try {
+            console.log(`🗑️ Removing GrapesJS row component at index ${i}`);
+            rowComp.remove();
+          } catch (err) {
+            console.warn('⚠️ Failed to remove GrapesJS row component:', err);
           }
-        } catch (error) {
-          console.error('❌ Error modifying state:', error);
         }
       }
+    }
 
-      // ✅ STEP 8: Create NEW component (not duplicate)
-      const newComponentConfig = {
-        type: component.get('type') || 'default',
-        tagName: component.get('tagName') || 'div',
-        content: continuationWrapper.outerHTML,
-        attributes: {
-          ...component.getAttributes(),
-          'data-continuation-table': 'true',
-          'data-original-table-id': tableId,
-          'data-rows-kept': rowsToKeep,
-          'data-split-table': 'continuation' // Mark as split table
-        },
-        classes: [...(component.getClasses() || [])],
-        style: { ...component.getStyle() }
-      };
+    // Remove from DOM as a fallback / double-safety
+    for (let i = rows.length - 1; i >= rowsToKeep; i--) {
+      if (rows[i] && rows[i].parentNode) {
+        try {
+          console.log(`🗑️ Removing DOM row at index ${i}`);
+          rows[i].parentNode.removeChild(rows[i]);
+        } catch (err) {
+          console.warn('⚠️ Failed to remove DOM row:', err);
+        }
+      }
+    }
 
-      // Apply modified state
-      if (modifiedState) {
-        newComponentConfig.attributes['data-json-state'] = modifiedState;
+    // Force update original component view to reflect removals
+    setTimeout(() => {
+      try {
+        const currentTbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
+        if (currentTbodyComp && typeof currentTbodyComp.components === 'function') {
+          const remainingRows = currentTbodyComp.components().length;
+          console.log(`✅ Original table now has ${remainingRows} rows (kept ${rowsToKeep})`);
+        }
+        if (component.view && typeof component.view.render === 'function') component.view.render();
+      } catch (e) {
+        console.warn('⚠️ Error updating original component view:', e);
+      }
+    }, 120);
+
+    console.log(`✂️ Removed ${rowsToMoveHTML.length} rows from original table`);
+
+    // NEW: Set contenteditable and reattach handlers on kept table
+    setTimeout(() => {
+      const keptEl = component.getEl();
+      if (!keptEl) {
+        console.warn("⚠️ keptComponent element not available");
+        return;
       }
 
-      const newComponent = this.editor.Components.addComponent(newComponentConfig);
+      const keptTableEl = keptEl.querySelector('table') || keptEl;
+      if (!keptTableEl) {
+        console.warn("⚠️ No <table> element found in kept component!");
+        return;
+      }
 
-      // ✅ STEP 9: Reinitialize DataTable on kept portion ONLY
-      if (dtSettings && tableId) {
-        setTimeout(() => {
+      console.log("✅ Found kept table element:", keptTableEl.id);
+
+      // ✅ Reattach DOM cell editability
+      const tdCells = keptTableEl.querySelectorAll('td, th');
+      tdCells.forEach((cell, i) => {
+        cell.setAttribute('contenteditable', 'true');
+        console.log(`🟩 DOM editable set for kept cell [${i}] → id: ${cell.id || '(no id)'}`);
+      });
+
+      // ✅ Reattach GrapesJS model editability for cell components
+      const cellComponents = component.find('td, th');
+      console.log(`🔍 Found ${cellComponents.length} GrapesJS kept cell components`);
+      cellComponents.forEach((cellComp, i) => {
+        cellComp.addAttributes({ contenteditable: 'true' });
+        cellComp.set({ editable: true });
+        console.log(`🟦 GrapesJS editable set for kept cell component [${i}] → id: ${cellComp.getId()}`);
+      });
+
+      console.log(`✅ Kept table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
+
+      // ✅ CALL THE REATTACH HANDLER FUNCTION (PageSetupManager)
+      const pageSetupManager = this.editor.get('PageSetupManager');
+      if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
+        const keptTableId = keptTableEl.id;
+        if (keptTableId) {
+          pageSetupManager.reattachAllCellHandlers(keptTableId);
+          console.log(`✅ Reattached all cell handlers for kept table: ${keptTableId}`);
+        } else {
+          console.warn('⚠️ Kept table has no id — cannot reattach by id.');
+        }
+      }
+    }, 400);
+
+    // -------------------------
+    // STEP 3: Build continuation table (structure only, then insert moved rows)
+    // -------------------------
+    // NEW: Ask user if they want header on next page
+// NEW: Ask user if they want header on next page
+let copyHeader = false;
+const hasThead = !!tableEl.querySelector('thead');
+if (hasThead && rowsToKeep > 0 && rowsToMoveHTML.length > 0) {
+  // Use confirm with OK/Cancel - OK returns true, Cancel returns false
+  copyHeader = confirm("Do you want to repeat the table header on the next page?\n\nClick OK to include header\nClick Cancel to skip header");
+}
+
+const continuationTableEl = tableEl.cloneNode(false); // shallow clone (no children)
+const continuationThead = copyHeader ? tableEl.querySelector('thead')?.cloneNode(true) : null;
+const continuationTbody = document.createElement('tbody');
+const continuationTfoot = tableEl.querySelector('tfoot')?.cloneNode(true);
+
+// Only add thead if user confirmed
+if (copyHeader && continuationThead) {
+  continuationTableEl.appendChild(continuationThead);
+  console.log('✅ Header will be included on next page');
+} else {
+  console.log('⏭️ Header will NOT be included on next page (user choice)');
+}
+
+continuationTableEl.appendChild(continuationTbody);
+if (continuationTfoot) continuationTableEl.appendChild(continuationTfoot);
+
+    // Insert moved rows HTML
+    continuationTbody.innerHTML = rowsToMoveHTML.join('');
+    console.log(`✅ Created continuation table with ${continuationTbody.rows.length} rows`);
+
+    // Wrap continuation table in a container matching original component structure
+    const continuationWrapper = compEl.cloneNode(false);
+    continuationWrapper.innerHTML = '';
+    const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    continuationTableEl.id = newTableId;
+    continuationWrapper.appendChild(continuationTableEl);
+
+    // -------------------------
+    // STEP 4: Modify JSON/state attribute for continuation component if present
+    // -------------------------
+    let modifiedState = null;
+    const originalStateAttr = component.getAttributes && component.getAttributes()['data-json-state'];
+    if (originalStateAttr) {
+      try {
+        const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
+        if (stateData && Array.isArray(stateData.data)) {
+          // Keep only the rows that moved
+          stateData.data = stateData.data.slice(rowsToKeep);
+          stateData.dataRows = stateData.data.length;
+          modifiedState = encodeURIComponent(JSON.stringify(stateData));
+          console.log(`🔧 Modified state for continuation: ${stateData.data.length} data rows`);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error parsing/modifying state attribute:', err);
+      }
+    }
+
+    // -------------------------
+    // STEP 5: Create NEW GrapesJS component for continuation (fresh component)
+    // -------------------------
+// Around line 1480 in handleTableSplit, replace the newComponentConfig section:
+
+// -------------------------
+// STEP 5: Create NEW GrapesJS component for continuation (fresh component)
+// -------------------------
+const newComponentConfig = {
+  type: component.get && component.get('type') || 'default',
+  tagName: component.get && component.get('tagName') || 'div',
+  content: continuationWrapper.outerHTML,
+  attributes: {
+    ...component.getAttributes(),
+    'data-continuation-table': 'true',
+    'data-original-table-id': tableId || '',
+    'data-rows-kept': rowsToKeep,
+    'data-split-table': 'continuation',
+    'data-copy-header': copyHeader ? 'true' : 'false'
+  },
+  classes: [...(component.getClasses ? component.getClasses() : [])],
+  style: { ...(component.getStyle ? component.getStyle() : {}) }
+};
+
+if (modifiedState) {
+  newComponentConfig.attributes['data-json-state'] = modifiedState;
+}
+
+// Add new component to GrapesJS
+const newComponent = this.editor.Components.addComponent(newComponentConfig);
+
+// ✅ IMMEDIATELY remove thead from GrapesJS component if user chose not to copy
+if (!copyHeader && newComponent) {
+  setTimeout(() => {
+    const theadComp = newComponent.find('thead')[0];
+    if (theadComp) {
+      console.log('🗑️ Removing thead component from GrapesJS tree immediately');
+      theadComp.remove();
+      
+      // Also remove from DOM to ensure sync
+      const newTableEl = newComponent.getEl()?.querySelector('table');
+      if (newTableEl) {
+        const theadEl = newTableEl.querySelector('thead');
+        if (theadEl) {
+          theadEl.remove();
+          console.log('🗑️ Removed thead from DOM as well');
+        }
+      }
+      
+      // Force view update
+      if (newComponent.view && newComponent.view.render) {
+        newComponent.view.render();
+      }
+    }
+  }, 100);
+}
+    // -------------------------
+    // STEP 6: Reinitialize DataTable on kept portion ONLY (if settings captured)
+    // -------------------------
+    if (dtSettings && tableId) {
+      setTimeout(() => {
+        try {
           const keptTableEl = component.getEl()?.querySelector('table');
-          if (keptTableEl && $.fn.DataTable) {
+          if (keptTableEl && typeof $ !== 'undefined' && $.fn && $.fn.DataTable) {
             if ($.fn.DataTable.isDataTable(keptTableEl)) {
-              $(keptTableEl).DataTable().destroy();
+              try { $(keptTableEl).DataTable().destroy(); } catch (e) { /* ignore */ }
             }
+            // Reinitialize with minimal features for static view
             $(keptTableEl).DataTable({
               paging: false,
               searching: false,
@@ -1152,29 +1455,56 @@ setTimeout(() => {
               info: false
             });
           }
-        }, 300);
-      }
-
-      console.log(`✅ Table split complete - original: ${rowsToKeep} rows, continuation: ${rowsToMoveHTML.length} rows`);
-
-      return {
-        keepComponent: component,
-        moveComponent: newComponent,
-        keptRowCount: rowsToKeep,
-        movedRowCount: rowsToMoveHTML.length
-      };
-
-    } catch (error) {
-      console.error('❌ Error splitting table:', error);
-      return {
-        keepComponent: null,
-        moveComponent: component,
-        keptRowCount: 0,
-        movedRowCount: 0
-      };
+        } catch (err) {
+          console.warn('⚠️ Error reinitializing DataTable on kept portion:', err);
+        }
+      }, 300);
     }
-  }
 
+    // -------------------------
+    // STEP 7: Extra verification/fix (best-effort) to ensure GrapesJS tree matches expected kept rows
+    // -------------------------
+    setTimeout(() => {
+      try {
+        const originalTbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
+        if (originalTbodyComp && typeof originalTbodyComp.components === 'function') {
+          const rowsLeft = originalTbodyComp.components().length;
+          console.log(`🔎 Verification: Original table has ${rowsLeft} rows (should be ${rowsToKeep})`);
+          if (rowsLeft !== rowsToKeep) {
+            console.error(`❌ Row count mismatch! Expected ${rowsToKeep}, got ${rowsLeft} — attempting correction.`);
+            const allRows = originalTbodyComp.components();
+            for (let i = allRows.length - 1; i >= rowsToKeep; i--) {
+              try {
+                allRows.at(i).remove();
+              } catch (err) {
+                console.warn('⚠️ Failed to remove extra row component during correction:', err);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Verification step failed:', err);
+      }
+    }, 200);
+
+    console.log(`✅ Table split complete - original: ${rowsToKeep} rows, continuation: ${rowsToMoveHTML.length} rows`);
+
+    return {
+      keepComponent: component,
+      moveComponent: newComponent,
+      keptRowCount: rowsToKeep,
+      movedRowCount: rowsToMoveHTML.length
+    };
+  } catch (error) {
+    console.error('❌ Error splitting table (catch):', error);
+    return {
+      keepComponent: null,
+      moveComponent: component,
+      keptRowCount: 0,
+      movedRowCount: 0
+    };
+  }
+}
 
   splitLargeComponent(component, availableSpace) {
 
@@ -1364,7 +1694,6 @@ setTimeout(() => {
     return targetPosition;
   }
 
-
 async moveComponentsToPage(components, targetPageIndex) {
   console.log('🟦 moveComponentsToPage called for page:', targetPageIndex);
 
@@ -1398,10 +1727,10 @@ async moveComponentsToPage(components, targetPageIndex) {
 
     // ✅ STEP 2: Check if target page needs sections container
     let targetSection = targetContentArea.find('.sections-container')[0];
-    
+
     if (!targetSection && sourceSectionCount) {
       console.log(`🏗️ Creating section container BEFORE moving content...`);
-      
+
       // Create section container with SAME count (autopagination)
       targetSection = targetContentArea.append({
         type: 'Sections',
@@ -1409,8 +1738,8 @@ async moveComponentsToPage(components, targetPageIndex) {
           'data-section-count': sourceSectionCount // ✅ Use same count
         }
       })[0];
-      
-            const allPages = wrapper.find('.page-container');
+
+      const allPages = wrapper.find('.page-container');
       for (let page of allPages) {
         const existingSection = page.find('.sections-container')[0];
         if (existingSection) {
@@ -1419,7 +1748,7 @@ async moveComponentsToPage(components, targetPageIndex) {
             // Found source section - copy header
             const sourceHeader = existingSection.find('.section-header')[0];
             const targetHeader = targetSection.find('.section-header')[0];
-            
+
             if (sourceHeader && targetHeader) {
               targetHeader.components().reset();
               sourceHeader.components().forEach((comp) => {
@@ -1439,7 +1768,7 @@ async moveComponentsToPage(components, targetPageIndex) {
       // ✅ Verify existing section has correct count
       const existingCount = targetSection.getAttributes()['data-section-count'];
       console.log(`✅ Section already exists with count: ${existingCount}`);
-      
+
       // If count doesn't match and we have source count, update it
       if (sourceSectionCount && existingCount !== sourceSectionCount) {
         console.log(`🔄 Updating section count from ${existingCount} to ${sourceSectionCount}`);
@@ -1449,11 +1778,9 @@ async moveComponentsToPage(components, targetPageIndex) {
       }
     }
 
-
     // ✅ STEP 3: Determine final target (section-content or main-content-area)
-    // ✅ Determine final target (section-content)
     let finalTarget = targetContentArea;
-    
+
     if (targetSection) {
       const sectionContent = targetSection.find('.section-content')[0];
       if (sectionContent) {
@@ -1491,129 +1818,176 @@ async moveComponentsToPage(components, targetPageIndex) {
             compEl.classList.contains('json-data-table'));
 
         // ✅ Handle table components
-        if (isTable) {
-          console.log(`📊 Handling table component ${index}`);
+// ✅ Handle table components
+if (isTable) {
+  console.log(`📊 Handling table component ${index}`);
 
-          const isSplitTable = component.getAttributes()['data-split-table'] === 'continuation' ||
-            component.getAttributes()['data-continuation-table'] === 'true';
+  const isSplitTable = component.getAttributes()['data-split-table'] === 'continuation' ||
+    component.getAttributes()['data-continuation-table'] === 'true';
+  
+  const copyHeaderAttr = component.getAttributes()['data-copy-header'];
+  const shouldRemoveHeader = copyHeaderAttr === 'false';
 
-          let dtData = null;
-          const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
+  let dtData = null;
+  const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
 
-          if (!isSplitTable && tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
-            const dt = $(tableEl).DataTable();
-            dtData = {
-              data: dt.rows().data().toArray(),
-              columns: dt.settings()[0].aoColumns,
-              order: dt.order()
-            };
-            dt.destroy();
-            console.log('📦 Preserved DataTable state');
-          }
+  if (!isSplitTable && tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
+    const dt = $(tableEl).DataTable();
+    dtData = {
+      data: dt.rows().data().toArray(),
+      columns: dt.settings()[0].aoColumns,
+      order: dt.order()
+    };
+    dt.destroy();
+    console.log('📦 Preserved DataTable state');
+  }
 
-          const fullHTML = component.toHTML();
-          component.remove();
+  // ✅ Remove thead from component BEFORE getting HTML if user chose not to copy
+  if (shouldRemoveHeader) {
+    console.log('🗑️ Removing header from component before moving...');
+    const theadComp = component.find('thead')[0];
+    if (theadComp) {
+      theadComp.remove();
+      console.log('✅ Removed thead from GrapesJS component tree');
+    }
+    
+    // Also remove from DOM
+    if (tableEl) {
+      const theadEl = tableEl.querySelector('thead');
+      if (theadEl) {
+        theadEl.remove();
+        console.log('✅ Removed thead from DOM');
+      }
+    }
+  }
 
-          const newComponent = targetContentArea.append(fullHTML)[0];
-          console.log("🧩 New table component added:", newComponent?.getId?.() || '(unknown)');
+  const fullHTML = component.toHTML();
+  component.remove();
 
-          setTimeout(() => {
-            const newEl = newComponent.getEl();
-            if (!newEl) {
-              console.warn("⚠️ newComponent element not yet available");
-              return;
-            }
+  const newComponent = targetContentArea.append(fullHTML)[0];
+  console.log("🧩 New table component added:", newComponent?.getId?.() || '(unknown)');
 
-            const tableEl = newEl.querySelector('table') || newEl;
-            if (!tableEl) {
-              console.warn("⚠️ No <table> element found inside new component!");
-              return;
-            }
+  // Primary setup for table cells
+  setTimeout(() => {
+    const newEl = newComponent.getEl();
+    if (!newEl) {
+      console.warn("⚠️ newComponent element not yet available");
+      return;
+    }
 
-            console.log("✅ Found table element:", tableEl.id);
+    const tableEl = newEl.querySelector('table') || newEl;
+    if (!tableEl) {
+      console.warn("⚠️ No <table> element found inside new component!");
+      return;
+    }
 
-            const tdCells = tableEl.querySelectorAll('td, th');
-            tdCells.forEach((cell, i) => {
-              cell.setAttribute('contenteditable', 'true');
-              console.log(`🟩 DOM editable set for cell [${i}] → id: ${cell.id || '(no id)'}`);
-            });
+    console.log("✅ Found table element:", tableEl.id);
 
-            const cellComponents = newComponent.find('td, th');
-            console.log(`🔍 Found ${cellComponents.length} GrapesJS cell components`);
-            cellComponents.forEach((cellComp, i) => {
-              cellComp.addAttributes({ contenteditable: 'true' });
-              cellComp.set({ editable: true });
-              console.log(`🟦 GrapesJS editable set for cell component [${i}] → id: ${cellComp.getId()}`);
-            });
+    // ✅ CRITICAL: Double-check header removal in new component
+    if (shouldRemoveHeader) {
+      const theadComp = newComponent.find('thead')[0];
+      if (theadComp) {
+        console.log('🗑️ Removing thead from new component (double-check)');
+        theadComp.remove();
+      }
+      
+      const theadEl = tableEl.querySelector('thead');
+      if (theadEl) {
+        console.log('🗑️ Removing thead from new DOM (double-check)');
+        theadEl.remove();
+      }
+      
+      // Force component update
+      if (newComponent.view && newComponent.view.render) {
+        newComponent.view.render();
+      }
+    }
 
-            console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
+    // ✅ Reattach DOM cell editability
+    const tdCells = tableEl.querySelectorAll('td, th');
+    tdCells.forEach((cell, i) => {
+      cell.setAttribute('contenteditable', 'true');
+    });
 
-            if (dtData) {
-              const newTableEl = newEl.querySelector('table') || newEl;
-              if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
-                $(newTableEl).DataTable({
-                  data: dtData.data,
-                  columns: dtData.columns,
-                  order: dtData.order,
-                  paging: false,
-                  searching: false,
-                  info: false
-                });
-                console.log('🔁 Reinitialized DataTable');
-              }
-            } else {
-              const newTableEl = newEl.querySelector('table') || newEl;
-              if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
-                if ($.fn.DataTable.isDataTable(newTableEl)) {
-                  $(newTableEl).DataTable().destroy();
-                }
-                $(newTableEl).DataTable({
-                  paging: false,
-                  searching: false,
-                  ordering: false,
-                  info: false
-                });
-                console.log('🔁 Initialized new DataTable on moved/continuation table');
-              }
-            }
-          }, 400);
+    // ✅ Reattach GrapesJS model editability for cell components
+    const cellComponents = newComponent.find('td, th');
+    cellComponents.forEach((cellComp, i) => {
+      cellComp.addAttributes({ contenteditable: 'true' });
+      cellComp.set({ editable: true });
+    });
 
-          if (newComponent) {
-            setTimeout(() => {
-              const newTableEl = newComponent.getEl();
-              if (newTableEl) {
-                const allCells = newTableEl.querySelectorAll('td, th');
-                allCells.forEach(cell => {
-                  if (!cell.hasAttribute('contenteditable')) {
-                    cell.setAttribute('contenteditable', 'true');
-                  }
+    console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
 
-                  const originalCell = compEl.querySelector(`#${cell.id}`);
-                  if (originalCell) {
-                    Array.from(originalCell.attributes).forEach(attr => {
-                      if (attr.name.startsWith('data-')) {
-                        cell.setAttribute(attr.name, attr.value);
-                      }
-                    });
-                  }
-                });
+    // ✅ Reattach cell handlers
+    const pageSetupManager = this.editor.get('PageSetupManager');
+    if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
+      const tableId = tableEl.id;
+      if (tableId) {
+        pageSetupManager.reattachAllCellHandlers(tableId);
+        console.log(`✅ Reattached all cell handlers for table: ${tableId}`);
+      }
+    }
 
-                const pageSetupManager = this.editor.get('PageSetupManager');
-                if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
-                  const tableId = newTableEl.querySelector('table')?.id;
-                  if (tableId) {
-                    pageSetupManager.reattachAllCellHandlers(tableId);
-                  }
-                }
-              }
-            }, 300);
-
-            moved++;
-            console.log(`✅ Moved table component ${index} with editability preserved`);
-          }
-
-          continue;
+    // DataTable reinitialization
+    if (dtData) {
+      const newTableEl = newEl.querySelector('table') || newEl;
+      if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+        $(newTableEl).DataTable({
+          data: dtData.data,
+          columns: dtData.columns,
+          order: dtData.order,
+          paging: false,
+          searching: false,
+          info: false
+        });
+        console.log('🔁 Reinitialized DataTable');
+      }
+    } else {
+      const newTableEl = newEl.querySelector('table') || newEl;
+      if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+        if ($.fn.DataTable.isDataTable(newTableEl)) {
+          $(newTableEl).DataTable().destroy();
         }
+        $(newTableEl).DataTable({
+          paging: false,
+          searching: false,
+          ordering: false,
+          info: false
+        });
+        console.log('🔁 Initialized new DataTable on moved/continuation table');
+      }
+    }
+  }, 400);
+
+  // Copy data-* attributes
+  if (newComponent) {
+    setTimeout(() => {
+      const newTableEl = newComponent.getEl();
+      if (newTableEl) {
+        const allCells = newTableEl.querySelectorAll('td, th');
+        allCells.forEach(cell => {
+          if (!cell.hasAttribute('contenteditable')) {
+            cell.setAttribute('contenteditable', 'true');
+          }
+
+          const originalCell = compEl.querySelector(`#${cell.id}`);
+          if (originalCell) {
+            Array.from(originalCell.attributes).forEach(attr => {
+              if (attr.name.startsWith('data-')) {
+                cell.setAttribute(attr.name, attr.value);
+              }
+            });
+          }
+        });
+      }
+    }, 300);
+
+    moved++;
+    console.log(`✅ Moved table component ${index} with editability preserved`);
+  }
+
+  continue;
+}
 
         // ✅ Regular component logic
         const clonedComponent = component.clone();
@@ -1697,6 +2071,7 @@ async moveComponentsToPage(components, targetPageIndex) {
     return false;
   }
 }
+
 
 
 
@@ -1933,17 +2308,34 @@ async moveComponentsToPage(components, targetPageIndex) {
     let maxHeight = contentArea.getEl().clientHeight;
 
     // ✅ NEW: Check for conditional break FIRST
+    // Find and update the conditional break section:
+
+    // ✅ Check for conditional break FIRST
     const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
     let conditionalBreakPosition = null;
 
     if (conditionalBreakSettings?.enabled) {
-      const distanceInMm = this.convertToMm(
-        conditionalBreakSettings.distance,
-        conditionalBreakSettings.unit
-      );
+      const pageNumber = pageIndex + 1;
+      const overrides = conditionalBreakSettings.pageOverrides || {};
+
+      let distanceInMm;
+
+      if (overrides[pageNumber]) {
+        distanceInMm = this.convertToMm(overrides[pageNumber].distance, overrides[pageNumber].unit);
+        console.log(`🎯 Page ${pageNumber} using override: ${overrides[pageNumber].distance}${overrides[pageNumber].unit}`);
+      } else {
+        distanceInMm = this.convertToMm(
+          conditionalBreakSettings.defaultDistance || 50,
+          conditionalBreakSettings.defaultUnit || 'mm'
+        );
+        console.log(`📋 Page ${pageNumber} using default: ${conditionalBreakSettings.defaultDistance}${conditionalBreakSettings.defaultUnit}`);
+      }
+
       const mmToPx = 96 / 25.4;
       const distanceInPx = Math.round(distanceInMm * mmToPx);
       conditionalBreakPosition = maxHeight - distanceInPx;
+
+      console.log(`✂️ Conditional break position for page ${pageNumber}: ${conditionalBreakPosition}px (distance from bottom: ${distanceInPx}px)`);
     }
 
     // 🔹 Step 3: Handle section-based layout
@@ -3823,7 +4215,24 @@ padding: 8px;
   .conditional-break-indicator {
     display: none !important;
   }
-}}
+}
+      [data-continuation-table="true"][data-copy-header="false"] thead,
+    [data-split-table="continuation"][data-copy-header="false"] thead {
+      display: none !important;
+    }
+    
+    /* Ensure headers are hidden in PDF export */
+    @media print {
+      [data-continuation-table="true"][data-copy-header="false"] thead,
+      [data-split-table="continuation"][data-copy-header="false"] thead {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+      }
+    }
+  }
+
       </style>
     `
 
@@ -4536,6 +4945,7 @@ padding: 8px;
         </div>
       </div>
 
+      <!--
       <div class="page-setup-section format-change-section">
         <h3>📐 Change Page Format & Orientation</h3>
         <div class="format-change-warning">
@@ -4583,7 +4993,7 @@ padding: 8px;
         <div style="margin-top: 15px;">
           <button id="applyFormatChange" class="page-setup-btn page-setup-btn-primary">Apply Format Change</button>
         </div>
-      </div>
+      </div> -->
 
       <div class="page-setup-section">
         <h3>🎨 Page Background</h3>
@@ -4848,9 +5258,9 @@ padding: 8px;
             <div class="position-option ${globalPageNumber.position === "top-left" ? "selected" : ""}" data-position="top-left">Top Left</div>
             <div class="position-option ${globalPageNumber.position === "top-center" ? "selected" : ""}" data-position="top-center">Top Center</div>
             <div class="position-option ${globalPageNumber.position === "top-right" ? "selected" : ""}" data-position="top-right">Top Right</div>
-            <div class="position-option ${globalPageNumber.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
+            <!-- <div class="position-option ${globalPageNumber.position === "center-left" ? "selected" : ""}" data-position="center-left">Center Left</div>
             <div class="position-option ${globalPageNumber.position === "center-center" ? "selected" : ""}" data-position="center-center">Center</div>
-            <div class="position-option ${globalPageNumber.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div>
+            <div class="position-option ${globalPageNumber.position === "center-right" ? "selected" : ""}" data-position="center-right">Center Right</div> -->
             <div class="position-option ${globalPageNumber.position === "bottom-left" ? "selected" : ""}" data-position="bottom-left">Bottom Left</div>
             <div class="position-option ${globalPageNumber.position === "bottom-center" ? "selected" : ""}" data-position="bottom-center">Bottom Center</div>
             <div class="position-option ${globalPageNumber.position === "bottom-right" ? "selected" : ""}" data-position="bottom-right">Bottom Right</div>
@@ -4859,7 +5269,7 @@ padding: 8px;
         <div class="size-controls">
           <div>
             <label>Font Size:</label>
-            <input type="number" id="pageNumberFontSize" class="page-setup-control" value="${globalPageNumber.fontSize || 11}" min="8" max="20">
+            <input type="number" id="pageNumberFontSize" class="page-setup-control" value="${globalPageNumber.fontSize || 8}" min="8" max="20">
           </div>
           <div>
             <label>Text Color:</label>
@@ -4883,26 +5293,49 @@ padding: 8px;
       </div>
 <div class="page-setup-section">
   <h3>✂️ Conditional Page Break Settings</h3>
-  <div class="page-setup-row">
-    <label>
-      <input type="checkbox" id="conditionalPageBreakEnabled" ${this.pageSettings.conditionalPageBreak?.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Conditional Page Break
-    </label>
-  </div>
+<div class="page-setup-row">
+  <label>
+    <input type="checkbox" id="conditionalPageBreakEnabled" ${this.pageSettings.conditionalPageBreak?.enabled ? "checked" : ""} style="border: 2px solid #000 !important;"> Enable Conditional Page Break
+  </label>
+</div>
   <div id="conditionalPageBreakControls" class="page-numbering-controls ${this.pageSettings.conditionalPageBreak?.enabled ? "active" : ""}">
-    <div class="page-setup-row">
-      <label class="page-setup-label">Distance from Bottom:</label>
+    
+    <!-- GLOBAL DEFAULT SETTINGS -->
+    <div class="page-setup-row" style="margin-bottom: 15px; padding: 15px; background: #e3f2fd; border-radius: 6px;">
+      <div style="margin-bottom: 10px;">
+        <strong style="color: #1976d2;">Default Settings (for all unspecified pages)</strong>
+        <p style="font-size: 11px; color: #666; margin: 5px 0 10px 0;">
+          This will apply to all pages that don't have specific settings, including dynamically created pages.
+        </p>
+      </div>
       <div style="display: flex; gap: 10px; align-items: center;">
-        <input type="number" id="conditionalBreakDistance" class="page-setup-control" value="${this.pageSettings.conditionalPageBreak?.distance || 50}" min="1" max="200" step="0.1" style="flex: 1;">
-        <select id="conditionalBreakUnit" class="page-setup-control" style="width: 80px;">
-          <option value="mm" ${(this.pageSettings.conditionalPageBreak?.unit || 'mm') === 'mm' ? 'selected' : ''}>mm</option>
-          <option value="cm" ${this.pageSettings.conditionalPageBreak?.unit === 'cm' ? 'selected' : ''}>cm</option>
-          <option value="inch" ${this.pageSettings.conditionalPageBreak?.unit === 'inch' ? 'selected' : ''}>inch</option>
+        <label style="min-width: 120px;">Distance from Bottom:</label>
+        <input type="number" id="conditionalBreakDefaultDistance" class="page-setup-control" value="${this.pageSettings.conditionalPageBreak?.defaultDistance || 50}" min="1" max="200" step="0.1" style="flex: 1; max-width: 120px;">
+        <select id="conditionalBreakDefaultUnit" class="page-setup-control" style="width: 80px;">
+          <option value="mm" ${(this.pageSettings.conditionalPageBreak?.defaultUnit || 'mm') === 'mm' ? 'selected' : ''}>mm</option>
+          <option value="cm" ${this.pageSettings.conditionalPageBreak?.defaultUnit === 'cm' ? 'selected' : ''}>cm</option>
+          <option value="inch" ${this.pageSettings.conditionalPageBreak?.defaultUnit === 'inch' ? 'selected' : ''}>inch</option>
         </select>
       </div>
     </div>
-    <p style="font-size: 12px; color: #666; margin-top: 5px;">
-      An automatic page break will be inserted at the specified distance from the bottom of each page. Content below this line will automatically move to the next page.
-    </p>
+
+    <!-- SPECIFIC PAGE OVERRIDES -->
+    <div style="margin-top: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <strong style="color: #333;">Page-Specific Overrides (Optional)</strong>
+        <button type="button" id="addPageBreakOverride" class="page-setup-btn" style="padding: 5px 10px; font-size: 12px; background: #28a745; color: white;">
+          <i class="fa fa-plus"></i> Add Override
+        </button>
+      </div>
+      <p style="font-size: 11px; color: #666; margin-bottom: 10px;">
+        Set different break distances for specific pages. Leave others to use default settings.
+      </p>
+      
+      <div id="pageBreakOverridesList" style="max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; background: #f8f9fa;">
+        ${this.generatePageBreakOverrides()}
+      </div>
+    </div>
+
   </div>
 </div>
       <div class="page-setup-section">
@@ -4925,6 +5358,7 @@ padding: 8px;
     setTimeout(() => {
       this.setupPageElementsListeners();
       this.updateFormatPreview();
+      this.attachOverrideItemListeners();
 
       // ENHANCED: Properly restore all page number settings
       const pageNumberSettings = this.pageSettings.pageNumber || {};
@@ -4952,11 +5386,11 @@ padding: 8px;
       if (fontSizeInput) {
         const storedSize = pageNumberSettings.fontSize;
         // Handle both number and string values
-        let fontSize = 11; // default
+        let fontSize = 8; // default
         if (typeof storedSize === 'number') {
           fontSize = storedSize;
         } else if (typeof storedSize === 'string') {
-          fontSize = parseInt(storedSize.replace("px", "")) || 11;
+          fontSize = parseInt(storedSize.replace("px", "")) || 8;
         }
         fontSizeInput.value = fontSize;
       }
@@ -5001,6 +5435,151 @@ padding: 8px;
     }, 100)
   }
 
+  generatePageBreakOverrides() {
+    const overrides = this.pageSettings.conditionalPageBreak?.pageOverrides || {};
+
+    let html = `
+    <!-- Add Override Form -->
+    <div id="addOverrideForm" style="margin-bottom: 15px; padding: 15px; background: #fff3cd; border-radius: 6px; border: 1px solid #ffc107; display: none;">
+      <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">Add New Override</h4>
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; margin-bottom: 5px; font-size: 12px; font-weight: 500;">Page Number(s):</label>
+        <input type="text" id="newOverridePages" class="page-setup-control" placeholder="e.g., 1 or 2,5,8 or 3-7" style="width: 100%; font-size: 12px;">
+        <p style="font-size: 10px; color: #666; margin: 3px 0 0 0;">
+          Enter single page, multiple pages (comma-separated), or range (e.g., "3-7")
+        </p>
+      </div>
+      <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <div style="flex: 1;">
+          <label style="display: block; margin-bottom: 5px; font-size: 12px; font-weight: 500;">Distance:</label>
+          <input type="number" id="newOverrideDistance" class="page-setup-control" value="50" min="1" max="200" step="0.1" style="width: 100%; font-size: 12px;">
+        </div>
+        <div style="width: 80px;">
+          <label style="display: block; margin-bottom: 5px; font-size: 12px; font-weight: 500;">Unit:</label>
+          <select id="newOverrideUnit" class="page-setup-control" style="width: 100%; font-size: 12px;">
+            <option value="mm">mm</option>
+            <option value="cm">cm</option>
+            <option value="inch">inch</option>
+          </select>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" id="confirmAddOverride" class="page-setup-btn page-setup-btn-primary" style="flex: 1; padding: 6px 12px; font-size: 12px;">
+          <i class="fa fa-check"></i> Add Override
+        </button>
+        <button type="button" id="cancelAddOverride" class="page-setup-btn page-setup-btn-secondary" style="flex: 1; padding: 6px 12px; font-size: 12px;">
+          <i class="fa fa-times"></i> Cancel
+        </button>
+      </div>
+    </div>
+  `;
+
+    // Existing overrides list
+    if (Object.keys(overrides).length === 0) {
+      html += '<div id="noOverridesMessage" style="text-align: center; color: #999; padding: 15px; font-size: 12px;">No page-specific overrides yet.</div>';
+    } else {
+      const sortedPages = Object.keys(overrides).sort((a, b) => parseInt(a) - parseInt(b));
+
+      sortedPages.forEach(pageNum => {
+        const setting = overrides[pageNum];
+        html += `
+        <div class="page-break-override-item" data-page-num="${pageNum}" style="margin-bottom: 8px; padding: 10px; background: white; border-radius: 4px; border: 1px solid #dee2e6; display: flex; align-items: center; gap: 8px;">
+          <label style="min-width: 55px; font-weight: 500; color: #333; font-size: 12px;">Page ${pageNum}:</label>
+          <input type="number" 
+                 class="page-setup-control override-distance" 
+                 data-page-num="${pageNum}"
+                 value="${setting.distance}" 
+                 min="1" 
+                 max="200" 
+                 step="0.1" 
+                 style="flex: 1; max-width: 90px; font-size: 12px;">
+          <select class="page-setup-control override-unit" 
+                  data-page-num="${pageNum}"
+                  style="width: 65px; font-size: 12px;">
+            <option value="mm" ${setting.unit === 'mm' ? 'selected' : ''}>mm</option>
+            <option value="cm" ${setting.unit === 'cm' ? 'selected' : ''}>cm</option>
+            <option value="inch" ${setting.unit === 'inch' ? 'selected' : ''}>inch</option>
+          </select>
+          <button type="button" class="remove-override" data-page-num="${pageNum}" style="padding: 5px 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">
+            <i class="fa fa-trash"></i>
+          </button>
+        </div>
+      `;
+      });
+    }
+
+    return html;
+  }
+
+  confirmPageBreakOverride() {
+    const pageNumbersInput = document.getElementById('overridePageNumbers')?.value.trim();
+    const distance = parseFloat(document.getElementById('overrideDistance')?.value);
+    const unit = document.getElementById('overrideUnit')?.value;
+
+    if (!pageNumbersInput) {
+      alert('Please enter page number(s)');
+      return;
+    }
+
+    if (isNaN(distance) || distance <= 0) {
+      alert('Please enter a valid distance');
+      return;
+    }
+
+    // Parse page numbers
+    const pageNumbers = this.parsePageNumbers(pageNumbersInput);
+
+    if (pageNumbers.length === 0) {
+      alert('Invalid page number format');
+      return;
+    }
+
+    // Initialize if needed
+    if (!this.pageSettings.conditionalPageBreak) {
+      this.pageSettings.conditionalPageBreak = {};
+    }
+    if (!this.pageSettings.conditionalPageBreak.pageOverrides) {
+      this.pageSettings.conditionalPageBreak.pageOverrides = {};
+    }
+
+    // Add overrides
+    pageNumbers.forEach(pageNum => {
+      this.pageSettings.conditionalPageBreak.pageOverrides[pageNum] = {
+        distance: distance,
+        unit: unit
+      };
+    });
+
+    this.editor.Modal.close();
+    setTimeout(() => this.showPageElementsSettings(), 100);
+  }
+
+  parsePageNumbers(input) {
+    const pages = [];
+    const parts = input.split(',');
+
+    parts.forEach(part => {
+      part = part.trim();
+
+      if (part.includes('-')) {
+        // Range like "3-7"
+        const [start, end] = part.split('-').map(n => parseInt(n.trim()));
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            if (!pages.includes(i)) pages.push(i);
+          }
+        }
+      } else {
+        // Single number
+        const pageNum = parseInt(part);
+        if (!isNaN(pageNum) && !pages.includes(pageNum)) {
+          pages.push(pageNum);
+        }
+      }
+    });
+
+    return pages.sort((a, b) => a - b);
+  }
   applyFormatAndOrientationChange() {
     if (!this.isInitialized) return
 
@@ -5170,7 +5749,81 @@ padding: 8px;
       console.error("Error adjusting component position:", error)
     }
   }
+  attachOverrideItemListeners() {
+    // Override distance inputs
+    document.querySelectorAll('.override-distance').forEach(input => {
+      input.removeEventListener('input', this._overrideDistanceHandler);
+      this._overrideDistanceHandler = (e) => {
+        const pageNum = e.target.getAttribute('data-page-num');
+        const distance = parseFloat(e.target.value);
 
+        if (!this.pageSettings.conditionalPageBreak) {
+          this.pageSettings.conditionalPageBreak = { pageOverrides: {} };
+        }
+        if (!this.pageSettings.conditionalPageBreak.pageOverrides) {
+          this.pageSettings.conditionalPageBreak.pageOverrides = {};
+        }
+
+        if (!this.pageSettings.conditionalPageBreak.pageOverrides[pageNum]) {
+          this.pageSettings.conditionalPageBreak.pageOverrides[pageNum] = { unit: 'mm' };
+        }
+
+        this.pageSettings.conditionalPageBreak.pageOverrides[pageNum].distance = distance;
+        console.log(`📝 Updated page ${pageNum} distance: ${distance}`);
+      };
+      input.addEventListener('input', this._overrideDistanceHandler);
+    });
+
+    // Override unit selects
+    document.querySelectorAll('.override-unit').forEach(select => {
+      select.removeEventListener('change', this._overrideUnitHandler);
+      this._overrideUnitHandler = (e) => {
+        const pageNum = e.target.getAttribute('data-page-num');
+        const unit = e.target.value;
+
+        if (!this.pageSettings.conditionalPageBreak) {
+          this.pageSettings.conditionalPageBreak = { pageOverrides: {} };
+        }
+        if (!this.pageSettings.conditionalPageBreak.pageOverrides) {
+          this.pageSettings.conditionalPageBreak.pageOverrides = {};
+        }
+
+        if (!this.pageSettings.conditionalPageBreak.pageOverrides[pageNum]) {
+          this.pageSettings.conditionalPageBreak.pageOverrides[pageNum] = { distance: 50 };
+        }
+
+        this.pageSettings.conditionalPageBreak.pageOverrides[pageNum].unit = unit;
+        console.log(`📝 Updated page ${pageNum} unit: ${unit}`);
+      };
+      select.addEventListener('change', this._overrideUnitHandler);
+    });
+
+    // Remove override buttons
+    document.querySelectorAll('.remove-override').forEach(btn => {
+      btn.removeEventListener('click', this._removeOverrideHandler);
+      this._removeOverrideHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const pageNum = e.target.closest('.remove-override').getAttribute('data-page-num');
+
+        if (confirm(`Remove conditional break override for page ${pageNum}?`)) {
+          if (this.pageSettings.conditionalPageBreak?.pageOverrides) {
+            delete this.pageSettings.conditionalPageBreak.pageOverrides[pageNum];
+            console.log(`🗑️ Removed override for page ${pageNum}`);
+          }
+
+          // Refresh the list
+          const overridesList = document.getElementById('pageBreakOverridesList');
+          if (overridesList) {
+            overridesList.innerHTML = this.generatePageBreakOverrides();
+            setTimeout(() => this.attachOverrideItemListeners(), 100);
+          }
+        }
+      };
+      btn.addEventListener('click', this._removeOverrideHandler);
+    });
+  }
 
   setupPageElementsListeners() {
     const headerModeSelect = document.getElementById("headerApplyMode");
@@ -5311,7 +5964,7 @@ padding: 8px;
     const fontSizeInput = document.getElementById("pageNumberFontSize");
     if (fontSizeInput) {
       fontSizeInput.addEventListener("input", (e) => {
-        const value = parseInt(e.target.value, 10);
+        const value = parseInt(e.target.value, 8);
         if (!isNaN(value)) {
           // Initialize if doesn't exist
           if (!this.pageSettings.pageNumber) {
@@ -5728,6 +6381,11 @@ padding: 8px;
       });
     }
     // === Conditional Page Break Listeners ===
+    // Default distance/unit listeners
+
+    // ===============================
+    // CONDITIONAL BREAK — ENABLED TOGGLE  (NEW UPDATED CODE)
+    // ===============================
     const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled");
     const conditionalBreakControls = document.getElementById("conditionalPageBreakControls");
 
@@ -5737,237 +6395,472 @@ padding: 8px;
           this.pageSettings.conditionalPageBreak = {};
         }
         this.pageSettings.conditionalPageBreak.enabled = e.target.checked;
-        conditionalBreakControls.style.display = e.target.checked ? "block" : "none";
+
+        // ✅ IMMEDIATE SHOW/HIDE — no modal re-open needed
+        if (e.target.checked) {
+          conditionalBreakControls.classList.add('active');
+          conditionalBreakControls.style.display = 'block';
+        } else {
+          conditionalBreakControls.classList.remove('active');
+          conditionalBreakControls.style.display = 'none';
+        }
       });
     }
 
-    const conditionalBreakDistance = document.getElementById("conditionalBreakDistance");
-    if (conditionalBreakDistance) {
-      conditionalBreakDistance.addEventListener("input", (e) => {
+    // ===============================
+    // GLOBAL DEFAULT DISTANCE / UNIT (OLD)
+    // ===============================
+    const defaultDistance = document.getElementById("conditionalBreakDefaultDistance");
+    if (defaultDistance) {
+      defaultDistance.addEventListener("input", (e) => {
         if (!this.pageSettings.conditionalPageBreak) {
           this.pageSettings.conditionalPageBreak = {};
         }
-        this.pageSettings.conditionalPageBreak.distance = parseFloat(e.target.value);
+        this.pageSettings.conditionalPageBreak.defaultDistance = parseFloat(e.target.value);
       });
     }
 
-    const conditionalBreakUnit = document.getElementById("conditionalBreakUnit");
-    if (conditionalBreakUnit) {
-      conditionalBreakUnit.addEventListener("change", (e) => {
+    const defaultUnit = document.getElementById("conditionalBreakDefaultUnit");
+    if (defaultUnit) {
+      defaultUnit.addEventListener("change", (e) => {
         if (!this.pageSettings.conditionalPageBreak) {
           this.pageSettings.conditionalPageBreak = {};
         }
-        this.pageSettings.conditionalPageBreak.unit = e.target.value;
+        this.pageSettings.conditionalPageBreak.defaultUnit = e.target.value;
       });
     }
+
+    // ===============================
+    // ADD OVERRIDE BUTTON (OLD)
+    // ===============================
+    // Replace the existing addOverrideBtn listener with:
+    const addOverrideBtn = document.getElementById("addPageBreakOverride");
+    if (addOverrideBtn) {
+      addOverrideBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const addForm = document.getElementById("addOverrideForm");
+        if (addForm) {
+          // Toggle form visibility
+          if (addForm.style.display === 'none' || !addForm.style.display) {
+            addForm.style.display = 'block';
+            // Clear previous values
+            document.getElementById('newOverridePages').value = '';
+            document.getElementById('newOverrideDistance').value = '50';
+            document.getElementById('newOverrideUnit').value = 'mm';
+          } else {
+            addForm.style.display = 'none';
+          }
+        }
+      });
+    }
+
+    // Confirm add override button
+    // Replace the confirmAddOverride event listener in setupPageElementsListeners():
+
+    document.addEventListener('click', (e) => {
+      if (e.target.id === 'confirmAddOverride' || e.target.closest('#confirmAddOverride')) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const pagesInput = document.getElementById('newOverridePages')?.value.trim();
+        const distance = parseFloat(document.getElementById('newOverrideDistance')?.value);
+        const unit = document.getElementById('newOverrideUnit')?.value;
+
+        if (!pagesInput) {
+          alert('Please enter page number(s)');
+          return;
+        }
+
+        if (isNaN(distance) || distance <= 0) {
+          alert('Please enter a valid distance');
+          return;
+        }
+
+        // Parse page numbers
+        const pageNumbers = this.parsePageNumbers(pagesInput);
+
+        if (pageNumbers.length === 0) {
+          alert('Invalid page number format. Use formats like: 5, or 2,5,8, or 3-7');
+          return;
+        }
+
+        // ✅ Initialize structure properly
+        if (!this.pageSettings.conditionalPageBreak) {
+          this.pageSettings.conditionalPageBreak = {
+            enabled: true,
+            defaultDistance: 50,
+            defaultUnit: 'mm',
+            pageOverrides: {}
+          };
+        }
+
+        if (!this.pageSettings.conditionalPageBreak.pageOverrides) {
+          this.pageSettings.conditionalPageBreak.pageOverrides = {};
+        }
+
+        // ✅ Add overrides to the settings object
+        pageNumbers.forEach(pageNum => {
+          this.pageSettings.conditionalPageBreak.pageOverrides[pageNum] = {
+            distance: distance,
+            unit: unit
+          };
+        });
+
+        console.log(`✅ Added overrides for pages: ${pageNumbers.join(', ')}`);
+        console.log('Current pageOverrides:', JSON.stringify(this.pageSettings.conditionalPageBreak.pageOverrides, null, 2));
+
+        // ✅ Refresh the overrides list in the DOM
+        const overridesList = document.getElementById('pageBreakOverridesList');
+        if (overridesList) {
+          overridesList.innerHTML = this.generatePageBreakOverrides();
+
+          // ✅ Reattach event listeners for the new elements
+          setTimeout(() => {
+            this.attachOverrideItemListeners();
+          }, 100);
+        }
+
+        // Hide the form
+        const addForm = document.getElementById('addOverrideForm');
+        if (addForm) {
+          addForm.style.display = 'none';
+        }
+      }
+    });
+
+    // Cancel add override button
+    document.addEventListener('click', (e) => {
+      if (e.target.id === 'cancelAddOverride' || e.target.closest('#cancelAddOverride')) {
+        e.preventDefault();
+        const addForm = document.getElementById('addOverrideForm');
+        if (addForm) {
+          addForm.style.display = 'none';
+        }
+      }
+    });
+
+    // ===============================
+    // APPLY MODE TOGGLE (OLD)
+    // ===============================
+    const conditionalBreakApplyMode = document.getElementById("conditionalBreakApplyMode");
+    if (conditionalBreakApplyMode) {
+      conditionalBreakApplyMode.addEventListener("change", (e) => {
+        const mode = e.target.value;
+
+        if (!this.pageSettings.conditionalPageBreak) {
+          this.pageSettings.conditionalPageBreak = {};
+        }
+        this.pageSettings.conditionalPageBreak.applyMode = mode;
+
+        // Toggle visibility
+        const globalSettings = document.getElementById("globalBreakSettings");
+        const perPageSettings = document.getElementById("perPageBreakSettings");
+
+        if (globalSettings) {
+          globalSettings.style.display = mode === 'all' ? 'block' : 'none';
+        }
+        if (perPageSettings) {
+          perPageSettings.style.display = mode === 'perPage' ? 'block' : 'none';
+        }
+      });
+    }
+
+    // ===============================
+    // PER-PAGE UNIT SELECTS (OLD)
+    // ===============================
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('per-page-break-unit')) {
+        const pageId = e.target.getAttribute('data-page-id');
+        const unit = e.target.value;
+
+        if (!this.pageSettings.conditionalPageBreak) {
+          this.pageSettings.conditionalPageBreak = {};
+        }
+        if (!this.pageSettings.conditionalPageBreak.perPageSettings) {
+          this.pageSettings.conditionalPageBreak.perPageSettings = {};
+        }
+        if (!this.pageSettings.conditionalPageBreak.perPageSettings[pageId]) {
+          this.pageSettings.conditionalPageBreak.perPageSettings[pageId] = {};
+        }
+
+        this.pageSettings.conditionalPageBreak.perPageSettings[pageId].unit = unit;
+      }
+    });
+
   }
 
 
-  applyPageElementsSettings() {
-    try {
-      // 1️⃣ Preserve current page content
-      this.preserveAllContent();
+  logConditionalBreakSettings() {
+    console.group('🔍 Conditional Break Settings');
+    console.log('Enabled:', this.pageSettings.conditionalPageBreak?.enabled);
+    console.log('Default Distance:', this.pageSettings.conditionalPageBreak?.defaultDistance);
+    console.log('Default Unit:', this.pageSettings.conditionalPageBreak?.defaultUnit);
+    console.log('Overrides:', this.pageSettings.conditionalPageBreak?.pageOverrides);
+    console.groupEnd();
+  }
 
-      // 2️⃣ Get all form values
-      const marginTop = Math.max(0, parseFloat(document.getElementById("settingsMarginTop")?.value) || 0);
-      const marginBottom = Math.max(0, parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0);
-      const marginLeft = Math.max(0, parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0);
-      const marginRight = Math.max(0, parseFloat(document.getElementById("settingsMarginRight")?.value) || 0);
-      const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff";
+applyPageElementsSettings() {
+  try {
+    const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled")?.checked || false;
+    const conditionalBreakDefaultDistance = parseFloat(document.getElementById("conditionalBreakDefaultDistance")?.value) || 50;
+    const conditionalBreakDefaultUnit = document.getElementById("conditionalBreakDefaultUnit")?.value || "mm";
 
-      // --- Header settings ---
-      const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked !== false;
-      const headerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7));
-      const headerApplyMode = document.getElementById("headerApplyMode")?.value || "all";
-      const headerCustomPageList = document.getElementById("headerCustomPageList")?.value || "";
-      const headerText = document.getElementById("settingsHeaderText")?.value || "";
+    // Collect all overrides from the form
+    const pageOverrides = {};
+    document.querySelectorAll('.page-break-override-item').forEach(item => {
+      const pageNum = item.getAttribute('data-page-num');
+      const distanceInput = item.querySelector('.override-distance');
+      const unitSelect = item.querySelector('.override-unit');
 
-      // --- Footer settings ---
-      const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked !== false;
-      const footerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7));
-      const footerApplyMode = document.getElementById("footerApplyMode")?.value || "all";
-      const footerCustomPageList = document.getElementById("footerCustomPageList")?.value || "";
-      const footerText = document.getElementById("settingsFooterText")?.value || "";
+      if (distanceInput && unitSelect) {
+        pageOverrides[pageNum] = {
+          distance: parseFloat(distanceInput.value),
+          unit: unitSelect.value
+        };
+      }
+    });
 
-      // --- Page Number settings ---
-      const pageNumberEnabled = document.getElementById("pageNumberEnabled")?.checked || false;
-      const pageNumberStartFrom = parseInt(document.getElementById("pageNumberStartFrom")?.value || "1", 10);
-      const pageNumberFormat = document.getElementById("pageNumberFormat")?.value || "Page {n}";
-      const pageNumberPosition = document.querySelector(".position-option.selected")?.dataset?.position || "bottom-center";
-      const storedPageNumber = this.pageSettings.pageNumber || {};
-      const pageNumberFontSize = storedPageNumber.fontSize || parseInt(document.getElementById("pageNumberFontSize")?.value || "11", 10);
-      const pageNumberColor = storedPageNumber.color || document.getElementById("pageNumberColor")?.value || "#333333";
-      const pageNumberBackgroundColor = storedPageNumber.backgroundColor || document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff";
-      const pageNumberShowBorder = storedPageNumber.showBorder !== undefined ? storedPageNumber.showBorder : (document.getElementById("pageNumberShowBorder")?.checked || false);
+    // Store settings
+    // Store settings
+    this.pageSettings.conditionalPageBreak = {
+      enabled: conditionalBreakEnabled,
+      defaultDistance: conditionalBreakDefaultDistance,
+      defaultUnit: conditionalBreakDefaultUnit,
+      pageOverrides: pageOverrides
+    };
+    // 1️⃣ Preserve current page content
+    this.preserveAllContent();
 
-      // --- Watermark settings ---
-      const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false;
-      const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset?.type || "text";
-      const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checked || false;
+    // 2️⃣ Get all form values
+    const marginTop = Math.max(0, parseFloat(document.getElementById("settingsMarginTop")?.value) || 0);
+    const marginBottom = Math.max(0, parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0);
+    const marginLeft = Math.max(0, parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0);
+    const marginRight = Math.max(0, parseFloat(document.getElementById("settingsMarginRight")?.value) || 0);
+    const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff";
 
-      // Text watermark settings
-      const watermarkTextContent = document.getElementById("settingsWatermarkText")?.value || "CONFIDENTIAL";
-      const watermarkFontSize = parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
-      const watermarkColor = document.getElementById("settingsWatermarkColor")?.value || "#000000";
-      const watermarkOpacity = parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.4;
-      const watermarkRotation = parseInt(document.getElementById("settingsWatermarkRotation")?.value) || 0;
-      const watermarkTextPosition = document.querySelector(".watermark-text-position-option.selected")?.dataset?.position || "center";
+    // ✅ Clear old background color reference
+    delete this._lastAppliedBackgroundColor;
 
-      // Image watermark settings
-      const watermarkImageUrl = document.getElementById("settingsWatermarkImageUrl")?.value || "";
-      const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
-      const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
-      const watermarkImageOpacity = parseInt(document.getElementById("settingsWatermarkImageOpacity")?.value) / 100 || 0.4;
-      const watermarkImageRotation = parseInt(document.getElementById("settingsWatermarkImageRotation")?.value) || 0;
-      const watermarkImagePosition = document.querySelector(".watermark-image-position-option.selected")?.dataset?.position || "center";
+    // Force update background in pageSettings
+    this.pageSettings.backgroundColor = newBackgroundColor;
+    this.pageSettings.pages.forEach(page => {
+      page.backgroundColor = newBackgroundColor;
+    });
 
-      // --- Parse custom page lists ---
-      const headerCustomPages = this.parsePageList(headerCustomPageList);
-      const footerCustomPages = this.parsePageList(footerCustomPageList);
+    console.log(`✅ Background color set to: ${newBackgroundColor}`);
 
-      // --- Conditional Page Break settings ---
-      const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled")?.checked || false;
-      const conditionalBreakDistance = parseFloat(document.getElementById("conditionalBreakDistance")?.value) || 50;
-      const conditionalBreakUnit = document.getElementById("conditionalBreakUnit")?.value || "mm";
+    // --- Header settings ---
+    const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked !== false;
+    const headerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7));
+    const headerApplyMode = document.getElementById("headerApplyMode")?.value || "all";
+    const headerCustomPageList = document.getElementById("headerCustomPageList")?.value || "";
+    const headerText = document.getElementById("settingsHeaderText")?.value || "";
 
-      const pageNumberRotation = parseInt(document.getElementById("pageNumberRotation")?.value || "0", 10);
+    // --- Footer settings ---
+    const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked !== false;
+    const footerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7));
+    const footerApplyMode = document.getElementById("footerApplyMode")?.value || "all";
+    const footerCustomPageList = document.getElementById("footerCustomPageList")?.value || "";
+    const footerText = document.getElementById("settingsFooterText")?.value || "";
 
-      // --- Store settings for persistence ---
-      this._lastHeaderApplyMode = headerApplyMode;
-      this._lastFooterApplyMode = footerApplyMode;
-      this._lastHeaderCustomPageList = headerCustomPageList;
-      this._lastFooterCustomPageList = footerCustomPageList;
-      this._lastHeaderCustomPages = headerCustomPages;
-      this._lastFooterCustomPages = footerCustomPages;
+    // --- Page Number settings ---
+    const pageNumberEnabled = document.getElementById("pageNumberEnabled")?.checked || false;
+    const pageNumberStartFrom = parseInt(document.getElementById("pageNumberStartFrom")?.value || "1", 10);
+    const pageNumberFormat = document.getElementById("pageNumberFormat")?.value || "Page {n}";
+    const pageNumberPosition = document.querySelector(".position-option.selected")?.dataset?.position || "bottom-center";
+    const storedPageNumber = this.pageSettings.pageNumber || {};
+    const pageNumberFontSize = storedPageNumber.fontSize || parseInt(document.getElementById("pageNumberFontSize")?.value || "8", 8);
+    const pageNumberColor = storedPageNumber.color || document.getElementById("pageNumberColor")?.value || "#333333";
+    const pageNumberBackgroundColor = storedPageNumber.backgroundColor || document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff";
+    const pageNumberShowBorder = storedPageNumber.showBorder !== undefined ? storedPageNumber.showBorder : (document.getElementById("pageNumberShowBorder")?.checked || false);
 
-      // --- Update global page settings ---
-      this.pageSettings.headerFooter = {
-        headerEnabled,
-        footerEnabled,
-        headerHeight,
-        footerHeight,
-        headerText,
-        footerText,
-        headerApplyMode,
-        footerApplyMode,
-        headerCustomPages,
-        footerCustomPages
+    // --- Watermark settings ---
+    const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false;
+    const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset?.type || "text";
+    const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checked || false;
+
+    // Text watermark settings
+    const watermarkTextContent = document.getElementById("settingsWatermarkText")?.value || "CONFIDENTIAL";
+    const watermarkFontSize = parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
+    const watermarkColor = document.getElementById("settingsWatermarkColor")?.value || "#000000";
+    const watermarkOpacity = parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.4;
+    const watermarkRotation = parseInt(document.getElementById("settingsWatermarkRotation")?.value) || 0;
+    const watermarkTextPosition = document.querySelector(".watermark-text-position-option.selected")?.dataset?.position || "center";
+
+    // Image watermark settings
+    const watermarkImageUrl = document.getElementById("settingsWatermarkImageUrl")?.value || "";
+    const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
+    const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
+    const watermarkImageOpacity = parseInt(document.getElementById("settingsWatermarkImageOpacity")?.value) / 100 || 0.4;
+    const watermarkImageRotation = parseInt(document.getElementById("settingsWatermarkImageRotation")?.value) || 0;
+    const watermarkImagePosition = document.querySelector(".watermark-image-position-option.selected")?.dataset?.position || "center";
+
+    // --- Parse custom page lists ---
+    const headerCustomPages = this.parsePageList(headerCustomPageList);
+    const footerCustomPages = this.parsePageList(footerCustomPageList);
+
+    const pageNumberRotation = parseInt(document.getElementById("pageNumberRotation")?.value || "0", 10);
+
+    // --- Store settings for persistence ---
+    this._lastHeaderApplyMode = headerApplyMode;
+    this._lastFooterApplyMode = footerApplyMode;
+    this._lastHeaderCustomPageList = headerCustomPageList;
+    this._lastFooterCustomPageList = footerCustomPageList;
+    this._lastHeaderCustomPages = headerCustomPages;
+    this._lastFooterCustomPages = footerCustomPages;
+
+    // --- Update global page settings ---
+    this.pageSettings.headerFooter = {
+      headerEnabled,
+      footerEnabled,
+      headerHeight,
+      footerHeight,
+      headerText,
+      footerText,
+      headerApplyMode,
+      footerApplyMode,
+      headerCustomPages,
+      footerCustomPages
+    };
+
+    this.pageSettings.margins = {
+      top: marginTop,
+      bottom: marginBottom,
+      left: marginLeft,
+      right: marginRight
+    };
+
+    this.pageSettings.backgroundColor = newBackgroundColor;
+    this.updatePageRule();
+
+
+    this.pageSettings.pageNumber = {
+      enabled: pageNumberEnabled,
+      startFrom: pageNumberStartFrom,
+      format: pageNumberFormat,
+      position: pageNumberPosition,
+      fontSize: pageNumberFontSize,
+      fontFamily: storedPageNumber.fontFamily || "Arial",
+      color: pageNumberColor,
+      backgroundColor: pageNumberBackgroundColor,
+      showBorder: pageNumberShowBorder,
+      rotation: pageNumberRotation,
+      visibility: storedPageNumber.visibility || "all",
+    };
+
+    // Store watermark settings with separate positions for text and image
+    this.pageSettings.watermark = {
+      enabled: watermarkEnabled,
+      type: watermarkType,
+      tiled: watermarkTiled,
+      textPosition: watermarkTextPosition,    // Separate position for text
+      imagePosition: watermarkImagePosition,  // Separate position for image
+      text: {
+        content: watermarkTextContent,
+        fontSize: watermarkFontSize,
+        color: watermarkColor,
+        opacity: watermarkOpacity,
+        rotation: watermarkRotation
+      },
+      image: {
+        url: watermarkImageUrl,
+        width: watermarkImageWidth,
+        height: watermarkImageHeight,
+        opacity: watermarkImageOpacity,
+        rotation: watermarkImageRotation
+      }
+    };
+
+    // Apply conditional page breaks to existing pages immediately
+    if (conditionalBreakEnabled) {
+      console.log('🔄 Applying conditional breaks to existing pages...');
+
+      // ✅ FIX: Use the correct property path
+      const settingsToLog = {
+        enabled: this.pageSettings.conditionalPageBreak.enabled,
+        defaultDistance: this.pageSettings.conditionalPageBreak.defaultDistance,
+        defaultUnit: this.pageSettings.conditionalPageBreak.defaultUnit,
+        pageOverrides: this.pageSettings.conditionalPageBreak.pageOverrides
       };
+      console.log('Settings:', JSON.stringify(settingsToLog, null, 2));
 
-      this.pageSettings.margins = {
-        top: marginTop,
-        bottom: marginBottom,
-        left: marginLeft,
-        right: marginRight
-      };
+      setTimeout(() => {
+        this.removeAllConditionalPageBreaks();
 
-      this.pageSettings.backgroundColor = newBackgroundColor;
-      this.updatePageRule();
-
-
-      this.pageSettings.pageNumber = {
-        enabled: pageNumberEnabled,
-        startFrom: pageNumberStartFrom,
-        format: pageNumberFormat,
-        position: pageNumberPosition,
-        fontSize: pageNumberFontSize,
-        fontFamily: storedPageNumber.fontFamily || "Arial",
-        color: pageNumberColor,
-        backgroundColor: pageNumberBackgroundColor,
-        showBorder: pageNumberShowBorder,
-        rotation: pageNumberRotation,
-        visibility: storedPageNumber.visibility || "all",
-      };
-
-      // Store watermark settings with separate positions for text and image
-      this.pageSettings.watermark = {
-        enabled: watermarkEnabled,
-        type: watermarkType,
-        tiled: watermarkTiled,
-        textPosition: watermarkTextPosition,    // Separate position for text
-        imagePosition: watermarkImagePosition,  // Separate position for image
-        text: {
-          content: watermarkTextContent,
-          fontSize: watermarkFontSize,
-          color: watermarkColor,
-          opacity: watermarkOpacity,
-          rotation: watermarkRotation
-        },
-        image: {
-          url: watermarkImageUrl,
-          width: watermarkImageWidth,
-          height: watermarkImageHeight,
-          opacity: watermarkImageOpacity,
-          rotation: watermarkImageRotation
-        }
-      };
-
-
-      this.pageSettings.conditionalPageBreak = {
-        enabled: conditionalBreakEnabled,
-        distance: conditionalBreakDistance,
-        unit: conditionalBreakUnit
-      };
-
-      // Apply conditional page breaks to existing pages
-      if (conditionalBreakEnabled) {
         setTimeout(() => {
           this.insertConditionalPageBreaksToAllPages();
-        }, 500);
-      } else {
-        this.removeAllConditionalPageBreaks();
-      }
-      // --- Update individual page settings before setup ---
-      this.updateIndividualPageSettings();
 
-      // --- Apply background color immediately for live preview ---
+          // Verify application
+          setTimeout(() => {
+            const allPages = this.editor.getWrapper().find('.page-container');
+            allPages.forEach((page, idx) => {
+              const indicator = page.find('.conditional-break-indicator[data-conditional="true"]')[0];
+              if (indicator) {
+                const pageNum = idx + 1;
+                const override = this.pageSettings.conditionalPageBreak.pageOverrides?.[pageNum];
+                console.log(`✅ Page ${pageNum} has break indicator. Override:`, override || 'using default');
+              }
+            });
+          }, 500);
+        }, 200);
+      }, 500);
+    } else {
+      this.removeAllConditionalPageBreaks();
+    }
+
+    this.logConditionalBreakSettings();
+    // --- Update individual page settings before setup ---
+    this.updateIndividualPageSettings();
+
+    // --- Apply background color immediately for live preview ---
+    this.applyBackgroundColorToPages(newBackgroundColor);
+
+    // --- Preserve content for mode switch ---
+    this.preserveContentForModeSwitch();
+
+    // --- Setup pages ---
+    this.setupEditorPages();
+
+    // --- Restore content and update visuals ---
+    this.restoreAllContent();
+    this.restoreContentAfterModeSwitch();
+    this.updateAllPageVisuals();
+
+    // --- Re-apply background color after all visuals are rendered ---
+    setTimeout(() => {
       this.applyBackgroundColorToPages(newBackgroundColor);
 
-      // --- Preserve content for mode switch ---
-      this.preserveContentForModeSwitch();
-
-      // --- Setup pages ---
-      this.setupEditorPages();
-
-      // --- Restore content and update visuals ---
-      this.restoreAllContent();
-      this.restoreContentAfterModeSwitch();
-      this.updateAllPageVisuals();
-
-      // --- Re-apply background color after all visuals are rendered ---
+      // --- Apply conditional header/footer content ---
       setTimeout(() => {
-        this.applyBackgroundColorToPages(newBackgroundColor);
+        this.applyConditionalHeaderFooterContent();
+        this.resetTextChangeFlags();
+      }, 300);
 
-        // --- Apply conditional header/footer content ---
-        setTimeout(() => {
-          this.applyConditionalHeaderFooterContent();
-          this.resetTextChangeFlags();
-        }, 300);
-
-      }, 250);
+    }, 250);
     // ✅ ADD: Force update section header/footer visibility after applying settings
     setTimeout(() => {
       this.updateAllSectionHeadersFooters();
-      
+
       // Force re-render of all sections
       const allPages = this.editor.getWrapper().find('.page-container');
       allPages.forEach((pageComponent, i) => {
         const sectionContainer = pageComponent.find('.sections-container')[0];
         if (!sectionContainer) return;
-        
+
         // Update both header and footer for this page
         this.updateSectionHeader(pageComponent, i);
         this.updateSectionFooter(pageComponent, i);
       });
     }, 300);
-      // --- Close modal ---
-      this.editor.Modal.close();
+    // --- Close modal ---
+    this.editor.Modal.close();
 
-    } catch (err) {
-      console.error("❌ Error in applyPageElementsSettings:", err);
-      alert("Failed to apply settings.");
-    }
+  } catch (err) {
+    console.error("❌ Error in applyPageElementsSettings:", err);
+    alert("Failed to apply settings.");
   }
+}
+
 
   convertToMm(value, unit) {
     switch (unit) {
@@ -5993,64 +6886,79 @@ padding: 8px;
 
     console.log('✂️ Conditional page breaks inserted to all pages');
   }
-  insertConditionalPageBreakToPage(pageComponent, pageIndex) {
+insertConditionalPageBreakToPage(pageComponent, pageIndex) {
     if (!this.pageSettings.conditionalPageBreak?.enabled) return;
 
     const mainContentArea = pageComponent.find('.main-content-area')[0];
     if (!mainContentArea) return;
 
-    // Remove ONLY existing conditional page breaks (not manual ones)
-    const existingConditionalBreaks = mainContentArea.find('.page-break[data-conditional="true"]');
-    existingConditionalBreaks.forEach(br => br.remove());
+    // Remove existing conditional indicators from DOM
+    const mainContentAreaEl = mainContentArea.view.el;
+    const existingIndicators = mainContentAreaEl.querySelectorAll('.conditional-break-indicator');
+    existingIndicators.forEach(ind => ind.remove());
 
-    const distance = this.pageSettings.conditionalPageBreak.distance;
-    const unit = this.pageSettings.conditionalPageBreak.unit;
+    const pageNumber = pageIndex + 1; // 1-indexed for user-facing page numbers
+
+    // Check for page-specific override first
+    const overrides = this.pageSettings.conditionalPageBreak.pageOverrides || {};
+    let distance, unit;
+
+    if (overrides[pageNumber]) {
+      // Use page-specific override
+      distance = overrides[pageNumber].distance;
+      unit = overrides[pageNumber].unit;
+      console.log(`🎯 Using override for page ${pageNumber}: ${distance}${unit}`);
+    } else {
+      // Use default settings
+      distance = this.pageSettings.conditionalPageBreak.defaultDistance || 50;
+      unit = this.pageSettings.conditionalPageBreak.defaultUnit || 'mm';
+      console.log(`📋 Using default for page ${pageNumber}: ${distance}${unit}`);
+    }
+
     const distanceInMm = this.convertToMm(distance, unit);
-
-    // Convert mm to px
     const mmToPx = 96 / 25.4;
     const distanceInPx = Math.round(distanceInMm * mmToPx);
 
-    // Get main content area height
     const contentEl = mainContentArea.getEl();
     if (!contentEl) return;
 
     const contentHeight = contentEl.clientHeight;
     const breakPosition = contentHeight - distanceInPx;
 
-    // Don't insert if position is invalid
     if (breakPosition <= 0 || breakPosition >= contentHeight) {
-      console.warn(`⚠️ Invalid conditional break position for page ${pageIndex + 1}`);
+      console.warn(`⚠️ Invalid conditional break position for page ${pageNumber}`);
       return;
     }
 
-    // Check if there's already a MANUAL page break
+    // Check for manual page breaks (these are actual components)
     const allBreaks = mainContentArea.find('.page-break:not([data-conditional="true"])');
     if (allBreaks.length > 0) {
-      console.log(`⏭️ Skipping conditional break on page ${pageIndex + 1} - manual break already exists`);
+      console.log(`⏭️ Skipping conditional break on page ${pageNumber} - manual break exists`);
       return;
     }
 
-    // Insert VISUAL INDICATOR ONLY - not an actual breaking element
+    const label = overrides[pageNumber] ? `Override: ${distance}${unit}` : `Default: ${distance}${unit}`;
+
     const visualIndicatorHTML = `
     <div class="conditional-break-indicator" 
          data-conditional="true"
+         data-page-number="${pageNumber}"
          style="
            position: absolute;
            bottom: ${distanceInPx}px;
            left: 0;
            right: 0;
            height: 2px;
-           border-top: 2px dashed #ff6b6b;
+           border-top: 2px dashed ${overrides[pageNumber] ? '#4caf50' : '#ff6b6b'};
            z-index: 999;
            pointer-events: none;
-           background: rgba(255, 107, 107, 0.05);
+           background: rgba(${overrides[pageNumber] ? '76, 175, 80' : '255, 107, 107'}, 0.05);
          ">
       <span style="
         position: absolute;
         right: 0;
         top: -20px;
-        background: #ff6b6b;
+        background: ${overrides[pageNumber] ? '#4caf50' : '#ff6b6b'};
         color: white;
         padding: 2px 8px;
         border-radius: 3px;
@@ -6058,32 +6966,18 @@ padding: 8px;
         font-weight: bold;
         z-index: 100;
         white-space: nowrap;
-      ">Auto Break Zone: ${distance}${unit} from bottom</span>
+      ">Conditional Break (P${pageNumber}): ${label}</span>
     </div>
   `;
 
-    // Add to page-content, not main-content-area
     const pageContent = pageComponent.find('.page-content')[0];
     if (!pageContent) return;
 
-    const indicatorComponent = pageContent.append(visualIndicatorHTML)[0];
+    const pageContentEl = pageContent.view.el;
+    pageContentEl.insertAdjacentHTML('beforeend', visualIndicatorHTML);
 
-    if (indicatorComponent) {
-      indicatorComponent.set({
-        selectable: false,
-        editable: false,
-        removable: false,
-        draggable: false,
-        copyable: false,
-        attributes: {
-          'data-conditional': 'true'
-        }
-      });
-
-      console.log(`📏 Conditional break indicator added at ${distanceInPx}px from bottom on page ${pageIndex + 1}`);
-    }
+    console.log(`📏 Conditional break added to page ${pageNumber} at ${distanceInPx}px from bottom`);
   }
-
   removeAllConditionalPageBreaks() {
     const allPages = this.editor.getWrapper().find('.page-container');
 
@@ -6384,7 +7278,7 @@ padding: 8px;
     }
 
     this.pageSettings.watermark = {
-      enabled: true,
+      enabled: false,
       type: "text",
       text: {
         content: "CONFIDENTIAL",
@@ -6468,6 +7362,28 @@ padding: 8px;
   // FIXED: Enhanced setupEditorPages method that properly creates headers/footers
   setupEditorPages() {
     try {
+
+          const wrapper = this.editor.getWrapper();
+    
+    // Clear ALL components including cached ones
+    wrapper.components().reset();
+    
+    // Force clear the canvas DOM
+    const canvasBody = this.editor.Canvas.getBody();
+    if (canvasBody) {
+      // Remove all page containers from DOM
+      const existingPages = canvasBody.querySelectorAll('.page-container');
+      existingPages.forEach(page => page.remove());
+    }
+    
+    // Clear page contents cache
+    this.pageContents.clear();
+    this.sharedContent = { header: null, footer: null };
+    
+    // Reset background color flags
+    delete this._lastAppliedBackgroundColor;
+    
+    console.log('✅ Canvas completely cleared');
       // Clear any existing observers before creating new pages
       this.clearAllObservers();
 
@@ -6894,49 +7810,49 @@ padding: 8px;
     }
   }
 
-addSectionsContainerToAllPages() {
-  try {
-    const wrapper = this.editor.getWrapper();
-    const allPageComponents = wrapper.find('.page-container');
+  addSectionsContainerToAllPages() {
+    try {
+      const wrapper = this.editor.getWrapper();
+      const allPageComponents = wrapper.find('.page-container');
 
-    // ✅ ADD: Track the highest count before adding
-    let highestCount = 0;
-    allPageComponents.forEach((pageComponent) => {
-      const existingSections = pageComponent.find('.sections-container');
-      existingSections.forEach((section) => {
-        const count = parseInt(section.getAttributes()['data-section-count'] || '0');
-        if (count > highestCount) highestCount = count;
+      // ✅ ADD: Track the highest count before adding
+      let highestCount = 0;
+      allPageComponents.forEach((pageComponent) => {
+        const existingSections = pageComponent.find('.sections-container');
+        existingSections.forEach((section) => {
+          const count = parseInt(section.getAttributes()['data-section-count'] || '0');
+          if (count > highestCount) highestCount = count;
+        });
       });
-    });
 
-    for (let i = 0; i < allPageComponents.length; i++) {
-      const pageComponent = allPageComponents[i];
-      const mainContentArea = pageComponent.find('.main-content-area')[0];
+      for (let i = 0; i < allPageComponents.length; i++) {
+        const pageComponent = allPageComponents[i];
+        const mainContentArea = pageComponent.find('.main-content-area')[0];
 
-      if (!mainContentArea) continue;
+        if (!mainContentArea) continue;
 
-      const existingSections = mainContentArea.find('.sections-container');
+        const existingSections = mainContentArea.find('.sections-container');
 
-      if (existingSections && existingSections.length > 0) {
-        continue;
+        if (existingSections && existingSections.length > 0) {
+          continue;
+        }
+
+        // ✅ MODIFY: Add with incremented count for drag & drop
+        const newSection = mainContentArea.append({
+          type: 'Sections',
+          attributes: {
+            'data-section-count': String(highestCount + 1) // ✅ Increment for manual add
+          }
+        })[0];
+
+        console.log(`✅ Added section with count: ${highestCount + 1}`);
       }
 
-      // ✅ MODIFY: Add with incremented count for drag & drop
-      const newSection = mainContentArea.append({
-        type: 'Sections',
-        attributes: {
-          'data-section-count': String(highestCount + 1) // ✅ Increment for manual add
-        }
-      })[0];
-
-      console.log(`✅ Added section with count: ${highestCount + 1}`);
+      this.editor.trigger('change:canvasOffset');
+    } catch (error) {
+      console.error("Error adding sections:", error);
     }
-
-    this.editor.trigger('change:canvasOffset');
-  } catch (error) {
-    console.error("Error adding sections:", error);
   }
-}
 
   checkForRequiredBlocks() {
     const sectionsRequiredBlocks = [
@@ -7076,399 +7992,400 @@ addSectionsContainerToAllPages() {
     return styles;
   }
   // FIXED: Enhanced updateSinglePageVisuals method that properly creates and displays headers/footers
-updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
-  const allPages = this.editor.getWrapper().find('.page-container');
-  const pageComponent = allPages.find(p => p.getAttributes()['data-page-id'] === pageSettings.id);
-  if (!pageComponent) return;
+  updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
+    const allPages = this.editor.getWrapper().find('.page-container');
+    const pageComponent = allPages.find(p => p.getAttributes()['data-page-id'] === pageSettings.id);
+    if (!pageComponent) return;
 
-  const pageContentComponent = pageComponent.find(".page-content")[0];
-  if (!pageContentComponent) return;
+    const pageContentComponent = pageComponent.find(".page-content")[0];
+    if (!pageContentComponent) return;
 
-  // ===============================
-  // ✅ PROTECT SECTIONS FROM PAGE SETTINGS HEIGHT CHANGES - ENHANCED
-  // ===============================
-  const sectionsContainer = pageComponent.find('.sections-container')[0];
+    // ===============================
+    // ✅ PROTECT SECTIONS FROM PAGE SETTINGS HEIGHT CHANGES - ENHANCED
+    // ===============================
+    const sectionsContainer = pageComponent.find('.sections-container')[0];
 
-  // We'll capture references here so they can be used both for preserving and restoring.
-  const sectionHeader = sectionsContainer ? sectionsContainer.find('.section-header')[0] : null;
-  const sectionContent = sectionsContainer ? sectionsContainer.find('.section-content')[0] : null;
-  const sectionFooter = sectionsContainer ? sectionsContainer.find('.section-footer')[0] : null;
+    // We'll capture references here so they can be used both for preserving and restoring.
+    const sectionHeader = sectionsContainer ? sectionsContainer.find('.section-header')[0] : null;
+    const sectionContent = sectionsContainer ? sectionsContainer.find('.section-content')[0] : null;
+    const sectionFooter = sectionsContainer ? sectionsContainer.find('.section-footer')[0] : null;
 
-  let preservedHeaderHeight = null;
-  let preservedContentHeight = null;
-  let preservedFooterHeight = null;
+    let preservedHeaderHeight = null;
+    let preservedContentHeight = null;
+    let preservedFooterHeight = null;
 
-  if (sectionsContainer) {
-    // Get current heights BEFORE any page-settings-driven changes
-    if (sectionHeader) {
-      const headerEl = sectionHeader.getEl();
-      if (headerEl) {
-        preservedHeaderHeight = headerEl.style.height || window.getComputedStyle(headerEl).height;
+    if (sectionsContainer) {
+      // Get current heights BEFORE any page-settings-driven changes
+      if (sectionHeader) {
+        const headerEl = sectionHeader.getEl();
+        if (headerEl) {
+          preservedHeaderHeight = headerEl.style.height || window.getComputedStyle(headerEl).height;
+        }
       }
-    }
 
-    if (sectionContent) {
-      const contentEl = sectionContent.getEl();
-      if (contentEl) {
-        preservedContentHeight = contentEl.style.height || window.getComputedStyle(contentEl).height;
+      if (sectionContent) {
+        const contentEl = sectionContent.getEl();
+        if (contentEl) {
+          preservedContentHeight = contentEl.style.height || window.getComputedStyle(contentEl).height;
+        }
       }
-    }
 
-    if (sectionFooter) {
-      const footerEl = sectionFooter.getEl();
-      if (footerEl) {
-        preservedFooterHeight = footerEl.style.height || window.getComputedStyle(footerEl).height;
+      if (sectionFooter) {
+        const footerEl = sectionFooter.getEl();
+        if (footerEl) {
+          preservedFooterHeight = footerEl.style.height || window.getComputedStyle(footerEl).height;
+        }
       }
-    }
 
-    console.log(`🔒 Preserved section heights (page ${pageIndex + 1}):`, {
-      header: preservedHeaderHeight,
-      content: preservedContentHeight,
-      footer: preservedFooterHeight
-    });
-  }
-
-  // ======================================================
-  // ➕ Utility helpers for Apply Mode (NEW)
-  // ======================================================
-  const shouldApply = (mode, range, pageNum) => {
-    if (mode === "all") return true;
-    if (mode === "even") return pageNum % 2 === 0;
-    if (mode === "odd") return pageNum % 2 !== 0;
-    if (mode === "custom") return checkCustomRange(range, pageNum);
-    return true;
-  };
-
-  const checkCustomRange = (range, pageNum) => {
-    if (!range) return false;
-    return range.split(",").some(part => {
-      if (part.includes("-")) {
-        const [start, end] = part.split("-").map(n => parseInt(n.trim(), 10));
-        return pageNum >= start && pageNum <= end;
-      } else {
-        return parseInt(part.trim(), 10) === pageNum;
-      }
-    });
-  };
-
-  // ======================================================
-  // Remove/Add page indicator (same as your code)
-  // ======================================================
-  const existingIndicator = pageElement.querySelector(".page-indicator");
-  if (existingIndicator) existingIndicator.remove();
-
-  const indicator = document.createElement("div");
-  indicator.className = "page-indicator";
-  indicator.textContent = `${pageSettings.name}`;
-  pageElement.appendChild(indicator);
-
-  // ======================================================
-  // Dimensions
-  // ======================================================
-  const mmToPx = 96 / 25.4;
-  const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx);
-  const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx);
-  const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx);
-  const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx);
-
-  const totalPageWidth = Math.round(this.pageSettings.width * mmToPx);
-  const totalPageHeight = Math.round(this.pageSettings.height * mmToPx);
-  const contentWidth = totalPageWidth - marginLeftPx - marginRightPx;
-  const contentHeight = totalPageHeight - marginTopPx - marginBottomPx;
-
-  const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx);
-  const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx);
-  const mainContentHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
-
-  // ======================================================
-  // Page content styles
-  // ======================================================
-  pageContentComponent.addStyle({
-    display: "flex",
-    "flex-direction": "column",
-    height: `${contentHeight}px`,
-    width: `${contentWidth}px`,
-    position: "relative",
-    "background-color": pageSettings.backgroundColor || this.pageSettings.backgroundColor,
-    overflow: "hidden",
-    "box-sizing": "border-box",
-    "-webkit-print-color-adjust": "exact",
-    "print-color-adjust": "exact",
-    "color-adjust": "exact"
-  });
-
-
-  // ======================================================
-  // Header Wrapper
-  // ======================================================
-  const existingHeaderWrapper = pageComponent.find(".header-wrapper")[0];
-  if (existingHeaderWrapper) {
-    existingHeaderWrapper.addStyle({
-      width: "100%",
-      height: `${defaultHeaderHeight}px`,
-      "flex-shrink": "0",
-      direction: "ltr",
-    });
-  }
-
-  // ======================================================
-  // Content Wrapper
-  // ======================================================
-  const existingContentWrapper = pageComponent.find(".content-wrapper")[0];
-  if (existingContentWrapper) {
-    existingContentWrapper.addStyle({
-      "flex": "1",
-      "display": "flex",
-      "flex-direction": "column",
-      "height": `${mainContentHeight}px`
-    });
-
-    const existingMainContentArea = existingContentWrapper.find(".main-content-area")[0];
-    if (existingMainContentArea) {
-      existingMainContentArea.addStyle({
-        "width": "100%",
-        "height": "100%",
-        "overflow": "hidden",
-        "position": "relative"
+      console.log(`🔒 Preserved section heights (page ${pageIndex + 1}):`, {
+        header: preservedHeaderHeight,
+        content: preservedContentHeight,
+        footer: preservedFooterHeight
       });
     }
-  }
 
-  // ======================================================
-  // Footer Wrapper
-  // ======================================================
-  const existingFooterWrapper = pageComponent.find(".footer-wrapper")[0];
-  if (existingFooterWrapper) {
-    existingFooterWrapper.addStyle({
-      width: "100%",
-      height: `${defaultFooterHeight}px`,
-      "flex-shrink": "0"
+    // ======================================================
+    // ➕ Utility helpers for Apply Mode (NEW)
+    // ======================================================
+    const shouldApply = (mode, range, pageNum) => {
+      if (mode === "all") return true;
+      if (mode === "even") return pageNum % 2 === 0;
+      if (mode === "odd") return pageNum % 2 !== 0;
+      if (mode === "custom") return checkCustomRange(range, pageNum);
+      return true;
+    };
+
+    const checkCustomRange = (range, pageNum) => {
+      if (!range) return false;
+      return range.split(",").some(part => {
+        if (part.includes("-")) {
+          const [start, end] = part.split("-").map(n => parseInt(n.trim(), 10));
+          return pageNum >= start && pageNum <= end;
+        } else {
+          return parseInt(part.trim(), 10) === pageNum;
+        }
+      });
+    };
+
+    // ======================================================
+    // Remove/Add page indicator (same as your code)
+    // ======================================================
+    const existingIndicator = pageElement.querySelector(".page-indicator");
+    if (existingIndicator) existingIndicator.remove();
+
+    const indicator = document.createElement("div");
+    indicator.className = "page-indicator";
+    indicator.textContent = `${pageSettings.name}`;
+    pageElement.appendChild(indicator);
+
+    // ======================================================
+    // Dimensions
+    // ======================================================
+    const mmToPx = 96 / 25.4;
+    const marginTopPx = Math.round(this.pageSettings.margins.top * mmToPx);
+    const marginBottomPx = Math.round(this.pageSettings.margins.bottom * mmToPx);
+    const marginLeftPx = Math.round(this.pageSettings.margins.left * mmToPx);
+    const marginRightPx = Math.round(this.pageSettings.margins.right * mmToPx);
+
+    const totalPageWidth = Math.round(this.pageSettings.width * mmToPx);
+    const totalPageHeight = Math.round(this.pageSettings.height * mmToPx);
+    const contentWidth = totalPageWidth - marginLeftPx - marginRightPx;
+    const contentHeight = totalPageHeight - marginTopPx - marginBottomPx;
+
+    const defaultHeaderHeight = Math.round((this.pageSettings.headerFooter?.headerHeight || 12.7) * mmToPx);
+    const defaultFooterHeight = Math.round((this.pageSettings.headerFooter?.footerHeight || 12.7) * mmToPx);
+    const mainContentHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
+
+    // ======================================================
+    // Page content styles
+    // ======================================================
+    pageContentComponent.addStyle({
+      display: "flex",
+      "flex-direction": "column",
+      height: `${contentHeight}px`,
+      width: `${contentWidth}px`,
+      position: "relative",
+      "background-color": pageSettings.backgroundColor || this.pageSettings.backgroundColor,
+      overflow: "hidden",
+      "box-sizing": "border-box",
+      "-webkit-print-color-adjust": "exact",
+      "print-color-adjust": "exact",
+      "color-adjust": "exact"
     });
-  }
 
-  // ======================================================
-  // 🔹 NEW: Apply Trait Logic for Section Header/Footer
-  // ======================================================
-  const headerComp = pageComponent.find('.section-header')[0];
-  if (headerComp) {
-    const mode = headerComp.getTrait('headerApplyMode')?.getValue() || "all";
-    const range = headerComp.getTrait('headerCustomRange')?.getValue() || "";
-    const apply = shouldApply(mode, range, pageIndex + 1);
-    headerComp.getEl().style.display = apply ? "block" : "none";
-  }
 
-  const footerComp = pageComponent.find('.section-footer')[0];
-  if (footerComp) {
-    const mode = footerComp.getTrait('footerApplyMode')?.getValue() || "all";
-    const range = footerComp.getTrait('footerCustomRange')?.getValue() || "";
-    const apply = shouldApply(mode, range, pageIndex + 1);
-    footerComp.getEl().style.display = apply ? "block" : "none";
-  }
-
-  // ======================================================
-  // Sync logic (same as your code, untouched)
-  // ======================================================
-  setTimeout(() => {
-    const headerApplyMode = this._lastHeaderApplyMode || "all";
-    const footerApplyMode = this._lastFooterApplyMode || "all";
-    const pageNumber = pageIndex + 1;
-    const isFirstPage = pageNumber === 1;
-    const isLastPage = pageNumber === this.pageSettings.numberOfPages;
-
-    let shouldSyncHeaders = false;
-    let shouldSyncFooters = false;
-
-    if (headerApplyMode === "all") {
-      shouldSyncHeaders = true;
-    } else if (headerApplyMode === "first" && isFirstPage) {
-      shouldSyncHeaders = true;
-    } else if (headerApplyMode === "last" && isLastPage) {
-      shouldSyncHeaders = true;
-    } else if (headerApplyMode === "even" && pageNumber % 2 === 0) {
-      shouldSyncHeaders = true;
-    } else if (headerApplyMode === "odd" && pageNumber % 2 !== 0) {
-      shouldSyncHeaders = true;
-    } else if (headerApplyMode === "different") {
-      shouldSyncHeaders = true;
-    } else if (headerApplyMode === "custom") {
-      const headerCustomPages = this._lastHeaderCustomPages || [];
-      shouldSyncHeaders = headerCustomPages.includes(pageNumber);
+    // ======================================================
+    // Header Wrapper
+    // ======================================================
+    const existingHeaderWrapper = pageComponent.find(".header-wrapper")[0];
+    if (existingHeaderWrapper) {
+      existingHeaderWrapper.addStyle({
+        width: "100%",
+        height: `${defaultHeaderHeight}px`,
+        "flex-shrink": "0",
+        direction: "ltr",
+      });
     }
 
-    if (footerApplyMode === "all") {
-      shouldSyncFooters = true;
-    } else if (footerApplyMode === "first" && isFirstPage) {
-      shouldSyncFooters = true;
-    } else if (footerApplyMode === "last" && isLastPage) {
-      shouldSyncFooters = true;
-    } else if (footerApplyMode === "even" && pageNumber % 2 === 0) {
-      shouldSyncFooters = true;
-    } else if (footerApplyMode === "odd" && pageNumber % 2 !== 0) {
-      shouldSyncFooters = true;
-    } else if (footerApplyMode === "different") {
-      shouldSyncFooters = true;
-    } else if (footerApplyMode === "custom") {
-      const footerCustomPages = this._lastFooterCustomPages || [];
-      shouldSyncFooters = footerCustomPages.includes(pageNumber);
-    }
+    // ======================================================
+    // Content Wrapper
+    // ======================================================
+    const existingContentWrapper = pageComponent.find(".content-wrapper")[0];
+    if (existingContentWrapper) {
+      existingContentWrapper.addStyle({
+        "flex": "1",
+        "display": "flex",
+        "flex-direction": "column",
+        "height": `${mainContentHeight}px`
+      });
 
-    const pageHasHeaderContent = pageSettings.header?.shouldShowContent !== false;
-    const pageHasFooterContent = pageSettings.footer?.shouldShowContent !== false;
-
-
-    const header = pageComponent.find('[data-shared-region="header"]')[0];
-    if (header) {
-      if (shouldSyncHeaders && pageHasHeaderContent) {
-        this.syncSharedRegion("header", header);
-      } else {
-        header.setContent('');
-      }
-    }
-
-    const footer = pageComponent.find('[data-shared-region="footer"]')[0];
-    if (footer) {
-      if (shouldSyncFooters && pageHasFooterContent) {
-        this.syncSharedRegion("footer", footer);
-      } else {
-        footer.setContent('');
+      const existingMainContentArea = existingContentWrapper.find(".main-content-area")[0];
+      if (existingMainContentArea) {
+        existingMainContentArea.addStyle({
+          "width": "100%",
+          "height": "100%",
+          "overflow": "hidden",
+          "position": "relative"
+        });
       }
     }
 
     // ======================================================
+    // Footer Wrapper
     // ======================================================
-    // Page Numbers - ADD AS GRAPESJS COMPONENT
+    const existingFooterWrapper = pageComponent.find(".footer-wrapper")[0];
+    if (existingFooterWrapper) {
+      existingFooterWrapper.addStyle({
+        width: "100%",
+        height: `${defaultFooterHeight}px`,
+        "flex-shrink": "0"
+      });
+    }
+
     // ======================================================
-    if (this.pageSettings.pageNumber?.enabled) {
-      const visibility = this.pageSettings.pageNumber.visibility || "all";
-      const startFromIndex = (this.pageSettings.pageNumber.startFrom || 1) - 1;
+    // 🔹 NEW: Apply Trait Logic for Section Header/Footer
+    // ======================================================
+    const headerComp = pageComponent.find('.section-header')[0];
+    if (headerComp) {
+      const mode = headerComp.getTrait('headerApplyMode')?.getValue() || "all";
+      const range = headerComp.getTrait('headerCustomRange')?.getValue() || "";
+      const apply = shouldApply(mode, range, pageIndex + 1);
+      headerComp.getEl().style.display = apply ? "block" : "none";
+    }
 
-      const shouldShowPageNumber =
-        visibility === "all" ||
-        (visibility === "even" && (pageIndex + 1) % 2 === 0) ||
-        (visibility === "odd" && (pageIndex + 1) % 2 !== 0);
+    const footerComp = pageComponent.find('.section-footer')[0];
+    if (footerComp) {
+      const mode = footerComp.getTrait('footerApplyMode')?.getValue() || "all";
+      const range = footerComp.getTrait('footerCustomRange')?.getValue() || "";
+      const apply = shouldApply(mode, range, pageIndex + 1);
+      footerComp.getEl().style.display = apply ? "block" : "none";
+    }
 
-      if (pageIndex >= startFromIndex && shouldShowPageNumber) {
-        const totalPagesWithNumbers = this.editor
-          .getWrapper()
-          .find('.page-container')
-          .filter((_, i) => {
-            return (
-              i >= startFromIndex &&
-              (visibility === "all" ||
-                (visibility === "even" && (i + 1) % 2 === 0) ||
-                (visibility === "odd" && (i + 1) % 2 !== 0))
-            );
-          }).length;
+    // ======================================================
+    // Sync logic (same as your code, untouched)
+    // ======================================================
+    setTimeout(() => {
+      const headerApplyMode = this._lastHeaderApplyMode || "all";
+      const footerApplyMode = this._lastFooterApplyMode || "all";
+      const pageNumber = pageIndex + 1;
+      const isFirstPage = pageNumber === 1;
+      const isLastPage = pageNumber === this.pageSettings.numberOfPages;
 
-        const currentNumber = pageIndex - startFromIndex + 1;
-        const numberText = this.pageSettings.pageNumber.format
-          .replace("{n}", String(currentNumber))
-          .replace("{total}", String(totalPagesWithNumbers));
+      let shouldSyncHeaders = false;
+      let shouldSyncFooters = false;
 
-        const position = this.pageSettings.pageNumber.position || "bottom-center";
-        const rotation = this.pageSettings.pageNumber.rotation || 0;
+      if (headerApplyMode === "all") {
+        shouldSyncHeaders = true;
+      } else if (headerApplyMode === "first" && isFirstPage) {
+        shouldSyncHeaders = true;
+      } else if (headerApplyMode === "last" && isLastPage) {
+        shouldSyncHeaders = true;
+      } else if (headerApplyMode === "even" && pageNumber % 2 === 0) {
+        shouldSyncHeaders = true;
+      } else if (headerApplyMode === "odd" && pageNumber % 2 !== 0) {
+        shouldSyncHeaders = true;
+      } else if (headerApplyMode === "different") {
+        shouldSyncHeaders = true;
+      } else if (headerApplyMode === "custom") {
+        const headerCustomPages = this._lastHeaderCustomPages || [];
+        shouldSyncHeaders = headerCustomPages.includes(pageNumber);
+      }
 
-        // Build position styles
-        let positionStyles = "position: absolute; ";
+      if (footerApplyMode === "all") {
+        shouldSyncFooters = true;
+      } else if (footerApplyMode === "first" && isFirstPage) {
+        shouldSyncFooters = true;
+      } else if (footerApplyMode === "last" && isLastPage) {
+        shouldSyncFooters = true;
+      } else if (footerApplyMode === "even" && pageNumber % 2 === 0) {
+        shouldSyncFooters = true;
+      } else if (footerApplyMode === "odd" && pageNumber % 2 !== 0) {
+        shouldSyncFooters = true;
+      } else if (footerApplyMode === "different") {
+        shouldSyncFooters = true;
+      } else if (footerApplyMode === "custom") {
+        const footerCustomPages = this._lastFooterCustomPages || [];
+        shouldSyncFooters = footerCustomPages.includes(pageNumber);
+      }
 
-        if (position.includes("top")) {
-          positionStyles += "top: 15px; ";
+      const pageHasHeaderContent = pageSettings.header?.shouldShowContent !== false;
+      const pageHasFooterContent = pageSettings.footer?.shouldShowContent !== false;
+
+
+      const header = pageComponent.find('[data-shared-region="header"]')[0];
+      if (header) {
+        if (shouldSyncHeaders && pageHasHeaderContent) {
+          this.syncSharedRegion("header", header);
         } else {
-          positionStyles += "bottom: 5px; ";
+          header.setContent('');
         }
+      }
 
-        if (position.includes("left")) {
-          positionStyles += "left: 10px; ";
-        } else if (position.includes("right")) {
-          positionStyles += "right: 10px; ";
+      const footer = pageComponent.find('[data-shared-region="footer"]')[0];
+      if (footer) {
+        if (shouldSyncFooters && pageHasFooterContent) {
+          this.syncSharedRegion("footer", footer);
         } else {
-          positionStyles += "left: 50%; ";
+          footer.setContent('');
         }
+      }
 
-        // Handle transform for centering + rotation
-        let transformValue = '';
-        if (position.includes("center") && !position.includes("left") && !position.includes("right")) {
-          transformValue = `translateX(-50%) rotate(${rotation}deg)`;
-        } else {
-          transformValue = `rotate(${rotation}deg)`;
-        }
+      // ======================================================
+      // ======================================================
+      // Page Numbers - ADD AS GRAPESJS COMPONENT
+      // ======================================================
+      if (this.pageSettings.pageNumber?.enabled) {
+        const visibility = this.pageSettings.pageNumber.visibility || "all";
+        const startFromIndex = (this.pageSettings.pageNumber.startFrom || 1) - 1;
 
-        // ✅ Remove existing page number component
-        const existingPageNumber = pageContentComponent.find('.page-number-element');
-        if (existingPageNumber && existingPageNumber.length > 0) {
-          existingPageNumber.forEach(pn => pn.remove());
-        }
+        const shouldShowPageNumber =
+          visibility === "all" ||
+          (visibility === "even" && (pageIndex + 1) % 2 === 0) ||
+          (visibility === "odd" && (pageIndex + 1) % 2 !== 0);
 
-        // ✅ Add page number as GrapesJS component
-        const pageNumberComponent = pageContentComponent.append(`
+        if (pageIndex >= startFromIndex && shouldShowPageNumber) {
+          const totalPagesWithNumbers = this.editor
+            .getWrapper()
+            .find('.page-container')
+            .filter((_, i) => {
+              return (
+                i >= startFromIndex &&
+                (visibility === "all" ||
+                  (visibility === "even" && (i + 1) % 2 === 0) ||
+                  (visibility === "odd" && (i + 1) % 2 !== 0))
+              );
+            }).length;
+
+          const currentNumber = pageIndex - startFromIndex + 1;
+          const numberText = this.pageSettings.pageNumber.format
+            .replace("{n}", String(currentNumber))
+            .replace("{total}", String(totalPagesWithNumbers));
+
+          const position = this.pageSettings.pageNumber.position || "bottom-center";
+          const rotation = this.pageSettings.pageNumber.rotation || 0;
+
+          // Build position styles
+          let positionStyles = "position: absolute; ";
+
+          if (position.includes("top")) {
+            positionStyles += "top: 15px; ";
+          } else {
+            positionStyles += "bottom: 17px; ";
+          }
+
+          if (position.includes("left")) {
+            positionStyles += "left: 10px; ";
+          } else if (position.includes("right")) {
+            positionStyles += "right: 10px; ";
+          } else {
+            positionStyles += "left: 50%; ";
+          }
+
+          // Handle transform for centering + rotation
+          let transformValue = '';
+          if (position.includes("center") && !position.includes("left") && !position.includes("right")) {
+            transformValue = `translateX(-50%) rotate(${rotation}deg)`;
+          } else {
+            transformValue = `rotate(${rotation}deg)`;
+          }
+
+          // ✅ Remove existing page number component
+          const existingPageNumber = pageContentComponent.find('.page-number-element');
+          if (existingPageNumber && existingPageNumber.length > 0) {
+            existingPageNumber.forEach(pn => pn.remove());
+          }
+
+          // ✅ Add page number as GrapesJS component
+          const pageNumberComponent = pageContentComponent.append(`
       <div class="page-number-element">${numberText}</div>
     `)[0];
 
-        if (pageNumberComponent) {
-          pageNumberComponent.addStyle({
-            position: "absolute",
-            fontSize: `${this.pageSettings.pageNumber.fontSize || 12}px`,
-            color: this.pageSettings.pageNumber.color || "#000",
-            backgroundColor: this.pageSettings.pageNumber.backgroundColor || "#fff",
-            padding: "4px 8px",
-            borderRadius: "3px",
-            border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
-            zIndex: "99",
-            fontFamily: this.pageSettings.pageNumber.fontFamily || "Arial",
-            transform: transformValue,
-            transformOrigin: "center center",
-            ...this.parsePositionStyles(positionStyles)
-          });
+          if (pageNumberComponent) {
+            pageNumberComponent.addStyle({
+              position: "absolute",
+              "font-size": `${this.pageSettings.pageNumber.fontSize || 8}px`,
+              color: this.pageSettings.pageNumber.color || "#000",
+              "background-color": this.pageSettings.pageNumber.backgroundColor || "#fff",
+              padding: "4px 8px",
+              "border-radius": "3px",
+              border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
+              "z-index": "99",
+              "font-family": this.pageSettings.pageNumber.fontFamily || "Arial",
+              transform: transformValue,
+              "transform-origin": "center center",
+              ...this.parsePositionStyles(positionStyles)  // must also be kebab-case
+            });
 
-          // Make it non-editable
-          pageNumberComponent.set({
-            selectable: false,
-            editable: false,
-            removable: false,
-            draggable: false,
-            copyable: false,
-          });
+
+            // Make it non-editable
+            pageNumberComponent.set({
+              selectable: false,
+              editable: false,
+              removable: false,
+              draggable: false,
+              copyable: false,
+            });
+          }
         }
       }
+    }, 200);
+
+    // ===============================
+    // ✅ RESTORE SECTION HEIGHTS AFTER PAGE SETTINGS (if we preserved any)
+    // ===============================
+    if (sectionsContainer) {
+      setTimeout(() => {
+        if (sectionHeader && preservedHeaderHeight) {
+          sectionHeader.addStyle({
+            'height': preservedHeaderHeight,
+            'min-height': preservedHeaderHeight
+          });
+        }
+
+        if (sectionContent && preservedContentHeight) {
+          sectionContent.addStyle({
+            'height': preservedContentHeight,
+            'min-height': preservedContentHeight,
+            'flex': '1'
+          });
+        }
+
+        if (sectionFooter && preservedFooterHeight) {
+          sectionFooter.addStyle({
+            'height': preservedFooterHeight,
+            'min-height': preservedFooterHeight
+          });
+        }
+
+        console.log(`🔒 Restored section heights on page ${pageIndex + 1}`);
+      }, 100);
     }
-  }, 200);
 
-  // ===============================
-  // ✅ RESTORE SECTION HEIGHTS AFTER PAGE SETTINGS (if we preserved any)
-  // ===============================
-  if (sectionsContainer) {
-    setTimeout(() => {
-      if (sectionHeader && preservedHeaderHeight) {
-        sectionHeader.addStyle({
-          'height': preservedHeaderHeight,
-          'min-height': preservedHeaderHeight
-        });
-      }
-
-      if (sectionContent && preservedContentHeight) {
-        sectionContent.addStyle({
-          'height': preservedContentHeight,
-          'min-height': preservedContentHeight,
-          'flex': '1'
-        });
-      }
-
-      if (sectionFooter && preservedFooterHeight) {
-        sectionFooter.addStyle({
-          'height': preservedFooterHeight,
-          'min-height': preservedFooterHeight
-        });
-      }
-
-      console.log(`🔒 Restored section heights on page ${pageIndex + 1}`);
-    }, 100);
+    // ======================================================
+    // Watermark (untouched)
+    // ======================================================
+    this.addWatermarkToPage(pageContentComponent, pageIndex);
   }
-
-  // ======================================================
-  // Watermark (untouched)
-  // ======================================================
-  this.addWatermarkToPage(pageContentComponent, pageIndex);
-}
 
 
 
@@ -8329,8 +9246,12 @@ updateSinglePageVisuals(pageElement, pageSettings, pageIndex) {
         this.setupPageObserver(newPageIndex);
       }, 500);
       // Apply conditional page break to new page if enabled
+
+      // Apply conditional page breaks to existing pages
+      // Apply conditional page breaks
       if (this.pageSettings.conditionalPageBreak?.enabled) {
         setTimeout(() => {
+          // New page will automatically use default settings or specific override if defined
           this.insertConditionalPageBreakToPage(pageComponent, newPageIndex);
         }, 500);
       }
@@ -8513,9 +9434,10 @@ ${this.getPageNumberPositionStylesWithRotation(position, settings.rotation || 0)
         defaults: {
           tagName: "div",
           name: "Sections",
-          attributes: { class: "sections-container",
-            'data-section-count': '1' 
-           },
+          attributes: {
+            class: "sections-container",
+            'data-section-count': '1'
+          },
           selectable: true,
           highlightable: true,
           stylable: true,
@@ -8620,290 +9542,290 @@ ${this.getPageNumberPositionStylesWithRotation(position, settings.rotation || 0)
       }
     });
 
-// Event binding for trait changes
-this.editor.on('trait:update', (eventData) => {
-  const { trait, component } = eventData;
+    // Event binding for trait changes
+    this.editor.on('trait:update', (eventData) => {
+      const { trait, component } = eventData;
 
-  // 🔒 Prevent recursion: skip if a global silent sync is in progress
-  if (this._silentSync) return;
+      // 🔒 Prevent recursion: skip if a global silent sync is in progress
+      if (this._silentSync) return;
 
-  const traitName = trait.get('name');
-  const componentName = component.get('name');
+      const traitName = trait.get('name');
+      const componentName = component.get('name');
 
-  if (componentName === 'Header' && (traitName === 'headerApplyMode' || traitName === 'headerCustomRange')) {
-    // ✅ Capture current header content before applying settings
-    const rteComp = component.find('[data-gjs-type="formatted-rich-text"]')[0];
-    if (rteComp) {
-      const content = rteComp.get('content');
-      if (content && content.trim()) {
-        const sectionContainer = component.closest('.sections-container');
-        if (sectionContainer) {
-          const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-          const headerContentKey = `_originalHeaderContent_${sectionCount}`;
-          this[headerContentKey] = content;
-          console.log(`📝 Captured header content for section count: ${sectionCount}`);
+      if (componentName === 'Header' && (traitName === 'headerApplyMode' || traitName === 'headerCustomRange')) {
+        // ✅ Capture current header content before applying settings
+        const rteComp = component.find('[data-gjs-type="formatted-rich-text"]')[0];
+        if (rteComp) {
+          const content = rteComp.get('content');
+          if (content && content.trim()) {
+            const sectionContainer = component.closest('.sections-container');
+            if (sectionContainer) {
+              const sectionCount = sectionContainer.getAttributes()['data-section-count'];
+              const headerContentKey = `_originalHeaderContent_${sectionCount}`;
+              this[headerContentKey] = content;
+              console.log(`📝 Captured header content for section count: ${sectionCount}`);
+            }
+          }
         }
-      }
-    }
 
-    const mode = component.getTrait('headerApplyMode').getValue();
-    const range = component.getTrait('headerCustomRange')?.getValue() || '';
+        const mode = component.getTrait('headerApplyMode').getValue();
+        const range = component.getTrait('headerCustomRange')?.getValue() || '';
 
-    // ⚡️ Wrap the sync in silent mode to prevent recursion
-    this._silentSync = true;
-    try {
-      this.syncHeaderTraitsAcrossPages(component, mode, range);
-    } finally {
-      this._silentSync = false;
-    }
-
-    // ✅ Apply settings immediately with small delay
-    setTimeout(() => {
-      this.updateAllSectionHeadersFooters();
-    }, 100);
-
-  } else if (componentName === 'Footer' && (traitName === 'footerApplyMode' || traitName === 'footerCustomRange')) {
-    // ✅ Capture current footer content before applying settings
-    const rteComp = component.components().at(0);
-    if (rteComp) {
-      const content = rteComp.get('content');
-      if (content && content.trim()) {
-        const sectionContainer = component.closest('.sections-container');
-        if (sectionContainer) {
-          const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-          const footerContentKey = `_originalFooterContent_${sectionCount}`;
-          this[footerContentKey] = content;
-          console.log(`📝 Captured footer content for section count: ${sectionCount}`);
+        // ⚡️ Wrap the sync in silent mode to prevent recursion
+        this._silentSync = true;
+        try {
+          this.syncHeaderTraitsAcrossPages(component, mode, range);
+        } finally {
+          this._silentSync = false;
         }
+
+        // ✅ Apply settings immediately with small delay
+        setTimeout(() => {
+          this.updateAllSectionHeadersFooters();
+        }, 100);
+
+      } else if (componentName === 'Footer' && (traitName === 'footerApplyMode' || traitName === 'footerCustomRange')) {
+        // ✅ Capture current footer content before applying settings
+        const rteComp = component.components().at(0);
+        if (rteComp) {
+          const content = rteComp.get('content');
+          if (content && content.trim()) {
+            const sectionContainer = component.closest('.sections-container');
+            if (sectionContainer) {
+              const sectionCount = sectionContainer.getAttributes()['data-section-count'];
+              const footerContentKey = `_originalFooterContent_${sectionCount}`;
+              this[footerContentKey] = content;
+              console.log(`📝 Captured footer content for section count: ${sectionCount}`);
+            }
+          }
+        }
+
+        const mode = component.getTrait('footerApplyMode').getValue();
+        const range = component.getTrait('footerCustomRange')?.getValue() || '';
+
+        // ⚡️ Wrap the sync in silent mode to prevent recursion
+        this._silentSync = true;
+        try {
+          this.syncFooterTraitsAcrossPages(component, mode, range);
+        } finally {
+          this._silentSync = false;
+        }
+
+        // ✅ Apply settings immediately with small delay
+        setTimeout(() => {
+          this.updateAllSectionHeadersFooters();
+        }, 100);
       }
-    }
-
-    const mode = component.getTrait('footerApplyMode').getValue();
-    const range = component.getTrait('footerCustomRange')?.getValue() || '';
-
-    // ⚡️ Wrap the sync in silent mode to prevent recursion
-    this._silentSync = true;
-    try {
-      this.syncFooterTraitsAcrossPages(component, mode, range);
-    } finally {
-      this._silentSync = false;
-    }
-
-    // ✅ Apply settings immediately with small delay
-    setTimeout(() => {
-      this.updateAllSectionHeadersFooters();
-    }, 100);
-  }
-});
+    });
 
 
   }
 
   // 🔹 Sync header traits across all pages
-// 🔹 Sync header traits across all pages WITH SAME SECTION COUNT
-syncHeaderTraitsAcrossPages(sourceComponent, newMode, newRange) {
-  // Get the source section's count
-  const sourceSection = sourceComponent.closest('.sections-container');
-  if (!sourceSection) return;
-  
-  const sourceSectionCount = sourceSection.getAttributes()['data-section-count'];
-  if (!sourceSectionCount) return;
+  // 🔹 Sync header traits across all pages WITH SAME SECTION COUNT
+  syncHeaderTraitsAcrossPages(sourceComponent, newMode, newRange) {
+    // Get the source section's count
+    const sourceSection = sourceComponent.closest('.sections-container');
+    if (!sourceSection) return;
 
-  console.log(`🔄 Syncing header traits for sections with count: ${sourceSectionCount}`);
+    const sourceSectionCount = sourceSection.getAttributes()['data-section-count'];
+    if (!sourceSectionCount) return;
 
-  const allPages = this.editor.getWrapper().find('.page-container');
+    console.log(`🔄 Syncing header traits for sections with count: ${sourceSectionCount}`);
 
-  allPages.forEach((pageComponent, i) => {
-    const sectionContainer = pageComponent.find('.sections-container')[0];
-    if (!sectionContainer) return;
+    const allPages = this.editor.getWrapper().find('.page-container');
 
-    // ✅ ONLY sync if section count matches
-    const targetSectionCount = sectionContainer.getAttributes()['data-section-count'];
-    if (targetSectionCount !== sourceSectionCount) {
-      console.log(`⏭️ Skipping page ${i + 1} - different section count (${targetSectionCount} vs ${sourceSectionCount})`);
-      return;
-    }
+    allPages.forEach((pageComponent, i) => {
+      const sectionContainer = pageComponent.find('.sections-container')[0];
+      if (!sectionContainer) return;
 
-    const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
-    if (!headerComp) return;
-
-    headerComp.set('headerApplyMode', newMode);
-    headerComp.set('headerCustomRange', newRange);
-
-    const modeTrait = headerComp.getTrait('headerApplyMode');
-    const rangeTrait = headerComp.getTrait('headerCustomRange');
-
-    if (modeTrait) {
-      modeTrait.set('value', newMode);
-      if (modeTrait.view) {
-        modeTrait.view.model.set('value', newMode);
-        modeTrait.view.render();
+      // ✅ ONLY sync if section count matches
+      const targetSectionCount = sectionContainer.getAttributes()['data-section-count'];
+      if (targetSectionCount !== sourceSectionCount) {
+        console.log(`⏭️ Skipping page ${i + 1} - different section count (${targetSectionCount} vs ${sourceSectionCount})`);
+        return;
       }
-    }
 
-    if (rangeTrait) {
-      rangeTrait.set('value', newRange);
-      if (rangeTrait.view) {
-        rangeTrait.view.model.set('value', newRange);
-        rangeTrait.view.render();
+      const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+      if (!headerComp) return;
+
+      headerComp.set('headerApplyMode', newMode);
+      headerComp.set('headerCustomRange', newRange);
+
+      const modeTrait = headerComp.getTrait('headerApplyMode');
+      const rangeTrait = headerComp.getTrait('headerCustomRange');
+
+      if (modeTrait) {
+        modeTrait.set('value', newMode);
+        if (modeTrait.view) {
+          modeTrait.view.model.set('value', newMode);
+          modeTrait.view.render();
+        }
       }
-    }
 
-    console.log(`✅ Synced header traits for page ${i + 1} (count: ${targetSectionCount})`);
-  });
-}
+      if (rangeTrait) {
+        rangeTrait.set('value', newRange);
+        if (rangeTrait.view) {
+          rangeTrait.view.model.set('value', newRange);
+          rangeTrait.view.render();
+        }
+      }
+
+      console.log(`✅ Synced header traits for page ${i + 1} (count: ${targetSectionCount})`);
+    });
+  }
 
   // 🔹 Sync footer traits across all pages
-// 🔹 Sync footer traits across all pages WITH SAME SECTION COUNT
-syncFooterTraitsAcrossPages(sourceComponent, newMode, newRange) {
-  // Get the source section's count
-  const sourceSection = sourceComponent.closest('.sections-container');
-  if (!sourceSection) return;
-  
-  const sourceSectionCount = sourceSection.getAttributes()['data-section-count'];
-  if (!sourceSectionCount) return;
+  // 🔹 Sync footer traits across all pages WITH SAME SECTION COUNT
+  syncFooterTraitsAcrossPages(sourceComponent, newMode, newRange) {
+    // Get the source section's count
+    const sourceSection = sourceComponent.closest('.sections-container');
+    if (!sourceSection) return;
 
-  console.log(`🔄 Syncing footer traits for sections with count: ${sourceSectionCount}`);
+    const sourceSectionCount = sourceSection.getAttributes()['data-section-count'];
+    if (!sourceSectionCount) return;
 
-  const allPages = this.editor.getWrapper().find('.page-container');
+    console.log(`🔄 Syncing footer traits for sections with count: ${sourceSectionCount}`);
 
-  allPages.forEach((pageComponent, i) => {
-    const sectionContainer = pageComponent.find('.sections-container')[0];
-    if (!sectionContainer) return;
+    const allPages = this.editor.getWrapper().find('.page-container');
 
-    // ✅ ONLY sync if section count matches
-    const targetSectionCount = sectionContainer.getAttributes()['data-section-count'];
-    if (targetSectionCount !== sourceSectionCount) {
-      console.log(`⏭️ Skipping page ${i + 1} - different section count (${targetSectionCount} vs ${sourceSectionCount})`);
-      return;
-    }
+    allPages.forEach((pageComponent, i) => {
+      const sectionContainer = pageComponent.find('.sections-container')[0];
+      if (!sectionContainer) return;
 
-    const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
-    if (!footerComp) return;
-
-    footerComp.set('footerApplyMode', newMode);
-    footerComp.set('footerCustomRange', newRange);
-
-    const modeTrait = footerComp.getTrait('footerApplyMode');
-    const rangeTrait = footerComp.getTrait('footerCustomRange');
-
-    if (modeTrait) {
-      modeTrait.set('value', newMode);
-      if (modeTrait.view) {
-        modeTrait.view.model.set('value', newMode);
-        modeTrait.view.render();
+      // ✅ ONLY sync if section count matches
+      const targetSectionCount = sectionContainer.getAttributes()['data-section-count'];
+      if (targetSectionCount !== sourceSectionCount) {
+        console.log(`⏭️ Skipping page ${i + 1} - different section count (${targetSectionCount} vs ${sourceSectionCount})`);
+        return;
       }
-    }
 
-    if (rangeTrait) {
-      rangeTrait.set('value', newRange);
-      if (rangeTrait.view) {
-        rangeTrait.view.model.set('value', newRange);
-        rangeTrait.view.render();
+      const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
+      if (!footerComp) return;
+
+      footerComp.set('footerApplyMode', newMode);
+      footerComp.set('footerCustomRange', newRange);
+
+      const modeTrait = footerComp.getTrait('footerApplyMode');
+      const rangeTrait = footerComp.getTrait('footerCustomRange');
+
+      if (modeTrait) {
+        modeTrait.set('value', newMode);
+        if (modeTrait.view) {
+          modeTrait.view.model.set('value', newMode);
+          modeTrait.view.render();
+        }
       }
-    }
 
-    console.log(`✅ Synced footer traits for page ${i + 1} (count: ${targetSectionCount})`);
-  });
-}
-
-// 🔹 Check if a page should show a section - UPDATED FOR SECTION GROUPS
-checkSectionApplyMode(mode, range, pageIndex) {
-  const allPages = this.editor.getWrapper().find('.page-container');
-  const currentPage = allPages[pageIndex];
-  if (!currentPage) return true;
-
-  const sectionContainer = currentPage.find('.sections-container')[0];
-  if (!sectionContainer) return true;
-
-  const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-  
-  // ✅ Calculate relative page number within this section group
-  let relativePageNum = 1;
-  for (let i = 0; i <= pageIndex; i++) {
-    const page = allPages[i];
-    const section = page.find('.sections-container')[0];
-    if (section) {
-      const count = section.getAttributes()['data-section-count'];
-      if (count === sectionCount) {
-        if (i === pageIndex) break;
-        relativePageNum++;
+      if (rangeTrait) {
+        rangeTrait.set('value', newRange);
+        if (rangeTrait.view) {
+          rangeTrait.view.model.set('value', newRange);
+          rangeTrait.view.render();
+        }
       }
-    }
-  }
 
-  console.log(`📍 Page ${pageIndex + 1} (absolute) = Page ${relativePageNum} (relative in group ${sectionCount})`);
-
-  if (mode === "all") return true;
-  if (mode === "even") return relativePageNum % 2 === 0;
-  if (mode === "odd") return relativePageNum % 2 !== 0;
-  if (mode === "custom") {
-    if (!range || range.trim() === '') {
-      return false;
-    }
-
-    const shouldShow = range.split(',').some(part => {
-      const trimmedPart = part.trim();
-      if (trimmedPart.includes('-')) {
-        const [start, end] = trimmedPart.split('-').map(n => parseInt(n.trim(), 10));
-        return relativePageNum >= start && relativePageNum <= end;
-      } else {
-        const targetPage = parseInt(trimmedPart, 10);
-        return targetPage === relativePageNum;
-      }
+      console.log(`✅ Synced footer traits for page ${i + 1} (count: ${targetSectionCount})`);
     });
-
-    return shouldShow;
   }
-  return true;
-}
+
+  // 🔹 Check if a page should show a section - UPDATED FOR SECTION GROUPS
+  checkSectionApplyMode(mode, range, pageIndex) {
+    const allPages = this.editor.getWrapper().find('.page-container');
+    const currentPage = allPages[pageIndex];
+    if (!currentPage) return true;
+
+    const sectionContainer = currentPage.find('.sections-container')[0];
+    if (!sectionContainer) return true;
+
+    const sectionCount = sectionContainer.getAttributes()['data-section-count'];
+
+    // ✅ Calculate relative page number within this section group
+    let relativePageNum = 1;
+    for (let i = 0; i <= pageIndex; i++) {
+      const page = allPages[i];
+      const section = page.find('.sections-container')[0];
+      if (section) {
+        const count = section.getAttributes()['data-section-count'];
+        if (count === sectionCount) {
+          if (i === pageIndex) break;
+          relativePageNum++;
+        }
+      }
+    }
+
+    console.log(`📍 Page ${pageIndex + 1} (absolute) = Page ${relativePageNum} (relative in group ${sectionCount})`);
+
+    if (mode === "all") return true;
+    if (mode === "even") return relativePageNum % 2 === 0;
+    if (mode === "odd") return relativePageNum % 2 !== 0;
+    if (mode === "custom") {
+      if (!range || range.trim() === '') {
+        return false;
+      }
+
+      const shouldShow = range.split(',').some(part => {
+        const trimmedPart = part.trim();
+        if (trimmedPart.includes('-')) {
+          const [start, end] = trimmedPart.split('-').map(n => parseInt(n.trim(), 10));
+          return relativePageNum >= start && relativePageNum <= end;
+        } else {
+          const targetPage = parseInt(trimmedPart, 10);
+          return targetPage === relativePageNum;
+        }
+      });
+
+      return shouldShow;
+    }
+    return true;
+  }
 
 
   // 🔹 Update header per page
-updateSectionHeader(pageComponent, pageIndex) {
-  const sectionContainer = pageComponent.find('.sections-container')[0];
-  if (!sectionContainer) return;
+  updateSectionHeader(pageComponent, pageIndex) {
+    const sectionContainer = pageComponent.find('.sections-container')[0];
+    if (!sectionContainer) return;
 
-  const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-  const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
-  if (!headerComp) return;
+    const sectionCount = sectionContainer.getAttributes()['data-section-count'];
+    const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+    if (!headerComp) return;
 
-  const mode = headerComp.get('headerApplyMode') || headerComp.getTrait('headerApplyMode')?.getValue() || 'all';
-  const range = headerComp.get('headerCustomRange') || headerComp.getTrait('headerCustomRange')?.getValue() || '';
-  const show = this.checkSectionApplyMode(mode, range, pageIndex);
+    const mode = headerComp.get('headerApplyMode') || headerComp.getTrait('headerApplyMode')?.getValue() || 'all';
+    const range = headerComp.get('headerCustomRange') || headerComp.getTrait('headerCustomRange')?.getValue() || '';
+    const show = this.checkSectionApplyMode(mode, range, pageIndex);
 
-  let rteComp = headerComp.find('[data-gjs-type="formatted-rich-text"]')[0];
-  
-  if (!rteComp) {
-    rteComp = headerComp.append({
-      tagName: 'div',
-      attributes: { 'data-gjs-type': 'formatted-rich-text' },
-      content: ''
-    })[0];
-  }
+    let rteComp = headerComp.find('[data-gjs-type="formatted-rich-text"]')[0];
 
-  if (rteComp) {
-    const headerContentKey = `_originalHeaderContent_${sectionCount}`;
-    const storedContent = this[headerContentKey];
-
-    if (show && storedContent) {
-      rteComp.set('content', storedContent);
-    } else if (show) {
-      // Keep existing content if no stored content
-      const existingContent = rteComp.get('content');
-      if (!existingContent || existingContent.trim() === '') {
-        rteComp.set('content', `Header for page ${pageIndex + 1}`);
-      }
-    } else {
-      rteComp.set('content', '');
+    if (!rteComp) {
+      rteComp = headerComp.append({
+        tagName: 'div',
+        attributes: { 'data-gjs-type': 'formatted-rich-text' },
+        content: ''
+      })[0];
     }
 
-    if (rteComp.view) rteComp.view.render();
-  }
+    if (rteComp) {
+      const headerContentKey = `_originalHeaderContent_${sectionCount}`;
+      const storedContent = this[headerContentKey];
 
-  // Update visibility
-  headerComp.getEl().style.display = show ? 'block' : 'none';
-}
+      if (show && storedContent) {
+        rteComp.set('content', storedContent);
+      } else if (show) {
+        // Keep existing content if no stored content
+        const existingContent = rteComp.get('content');
+        if (!existingContent || existingContent.trim() === '') {
+          rteComp.set('content', `Header for page ${pageIndex + 1}`);
+        }
+      } else {
+        rteComp.set('content', '');
+      }
+
+      if (rteComp.view) rteComp.view.render();
+    }
+
+    // Update visibility
+    headerComp.getEl().style.display = show ? 'block' : 'none';
+  }
 
   // 🔹 Update footer per page
   updateSectionFooter(pageComponent, pageIndex) {
@@ -8936,87 +9858,87 @@ updateSectionHeader(pageComponent, pageIndex) {
   }
 
   // 🔹 Update all pages
-// 🔹 Update all pages - RESPECTING SECTION COUNT GROUPS
-updateAllSectionHeadersFooters() {
-  const allPages = this.editor.getWrapper().find('.page-container');
+  // 🔹 Update all pages - RESPECTING SECTION COUNT GROUPS
+  updateAllSectionHeadersFooters() {
+    const allPages = this.editor.getWrapper().find('.page-container');
 
-  allPages.forEach((pageComponent, i) => {
-    const sectionContainer = pageComponent.find('.sections-container')[0];
-    if (!sectionContainer) return;
+    allPages.forEach((pageComponent, i) => {
+      const sectionContainer = pageComponent.find('.sections-container')[0];
+      if (!sectionContainer) return;
 
-    const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-    console.log(`🔍 Processing page ${i + 1} with section count: ${sectionCount}`);
+      const sectionCount = sectionContainer.getAttributes()['data-section-count'];
+      console.log(`🔍 Processing page ${i + 1} with section count: ${sectionCount}`);
 
-    const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+      const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
 
-    if (headerComp) {
-      const mode = headerComp.get('headerApplyMode') || 'all';
-      const range = headerComp.get('headerCustomRange') || '';
-      const show = this.checkSectionApplyMode(mode, range, i);
+      if (headerComp) {
+        const mode = headerComp.get('headerApplyMode') || 'all';
+        const range = headerComp.get('headerCustomRange') || '';
+        const show = this.checkSectionApplyMode(mode, range, i);
 
-      // Find or create rich text component
-      let rteComp = headerComp.find('[data-gjs-type="formatted-rich-text"]')[0];
+        // Find or create rich text component
+        let rteComp = headerComp.find('[data-gjs-type="formatted-rich-text"]')[0];
 
-      if (!rteComp) {
-        rteComp = headerComp.append({
-          tagName: 'div',
-          attributes: { 'data-gjs-type': 'formatted-rich-text' },
-          content: ''
-        })[0];
-      }
-
-      if (rteComp) {
-        // ✅ Use section-count-specific stored content
-        const headerContentKey = `_originalHeaderContent_${sectionCount}`;
-        const storedContent = this[headerContentKey];
-
-        if (show && storedContent) {
-          rteComp.set('content', storedContent);
-          console.log(`✅ Applied header content for page ${i + 1} (count: ${sectionCount})`);
-        } else {
-          rteComp.set('content', '');
-          console.log(`🚫 Cleared header content for page ${i + 1} (show: ${show})`);
+        if (!rteComp) {
+          rteComp = headerComp.append({
+            tagName: 'div',
+            attributes: { 'data-gjs-type': 'formatted-rich-text' },
+            content: ''
+          })[0];
         }
 
-        if (rteComp.view) rteComp.view.render();
-      }
-    }
+        if (rteComp) {
+          // ✅ Use section-count-specific stored content
+          const headerContentKey = `_originalHeaderContent_${sectionCount}`;
+          const storedContent = this[headerContentKey];
 
-    // Same for footer
-    const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
-    if (footerComp) {
-      const mode = footerComp.get('footerApplyMode') || 'all';
-      const range = footerComp.get('footerCustomRange') || '';
-      const show = this.checkSectionApplyMode(mode, range, i);
+          if (show && storedContent) {
+            rteComp.set('content', storedContent);
+            console.log(`✅ Applied header content for page ${i + 1} (count: ${sectionCount})`);
+          } else {
+            rteComp.set('content', '');
+            console.log(`🚫 Cleared header content for page ${i + 1} (show: ${show})`);
+          }
 
-      let rteComp = footerComp.components().at(0);
-
-      if (!rteComp) {
-        rteComp = footerComp.append({
-          tagName: 'div',
-          attributes: { 'data-gjs-type': 'formatted-rich-text' },
-          content: ''
-        })[0];
+          if (rteComp.view) rteComp.view.render();
+        }
       }
 
-      if (rteComp) {
-        // ✅ Use section-count-specific stored content
-        const footerContentKey = `_originalFooterContent_${sectionCount}`;
-        const storedContent = this[footerContentKey];
+      // Same for footer
+      const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
+      if (footerComp) {
+        const mode = footerComp.get('footerApplyMode') || 'all';
+        const range = footerComp.get('footerCustomRange') || '';
+        const show = this.checkSectionApplyMode(mode, range, i);
 
-        if (show && storedContent) {
-          rteComp.set('content', storedContent);
-          console.log(`✅ Applied footer content for page ${i + 1} (count: ${sectionCount})`);
-        } else {
-          rteComp.set('content', '');
-          console.log(`🚫 Cleared footer content for page ${i + 1} (show: ${show})`);
+        let rteComp = footerComp.components().at(0);
+
+        if (!rteComp) {
+          rteComp = footerComp.append({
+            tagName: 'div',
+            attributes: { 'data-gjs-type': 'formatted-rich-text' },
+            content: ''
+          })[0];
         }
 
-        if (rteComp.view) rteComp.view.render();
+        if (rteComp) {
+          // ✅ Use section-count-specific stored content
+          const footerContentKey = `_originalFooterContent_${sectionCount}`;
+          const storedContent = this[footerContentKey];
+
+          if (show && storedContent) {
+            rteComp.set('content', storedContent);
+            console.log(`✅ Applied footer content for page ${i + 1} (count: ${sectionCount})`);
+          } else {
+            rteComp.set('content', '');
+            console.log(`🚫 Cleared footer content for page ${i + 1} (show: ${show})`);
+          }
+
+          if (rteComp.view) rteComp.view.render();
+        }
       }
-    }
-  });
-}
+    });
+  }
 
   /////////////////////////////////////////section header footer code end here////////////////////////////////////////////
 

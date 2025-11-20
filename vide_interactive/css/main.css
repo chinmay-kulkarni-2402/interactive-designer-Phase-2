@@ -103,6 +103,20 @@ html {
   border: none;
 }
 
+#nHeaderRows {
+  padding: 8px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  border: none;
+}
+
+#nHeaderColumns {
+  padding: 8px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  border: none;
+}
+
 #nColumnsScroll{
   padding: 8px;
   margin-bottom: 7px;
