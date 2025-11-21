@@ -2285,7 +2285,7 @@ updateTableHTML() {
     const tableComponent = wrapperComponent.components().add({
         type: 'default',
         tagName: 'table',
-        classes: ['json-data-table', 'table', 'table-striped', 'table-bordered'],
+        classes: ['json-data-table'],
         attributes: {
             id: tableId,
             width: '100%',

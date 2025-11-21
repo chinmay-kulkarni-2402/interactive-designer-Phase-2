@@ -1,6 +1,5 @@
 
 window.editor = InteractiveDesigner.init({
-
   height: "100%",
   container: "#editor",
   fromElement: 1,
@@ -128,6 +127,10 @@ window.editor = InteractiveDesigner.init({
   },
 });
 
+window.addEventListener("beforeunload", (event) => {
+  console.warn("⚠️ PAGE RELOAD TRIGGERED! Source unknown.");
+  debugger; // stops execution so you can inspect the call stack
+});
 
 
 // window.addEventListener("load", () => {
@@ -976,6 +979,56 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 
   let finalHtml;
 
+  // =====================================================================================
+  // 🎨 External resource injection (styles + scripts)
+  // =====================================================================================
+  const canvasResources = {
+    styles: [
+      "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
+      "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
+      "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+      "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
+      "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
+      "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
+      "https://fonts.googleapis.com/icon?family=Material+Icons",
+      "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
+      "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
+    ],
+    scripts: [
+      "https://code.jquery.com/jquery-3.3.1.slim.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
+      "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+      "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
+      "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
+      "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
+      "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
+      "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
+      "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+      "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+      "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
+      "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
+      "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
+      "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+    ]
+  };
+
+  const externalStyles = canvasResources.styles
+    .map((url) => `<link rel="stylesheet" href="${url}">`)
+    .join("\n");
+
+  const externalScripts = canvasResources.scripts
+    .map((url) => `<script src="${url}" defer></script>`)
+    .join("\n");
+
+  // =====================================================================================
+  // 🧹 PDF: remove top margin from .page-container dynamically
+  // =====================================================================================
   if (exportType === "pdf") {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
@@ -983,51 +1036,74 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
     const pageContainers = tempDiv.querySelectorAll(".page-container");
     const idsToClean = [];
 
-    pageContainers.forEach(el => {
-      if (el.id) {
-        idsToClean.push(el.id);
-      }
+    pageContainers.forEach((el) => {
+      if (el.id) idsToClean.push(el.id);
     });
 
     let cleanedCss = css;
-    idsToClean.forEach(id => {
-      const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, 'g');
-      cleanedCss = cleanedCss.replace(idRegex, '$1');
+
+    idsToClean.forEach((id) => {
+      const idRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
+      cleanedCss = cleanedCss.replace(idRegex, "$1");
     });
 
-    finalHtml = htmlWithCss(html, cleanedCss);
+    // ------------------------------------------------------
+    // FINAL HTML WITH ALL RESOURCES
+    // ------------------------------------------------------
+    finalHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          ${externalStyles}
+          ${externalScripts}
+          <style>${cleanedCss}</style>
+        </head>
+        <body>${tempDiv.innerHTML}</body>
+      </html>
+    `;
   } else {
-    finalHtml = htmlWithCss(html, css);
+    // HTML export (no CSS cleanup)
+    finalHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          ${externalStyles}
+          ${externalScripts}
+          <style>${css}</style>
+        </head>
+        <body>${html}</body>
+      </html>
+    `;
   }
 
+  // =====================================================================================
+  // 🌐 Prepare form data
+  // =====================================================================================
   const formData = new FormData();
   formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
 
-  // ✅ Convert XML files to JSON before sending
+  // XML → JSON conversion
   for (let idx = 0; idx < uploadedJsonFiles.length; idx++) {
     const f = uploadedJsonFiles[idx];
-    const fileExtension = f.name.split('.').pop().toLowerCase();
+    const fileExtension = f.name.split(".").pop().toLowerCase();
 
     let jsonContent = f.content;
     let jsonFileName = f.name;
 
-    // If it's an XML file, convert it to JSON
-    if (fileExtension === 'xml') {
+    if (fileExtension === "xml") {
       try {
         console.log(`🔄 Converting XML file: ${f.name}`);
         const converted = await convertXmlToJson(f.content, f.name);
         jsonContent = converted.jsonString;
-        // Change extension from .xml to .json
-        jsonFileName = f.name.replace(/\.xml$/i, '.json');
-        console.log(`✅ Converted ${f.name} → ${jsonFileName}`);
+        jsonFileName = f.name.replace(/\.xml$/i, ".json");
       } catch (err) {
-        console.error(`❌ Failed to convert XML file ${f.name}:`, err);
         alert(`Failed to convert XML file: ${f.name}`);
         throw err;
       }
     }
 
-    // Append the JSON file (either original or converted)
     formData.append(
       "jsonFile",
       new Blob([jsonContent], { type: "application/json" }),
@@ -1037,13 +1113,9 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 
   formData.append("payload", JSON.stringify(inputJsonMappings));
 
-  console.log("🚀 Sending Export Request");
-  console.log("👉 API URL:", apiUrl);
-  console.log("👉 Export Type:", exportType);
-  console.log("👉 Payload (inputJsonMappings):", JSON.stringify(inputJsonMappings, null, 2));
-  console.log("👉 Final HTML being sent:\n", finalHtml);
-
-  // ---------- Loader UI (same as generatePrintDialog) ----------
+  // =====================================================================================
+  // 🌀 Loader UI
+  // =====================================================================================
   let overlay = document.createElement("div");
   overlay.id = "pdf-loading-overlay";
   Object.assign(overlay.style, {
@@ -1053,8 +1125,7 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
     width: "100%",
     height: "100%",
     background: "rgba(0,0,0,0.5)",
-    color: "#fff",
-    fontSize: "20px",
+    color: "white",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1063,7 +1134,6 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
     gap: "12px",
   });
 
-  // spinner + text (keeps style similar to your modal)
   const spinner = document.createElement("div");
   Object.assign(spinner.style, {
     width: "60px",
@@ -1073,34 +1143,32 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
     borderTopColor: "#fff",
     animation: "spin 1s linear infinite",
   });
-  // keyframes
+
   const styleTag = document.createElement("style");
   styleTag.innerHTML = `
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes spin { from { transform: rotate(0deg);} to {transform: rotate(360deg);} }
   `;
   document.head.appendChild(styleTag);
 
   const overlayText = document.createElement("div");
   overlayText.style.fontSize = "18px";
-  overlayText.style.textAlign = "center";
-  overlayText.style.maxWidth = "90%";
-  overlayText.innerText = exportType === "pdf" ? "Generating Bulk PDF..." : "Generating Bulk HTML...";
+  overlayText.innerText =
+    exportType === "pdf" ? "Generating Bulk PDF..." : "Generating Bulk HTML...";
 
   overlay.appendChild(spinner);
   overlay.appendChild(overlayText);
   document.body.appendChild(overlay);
 
+  // =====================================================================================
+  // 📤 SEND REQUEST
+  // =====================================================================================
   try {
     const response = await fetch(apiUrl, { method: "POST", body: formData });
 
-    console.log("📩 Raw response headers:", [...response.headers.entries()]);
-
-    if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
 
     const blob = await response.blob();
     const filename = getFilenameFromResponse(response, "export.zip");
-
-    console.log("📦 ZIP filename resolved:", filename);
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1109,16 +1177,13 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
     a.click();
     URL.revokeObjectURL(url);
 
-    return "Export sent & ZIP file downloaded successfully!";
+    return "Export successful!";
   } catch (err) {
-    console.error("❌ Export failure:", err);
-    // show helpful alert, same style as other error handling you had
-    alert("Failed to export. Check console for details.");
+    alert("Failed to export. Check console.");
     throw err;
   } finally {
-    // cleanup overlay and style tag
-    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    if (styleTag && styleTag.parentNode) styleTag.parentNode.removeChild(styleTag);
+    if (overlay) overlay.remove();
+    if (styleTag) styleTag.remove();
   }
 }
 
@@ -2861,20 +2926,17 @@ async function generatePrintDialog() {
       .map((url) => `<script src="${url}"></script>`)
       .join("\n");
 
-    // ✅ Add script to reinitialize charts in the exported HTML
-// ✅ Add script to reinitialize charts in the exported HTML
-
     return `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8" />
           ${externalStyles}
+          ${externalScripts}
           <style>${customCss}</style>
         </head>
         <body>
           ${filteredBodyHtml}
-          ${externalScripts}
         </body>
       </html>
     `;

@@ -580,164 +580,201 @@ class PageSetupManager {
     }
   }
 
-  handleAutoPagination(pageIndex) {
+handleAutoPagination(pageIndex) {
+  console.log(pageIndex, 'handleAutoPagination ====');
 
-    console.log(pageIndex, 'handleAutoPagination ====');
+  // ======================================================
+  // PRECHECK: Locate the page + content
+  // ======================================================
+  const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
+  if (!pageComponent) return;
 
-    // ✅ FIRST: Check for manual page breaks
+  const contentArea = pageComponent.find('.main-content-area')[0];
+  if (!contentArea) return;
+
+  const contentEl = contentArea.getEl();
+  if (!contentEl) return;
+
+  // ======================================================
+  // NEW LOGIC: Detect if page has REAL content
+  // ======================================================
+  const hasActualContent =
+    contentEl.children.length > 0 &&
+    Array.from(contentEl.children).some(child =>
+      !child.classList.contains('page-break') &&
+      (child.textContent.trim() !== '' || child.querySelector('img, table, video'))
+    );
+
+  const shouldCheckPageBreak =
+    pageIndex > 0 ||
+    (pageIndex === 0 && hasActualContent && contentEl.scrollHeight > contentEl.clientHeight);
+
+  if (shouldCheckPageBreak) {
     this.handlePageBreak(pageIndex);
-
-    // Prevent concurrent pagination runs
-    if (this.paginationInProgress) return;
-    this.paginationInProgress = true;
-    const resetFlag = () => (this.paginationInProgress = false);
-    setTimeout(resetFlag, 15000); // auto-reset safety timeout
-
-    try {
-      const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-      if (!pageComponent) {
-        console.warn(`❌ Page ${pageIndex} not found`);
-        return resetFlag();
-      }
-
-      const contentArea = pageComponent.find('.main-content-area')[0];
-      if (!contentArea) {
-        console.warn(`❌ Content area not found for page ${pageIndex}`);
-        return resetFlag();
-      }
-
-      // ----------------------------
-      // Identify Target Content Area
-      // ----------------------------
-      let targetArea = contentArea;
-      let availableHeight = contentArea.getEl().clientHeight;
-
-      const sectionsContainer = contentArea.find('.sections-container')[0];
-      const manualSectionContent = contentArea.find('.section-content')[0];
-
-      if (manualSectionContent) {
-        targetArea = manualSectionContent;
-      } else if (sectionsContainer) {
-        const sectionContent = sectionsContainer
-          .components()
-          .find(c => c.get('name') === 'Content');
-        if (sectionContent) targetArea = sectionContent;
-      }
-
-      // ----------------------------
-      // ✅ NEW: Check for Conditional Page Break
-      // ----------------------------
-      // ✅ Check for Conditional Page Break
-      const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
-      let conditionalBreakPosition = null;
-
-      if (conditionalBreakSettings?.enabled) {
-        const pageNumber = pageIndex + 1;
-        const overrides = conditionalBreakSettings.pageOverrides || {};
-
-        let distanceInMm;
-
-        if (overrides[pageNumber]) {
-          // Use page-specific override
-          distanceInMm = this.convertToMm(overrides[pageNumber].distance, overrides[pageNumber].unit);
-          console.log(`🎯 Applying override to page ${pageNumber}`);
-        } else {
-          // Use default
-          distanceInMm = this.convertToMm(
-            conditionalBreakSettings.defaultDistance || 50,
-            conditionalBreakSettings.defaultUnit || 'mm'
-          );
-          console.log(`📋 Applying default to page ${pageNumber}`);
-        }
-
-        const mmToPx = 96 / 25.4;
-        const distanceInPx = Math.round(distanceInMm * mmToPx);
-        conditionalBreakPosition = availableHeight - distanceInPx;
-        console.log(`🔹 Conditional break at ${distanceInPx}px from bottom (position: ${conditionalBreakPosition}px)`);
-      }
-      // ----------------------------
-      // Calculate Available Height
-      // ----------------------------
-      if (sectionsContainer && targetArea !== contentArea) {
-        const mainContentEl = contentArea.getEl();
-        const mainContentHeight = mainContentEl.clientHeight;
-
-        const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
-        const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
-
-        const headerHeight = headerComp?.getEl()
-          ? this.getAccurateComponentHeight(headerComp.getEl())
-          : 0;
-
-        const footerHeight = footerComp?.getEl()
-          ? this.getAccurateComponentHeight(footerComp.getEl())
-          : 0;
-
-        // ✅ Add more buffer space for json-table containers
-        const bufferSpace = 20; // Increased from 40
-        availableHeight = mainContentHeight - headerHeight - footerHeight - bufferSpace;
-        // ✅ Apply conditional break to section content
-        if (conditionalBreakPosition !== null) {
-          availableHeight = Math.min(availableHeight, conditionalBreakPosition);
-          console.log(`📏 Section content limited to ${availableHeight}px by conditional break`);
-        }
-
-        console.log(
-          `[P${pageIndex}] Sections height => Header:${headerHeight}, Footer:${footerHeight}, Available:${availableHeight}`
-        );
-      } else if (conditionalBreakPosition !== null) {
-        // ✅ Apply conditional break to main content area
-        availableHeight = Math.min(availableHeight, conditionalBreakPosition);
-        console.log(`📏 Main content limited to ${availableHeight}px by conditional break`);
-      }
-
-      // ----------------------------
-      // Measure Actual Target Height
-      // ----------------------------
-      const targetEl = targetArea.getEl();
-      if (!targetEl) {
-        console.warn(`❌ Target element not found for page ${pageIndex}`);
-        return resetFlag();
-      }
-
-      targetEl.offsetHeight; // force reflow
-      const actualHeight = targetEl.scrollHeight;
-      const isOverflowing = actualHeight > availableHeight + 10;
-
-      if (!isOverflowing) return resetFlag();
-
-      // ----------------------------
-      // Split Overflowing Content
-      // ----------------------------
-      const components = targetArea.components();
-      if (components.length === 0) return resetFlag();
-
-      const splitSuccess = this.splitContentByHeight(targetArea, components, pageIndex, availableHeight);
-
-      if (!splitSuccess) {
-        console.error(`❌ Split strategy failed for page ${pageIndex}`);
-        return resetFlag();
-      }
-
-      // ----------------------------
-      // Continue Pagination for Next Page
-      // ----------------------------
-      setTimeout(() => {
-        resetFlag();
-
-        setTimeout(() => {
-          const nextPageIndex = pageIndex + 1;
-          if (nextPageIndex < this.pageSettings.numberOfPages) {
-            this.checkPageForOverflow(nextPageIndex);
-          }
-        }, 800);
-      }, 500);
-
-    } catch (error) {
-      console.error(`❌ Error in handleAutoPagination (Page ${pageIndex}):`, error);
-      resetFlag();
-    }
   }
+
+  // ======================================================
+  // Prevent concurrent pagination
+  // ======================================================
+  if (this.paginationInProgress) return;
+  this.paginationInProgress = true;
+
+  const resetFlag = () => (this.paginationInProgress = false);
+  setTimeout(resetFlag, 15000);
+
+  try {
+    // --------------------------------------------------
+    // IDENTIFY TARGET AREA
+    // --------------------------------------------------
+    let targetArea = contentArea;
+    let availableHeight = contentEl.clientHeight;
+
+    const sectionsContainer = contentArea.find('.sections-container')[0];
+    const manualSectionContent = contentArea.find('.section-content')[0];
+
+    if (manualSectionContent) {
+      targetArea = manualSectionContent;
+    } else if (sectionsContainer) {
+      const sectionContent = sectionsContainer
+        .components()
+        .find(c => c.get('name') === 'Content');
+      if (sectionContent) targetArea = sectionContent;
+    }
+
+    // --------------------------------------------------
+    // CONDITIONAL PAGE BREAKS
+    // --------------------------------------------------
+    const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
+    let conditionalBreakPosition = null;
+
+    if (conditionalBreakSettings?.enabled) {
+      const pageNumber = pageIndex + 1;
+      const overrides = conditionalBreakSettings.pageOverrides || {};
+
+      let distanceInMm;
+
+      if (overrides[pageNumber]) {
+        distanceInMm = this.convertToMm(
+          overrides[pageNumber].distance,
+          overrides[pageNumber].unit
+        );
+      } else {
+        distanceInMm = this.convertToMm(
+          conditionalBreakSettings.defaultDistance || 50,
+          conditionalBreakSettings.defaultUnit || 'mm'
+        );
+      }
+
+      const mmToPx = 96 / 25.4;
+      const distanceInPx = Math.round(distanceInMm * mmToPx);
+
+      conditionalBreakPosition = availableHeight - distanceInPx;
+    }
+
+    // --------------------------------------------------
+    // CALCULATE AVAILABLE HEIGHT WITH SECTIONS
+    // --------------------------------------------------
+    if (sectionsContainer && targetArea !== contentArea) {
+      const mainContentHeight = contentEl.clientHeight;
+
+      const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
+      const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
+
+      const headerHeight = headerComp?.getEl()
+        ? this.getAccurateComponentHeight(headerComp.getEl())
+        : 0;
+
+      const footerHeight = footerComp?.getEl()
+        ? this.getAccurateComponentHeight(footerComp.getEl())
+        : 0;
+
+      const bufferSpace = 20;
+
+      availableHeight = mainContentHeight - headerHeight - footerHeight - bufferSpace;
+
+      if (conditionalBreakPosition !== null) {
+        availableHeight = Math.min(availableHeight, conditionalBreakPosition);
+      }
+    } else if (conditionalBreakPosition !== null) {
+      availableHeight = Math.min(availableHeight, conditionalBreakPosition);
+    }
+
+    // --------------------------------------------------
+    // CHECK OVERFLOW
+    // --------------------------------------------------
+    const targetEl = targetArea.getEl();
+    if (!targetEl) return resetFlag();
+
+    targetEl.offsetHeight;
+    const actualHeight = targetEl.scrollHeight;
+
+    const isOverflowing = actualHeight > availableHeight + 10;
+    if (!isOverflowing) return resetFlag();
+
+    // --------------------------------------------------
+    // SPLIT CONTENT
+    // --------------------------------------------------
+    const components = targetArea.components();
+    if (components.length === 0) return resetFlag();
+
+    const splitSuccess = this.splitContentByHeight(
+      targetArea,
+      components,
+      pageIndex,
+      availableHeight
+    );
+
+    if (!splitSuccess) return resetFlag();
+
+    // --------------------------------------------------
+    // CONTINUE PAGINATION
+    // --------------------------------------------------
+    setTimeout(() => {
+      // ================================================
+      // 🔥 NEW BLOCK: SUBREPORT PAGE MARKING
+      // ================================================
+      const nextPageIndex = pageIndex + 1;
+
+      const nextPageExists =
+        nextPageIndex < this.pageSettings.pages.length &&
+        this.pageSettings.pages[nextPageIndex];
+
+      if (nextPageExists) {
+        const hasSubreport = components.some(comp => comp.get('type') === 'subreport');
+
+        if (hasSubreport) {
+          const subreportComp = components.find(comp => comp.get('type') === 'subreport');
+          const sharePageNumber = subreportComp?.getAttributes()?.sharePageNumber;
+
+          if (sharePageNumber === false || sharePageNumber === 'false') {
+            const newPageSettings = this.pageSettings.pages[nextPageIndex];
+            newPageSettings.isSubreportPage = true;
+            newPageSettings.skipPageNumber = true;
+
+            console.log(
+              `🏷️ Autopaginated page ${nextPageIndex + 1} marked as SUBREPORT PAGE (no page number)`
+            );
+          }
+        }
+      }
+      // ================================================
+
+      resetFlag();
+
+      setTimeout(() => {
+        if (nextPageIndex < this.pageSettings.numberOfPages) {
+          this.checkPageForOverflow(nextPageIndex);
+        }
+      }, 800);
+
+    }, 500);
+
+  } catch (err) {
+    console.error(`❌ Error in handleAutoPagination(Page ${pageIndex})`, err);
+    resetFlag();
+  }
+}
+
 
 
 splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
@@ -790,6 +827,9 @@ splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
 
       if (!compEl) continue;
 
+        const isSubreport = component.get('type') === 'subreport' || 
+                      compEl.classList.contains('subreport-block') ||
+                      compEl.classList.contains('subreport-container');
       const compHeight = this.getAccurateComponentHeight(compEl);
       const effectiveMaxHeight = conditionalBreakActive ? conditionalBreakHeight : maxHeight;
       const remainingSpace = effectiveMaxHeight - accumulatedHeight;
@@ -808,6 +848,60 @@ splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
       // If this component would overflow
       if (accumulatedHeight + compHeight > effectiveMaxHeight) {
         splitPointFound = true;
+
+            if (isSubreport) {
+      const subreportChildren = component.components();
+      
+      if (subreportChildren.length > 0) {
+        console.log(`📦 Subreport with ${subreportChildren.length} children detected`);
+        
+        // Try to split subreport's children instead of moving entire subreport
+        let childrenToMove = [];
+        let childAccHeight = accumulatedHeight;
+        
+        for (let j = 0; j < subreportChildren.length; j++) {
+          const childComp = subreportChildren.at(j);
+          const childEl = childComp.getEl();
+          if (!childEl) continue;
+          
+          const childHeight = this.getAccurateComponentHeight(childEl);
+          
+          if (childAccHeight + childHeight > effectiveMaxHeight) {
+            // This child and all following need to move
+            for (let k = j; k < subreportChildren.length; k++) {
+              childrenToMove.push(subreportChildren.at(k));
+            }
+            break;
+          }
+          
+          childAccHeight += childHeight;
+        }
+        
+        if (childrenToMove.length > 0 && childrenToMove.length < subreportChildren.length) {
+          console.log(`✂️ Splitting subreport: keeping ${subreportChildren.length - childrenToMove.length}, moving ${childrenToMove.length} children`);
+          
+          // Move overflow children to componentsToMove array
+          componentsToMove.push(...childrenToMove);
+          
+          // Keep the subreport component on current page
+          componentsToKeep.push(component);
+          accumulatedHeight = childAccHeight;
+          
+          // Move all remaining components after subreport
+          for (let j = i + 1; j < components.length; j++) {
+            componentsToMove.push(components.at(j));
+          }
+          break;
+        }
+      }
+      
+      // If we can't split children, move entire subreport
+      componentsToMove.push(component);
+      for (let j = i + 1; j < components.length; j++) {
+        componentsToMove.push(components.at(j));
+      }
+      break;
+    }
 
         // ✅ Handle tables specially - try to split by rows if possible
         // ✅ Handle tables specially - NEVER split mid-cell
@@ -1506,12 +1600,20 @@ if (!copyHeader && newComponent) {
   }
 }
 
-  splitLargeComponent(component, availableSpace) {
-
+splitLargeComponent(component, availableSpace) {
     console.log('splitLargeComponent ====');
     const compEl = component.getEl();
 
     if (!compEl || component.get('type') !== 'formatted-rich-text') {
+      return { keepComponent: component, moveComponent: null };
+    }
+
+    // ✅ CRITICAL FIX: Check if content actually fits before splitting
+    const currentHeight = compEl.scrollHeight;
+    
+    // If content fits within available space (with small buffer), don't split
+    if (currentHeight <= availableSpace + 50) {
+      console.log(`✅ Content fits (${currentHeight}px <= ${availableSpace}px), no split needed`);
       return { keepComponent: component, moveComponent: null };
     }
 
@@ -1532,17 +1634,26 @@ if (!copyHeader && newComponent) {
       }
     });
 
+    // ✅ Get original content BEFORE clearing
+    const originalHTML = compEl.innerHTML;
     const originalNodes = Array.from(compEl.childNodes);
+    
+    // Safety check - if no nodes, don't split
+    if (originalNodes.length === 0) {
+      console.log('⚠️ No nodes to split');
+      return { keepComponent: component, moveComponent: null };
+    }
+
     const nodesToMove = [];
 
-    // Original div ko temporarily saaf kar do
+    // Clear temporarily
     compEl.innerHTML = '';
 
     // --- Node Splitting Logic ---
     for (let i = 0; i < originalNodes.length; i++) {
       const node = originalNodes[i];
 
-      // 1. Node ko wapas div mein daalo
+      // 1. Add node back to div
       compEl.appendChild(node);
 
       const currentContentHeight = compEl.offsetHeight;
@@ -1550,85 +1661,104 @@ if (!copyHeader && newComponent) {
       if (currentContentHeight > availableSpace) {
         // 🛑 OVERFLOW FOUND!
 
-        // 2. Overflowing node ko wapas nikaal lo
+        // 2. Remove the overflowing node
         compEl.removeChild(node);
 
-        // 3. SPECIAL HANDLING: Agar yeh Text Node hai 
+        // 3. SPECIAL HANDLING: If it's a Text Node 
         if (node.nodeType === Node.TEXT_NODE) {
           const fullText = node.textContent;
 
-          // Character-level splitting function ko call karo
+          // Call character-level splitting function
           const { textToKeep, textToMove } = this._splitLongTextNode(
             fullText,
             compEl,
             availableSpace
           );
 
-          // Agar splitting successful ho
+          // If splitting successful
           if (textToKeep && textToKeep.length > 0 && textToMove && textToMove.length > 0) {
-            // a) Original node ko naye content se update karo
+            // a) Update original node with new content
             node.textContent = textToKeep;
 
-            // b) Original node ko wapas compEl mein daalo
+            // b) Add original node back to compEl
             compEl.appendChild(node);
 
-            // c) Naya Text Node banao move karne ke liye
+            // c) Create new Text Node to move
             const newNodeToMove = document.createTextNode(textToMove);
 
-            // d) Naye node aur baaki sab ko move list mein daalo
+            // d) Add new node and remaining nodes to move list
             nodesToMove.push(newNodeToMove, ...originalNodes.slice(i + 1));
 
             break;
           }
         }
 
-        // Default action (Non-Text Node ya Text Splitting fail)
+        // Default action (Non-Text Node or Text Splitting failed)
         nodesToMove.push(node, ...originalNodes.slice(i + 1));
         break;
       }
     }
     // --- End Node Splitting Logic ---
 
+    // ✅ CRITICAL FIX: If no nodes to move, restore original content
+    if (nodesToMove.length === 0) {
+      console.log('⚠️ No nodes to move - restoring original content');
+      compEl.innerHTML = originalHTML;
+      return { keepComponent: component, moveComponent: null };
+    }
+
     // 1. Original Component (Current Page) Sync
     const contentThatFits = compEl.innerHTML;
+    
+    // Safety check - ensure we're not setting empty content
+    if (!contentThatFits || contentThatFits.trim() === '') {
+      console.log('⚠️ Content that fits is empty - restoring original');
+      compEl.innerHTML = originalHTML;
+      return { keepComponent: component, moveComponent: null };
+    }
+    
     component.set('content', contentThatFits);
 
     // ✅ Reapply styles to original component
     component.setStyle(preservedStyles);
 
-    if (nodesToMove.length > 0) {
-      // 2. Naye component ke liye HTML content banao
-      let secondPartHTML = '';
-      nodesToMove.forEach(node => {
-        if (node.outerHTML) {
-          secondPartHTML += node.outerHTML;
-        } else if (node.textContent) {
-          secondPartHTML += node.textContent;
-        }
-      });
-
-      // 3. Naya component GrapesJS ke through banao
-      const newComponent = this.editor.Components.addComponent({
-        type: component.get('type'),
-        tagName: component.get('tagName') || 'div',
-        content: secondPartHTML,
-        style: preservedStyles, // ✅ Apply captured styles
-        attributes: { ...component.getAttributes() },
-        classes: component.getClasses()
-      });
-
-      // ✅ Force render with styles
-      if (newComponent.view) {
-        newComponent.view.render();
+    // 2. Create new component for overflow content
+    let secondPartHTML = '';
+    nodesToMove.forEach(node => {
+      if (node.outerHTML) {
+        secondPartHTML += node.outerHTML;
+      } else if (node.textContent) {
+        secondPartHTML += node.textContent;
       }
+    });
 
-      return {
-        keepComponent: component,
-        moveComponent: newComponent
-      };
+    // Safety check - ensure we have content to move
+    if (!secondPartHTML || secondPartHTML.trim() === '') {
+      console.log('⚠️ No content to move - keeping all on current page');
+      return { keepComponent: component, moveComponent: null };
     }
 
-    return { keepComponent: component, moveComponent: null };
+    // 3. Create new component via GrapesJS
+    const newComponent = this.editor.Components.addComponent({
+      type: component.get('type'),
+      tagName: component.get('tagName') || 'div',
+      content: secondPartHTML,
+      style: preservedStyles,
+      attributes: { ...component.getAttributes() },
+      classes: component.getClasses()
+    });
+
+    // ✅ Force render with styles
+    if (newComponent.view) {
+      newComponent.view.render();
+    }
+
+    console.log(`✅ Split successful - kept ${contentThatFits.length} chars, moving ${secondPartHTML.length} chars`);
+
+    return {
+      keepComponent: component,
+      moveComponent: newComponent
+    };
   }
 
   _splitLongTextNode(fullText, containerEl, availableSpace) {
@@ -1698,6 +1828,62 @@ async moveComponentsToPage(components, targetPageIndex) {
   console.log('🟦 moveComponentsToPage called for page:', targetPageIndex);
 
   try {
+    // === START: CRITICAL FIX - extract subreport children ===
+    const originalFirstComponent = components && components[0];
+
+    const actualComponentsToMove = [];
+
+    for (const component of components) {
+      const isSubreport =
+        (typeof component.get === 'function' && component.get('type') === 'subreport') ||
+        (component.getEl && component.getEl()?.classList?.contains('subreport-block'));
+
+      if (isSubreport) {
+        console.log('📦 Subreport detected, extracting children...');
+        const children = component.components && component.components();
+
+        if (children && children.length > 0) {
+          console.log(`✂️ Extracting ${children.length} children from subreport`);
+
+          children.forEach((child) => {
+            // Mark extracted child so we can identify it later
+            try {
+              if (typeof child.addAttributes === 'function') {
+                child.addAttributes({ 'data-subreport-content': 'true' });
+              } else if (child.getAttributes && child.getAttributes()) {
+                // fallback: mutate attributes object
+                const attrs = child.getAttributes() || {};
+                attrs['data-subreport-content'] = 'true';
+                if (typeof child.addAttributes === 'function') child.addAttributes(attrs);
+              }
+            } catch (e) {
+              // non-fatal
+            }
+
+            actualComponentsToMove.push(child);
+          });
+
+          // Remove children from subreport (they will be moved independently)
+          try {
+            component.components().reset();
+          } catch (e) {
+            // ignore if reset unavailable
+          }
+
+          console.log(`✅ Extracted ${children.length} components from subreport`);
+        } else {
+          // Empty subreport, move the subreport itself
+          actualComponentsToMove.push(component);
+        }
+      } else {
+        // Regular component
+        actualComponentsToMove.push(component);
+      }
+    }
+
+    console.log(`📊 Total components to move: ${actualComponentsToMove.length}`);
+    // === END: extraction ===
+
     const wrapper = this.editor.getWrapper();
     const targetPageComponent = wrapper.find(`[data-page-index="${targetPageIndex}"]`)[0];
     if (!targetPageComponent) {
@@ -1705,7 +1891,7 @@ async moveComponentsToPage(components, targetPageIndex) {
       return false;
     }
 
-    let targetContentArea = targetPageComponent.find(".main-content-area")[0];
+    let targetContentArea = targetPageComponent.find('.main-content-area')[0];
     if (!targetContentArea) {
       console.error(`❌ Target content area not found`);
       return false;
@@ -1713,17 +1899,17 @@ async moveComponentsToPage(components, targetPageIndex) {
 
     // ✅ STEP 1: Get the source section's count BEFORE any operations
     let sourceSectionCount = null;
-    const firstComponent = components[0];
+    const firstComponent = originalFirstComponent;
     if (firstComponent) {
-      const sourceSection = firstComponent.closest('.sections-container');
+      const sourceSection = firstComponent.closest && firstComponent.closest('.sections-container');
       if (sourceSection) {
-        sourceSectionCount = sourceSection.getAttributes()['data-section-count'];
+        sourceSectionCount = sourceSection.getAttributes && sourceSection.getAttributes()['data-section-count'];
         console.log(`📦 Source section count: ${sourceSectionCount}`);
       }
     }
 
     // Wait for DOM to stabilize
-    await new Promise(resolve => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     // ✅ STEP 2: Check if target page needs sections container
     let targetSection = targetContentArea.find('.sections-container')[0];
@@ -1743,7 +1929,7 @@ async moveComponentsToPage(components, targetPageIndex) {
       for (let page of allPages) {
         const existingSection = page.find('.sections-container')[0];
         if (existingSection) {
-          const existingCount = existingSection.getAttributes()['data-section-count'];
+          const existingCount = existingSection.getAttributes && existingSection.getAttributes()['data-section-count'];
           if (existingCount === sourceSectionCount && existingSection !== targetSection) {
             // Found source section - copy header
             const sourceHeader = existingSection.find('.section-header')[0];
@@ -1763,10 +1949,10 @@ async moveComponentsToPage(components, targetPageIndex) {
 
       console.log(`✅ Created section on page ${targetPageIndex} with preserved count: ${sourceSectionCount}`);
       // Wait for section to be created in DOM
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     } else if (targetSection) {
       // ✅ Verify existing section has correct count
-      const existingCount = targetSection.getAttributes()['data-section-count'];
+      const existingCount = targetSection.getAttributes && targetSection.getAttributes()['data-section-count'];
       console.log(`✅ Section already exists with count: ${existingCount}`);
 
       // If count doesn't match and we have source count, update it
@@ -1788,7 +1974,7 @@ async moveComponentsToPage(components, targetPageIndex) {
         console.log(`✅ Using '.section-content' as target on page ${targetPageIndex}`);
       } else {
         const namedContent = targetSection.components()
-          .find(c => c.get('name') === 'Content' || c.get('name') === 'section Content');
+          .find((c) => c.get('name') === 'Content' || c.get('name') === 'section Content');
         if (namedContent) {
           finalTarget = namedContent;
           console.log(`✅ Using named 'Content' section as target on page ${targetPageIndex}`);
@@ -1805,195 +1991,217 @@ async moveComponentsToPage(components, targetPageIndex) {
 
     let moved = 0;
 
-    for (const [index, component] of components.entries()) {
+    // === START: MAIN LOOP - iterate over extracted components ===
+    for (const [index, component] of actualComponentsToMove.entries()) {
       if (!component) continue;
 
       try {
-        const compEl = component.getEl();
+        const compEl = component.getEl && component.getEl();
         const isTable =
           compEl &&
-          (compEl.tagName === 'TABLE' ||
-            compEl.querySelector('table') !== null ||
-            compEl.classList.contains('json-table-container') ||
-            compEl.classList.contains('json-data-table'));
+          (compEl.tagName === 'TABLE' || compEl.querySelector('table') !== null || compEl.classList.contains('json-table-container') || compEl.classList.contains('json-data-table'));
 
-        // ✅ Handle table components
-// ✅ Handle table components
-if (isTable) {
-  console.log(`📊 Handling table component ${index}`);
-
-  const isSplitTable = component.getAttributes()['data-split-table'] === 'continuation' ||
-    component.getAttributes()['data-continuation-table'] === 'true';
-  
-  const copyHeaderAttr = component.getAttributes()['data-copy-header'];
-  const shouldRemoveHeader = copyHeaderAttr === 'false';
-
-  let dtData = null;
-  const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
-
-  if (!isSplitTable && tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
-    const dt = $(tableEl).DataTable();
-    dtData = {
-      data: dt.rows().data().toArray(),
-      columns: dt.settings()[0].aoColumns,
-      order: dt.order()
-    };
-    dt.destroy();
-    console.log('📦 Preserved DataTable state');
-  }
-
-  // ✅ Remove thead from component BEFORE getting HTML if user chose not to copy
-  if (shouldRemoveHeader) {
-    console.log('🗑️ Removing header from component before moving...');
-    const theadComp = component.find('thead')[0];
-    if (theadComp) {
-      theadComp.remove();
-      console.log('✅ Removed thead from GrapesJS component tree');
-    }
-    
-    // Also remove from DOM
-    if (tableEl) {
-      const theadEl = tableEl.querySelector('thead');
-      if (theadEl) {
-        theadEl.remove();
-        console.log('✅ Removed thead from DOM');
-      }
-    }
-  }
-
-  const fullHTML = component.toHTML();
-  component.remove();
-
-  const newComponent = targetContentArea.append(fullHTML)[0];
-  console.log("🧩 New table component added:", newComponent?.getId?.() || '(unknown)');
-
-  // Primary setup for table cells
-  setTimeout(() => {
-    const newEl = newComponent.getEl();
-    if (!newEl) {
-      console.warn("⚠️ newComponent element not yet available");
-      return;
-    }
-
-    const tableEl = newEl.querySelector('table') || newEl;
-    if (!tableEl) {
-      console.warn("⚠️ No <table> element found inside new component!");
-      return;
-    }
-
-    console.log("✅ Found table element:", tableEl.id);
-
-    // ✅ CRITICAL: Double-check header removal in new component
-    if (shouldRemoveHeader) {
-      const theadComp = newComponent.find('thead')[0];
-      if (theadComp) {
-        console.log('🗑️ Removing thead from new component (double-check)');
-        theadComp.remove();
-      }
-      
-      const theadEl = tableEl.querySelector('thead');
-      if (theadEl) {
-        console.log('🗑️ Removing thead from new DOM (double-check)');
-        theadEl.remove();
-      }
-      
-      // Force component update
-      if (newComponent.view && newComponent.view.render) {
-        newComponent.view.render();
-      }
-    }
-
-    // ✅ Reattach DOM cell editability
-    const tdCells = tableEl.querySelectorAll('td, th');
-    tdCells.forEach((cell, i) => {
-      cell.setAttribute('contenteditable', 'true');
-    });
-
-    // ✅ Reattach GrapesJS model editability for cell components
-    const cellComponents = newComponent.find('td, th');
-    cellComponents.forEach((cellComp, i) => {
-      cellComp.addAttributes({ contenteditable: 'true' });
-      cellComp.set({ editable: true });
-    });
-
-    console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
-
-    // ✅ Reattach cell handlers
-    const pageSetupManager = this.editor.get('PageSetupManager');
-    if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
-      const tableId = tableEl.id;
-      if (tableId) {
-        pageSetupManager.reattachAllCellHandlers(tableId);
-        console.log(`✅ Reattached all cell handlers for table: ${tableId}`);
-      }
-    }
-
-    // DataTable reinitialization
-    if (dtData) {
-      const newTableEl = newEl.querySelector('table') || newEl;
-      if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
-        $(newTableEl).DataTable({
-          data: dtData.data,
-          columns: dtData.columns,
-          order: dtData.order,
-          paging: false,
-          searching: false,
-          info: false
-        });
-        console.log('🔁 Reinitialized DataTable');
-      }
-    } else {
-      const newTableEl = newEl.querySelector('table') || newEl;
-      if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
-        if ($.fn.DataTable.isDataTable(newTableEl)) {
-          $(newTableEl).DataTable().destroy();
+        // ✅ ADD: Special handling flag for subreport-extracted content
+        const isFromSubreport = (component.getAttributes && component.getAttributes()['data-subreport-content'] === 'true') || false;
+        if (isFromSubreport) {
+          console.log(`📄 Moving subreport content: ${component.get('tagName') || 'unknown'}`);
         }
-        $(newTableEl).DataTable({
-          paging: false,
-          searching: false,
-          ordering: false,
-          info: false
-        });
-        console.log('🔁 Initialized new DataTable on moved/continuation table');
-      }
-    }
-  }, 400);
 
-  // Copy data-* attributes
-  if (newComponent) {
-    setTimeout(() => {
-      const newTableEl = newComponent.getEl();
-      if (newTableEl) {
-        const allCells = newTableEl.querySelectorAll('td, th');
-        allCells.forEach(cell => {
-          if (!cell.hasAttribute('contenteditable')) {
-            cell.setAttribute('contenteditable', 'true');
+        // ------------------ Handle table components ------------------
+        if (isTable) {
+          console.log(`📊 Handling table component ${index}`);
+
+          const attrs = component.getAttributes && component.getAttributes();
+          const isSplitTable = attrs && (attrs['data-split-table'] === 'continuation' || attrs['data-continuation-table'] === 'true');
+
+          const copyHeaderAttr = attrs && attrs['data-copy-header'];
+          const shouldRemoveHeader = copyHeaderAttr === 'false';
+
+          let dtData = null;
+          const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
+
+          if (!isSplitTable && tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
+            const dt = $(tableEl).DataTable();
+            dtData = {
+              data: dt.rows().data().toArray(),
+              columns: dt.settings()[0].aoColumns,
+              order: dt.order()
+            };
+            dt.destroy();
+            console.log('📦 Preserved DataTable state');
           }
 
-          const originalCell = compEl.querySelector(`#${cell.id}`);
-          if (originalCell) {
-            Array.from(originalCell.attributes).forEach(attr => {
-              if (attr.name.startsWith('data-')) {
-                cell.setAttribute(attr.name, attr.value);
+          // ✅ Remove thead from component BEFORE getting HTML if user chose not to copy
+          if (shouldRemoveHeader) {
+            console.log('🗑️ Removing header from component before moving...');
+            const theadComp = component.find && component.find('thead') && component.find('thead')[0];
+            if (theadComp) {
+              theadComp.remove();
+              console.log('✅ Removed thead from GrapesJS component tree');
+            }
+
+            // Also remove from DOM
+            if (tableEl) {
+              const theadEl = tableEl.querySelector('thead');
+              if (theadEl) {
+                theadEl.remove();
+                console.log('✅ Removed thead from DOM');
+              }
+            }
+          }
+
+          const fullHTML = component.toHTML();
+          component.remove();
+
+          const newComponent = targetContentArea.append(fullHTML)[0];
+          const componentType = component.get && component.get('type');
+          const isSubreport = componentType === 'subreport';
+          const sharePageNumber = component.getAttributes && component.getAttributes().sharePageNumber;
+
+          if (isSubreport && sharePageNumber === false) {
+            // Mark this page as subreport page that should skip numbering
+            const targetPageSettings = this.pageSettings.pages[targetPageIndex];
+            if (targetPageSettings) {
+              targetPageSettings.isSubreportPage = true;
+              targetPageSettings.skipPageNumber = true;
+              console.log(`🏷️ Page ${targetPageIndex + 1} marked as subreport page (skip numbering)`);
+            }
+          }
+
+          console.log('🧩 New table component added:', newComponent?.getId?.() || '(unknown)');
+
+          // Primary setup for table cells
+          setTimeout(() => {
+            const newEl = newComponent.getEl && newComponent.getEl();
+            if (!newEl) {
+              console.warn('⚠️ newComponent element not yet available');
+              return;
+            }
+
+            const tableEl = newEl.querySelector('table') || newEl;
+            if (!tableEl) {
+              console.warn('⚠️ No <table> element found inside new component!');
+              return;
+            }
+
+            console.log('✅ Found table element:', tableEl.id);
+
+            // ✅ CRITICAL: Double-check header removal in new component
+            if (shouldRemoveHeader) {
+              const theadComp = newComponent.find && newComponent.find('thead') && newComponent.find('thead')[0];
+              if (theadComp) {
+                console.log('🗑️ Removing thead from new component (double-check)');
+                theadComp.remove();
+              }
+
+              const theadEl = tableEl.querySelector('thead');
+              if (theadEl) {
+                console.log('🗑️ Removing thead from new DOM (double-check)');
+                theadEl.remove();
+              }
+
+              // Force component update
+              if (newComponent.view && newComponent.view.render) {
+                newComponent.view.render();
+              }
+            }
+
+            // ✅ Reattach DOM cell editability
+            const tdCells = tableEl.querySelectorAll('td, th');
+            tdCells.forEach((cell) => {
+              cell.setAttribute('contenteditable', 'true');
+            });
+
+            // ✅ Reattach GrapesJS model editability for cell components
+            const cellComponents = newComponent.find && newComponent.find('td, th');
+            (cellComponents || []).forEach((cellComp) => {
+              try {
+                cellComp.addAttributes({ contenteditable: 'true' });
+                cellComp.set({ editable: true });
+              } catch (e) {
+                // ignore
               }
             });
+
+            console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${(cellComponents || []).length} model cells.`);
+
+            // ✅ Reattach cell handlers
+            const pageSetupManager = this.editor.get('PageSetupManager');
+            if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
+              const tableId = tableEl.id;
+              if (tableId) {
+                pageSetupManager.reattachAllCellHandlers(tableId);
+                console.log(`✅ Reattached all cell handlers for table: ${tableId}`);
+              }
+            }
+
+            // DataTable reinitialization
+            if (dtData) {
+              const newTableEl = newEl.querySelector('table') || newEl;
+              if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+                $(newTableEl).DataTable({
+                  data: dtData.data,
+                  columns: dtData.columns,
+                  order: dtData.order,
+                  paging: false,
+                  searching: false,
+                  info: false
+                });
+                console.log('🔁 Reinitialized DataTable');
+              }
+            } else {
+              const newTableEl = newEl.querySelector('table') || newEl;
+              if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+                if ($.fn.DataTable.isDataTable(newTableEl)) {
+                  $(newTableEl).DataTable().destroy();
+                }
+                $(newTableEl).DataTable({
+                  paging: false,
+                  searching: false,
+                  ordering: false,
+                  info: false
+                });
+                console.log('🔁 Initialized new DataTable on moved/continuation table');
+              }
+            }
+          }, 400);
+
+          // Copy data-* attributes
+          if (newComponent) {
+            setTimeout(() => {
+              const newTableEl = newComponent.getEl && newComponent.getEl();
+              if (newTableEl) {
+                const allCells = newTableEl.querySelectorAll('td, th');
+                allCells.forEach((cell) => {
+                  if (!cell.hasAttribute('contenteditable')) {
+                    cell.setAttribute('contenteditable', 'true');
+                  }
+
+                  const originalCell = compEl.querySelector && compEl.querySelector(`#${cell.id}`);
+                  if (originalCell) {
+                    Array.from(originalCell.attributes).forEach((attr) => {
+                      if (attr.name.startsWith('data-')) {
+                        cell.setAttribute(attr.name, attr.value);
+                      }
+                    });
+                  }
+                });
+              }
+            }, 300);
+
+            moved++;
+            console.log(`✅ Moved table component ${index} with editability preserved`);
           }
-        });
-      }
-    }, 300);
 
-    moved++;
-    console.log(`✅ Moved table component ${index} with editability preserved`);
-  }
-
-  continue;
-}
+          continue;
+        }
+        // ------------------ End table handling ------------------
 
         // ✅ Regular component logic
-        const clonedComponent = component.clone();
-        const fullHTML = component.toHTML();
+        const clonedComponent = component.clone && component.clone();
+        const fullHTML = component.toHTML && component.toHTML();
 
-        const sourceEl = component.getEl();
+        const sourceEl = component.getEl && component.getEl();
         let computedStyles = {};
         if (sourceEl) {
           const computed = window.getComputedStyle(sourceEl);
@@ -2006,7 +2214,7 @@ if (isTable) {
             'overflow', 'white-space', 'word-wrap', 'text-overflow',
             'box-sizing', 'z-index', 'opacity', 'transform'
           ];
-          stylesToCapture.forEach(prop => {
+          stylesToCapture.forEach((prop) => {
             const value = computed.getPropertyValue(prop);
             if (value && value !== 'none' && value !== 'normal') {
               computedStyles[prop] = value;
@@ -2016,19 +2224,19 @@ if (isTable) {
 
         const preservedData = {
           html: fullHTML,
-          attributes: JSON.parse(JSON.stringify(component.getAttributes() || {})),
-          classes: [...(component.getClasses() || [])],
-          style: JSON.parse(JSON.stringify(component.getStyle() || {})),
+          attributes: JSON.parse(JSON.stringify(component.getAttributes && component.getAttributes() || {})),
+          classes: [...(component.getClasses && component.getClasses() || [])],
+          style: JSON.parse(JSON.stringify(component.getStyle && component.getStyle() || {})),
           computedStyles,
           name: component.get('name'),
           editable: component.get('editable')
         };
 
-        const parent = component.parent();
-        component.remove();
-        if (parent && parent.components().length === 0 && parent.getEl()?.innerHTML.trim() === '') {
+        const parent = component.parent && component.parent();
+        component.remove && component.remove();
+        if (parent && parent.components && parent.components().length === 0 && parent.getEl && parent.getEl() && parent.getEl().innerHTML.trim() === '') {
           console.log('🗑️ Removing empty parent container');
-          parent.remove();
+          parent.remove && parent.remove();
         }
 
         try {
@@ -2044,10 +2252,10 @@ if (isTable) {
           const newComponent = targetContentArea.append(preservedData.html)[0];
           if (newComponent) {
             const combinedStyles = { ...preservedData.computedStyles, ...preservedData.style };
-            newComponent.setStyle(combinedStyles);
-            newComponent.addAttributes(preservedData.attributes);
-            newComponent.setClass(preservedData.classes);
-            newComponent.set({ editable: preservedData.editable });
+            newComponent.setStyle && newComponent.setStyle(combinedStyles);
+            newComponent.addAttributes && newComponent.addAttributes(preservedData.attributes);
+            newComponent.setClass && newComponent.setClass(preservedData.classes);
+            newComponent.set && newComponent.set({ editable: preservedData.editable });
             moved++;
             console.log(`✅ Moved reconstructed component ${index} with styles`);
           }
@@ -2059,6 +2267,7 @@ if (isTable) {
         console.error(`❌ Error moving component ${index}:`, err);
       }
     }
+    // === END: MAIN LOOP ===
 
     // Reconnect observer
     setTimeout(() => {
@@ -2071,6 +2280,7 @@ if (isTable) {
     return false;
   }
 }
+
 
 
 
@@ -8254,100 +8464,59 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
       // ======================================================
       // Page Numbers - ADD AS GRAPESJS COMPONENT
       // ======================================================
-      if (this.pageSettings.pageNumber?.enabled) {
-        const visibility = this.pageSettings.pageNumber.visibility || "all";
-        const startFromIndex = (this.pageSettings.pageNumber.startFrom || 1) - 1;
 
-        const shouldShowPageNumber =
-          visibility === "all" ||
-          (visibility === "even" && (pageIndex + 1) % 2 === 0) ||
-          (visibility === "odd" && (pageIndex + 1) % 2 !== 0);
+if (this.pageSettings.pageNumber?.enabled) {
+  const settings = this.pageSettings.pageNumber;
+  const format = settings.format || "Page {n}";
+  const position = settings.position || "bottom-center";
+  const rotation = settings.rotation || 0;
 
-        if (pageIndex >= startFromIndex && shouldShowPageNumber) {
-          const totalPagesWithNumbers = this.editor
-            .getWrapper()
-            .find('.page-container')
-            .filter((_, i) => {
-              return (
-                i >= startFromIndex &&
-                (visibility === "all" ||
-                  (visibility === "even" && (i + 1) % 2 === 0) ||
-                  (visibility === "odd" && (i + 1) % 2 !== 0))
-              );
-            }).length;
+  const startFrom = settings.startFrom || 1;
+  const shouldShowNumber = this.shouldShowPageNumberForPage(pageIndex, startFrom);
+  
+  if (shouldShowNumber.show) {
+    const pageContent = pageComponent.find('.page-content')[0];
+    if (pageContent) {
+      // ✅ CHECK if page number already exists
+      const existingPageNumber = pageContent.find('.page-number-element')[0];
+      
+      if (!existingPageNumber) {
+        // Only add if doesn't exist
+        const displayNumber = format
+          .replace('{n}', shouldShowNumber.displayNumber)
+          .replace('{total}', shouldShowNumber.totalPages.toString());
 
-          const currentNumber = pageIndex - startFromIndex + 1;
-          const numberText = this.pageSettings.pageNumber.format
-            .replace("{n}", String(currentNumber))
-            .replace("{total}", String(totalPagesWithNumbers));
+        const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
+        
+        const pageNumberHTML = `
+          <div class="page-number-element" style="
+            position: absolute;
+            font-family: ${settings.fontFamily || 'Arial'};
+            font-size: ${settings.fontSize || 8}px;
+            color: ${settings.color || '#333333'};
+            background-color: ${settings.backgroundColor || 'transparent'};
+            border: ${settings.showBorder ? '1px solid ' + (settings.color || '#333333') : 'none'};
+            padding: ${settings.showBorder ? '2px 6px' : '2px'};
+            border-radius: 3px;
+            z-index: 1000;
+            pointer-events: none;
+            white-space: nowrap;
+            ${positionStyles}
+          ">${displayNumber}</div>
+        `;
 
-          const position = this.pageSettings.pageNumber.position || "bottom-center";
-          const rotation = this.pageSettings.pageNumber.rotation || 0;
-
-          // Build position styles
-          let positionStyles = "position: absolute; ";
-
-          if (position.includes("top")) {
-            positionStyles += "top: 15px; ";
-          } else {
-            positionStyles += "bottom: 17px; ";
-          }
-
-          if (position.includes("left")) {
-            positionStyles += "left: 10px; ";
-          } else if (position.includes("right")) {
-            positionStyles += "right: 10px; ";
-          } else {
-            positionStyles += "left: 50%; ";
-          }
-
-          // Handle transform for centering + rotation
-          let transformValue = '';
-          if (position.includes("center") && !position.includes("left") && !position.includes("right")) {
-            transformValue = `translateX(-50%) rotate(${rotation}deg)`;
-          } else {
-            transformValue = `rotate(${rotation}deg)`;
-          }
-
-          // ✅ Remove existing page number component
-          const existingPageNumber = pageContentComponent.find('.page-number-element');
-          if (existingPageNumber && existingPageNumber.length > 0) {
-            existingPageNumber.forEach(pn => pn.remove());
-          }
-
-          // ✅ Add page number as GrapesJS component
-          const pageNumberComponent = pageContentComponent.append(`
-      <div class="page-number-element">${numberText}</div>
-    `)[0];
-
-          if (pageNumberComponent) {
-            pageNumberComponent.addStyle({
-              position: "absolute",
-              "font-size": `${this.pageSettings.pageNumber.fontSize || 8}px`,
-              color: this.pageSettings.pageNumber.color || "#000",
-              "background-color": this.pageSettings.pageNumber.backgroundColor || "#fff",
-              padding: "4px 8px",
-              "border-radius": "3px",
-              border: this.pageSettings.pageNumber.showBorder ? "1px solid #dee2e6" : "none",
-              "z-index": "99",
-              "font-family": this.pageSettings.pageNumber.fontFamily || "Arial",
-              transform: transformValue,
-              "transform-origin": "center center",
-              ...this.parsePositionStyles(positionStyles)  // must also be kebab-case
-            });
-
-
-            // Make it non-editable
-            pageNumberComponent.set({
-              selectable: false,
-              editable: false,
-              removable: false,
-              draggable: false,
-              copyable: false,
-            });
-          }
-        }
+        pageContent.append(pageNumberHTML);
+      } else {
+        // Update existing page number
+        const displayNumber = format
+          .replace('{n}', shouldShowNumber.displayNumber)
+          .replace('{total}', shouldShowNumber.totalPages.toString());
+        
+        existingPageNumber.components(displayNumber);
       }
+    }
+  }
+}
     }, 200);
 
     // ===============================
@@ -8735,6 +8904,46 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
     return styles;
   }
 
+  // In PageSetupManager class, add this new method after getPageNumberPositionStylesWithRotation:
+
+shouldShowPageNumberForPage(pageIndex, startFrom) {
+  const pageSettings = this.pageSettings.pages[pageIndex];
+  
+  // Check if this page should be skipped
+  if (pageSettings?.skipPageNumber === true) {
+    console.log(`⏭️ Skipping page number for page ${pageIndex + 1} (subreport page)`);
+    return { show: false, displayNumber: 0, totalPages: 0 };
+  }
+
+  // Calculate actual page number by counting only non-skipped pages
+  let displayNumber = 0;
+  let totalPages = 0;
+
+  // Count pages that should show numbers (from startFrom onwards, excluding skipped)
+  for (let i = startFrom - 1; i < this.pageSettings.pages.length; i++) {
+    const ps = this.pageSettings.pages[i];
+    if (ps?.skipPageNumber !== true) {
+      totalPages++;
+      if (i < pageIndex) {
+        displayNumber++;
+      } else if (i === pageIndex) {
+        displayNumber++;
+      }
+    }
+  }
+
+  // Check if current page is before startFrom
+  if (pageIndex < startFrom - 1) {
+    return { show: false, displayNumber: 0, totalPages };
+  }
+
+  return { 
+    show: true, 
+    displayNumber, 
+    totalPages 
+  };
+}
+
   removeAllPageNumbers() {
     const pages = this.editor.getWrapper().find('.page-container');
     pages.forEach(pageComponent => {
@@ -9076,7 +9285,9 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
           height: this.pageSettings.headerFooter?.footerHeight || 12.7,
           text: this.pageSettings.headerFooter?.footerText || "",
           shouldShowContent: true
-        }
+        },
+          isSubreportPage: false,  
+  skipPageNumber: false
       };
       this.pageSettings.pages.push(newPageSettings);
       // Convert dimensions from mm → px
@@ -9239,7 +9450,46 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
         this.addWatermarkToPage(pageContentComponent, newPageIndex);
       }
       // Add page number only for this page
-      this.renderPageNumberForPage(pageComponent, newPageIndex);
+// Add page number with rotation support
+if (this.pageSettings.pageNumber?.enabled) {
+  const settings = this.pageSettings.pageNumber;
+  const format = settings.format || "Page {n}";
+  const position = settings.position || "bottom-center";
+  const rotation = settings.rotation || 0; // ✅ Get rotation
+
+  const pageNumber = newPageIndex + 1;
+  const startFrom = settings.startFrom || 1;
+
+  // Check if this page should show page number
+  if (pageNumber >= startFrom) {
+    const displayNumber = format
+      .replace('{n}', pageNumber - startFrom + 1)
+      .replace('{total}', this.pageSettings.numberOfPages.toString());
+
+    // ✅ Use method WITH rotation
+    const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
+    
+    const pageNumberHTML = `
+      <div class="page-number-element" style="
+        position: absolute;
+        font-family: ${settings.fontFamily || 'Arial'};
+        font-size: ${settings.fontSize || 8}px;
+        color: ${settings.color || '#333333'};
+        background-color: ${settings.backgroundColor || 'transparent'};
+        border: ${settings.showBorder ? '1px solid ' + (settings.color || '#333333') : 'none'};
+        padding: ${settings.showBorder ? '2px 6px' : '2px'};
+        border-radius: 3px;
+        z-index: 1000;
+        pointer-events: none;
+        white-space: nowrap;
+        ${positionStyles}
+      ">${displayNumber}</div>
+    `;
+
+    const pageContent = pageComponent.find('.page-content')[0];
+    if (pageContent) pageContent.append(pageNumberHTML);
+  }
+}
       // Setup observer AFTER page is fully created
       setTimeout(() => {
         this.paginationInProgress = originalPaginationState;
@@ -9271,13 +9521,14 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
     const settings = this.pageSettings.pageNumber;
     const format = settings.format || "Page {n}";
     const position = settings.position || "bottom-center";
+      const rotation = settings.rotation || 0;
 
     const pageNumber = pageIndex + 1;
     const displayNumber = format
       .replace('{n}', pageNumber)
       .replace('{total}', this.pageSettings.numberOfPages.toString());
 
-    const positionStyles = this.getPageNumberPositionStyles(position);
+  const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
     const pageNumberHTML = `
         <div class="page-number-element" style="
             position: absolute;
@@ -9291,7 +9542,6 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
             z-index: 1000;
             pointer-events: none;
             white-space: nowrap;
-${this.getPageNumberPositionStylesWithRotation(position, settings.rotation || 0)}
             ${positionStyles}
         ">${displayNumber}</div>
     `;

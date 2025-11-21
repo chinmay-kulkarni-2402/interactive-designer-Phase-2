@@ -9,39 +9,46 @@ function subreportPlugin(editor) {
         tagName: "div",
         classes: ["subreport-block"],
         attributes: { class: "subreport-container" },
-        droppable: true, // Now allows children
+        droppable: true, 
         draggable: true,
         resizable: true,
         copyable: true,
         editable: false,
+        selectable: true,
         style: {
           'min-height': '60px',
           'display': 'block',
           'width': '100%'
         },
 traits: [
-        {
-          type: 'select',
-          name: 'filterColumn',
-          label: 'Select Column',
-          options: [{ value: '', label: 'None' }]
-        },
-        {
-          type: 'text',
-          name: 'filterValue',
-          label: 'Filter Value'
-        },
-        {
-          type: 'checkbox',
-          name: 'showData',
-          label: 'Show Data'
-        },
-        {
-          type: 'checkbox',
-          name: 'mergeHeaderFooter',
-          label: 'Merge Header/Footer'
-        }
-      ]
+  {
+    type: 'select',
+    name: 'filterColumn',
+    label: 'Select Column',
+    options: [{ value: '', label: 'None' }]
+  },
+  {
+    type: 'text',
+    name: 'filterValue',
+    label: 'Filter Value'
+  },
+  {
+    type: 'checkbox',
+    name: 'showData',
+    label: 'Show Data'
+  },
+  {
+    type: 'checkbox',
+    name: 'mergeHeaderFooter',
+    label: 'Merge Header/Footer'
+  },
+  {
+    type: 'checkbox',
+    name: 'sharePageNumber',
+    label: 'Share Page Number',
+    default: true  // ✅ Default checked
+  }
+]
       },
 
       init() {
@@ -73,7 +80,7 @@ this.on("change:attributes:showData", this.onShowDataToggle);
         // Add initial placeholder component if empty
         if (this.components().length === 0) {
           this.components().add({
-            type: 'text',
+            type: 'div',
             content: '📄 Double-click to choose subreport',
             style: {
               color: '#999',
@@ -160,6 +167,13 @@ this.on("change:attributes:showData", this.onShowDataToggle);
       },
 
       async onDoubleClick() {
+          const showData = this.model.getAttributes().showData;
+  if (showData === true || showData === "true") {
+    console.log("🚫 Subreport data is shown - double-click disabled");
+    e.stopPropagation();
+    e.preventDefault();
+    return;
+  }
         console.log("🖱️ Double-click detected on subreport component");
         const model = this.model;
         const attrs = model.getAttributes();
@@ -254,7 +268,7 @@ this.on("change:attributes:showData", this.onShowDataToggle);
                 }
 
                 if (currentFile && currentFile !== templateId) {
-                  const proceed = confirm(`"${currentFile}" is already added. Replace it with "${name}"?`);
+                  const proceed = confirm(`"${name}" is already added. Replace it with "${name}"?`);
                   if (!proceed) return;
                 }
 
@@ -277,8 +291,7 @@ this.on("change:attributes:showData", this.onShowDataToggle);
                     showData: false,
                   });
 
-                  // Clear any existing placeholder
-                  this.clearPlaceholder();
+
 
                 } catch (err) {
                   console.error("❌ Failed to fetch subreport template:", err);
@@ -349,32 +362,6 @@ async loadSubreportFromHTML(htmlContent, name = "") {
       return Array.from(allHeaders);
     },
 
-    applyTableFilter(htmlText, columnName, filterValue) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, "text/html");
-      const table = doc.querySelector('table');
-      if (!table) return htmlText;
-
-      const headerRow = table.querySelector('thead tr');
-      if (!headerRow) return htmlText;
-
-      const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
-      const columnIndex = headers.indexOf(columnName);
-      if (columnIndex === -1) return htmlText;
-
-      const rows = Array.from(table.querySelectorAll('tbody tr'));
-      rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('td'));
-        const cellText = cells[columnIndex]?.textContent.trim().toLowerCase() || '';
-        if (cellText.includes(filterValue)) {
-          // Keep row
-        } else {
-          row.remove();
-        }
-      });
-
-      return doc.body.innerHTML; // Return filtered HTML
-    },
 
     updateFilterColumnOptions(columns) {
       const options = [{ value: '', label: 'None' }];
@@ -453,7 +440,7 @@ async loadSubreportFromHTML(htmlContent, name = "") {
         
         // Add a simple text placeholder
         this.model.components().add({
-          type: 'text',
+          type: 'div',
           content: `📄 Subreport loaded: ${templateName || 'Unknown'}<br><small style="color:#888;">Toggle "Show Data" to render content</small>`,
           style: {
             color: '#666',
@@ -472,7 +459,7 @@ async loadSubreportFromHTML(htmlContent, name = "") {
       showInitialPlaceholder() {
         this.model.components().reset();
         this.model.components().add({
-          type: 'text',
+          type: 'div',
           content: '📄 Double-click to choose subreport',
           style: {
             color: '#999',
@@ -497,7 +484,7 @@ async loadSubreportFromHTML(htmlContent, name = "") {
       showErrorPlaceholder(message) {
         this.model.components().reset();
         this.model.components().add({
-          type: 'text',
+          type: 'div',
           content: `⚠️ Failed to load: ${message}`,
           style: {
             color: 'red',
@@ -510,25 +497,76 @@ async loadSubreportFromHTML(htmlContent, name = "") {
         this.model.components().reset();
       },
 
-      toggleSubreportDisplay(showData) {
-        console.log("🔄 Toggle subreport display:", showData);
-        
-        if (!showData) {
-          // Hide: show placeholder
-          const attrs = this.model.getAttributes();
-          const templateName = attrs.templateName || attrs.filePath || "Unknown";
-          this.showPlaceholder(templateName);
-          return;
-        }
+// Around line 150 in subreportPlugin.js
+toggleSubreportDisplay(showData) {
+  console.log("🔄 Toggle subreport display:", showData);
+  
+  if (!showData) {
+    // Hide: show placeholder
+    const attrs = this.model.getAttributes();
+    const templateName = attrs.templateName || attrs.filePath || "Unknown";
+    this.showPlaceholder(templateName);
+    return;
+  }
 
-        // Show: render components
-        if (!this.cachedSubreport) {
-          console.warn("⚠️ No cached subreport to display");
-          return;
-        }
+  // Show: render components
+  if (!this.cachedSubreport) {
+    console.warn("⚠️ No cached subreport to display");
+    return;
+  }
 
-        this.renderSubreportAsComponents();
-      },
+  this.renderSubreportAsComponents();
+  
+  // ✅ Make all subreport content non-editable
+  setTimeout(() => {
+    this.makeSubreportContentNonEditable();
+  }, 100);
+},
+
+// ✅ ADD this new method right after toggleSubreportDisplay
+makeSubreportContentNonEditable() {
+  console.log("🔒 Making subreport content non-editable");
+  
+  const allChildren = this.model.components();
+  
+  const makeNonEditable = (component) => {
+    component.set({
+      editable: false,
+      selectable: false,
+      hoverable: false,
+      clickable: false,
+      draggable: false,
+      droppable: false,
+      copyable: false,
+      removable: false
+    });
+    
+    // Apply pointer-events: none to DOM element
+    const el = component.getEl();
+    if (el) {
+      el.style.pointerEvents = 'none';
+      el.style.userSelect = 'none';
+    }
+    
+    // Recursively apply to children
+    const children = component.components();
+    if (children && children.length > 0) {
+      children.forEach(child => makeNonEditable(child));
+    }
+  };
+  
+  allChildren.forEach(child => makeNonEditable(child));
+  
+  // Keep the subreport container itself selectable for repositioning
+  this.model.set({
+    editable: false,
+    selectable: true,
+    hoverable: true,
+    draggable: true,
+    droppable: false,
+    clickable: true 
+  });
+},
 
       toggleMergeHeaderFooter(merge) {
         console.log("🔄 Merge header/footer toggled:", merge);
@@ -693,20 +731,34 @@ async loadSubreportFromHTML(htmlContent, name = "") {
         return null;
       },
 
-      convertHTMLToComponents(htmlElement, parentModel, insertIndex = -1) {
-        const children = Array.from(htmlElement.children);
-        
-        children.forEach((child, idx) => {
-          const componentDef = this.htmlElementToComponent(child);
-          if (componentDef) {
-            if (insertIndex >= 0) {
-              parentModel.components().add(componentDef, { at: insertIndex + idx });
-            } else {
-              parentModel.components().add(componentDef);
-            }
-          }
-        });
-      },
+// Around line 450 in subreportPlugin.js - UPDATE this method:
+convertHTMLToComponents(htmlElement, parentModel, insertIndex = -1) {
+  const children = Array.from(htmlElement.children);
+  
+  children.forEach((child, idx) => {
+    const componentDef = this.htmlElementToComponent(child);
+    if (componentDef) {
+      // ✅ Mark ALL components from subreport
+      componentDef.attributes = componentDef.attributes || {};
+      componentDef.attributes['data-subreport-content'] = 'true';
+      componentDef.attributes['data-subreport-source'] = this.model.getId();
+      
+      // ✅ Make components droppable and moveable
+      componentDef.droppable = false;
+      componentDef.draggable = false;
+      componentDef.copyable = false;
+      componentDef.removable = false;
+      
+      if (insertIndex >= 0) {
+        parentModel.components().add(componentDef, { at: insertIndex + idx });
+      } else {
+        parentModel.components().add(componentDef);
+      }
+      
+      console.log(`✅ Added subreport child component: ${componentDef.tagName || 'unknown'}`);
+    }
+  });
+},
 
       htmlElementToComponent(element) {
         // Convert HTML element to GrapeJS component definition

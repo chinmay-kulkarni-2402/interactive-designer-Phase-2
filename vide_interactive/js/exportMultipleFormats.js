@@ -85,7 +85,7 @@ function exportPlugin(editor) {
           <button class="exp-btn" data-format="docx">DOCX</button>
           <button class="exp-btn" data-format="rtf">RTF</button>
           <button class="exp-btn" data-format="xlsx">XLSX</button>
-          <button class="exp-btn" data-format="pdf">PDF</button>
+          <button class="exp-btn" data-format="pdf">Single Page PDF</button>
         </div>
         <div class="exp-spinner"><div></div></div>
         <div class="exp-toast" id="exp-toast"></div>
@@ -331,7 +331,6 @@ async function exportRTF(body) {
         "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
         "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
         "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
-        "https://code.highcharts.com/highcharts.js",
         "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
         "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
       ],
@@ -406,6 +405,9 @@ async function exportRTF(body) {
 async function exportPDF(body) {
   const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadSinglePagePdf";
 
+  const html = editor.getHtml();
+  const css = editor.getCss();
+
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
   overlay.id = "pdf-loading-overlay";
@@ -429,7 +431,7 @@ async function exportPDF(body) {
   try {
     // --- Prepare Final HTML with external CSS/JS and cleaned DOM ---
     const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = body.outerHTML;
+    tempDiv.innerHTML = html;
 
     // 🧹 Remove IDs from specific page-related classes
     const classesToClean = [
@@ -451,10 +453,8 @@ async function exportPDF(body) {
     // --- External CSS and JS ---
     const canvasResources = {
       styles: [
-        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
         "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
         "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
-        "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
         "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
         "https://fonts.googleapis.com/icon?family=Material+Icons",
@@ -472,16 +472,9 @@ async function exportPDF(body) {
         "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
         "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
         "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
-        "https://code.highcharts.com/stock/highstock.js",
-        "https://code.highcharts.com/highcharts-3d.js",
-        "https://code.highcharts.com/highcharts-more.js",
-        "https://code.highcharts.com/modules/data.js",
-        "https://code.highcharts.com/modules/exporting.js",
-        "https://code.highcharts.com/modules/accessibility.js",
         "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
         "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
-        "https://code.highcharts.com/modules/drilldown.js",
         "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
         "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
@@ -507,10 +500,8 @@ async function exportPDF(body) {
         <head>
           <meta charset="utf-8" />
           ${externalStyles}
-          <style>
-            body { margin: 0; padding: 0; }
-          </style>
           ${externalScripts}
+          <style>${css}</style>
         </head>
         <body>${tempDiv.innerHTML}</body>
       </html>

@@ -3249,141 +3249,67 @@
     ]
   },
 "testtable2": {
-  "heading": {
-    "AccountType": "Account Type",
-    "Currency": "Currency",
-    "Amount": "Amount",
-    "AccountHolder": "Account Holder"
-  },
+"heading": {
+  "AccountHolder": "Account Holder",
+  "AccountType": "Account Type",
+  "Currency": "Currency",
+  "Amount": "Amount"
+},
   "options": {
     "mode": "scatter",
     "scatterFields": ["AccountType", "Currency", "AccountHolder"]
   },
-  "data": [
-    { "AccountType": "Savings", "Currency": "GBP", "Amount": "1725.45", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Savings", "Currency": "GBP", "Amount": "1725.45", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Savings", "Currency": "GBP", "Amount": "1725.45", "AccountHolder": "acc holder 3" },
+"data": [
+  { "AccountHolder": "acc holder 2", "AccountType": "Investment", "Currency": "USD", "Amount": "14450.75" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Savings", "Currency": "GBP", "Amount": "1725.45" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Mortgage", "Currency": "EUR", "Amount": "199500.00" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Credit Card", "Currency": "EUR", "Amount": "155.40" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Loan", "Currency": "GBP", "Amount": "45200.00" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Savings", "Currency": "EUR", "Amount": "2100.30" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Term Deposit", "Currency": "USD", "Amount": "50500.25" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Investment", "Currency": "GBP", "Amount": "15500.00" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Current", "Currency": "GBP", "Amount": "8200.00" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Savings", "Currency": "USD", "Amount": "1950.75" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Credit Card", "Currency": "GBP", "Amount": "210.60" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Mortgage", "Currency": "GBP", "Amount": "225000.00" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Term Deposit", "Currency": "EUR", "Amount": "66200.10" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Wealth", "Currency": "USD", "Amount": "11350.45" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Loan", "Currency": "USD", "Amount": "37850.90" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "22100.50" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Credit Card", "Currency": "EUR", "Amount": "155.40" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Investment", "Currency": "EUR", "Amount": "16780.30" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Savings", "Currency": "EUR", "Amount": "2100.30" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Current", "Currency": "USD", "Amount": "5250.55" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "89000.00" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Wealth", "Currency": "GBP", "Amount": "9700.00" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Investment", "Currency": "USD", "Amount": "14450.75" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Savings", "Currency": "USD", "Amount": "1950.75" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Mortgage", "Currency": "USD", "Amount": "180000.50" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Loan", "Currency": "EUR", "Amount": "40100.00" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Term Deposit", "Currency": "USD", "Amount": "50500.25" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Credit Card", "Currency": "GBP", "Amount": "125.80" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Investment", "Currency": "EUR", "Amount": "16780.30" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Recurring Deposit", "Currency": "USD", "Amount": "18750.75" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Savings", "Currency": "GBP", "Amount": "2430.10" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Wealth", "Currency": "EUR", "Amount": "9400.25" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "101500.00" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Current", "Currency": "USD", "Amount": "5250.55" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Loan", "Currency": "EUR", "Amount": "40100.00" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Credit Card", "Currency": "USD", "Amount": "98.00" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "89000.00" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Savings", "Currency": "GBP", "Amount": "1725.45" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Mortgage", "Currency": "EUR", "Amount": "199500.00" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Investment", "Currency": "GBP", "Amount": "15500.00" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "30350.20" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Wealth", "Currency": "EUR", "Amount": "9400.25" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Term Deposit", "Currency": "USD", "Amount": "50500.25" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Current", "Currency": "GBP", "Amount": "4750.25" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Savings", "Currency": "USD", "Amount": "1950.75" },
+  { "AccountHolder": "acc holder 2", "AccountType": "Loan", "Currency": "EUR", "Amount": "40100.00" },
+  { "AccountHolder": "acc holder 1", "AccountType": "Credit Card", "Currency": "USD", "Amount": "98.00" },
+  { "AccountHolder": "acc holder 3", "AccountType": "Investment", "Currency": "EUR", "Amount": "16780.30" }
+]
 
-    { "AccountType": "Savings", "Currency": "GBP", "Amount": "2430.10", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Savings", "Currency": "GBP", "Amount": "2430.10", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Savings", "Currency": "GBP", "Amount": "2430.10", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Savings", "Currency": "USD", "Amount": "1950.75", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Savings", "Currency": "USD", "Amount": "1950.75", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Savings", "Currency": "USD", "Amount": "1950.75", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Savings", "Currency": "EUR", "Amount": "2100.30", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Savings", "Currency": "EUR", "Amount": "2100.30", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Savings", "Currency": "EUR", "Amount": "2100.30", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Current", "Currency": "GBP", "Amount": "8200.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Current", "Currency": "GBP", "Amount": "8200.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Current", "Currency": "GBP", "Amount": "8200.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Current", "Currency": "USD", "Amount": "5250.55", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Current", "Currency": "USD", "Amount": "5250.55", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Current", "Currency": "USD", "Amount": "5250.55", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Current", "Currency": "EUR", "Amount": "6100.10", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Current", "Currency": "EUR", "Amount": "6100.10", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Current", "Currency": "EUR", "Amount": "6100.10", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Current", "Currency": "GBP", "Amount": "4750.25", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Current", "Currency": "GBP", "Amount": "4750.25", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Current", "Currency": "GBP", "Amount": "4750.25", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "22100.50", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "22100.50", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "22100.50", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "30350.20", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "30350.20", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Recurring Deposit", "Currency": "GBP", "Amount": "30350.20", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Recurring Deposit", "Currency": "USD", "Amount": "18750.75", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Recurring Deposit", "Currency": "USD", "Amount": "18750.75", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Recurring Deposit", "Currency": "USD", "Amount": "18750.75", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "101500.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "101500.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "101500.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Term Deposit", "Currency": "USD", "Amount": "50500.25", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Term Deposit", "Currency": "USD", "Amount": "50500.25", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Term Deposit", "Currency": "USD", "Amount": "50500.25", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Term Deposit", "Currency": "EUR", "Amount": "66200.10", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Term Deposit", "Currency": "EUR", "Amount": "66200.10", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Term Deposit", "Currency": "EUR", "Amount": "66200.10", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "89000.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "89000.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Term Deposit", "Currency": "GBP", "Amount": "89000.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Wealth", "Currency": "GBP", "Amount": "9700.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Wealth", "Currency": "GBP", "Amount": "9700.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Wealth", "Currency": "GBP", "Amount": "9700.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Wealth", "Currency": "USD", "Amount": "11350.45", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Wealth", "Currency": "USD", "Amount": "11350.45", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Wealth", "Currency": "USD", "Amount": "11350.45", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Wealth", "Currency": "EUR", "Amount": "9400.25", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Wealth", "Currency": "EUR", "Amount": "9400.25", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Wealth", "Currency": "EUR", "Amount": "9400.25", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "125.80", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "125.80", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "125.80", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Credit Card", "Currency": "USD", "Amount": "98.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Credit Card", "Currency": "USD", "Amount": "98.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Credit Card", "Currency": "USD", "Amount": "98.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Credit Card", "Currency": "EUR", "Amount": "155.40", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Credit Card", "Currency": "EUR", "Amount": "155.40", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Credit Card", "Currency": "EUR", "Amount": "155.40", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "210.60", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "210.60", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Credit Card", "Currency": "GBP", "Amount": "210.60", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Loan", "Currency": "GBP", "Amount": "45200.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Loan", "Currency": "GBP", "Amount": "45200.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Loan", "Currency": "GBP", "Amount": "45200.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Loan", "Currency": "USD", "Amount": "37850.90", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Loan", "Currency": "USD", "Amount": "37850.90", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Loan", "Currency": "USD", "Amount": "37850.90", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Loan", "Currency": "EUR", "Amount": "40100.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Loan", "Currency": "EUR", "Amount": "40100.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Loan", "Currency": "EUR", "Amount": "40100.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Mortgage", "Currency": "GBP", "Amount": "225000.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Mortgage", "Currency": "GBP", "Amount": "225000.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Mortgage", "Currency": "GBP", "Amount": "225000.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Mortgage", "Currency": "USD", "Amount": "180000.50", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Mortgage", "Currency": "USD", "Amount": "180000.50", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Mortgage", "Currency": "USD", "Amount": "180000.50", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Mortgage", "Currency": "EUR", "Amount": "199500.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Mortgage", "Currency": "EUR", "Amount": "199500.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Mortgage", "Currency": "EUR", "Amount": "199500.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Investment", "Currency": "GBP", "Amount": "15500.00", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Investment", "Currency": "GBP", "Amount": "15500.00", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Investment", "Currency": "GBP", "Amount": "15500.00", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Investment", "Currency": "USD", "Amount": "14450.75", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Investment", "Currency": "USD", "Amount": "14450.75", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Investment", "Currency": "USD", "Amount": "14450.75", "AccountHolder": "acc holder 3" },
-
-    { "AccountType": "Investment", "Currency": "EUR", "Amount": "16780.30", "AccountHolder": "acc holder 1" },
-    { "AccountType": "Investment", "Currency": "EUR", "Amount": "16780.30", "AccountHolder": "acc holder 2" },
-    { "AccountType": "Investment", "Currency": "EUR", "Amount": "16780.30", "AccountHolder": "acc holder 3" }
-  ]
 },
     "transactions1Tbl": {
       "heading": {
