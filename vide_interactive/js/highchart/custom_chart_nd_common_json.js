@@ -1,4 +1,24 @@
 function customChartCommonJson(editor) {
+    editor.on('load', () => {
+        const iframeHead = editor.Canvas.getDocument().head;
+
+        const libs = [
+            "https://code.highcharts.com/stock/11.4.8/highstock.js",
+            "https://code.highcharts.com/highcharts-3d.js",
+            "https://code.highcharts.com/highcharts-more.js",
+            "https://code.highcharts.com/modules/data.js",
+            "https://code.highcharts.com/modules/exporting.js",
+            "https://code.highcharts.com/modules/accessibility.js",
+            "https://code.highcharts.com/modules/drilldown.js",
+        ];
+
+        libs.forEach(src => {
+            const s = document.createElement("script");
+            s.src = src;
+            iframeHead.appendChild(s);
+        });
+    });
+
     const props_test_chart = (i) => i;
     const id_Trait = {
         name: "id",
@@ -79,8 +99,8 @@ function customChartCommonJson(editor) {
     const json_file_index_Trait = ["jsonFileIndex"].map((name) => ({
         changeProp: 1,
         type: "select",
-        label: "Select JSON File",
-        options: getJsonFileOptions(), // This function already exists in document 2
+        label: "Select DataSource File",
+        options: getJsonFileOptions(), 
         name,
     }));
 
@@ -200,32 +220,6 @@ function customChartCommonJson(editor) {
                     width: "100%",
                 },
                 script: function () {
-                    const scripts = [
-                        "https://code.highcharts.com/stock/11.4.8/highstock.js",
-                        "https://code.highcharts.com/modules/drilldown.js",
-                        "https://code.highcharts.com/highcharts-3d.js",
-                        "https://code.highcharts.com/highcharts-more.js",
-                        "https://code.highcharts.com/modules/data.js",
-                        "https://code.highcharts.com/modules/exporting.js",
-                        "https://code.highcharts.com/modules/accessibility.js",
-                    ];
-
-                    function loadScript(src) {
-                        return new Promise((resolve, reject) => {
-                            if (document.querySelector(`script[src="${src}"]`)) return resolve();
-                            const s = document.createElement("script");
-                            s.src = src;
-                            s.onload = resolve;
-                            s.onerror = reject;
-                            document.head.appendChild(s);
-                        });
-                    }
-
-                    async function ensureHighchartsLoaded() {
-                        for (const src of scripts) {
-                            await loadScript(src);
-                        }
-                    }
 
                     const initializeChart = () => {
                         if (!window.Highcharts) {
@@ -234,7 +228,9 @@ function customChartCommonJson(editor) {
                             return;
                         }
                         const ctx = this.id;
+                        console.log("ctx id", ctx);
                         const element = document.getElementById(ctx);
+                        console.log("eleement", element);
 
                         if (!element) {
                             console.warn('Chart container not found:', ctx);
@@ -2049,6 +2045,8 @@ function customChartCommonJson(editor) {
 
                                 element.chartInstance = chart;
 
+                                element.setAttribute('data-chart-ready', 'true');
+
                                 setTimeout(() => {
                                     if (chart && chart.reflow) {
                                         chart.reflow();
@@ -2068,106 +2066,93 @@ function customChartCommonJson(editor) {
                                 return;
                             }
 
-                            if (window.highchartsLoading) {
-                                const checkInterval = setInterval(() => {
-                                    if (window.Highcharts) {
-                                        clearInterval(checkInterval);
+                            const checkHighcharts = setInterval(() => {
+                                if (window.Highcharts) {
+                                    clearInterval(checkHighcharts);
+                                    resolve();
+                                }
+                            }, 100);
+
+                            if (!document.querySelector('script[src*="highstock.js"]')) {
+                                const script = document.createElement("script");
+                                script.src = "{[ custom_line_chartsrc ]}";
+
+                                script.onload = () => {
+                                    const chartType = "{[ SelectChart ]}" || "pie";
+                                    const isDrilldownChart = chartType.includes('drilldown');
+
+                                    if (isDrilldownChart) {
+                                        const drilldownScript = document.createElement("script");
+                                        drilldownScript.src = "https://code.highcharts.com/modules/drilldown.js";
+
+                                        drilldownScript.onload = () => {
+                                            clearInterval(checkHighcharts);
+                                            resolve();
+                                        };
+
+                                        drilldownScript.onerror = () => {
+                                            clearInterval(checkHighcharts);
+                                            resolve();
+                                        };
+
+                                        document.head.appendChild(drilldownScript);
+                                    } else {
+                                        clearInterval(checkHighcharts);
                                         resolve();
-                                    } else if (!window.highchartsLoading) {
-                                        clearInterval(checkInterval);
-                                        reject(new Error('Highcharts loading failed'));
                                     }
-                                }, 100);
-                                return;
+                                };
+
+                                script.onerror = () => {
+                                    clearInterval(checkHighcharts);
+                                    reject(new Error('Failed to load Highcharts'));
+                                };
+
+                                document.head.appendChild(script);
                             }
-
-                            window.highchartsLoading = true;
-
-                            const script = document.createElement("script");
-                            script.src = "{[ custom_line_chartsrc ]}";
-
-                            script.onload = () => {
-                                const drilldownScript = document.createElement("script");
-                                drilldownScript.src = "https://code.highcharts.com/11.4.8/modules/drilldown.js";
-
-                                drilldownScript.onload = () => {
-                                    window.highchartsLoading = false;
-                                    resolve();
-                                };
-
-                                drilldownScript.onerror = () => {
-                                    window.highchartsLoading = false;
-                                    resolve();
-                                };
-
-                                document.head.appendChild(drilldownScript);
-                            };
-
-                            script.onerror = () => {
-                                window.highchartsLoading = false;
-                                reject(new Error('Failed to load Highcharts'));
-                            };
-
-                            document.head.appendChild(script);
                         });
                     };
 
                     const init = async () => {
-                        let retryCount = 0;
-                        const maxRetries = 3;
-
-                        const attemptLoad = async () => {
-                            try {
-                                await loadHighcharts();
-                                if (document.readyState === 'loading') {
-                                    document.addEventListener('DOMContentLoaded', initializeChart);
-                                } else {
-                                    setTimeout(initializeChart, 100);
-                                }
-                            } catch (error) {
-                                console.error('Failed to load Highcharts:', error);
-                                retryCount++;
-
-                                if (retryCount < maxRetries) {
-                                    console.log(`Retrying... (${retryCount}/${maxRetries})`);
-                                    setTimeout(attemptLoad, 1000 * Math.pow(2, retryCount - 1));
-                                } else {
-                                    const element = document.getElementById(this.id);
-                                    if (element) {
-                                        element.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Failed to load chart library. Please refresh the page.</div>';
-                                    }
-                                }
+                        try {
+                            await loadHighcharts();
+                            setTimeout(initializeChart, 200);
+                        } catch (error) {
+                            console.error('Failed to load Highcharts:', error);
+                            const element = document.getElementById(this.id);
+                            if (element) {
+                                element.innerHTML = '<div style="padding: 20px; text-align: center; color: #d32f2f;">Failed to load chart library. Please refresh the page.</div>';
                             }
-                        };
-
-                        await attemptLoad();
+                        }
                     };
 
-                    if (!this.highchartsInitialized) {
-                        this.highchartsInitialized = true;
-                        init();
-                    }
+                    init();
 
-                    this.on('removed', () => {
-                        const element = document.getElementById(this.id);
-                        if (element && element.chartInstance) {
-                            element.chartInstance.destroy();
-                            element.chartInstance = null;
+                    const element = document.getElementById(this.id);
+                    if (element && !element._chartCleanupRegistered) {
+                        element._chartCleanupRegistered = true;
+
+                        if (typeof MutationObserver !== 'undefined') {
+                            const observer = new MutationObserver((mutations) => {
+                                mutations.forEach((mutation) => {
+                                    mutation.removedNodes.forEach((node) => {
+                                        if (node === element || (node.contains && node.contains(element))) {
+                                            if (element.chartInstance) {
+                                                element.chartInstance.destroy();
+                                                element.chartInstance = null;
+                                            }
+                                            observer.disconnect();
+                                        }
+                                    });
+                                });
+                            });
+
+                            if (element.parentNode) {
+                                observer.observe(element.parentNode, { childList: true });
+                            }
                         }
-                        this.highchartsInitialized = false;
-                    });
-
-                    if (typeof window !== 'undefined') {
-                        window.addEventListener('beforeprint', () => {
-                            setTimeout(initializeChart, 3000);
-                        });
-
-                        window.addEventListener('afterprint', () => {
-                            setTimeout(initializeChart, 3000);
-                        });
                     }
                 },
-                
+
             }),
             init() {
                 this.on('change:SelectChart', () => {
@@ -2175,13 +2160,7 @@ function customChartCommonJson(editor) {
                     const newTraits = getTraitsForChartType(chartType);
                     this.set('traits', [id_Trait, title_Trait, ...newTraits]);
                 });
-                this.on('change:jsonFileIndex', () => {
-                    this.highchartsInitialized = false;
-                    this.trigger("change:script");
-                });
-
-                this.on('change:jsonpath', () => {
-                    this.highchartsInitialized = false;
+                this.on('change:jsonFileIndex change:jsonpath', () => {
                     this.trigger("change:script");
                 });
                 const allPossibleTraits = [
@@ -2598,7 +2577,7 @@ function customChartCommonJson(editor) {
                 onChange: handleFileIndexChange,
             },
             {
-                name: 'Json Path',
+                name: 'DataSource Path',
                 property: 'my-input-json',
                 type: 'text',
                 onChange: handleJsonPathChange,
@@ -2783,7 +2762,7 @@ function customChartCommonJson(editor) {
         const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
 
         if (!jsonString) {
-            alert('Selected JSON file not found');
+            alert('Selected DataSource file not found');
             return;
         }
 
@@ -2994,7 +2973,7 @@ function customChartCommonJson(editor) {
         let fileIndex = selectedComponent?.get('jsonFileIndex') || '0';
 
         if (fileIndex === '0') {
-            alert('Please select a JSON file first from the chart traits');
+            alert('Please select a DataSource file first from the chart traits');
             return;
         }
 
@@ -3005,7 +2984,7 @@ function customChartCommonJson(editor) {
         const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
 
         if (!jsonString) {
-            alert('Selected JSON file not found');
+            alert('Selected Source file not found');
             return;
         }
 

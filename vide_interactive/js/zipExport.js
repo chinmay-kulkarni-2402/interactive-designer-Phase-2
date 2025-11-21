@@ -7300,13 +7300,6 @@ var iframeContent = e.getHtml();
             <script src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"></script>
             <script src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"></script>
             <script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script>
-            <script src="https://code.highcharts.com/stock/11.4.8/highstock.js"></script>
-            <script src="https://code.highcharts.com/modules/drilldown.js"></script>
-            <script src="https://code.highcharts.com/highcharts-3d.js"></script>
-            <script src="https://code.highcharts.com/highcharts-more.js"></script>
-            <script src="https://code.highcharts.com/modules/data.js"></script>
-            <script src="https://code.highcharts.com/modules/exporting.js"></script>
-            <script src="https://code.highcharts.com/modules/accessibility.js"></script>
             <style>
               ${e.getCss()} 
               .highlight_text{background-color: yellow} 

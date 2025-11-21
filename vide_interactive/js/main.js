@@ -2623,6 +2623,8 @@ async function exportDesignAndSend(editor, inputJsonMappings) {
 async function generatePrintDialog() {
   const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadHtmlToPdf?file";
 
+  // ✅ Wait for all charts to be ready before proceeding
+
   // Get GrapesJS HTML & CSS
   const html = editor.getHtml();
   const css = editor.getCss();
@@ -2780,7 +2782,6 @@ async function generatePrintDialog() {
     } else if (mode === "even") {
       pagesToKeep = containers.map((_, i) => i).filter(i => (i + 1) % 2 === 0);
     } else if (mode === "custom") {
-      // Parse custom input: "1,3,5-7" -> [0,2,4,5,6]
       const ranges = customPages.split(",").map(s => s.trim());
       ranges.forEach(range => {
         if (range.includes("-")) {
@@ -2796,7 +2797,6 @@ async function generatePrintDialog() {
       pagesToKeep = [...new Set(pagesToKeep)].sort((a, b) => a - b);
     }
 
-    // Remove pages not in selection
     containers.forEach((container, index) => {
       if (!pagesToKeep.includes(index)) {
         container.remove();
@@ -2806,7 +2806,7 @@ async function generatePrintDialog() {
     return clone.innerHTML;
   }
 
-  // Function to build final HTML
+  // Function to build final HTML with chart initialization
   function buildFinalHtml(filteredBodyHtml, customCss = css) {
     const canvasResources = {
       styles: [
@@ -2833,16 +2833,9 @@ async function generatePrintDialog() {
         "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
         "https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js",
         "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
-        "https://code.highcharts.com/stock/highstock.js",
-        "https://code.highcharts.com/highcharts-3d.js",
-        "https://code.highcharts.com/highcharts-more.js",
-        "https://code.highcharts.com/modules/data.js",
-        "https://code.highcharts.com/modules/exporting.js",
-        "https://code.highcharts.com/modules/accessibility.js",
         "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
         "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
         "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
-        "https://code.highcharts.com/modules/drilldown.js",
         "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
         "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js",
         "https://code.jquery.com/jquery-3.6.0.min.js",
@@ -2865,8 +2858,11 @@ async function generatePrintDialog() {
       .join("\n");
 
     const externalScripts = canvasResources.scripts
-      .map((url) => `<script src="${url}" defer></script>`)
+      .map((url) => `<script src="${url}"></script>`)
       .join("\n");
+
+    // ✅ Add script to reinitialize charts in the exported HTML
+// ✅ Add script to reinitialize charts in the exported HTML
 
     return `
       <!DOCTYPE html>
@@ -2875,15 +2871,17 @@ async function generatePrintDialog() {
           <meta charset="utf-8" />
           ${externalStyles}
           <style>${customCss}</style>
-          ${externalScripts}
         </head>
-        <body>${filteredBodyHtml}</body>
+        <body>
+          ${filteredBodyHtml}
+          ${externalScripts}
+        </body>
       </html>
     `;
   }
 
-  // Update preview
-  function updatePreview() {
+  // Update preview with chart initialization
+  async function updatePreview() {
     const mode = modeSelect.value;
     const custom = customInput.value;
     const filteredBodyHtml = getFilteredHtml(mode, custom);
@@ -2892,6 +2890,13 @@ async function generatePrintDialog() {
     const blob = new Blob([finalHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     iframe.src = url;
+
+    // Wait for iframe to load and charts to render
+    await new Promise((resolve) => {
+      iframe.onload = () => {
+        setTimeout(resolve, 2500); // Extra time for charts to render
+      };
+    });
   }
 
   // Event listeners
@@ -2932,6 +2937,8 @@ async function generatePrintDialog() {
     document.body.appendChild(overlay);
 
     try {
+      // ✅ Re-ensure all charts are rendered
+
       const mode = modeSelect.value;
       const custom = customInput.value;
       const filteredBodyHtml = getFilteredHtml(mode, custom);
@@ -2946,11 +2953,9 @@ async function generatePrintDialog() {
 
       let cleanedCss = css;
       idsToClean.forEach(id => {
-        // Remove margin property
         const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
         cleanedCss = cleanedCss.replace(marginRegex, "$1");
 
-        // Remove box-shadow property
         const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
         cleanedCss = cleanedCss.replace(boxShadowRegex, "$1");
       });
@@ -2984,32 +2989,25 @@ async function generatePrintDialog() {
         }
       }
 
-      // ----------------------------
-      // Extract @page rule from cleanedCss BEFORE building finalHtml,
-      // then REMOVE the @page rule(s) from cleanedCss so it is not sent embedded.
-      // ----------------------------
+      // Extract @page rule
       let pageSize = null;
       let orientation = null;
       let width = null;
       let height = null;
 
-      // Find the first @page rule (if any)
       const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
       if (pageRuleMatch) {
         const rule = pageRuleMatch[0];
 
-        // Example: size: A4 portrait; OR size: 400mm 600mm;
         const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
         if (sizeMatch) {
           const sizeValue = sizeMatch[1].trim();
 
-          // Check if standard format like A3, A4, etc.
           const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
           if (standardMatch) {
             pageSize = standardMatch[1].toUpperCase();
             orientation = (standardMatch[2] || "portrait").toLowerCase();
           } else {
-            // Custom dimensions like 400mm 600mm or 900px 1400px
             const parts = sizeValue.split(/\s+/);
             if (parts.length >= 2) {
               width = parts[0].trim();
@@ -3018,11 +3016,9 @@ async function generatePrintDialog() {
           }
         }
 
-        // Remove ALL @page rules from the CSS before building/sending final HTML
         cleanedCss = cleanedCss.replace(/@page\s*{[^}]*}/g, "").trim();
       }
 
-      // 🧩 Build payload only if @page found
       let hasPayload = false;
       let payload = {};
 
@@ -3042,11 +3038,10 @@ async function generatePrintDialog() {
         console.log("⚠️ No @page rule found — skipping payload");
       }
 
-      // Build finalHtml AFTER we removed the @page rules from cleanedCss
       const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss);
 
       // Debug download
-      console.log("🚀 Final HTML being sent to PDF API:\n", finalHtml);
+      console.log("🚀 Final HTML being sent to PDF API");
       try {
         const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
         const debugLink = document.createElement("a");
@@ -3066,7 +3061,6 @@ async function generatePrintDialog() {
         formData.append("payload", JSON.stringify(payload));
       }
 
-      // Attach HTML file
       formData.append("file", new Blob([finalHtml], { type: "text/html" }), "template.html");
 
       console.log("🚀 Sending HTML to PDF API:", apiUrl);
@@ -3101,11 +3095,8 @@ async function generatePrintDialog() {
   });
 
   // Initial preview
-  updatePreview();
+  await updatePreview();
 }
-
-
-
 
 var el = document.getElementById("exportPDF");
 if (el) {
