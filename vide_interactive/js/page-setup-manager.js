@@ -7026,15 +7026,70 @@ applyPageElementsSettings() {
     this.applyBackgroundColorToPages(newBackgroundColor);
 
     // --- Preserve content for mode switch ---
-    this.preserveContentForModeSwitch();
+// âœ… CRITICAL: Preserve ALL content BEFORE any changes
+this.preserveAllContent();
+this.preserveContentForModeSwitch();
 
-    // --- Setup pages ---
-    this.setupEditorPages();
+// âœ… Store main content separately to ensure it's not lost
+const mainContentBackup = new Map();
+const allPages = this.editor.getWrapper().find('.page-container');
+allPages.forEach((page, index) => {
+  const mainContent = page.find('.main-content-area')[0];
+  if (mainContent && mainContent.components().length > 0) {
+    mainContentBackup.set(index, {
+      components: mainContent.components().map(comp => ({
+        html: comp.toHTML(),
+        styles: comp.getStyle(),
+        attributes: comp.getAttributes(),
+        type: comp.get('type')
+      }))
+    });
+  }
+});
 
-    // --- Restore content and update visuals ---
-    this.restoreAllContent();
+// --- Setup pages ---
+this.setupEditorPages();
+
+// --- Restore content with extended timeout ---
+setTimeout(() => {
+  // âœ… First restore from main backup
+  this.restoreAllContent();
+  
+  // âœ… Then restore main content specifically
+  setTimeout(() => {
+    const newPages = this.editor.getWrapper().find('.page-container');
+    newPages.forEach((page, index) => {
+      const backup = mainContentBackup.get(index);
+      if (backup && backup.components) {
+        const mainContent = page.find('.main-content-area')[0];
+        if (mainContent) {
+          // Clear only if we have backup to restore
+          mainContent.components().reset();
+          
+          backup.components.forEach(compData => {
+            try {
+              const newComp = mainContent.append(compData.html)[0];
+              if (newComp) {
+                newComp.setStyle(compData.styles || {});
+                newComp.addAttributes(compData.attributes || {});
+              }
+            } catch (err) {
+              console.warn('Failed to restore component:', err);
+            }
+          });
+        }
+      }
+    });
+    
+    // âœ… Restore mode-switch content
     this.restoreContentAfterModeSwitch();
+    
+    // âœ… Update visuals
     this.updateAllPageVisuals();
+    
+  }, 200);
+  
+}, 300);
 
     // --- Re-apply background color after all visuals are rendered ---
     setTimeout(() => {
@@ -7614,7 +7669,16 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
       const mainContentAreaHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
 
       // Clear existing pages
-      this.editor.getWrapper().components().reset();
+// âœ… ONLY clear if no content needs preserving
+const hasExistingContent = this.pageContents.size > 0;
+if (!hasExistingContent) {
+  this.editor.getWrapper().components().reset();
+} else {
+  // Clear only page containers, preserve other content
+  const wrapper = this.editor.getWrapper();
+  const pageContainers = wrapper.find('.page-container');
+  pageContainers.forEach(page => page.remove());
+}
 
       for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
         const pageData = this.pageSettings.pages[i];

@@ -266,6 +266,11 @@ function exportPlugin(editor) {
   // Enhanced RTF Export with proper image handling
 async function exportRTF(body) {
   const apiUrl = "http://192.168.0.188:8081/api/toRtf";
+    const html = editor.getHtml();
+let css = editor.getCss();
+
+// 🧹 Remove @page { size: A4 portrait; margin: ... } from CSS
+css = css.replace(/@page\s*{[^}]*}/g, "");
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
@@ -290,7 +295,7 @@ async function exportRTF(body) {
   try {
     // --- Prepare clean HTML for API ---
     const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = body.outerHTML;
+    tempDiv.innerHTML = html;
 
     // 🧹 Remove unwanted IDs from common page containers
     const classesToClean = [
@@ -350,25 +355,23 @@ async function exportRTF(body) {
       <html>
         <head>
           <meta charset="utf-8" />
-          ${externalStyles}
-          <style>body { margin: 0; padding: 0; }</style>
-          ${externalScripts}
+          <style>${css}</style>
         </head>
         <body>${tempDiv.innerHTML}</body>
       </html>
     `;
 
     // --- Optional: Debug HTML before sending ---
-    // try {
-    //   const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
-    //   const debugLink = document.createElement("a");
-    //   debugLink.href = debugUrl;
-    //   debugLink.download = "sent_to_rtf_api.html";
-    //   debugLink.click();
-    //   URL.revokeObjectURL(debugUrl);
-    // } catch (err) {
-    //   console.warn("⚠️ Could not auto-download debug HTML:", err);
-    // }
+    try {
+      const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+      const debugLink = document.createElement("a");
+      debugLink.href = debugUrl;
+      debugLink.download = "sent_to_rtf_api.html";
+      debugLink.click();
+      URL.revokeObjectURL(debugUrl);
+    } catch (err) {
+      console.warn("⚠️ Could not auto-download debug HTML:", err);
+    }
 
     // --- Send HTML to RTF API ---
     const formData = new FormData();
@@ -406,7 +409,11 @@ async function exportPDF(body) {
   const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadSinglePagePdf";
 
   const html = editor.getHtml();
-  const css = editor.getCss();
+let css = editor.getCss();
+
+// 🧹 Remove @page { size: A4 portrait; margin: ... } from CSS
+css = css.replace(/@page\s*{[^}]*}/g, "");
+
 
   // --- Create and show loading overlay ---
   let overlay = document.createElement("div");
