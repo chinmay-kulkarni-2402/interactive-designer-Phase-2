@@ -35,9 +35,9 @@ var server = http.createServer(app)
  * Listen on provided port, on all network interfaces.
  */
 
-// const host = '192.168.0.221'; // listen on all network interfaces
-server.listen(port, () => {
-  console.log(`🚀 App running at http://localhost:${port}`);
+const host = 'localhost'; // listen on all network interfaces
+server.listen(port,host, () => {
+  console.log(`🚀 App running at http://${host}:${port}`);
 });
 
 // server.listen(port, () => {
