@@ -84,8 +84,8 @@ public class RecordService {
 
 		HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-		String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHtmlSinglePage";
-//	    String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHtml2";
+		String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHtmlSinglePage";
+//	    String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHtml2";
 
 		ResponseEntity<byte[]> response = restTemplate.exchange(apiUrl, HttpMethod.POST, requestEntity, byte[].class);
 
@@ -121,8 +121,8 @@ public class RecordService {
 
 		HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-//		String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHtml";
-		String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHtml5";
+//		String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHtml";
+		String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHtml5";
 
 		ResponseEntity<byte[]> response = restTemplate.exchange(apiUrl, HttpMethod.POST, requestEntity, byte[].class);
 
@@ -287,7 +287,7 @@ public class RecordService {
 					body.add("payload", mapper.writeValueAsString(pdfConfig));
 
 					HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-					String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHTML5";
+					String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHTML5";
 					ResponseEntity<byte[]> response = restTemplate.exchange(apiUrl, HttpMethod.POST, requestEntity,
 							byte[].class);
 
@@ -766,7 +766,7 @@ public class RecordService {
 //        body.add("payload", payloadJson);
 //
 //        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-//        String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHTML5";
+//        String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHTML5";
 //
 //        ResponseEntity<byte[]> response = restTemplate.exchange(apiUrl, HttpMethod.POST, requestEntity,
 //                byte[].class);
@@ -897,7 +897,7 @@ public class RecordService {
 //		body.add("name", fileType);
 //
 //		HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-//		String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHtml";
+//		String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHtml";
 //		ResponseEntity<byte[]> response = restTemplate.exchange(apiUrl, HttpMethod.POST, requestEntity,
 //				byte[].class);
 //
@@ -1094,7 +1094,7 @@ public class RecordService {
 //        body.add("name", fileType);
 //
 //        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-//        String apiUrl = "http://localhost:3011/api/v1/s3Upload/uploadHtml";
+//        String apiUrl = "http://localhost:3010/api/v1/s3Upload/uploadHtml";
 //        ResponseEntity<byte[]> response = restTemplate.exchange(apiUrl, HttpMethod.POST, requestEntity,
 //                byte[].class);
 //

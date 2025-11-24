@@ -1,5 +1,5 @@
-server:
-  port: 9998
+# server:
+  # port: 9998
   # address: 192.168.0.221
 
 spring:
