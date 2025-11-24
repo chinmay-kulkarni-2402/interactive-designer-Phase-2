@@ -1,0 +1,4404 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      #iylg {
+        width: 794px;
+        height: 1123px;
+        margin: 0px 0px 0px 0px;
+        position: relative;
+        overflow: hidden;
+        background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        border: 1px dashed #dee2e6;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #ij4a {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+      }
+      #i3hi {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 1027px;
+      }
+      #if1s {
+        width: 100%;
+        height: 100%;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+        overflow: hidden;
+        position: relative;
+      }
+      #ij1w {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+      }
+      #ippk {
+        width: 794px;
+        height: 1123px;
+        background: #ffffff;
+        /* margin: 20px auto; */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: 2px solid transparent;
+        position: relative;
+        page-break-after: always;
+        overflow: hidden;
+        box-sizing: border-box;
+        transition: border-color 0.2s ease;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #imp9y {
+        width: 794px;
+        height: 1123px;
+        margin: 0px 0px 0px 0px;
+        position: relative;
+        overflow: hidden;
+        background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        border: 1px dashed #dee2e6;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #i27hi {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+      }
+      #iydsh {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 1027px;
+      }
+      #iqm0v {
+        width: 100%;
+        height: 100%;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+        overflow: hidden;
+        position: relative;
+      }
+      #isizb {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+      }
+      #i7yj {
+        width: 794px;
+        height: 1123px;
+        background: #ffffff;
+        /* margin: 20px auto; */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: 2px solid transparent;
+        position: relative;
+        page-break-after: always;
+        overflow: hidden;
+        box-sizing: border-box;
+        transition: border-color 0.2s ease;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #iwl0h {
+        width: 794px;
+        height: 1123px;
+        margin: 0px 0px 0px 0px;
+        position: relative;
+        overflow: hidden;
+        background-color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        border: 1px dashed #dee2e6;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #icd5k {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+      }
+      #i0fgf {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 1027px;
+      }
+      #i3dxc {
+        width: 100%;
+        height: 100%;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+        overflow: hidden;
+        position: relative;
+      }
+      #i7edu {
+        width: 100%;
+        height: 48px;
+        flex-shrink: 0;
+      }
+      #i64vj {
+        width: 794px;
+        height: 1123px;
+        background: #ffffff;
+        /* margin: 20px auto; */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: 2px solid transparent;
+        position: relative;
+        page-break-after: always;
+        overflow: hidden;
+        box-sizing: border-box;
+        transition: border-color 0.2s ease;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #i6j1x {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+      }
+      #iivmi {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+      }
+      #i21lp {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+      }
+      #idici {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+      }
+      #imbtm {
+        padding: 10px;
+      }
+      #i8ppm {
+        padding: 10px;
+      }
+      #ipim7 {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+      }
+      #ih0ty {
+        padding: 10px;
+      }
+      #i3f2t {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px dashed transparent;
+        transition: border-color 0.2s ease;
+      }
+      #iun1j {
+        padding: 10px;
+        background-color: #7565c5;
+      }
+      #i3p7j {
+        border-top: 1px solid #000000;
+        width: 100%;
+        margin: 5px auto;
+        display: block;
+        padding: 2.5px;
+      }
+      #i86az {
+        height: 350px;
+      }
+      #i298j {
+        padding: 2px;
+        width: 100%;
+      }
+      #i9r8ce {
+        width: 99.5%;
+      }
+      #json-table-c9673 {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #ddd;
+        font-family: Arial, sans-serif;
+        my-input-json: english.table1;
+      }
+      #izeb1d {
+        background-color: #f8f9fa;
+        border: 1px solid #000;
+      }
+      #json-table-c9673-header-AccountType {
+        padding: 8px;
+        border: 1px solid #000000ff;
+        font-weight: bold;
+        width: auto;
+        height: 100%;
+        text-align: left;
+        box-sizing: border-box;
+        position: relative;
+        my-input-json: english.table1.heading.AccountType;
+      }
+      #json-table-c9673-header-Currency {
+        padding: 8px;
+        border: 1px solid #000000ff;
+        font-weight: bold;
+        width: auto;
+        height: 100%;
+        text-align: left;
+        box-sizing: border-box;
+        position: relative;
+        my-input-json: english.table1.heading.Currency;
+      }
+      #json-table-c9673-header-Amount {
+        padding: 8px;
+        border: 1px solid #000000ff;
+        font-weight: bold;
+        width: auto;
+        height: 100%;
+        text-align: left;
+        box-sizing: border-box;
+        position: relative;
+        my-input-json: english.table1.heading.Amount;
+      }
+      #iguszu {
+        background-color: #ffffff;
+      }
+      #json-table-c9673-cell-0-AccountType {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[0].AccountType;
+      }
+      #json-table-c9673-cell-0-Currency {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[0].Currency;
+      }
+      #json-table-c9673-cell-0-Amount {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[0].Amount;
+      }
+      #ikusfh {
+        background-color: #f8f9fa;
+      }
+      #json-table-c9673-cell-1-AccountType {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[1].AccountType;
+      }
+      #json-table-c9673-cell-1-Currency {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[1].Currency;
+      }
+      #json-table-c9673-cell-1-Amount {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[1].Amount;
+      }
+      #ibic2p {
+        background-color: #ffffff;
+      }
+      #json-table-c9673-cell-2-AccountType {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[2].AccountType;
+      }
+      #json-table-c9673-cell-2-Currency {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[2].Currency;
+      }
+      #json-table-c9673-cell-2-Amount {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[2].Amount;
+      }
+      #isb9dk {
+        background-color: #f8f9fa;
+      }
+      #json-table-c9673-cell-3-AccountType {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[3].AccountType;
+      }
+      #json-table-c9673-cell-3-Currency {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[3].Currency;
+      }
+      #json-table-c9673-cell-3-Amount {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[3].Amount;
+      }
+      #irevgo {
+        background-color: #ffffff;
+      }
+      #json-table-c9673-cell-4-AccountType {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[4].AccountType;
+      }
+      #json-table-c9673-cell-4-Currency {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[4].Currency;
+      }
+      #json-table-c9673-cell-4-Amount {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[4].Amount;
+      }
+      #i6pq28 {
+        background-color: #f8f9fa;
+      }
+      #json-table-c9673-cell-5-AccountType {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[5].AccountType;
+      }
+      #json-table-c9673-cell-5-Currency {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[5].Currency;
+      }
+      #json-table-c9673-cell-5-Amount {
+        padding: 8px;
+        border: 1px solid #000;
+        position: relative;
+        width: auto;
+        height: 100%;
+        box-sizing: border-box;
+        my-input-json: english.table1.data[5].Amount;
+      }
+      .rect-shape {
+        width: 120px;
+        height: 80px;
+        background: transparent;
+        border: 2px solid #000;
+        border-radius: 0;
+        box-sizing: border-box;
+      }
+      #i88aji {
+        background-color: #d08686;
+        border: 5px solid #000;
+      }
+      #ijafb {
+        width: 99.5%;
+      }
+      #json-table-c5621 {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #ddd;
+        font-family: Arial, sans-serif;
+        my-input-json: english.crosstabTable1;
+      }
+      #i8137 {
+        border: 1px solid #000;
+      }
+      #json-table-c5621-colheader-0-0 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-0-1 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-0-2 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-0-3 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-1-0 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-1-1 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-1-2 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-1-3 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #json-table-c5621-colheader-1-4 {
+        border: 1px solid #000;
+        font-weight: bold;
+        padding: 8px;
+        text-align: center;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #iwcl3 {
+        background-color: #ffffff;
+      }
+      #json-table-c5621-rowheader-0-0 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-rowheader-0-1 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-cell-0-0 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-0-1 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-0-2 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-0-3 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-0-4 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-0-5 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #ixb9zn {
+        background-color: #f8f9fa;
+      }
+      #json-table-c5621-rowheader-1-0 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-cell-1-0 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-1-1 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-1-2 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-1-3 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-1-4 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-1-5 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #iraoca {
+        background-color: #ffffff;
+      }
+      #json-table-c5621-rowheader-2-0 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-rowheader-2-1 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-cell-2-0 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-2-1 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-2-2 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-2-3 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-2-4 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-2-5 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        color: #000000;
+      }
+      #id6oxe {
+        background-color: #f8f9fa;
+      }
+      #json-table-c5621-rowheader-3-0 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-rowheader-3-1 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-cell-3-0 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-3-1 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-3-2 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-3-3 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-3-4 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-3-5 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #id3zlp {
+        background-color: #ffffff;
+      }
+      #json-table-c5621-rowheader-4-0 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-cell-4-0 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-4-1 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-4-2 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-4-3 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-4-4 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-4-5 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #iwvluo {
+        background-color: #f8f9fa;
+      }
+      #json-table-c5621-rowheader-5-0 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-rowheader-5-1 {
+        padding: 8px;
+        border: 1px solid #000;
+        font-weight: bold;
+      }
+      #json-table-c5621-cell-5-0 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-5-1 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-5-2 {
+        padding: 8px;
+        border: 1px solid #000;
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 19px;
+        background-color: #d3d355;
+        color: #000000;
+      }
+      #json-table-c5621-cell-5-3 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-5-4 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      #json-table-c5621-cell-5-5 {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+    </style>
+    <script
+      src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+      defer
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+      defer
+    ></script>
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js" defer></script>
+    <script
+      src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"
+      defer
+    ></script>
+    <script src="https://code.highcharts.com/stock/highstock.js" defer></script>
+    <script src="https://code.highcharts.com/highcharts-3d.js" defer></script>
+    <script src="https://code.highcharts.com/highcharts-more.js" defer></script>
+    <script src="https://code.highcharts.com/modules/data.js" defer></script>
+    <script
+      src="https://code.highcharts.com/modules/exporting.js"
+      defer
+    ></script>
+    <script
+      src="https://code.highcharts.com/modules/accessibility.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js"
+      defer
+    ></script>
+    <script
+      src="https://code.highcharts.com/modules/drilldown.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"
+      defer
+    ></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+      defer
+    ></script>
+  </head>
+  <body>
+    <div
+      data-page-id="page-1"
+      data-page-index="0"
+      class="page-container"
+      id="ippk"
+    >
+      <div class="page-content" id="iylg">
+        <div
+          data-shared-region="header"
+          data-condition="all"
+          id="ij4a"
+          class="header-wrapper"
+        >
+          <div class="page-header-element" id="iivmi">
+            <div id="imbtm">page header Insert your text here</div>
+          </div>
+        </div>
+        <div class="content-wrapper" id="i3hi">
+          <div class="main-content-area" id="if1s">
+            <div id="iun1j">
+              <span
+                style="
+                  color: rgb(0, 0, 0);
+                  font-family: 'Open Sans', Arial, sans-serif;
+                  font-size: 14px;
+                  text-align: justify;
+                "
+                >"Sed ut perspiciatis unde omnis iste natus error sit voluptatem
+                accusantium doloremque laudantium, totam rem aperiam, eaque ipsa
+                quae ab illo inventore veritatis et quasi architecto beatae
+                vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia
+                voluptas sit aspernatur aut odit aut fugit, sed quia
+                consequuntur magni dolores eos qui ratione voluptatem sequi
+                nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor
+                sit amet, consectetur, adipisci velit, sed quia non numquam eius
+                modi tempora incidunt ut labore et dolore magnam aliquam quaerat
+                voluptatem. Ut enim ad minima veniam, quis nostrum
+                exercitationem ullam corporis suscipit laboriosam, nisi ut
+                aliquid ex ea commodi consequatur? Quis autem vel eum iure
+                reprehenderit qui in ea voluptate velit esse quam nihil
+                molestiae consequatur, vel illum qui dolorem eum fugiat quo
+                voluptas nulla pariatur?"</span
+              >
+            </div>
+            <hr id="i3p7j" />
+            <iframe
+              frameborder="0"
+              id="i86az"
+              src="https://maps.google.com/maps?&amp;q=usa&amp;z=3&amp;t=q&amp;output=embed"
+            ></iframe>
+            <ol type="1" start="1">
+              <li>Item 1</li>
+              <li>Item 2</li>
+              <li>Item 3</li>
+            </ol>
+            <ol type="A">
+              <li>Item 1</li>
+              <li>Item 2</li>
+              <li>Item 3</li>
+            </ol>
+          </div>
+        </div>
+        <div
+          data-shared-region="footer"
+          data-condition="all"
+          id="ij1w"
+          class="footer-wrapper"
+        >
+          <div class="page-footer-element" id="i21lp"></div>
+        </div>
+      </div>
+    </div>
+    <div
+      data-page-id="page-2"
+      data-page-index="1"
+      class="page-container"
+      id="i7yj"
+    >
+      <div class="page-content" id="imp9y">
+        <div
+          data-shared-region="header"
+          data-condition="all"
+          id="i27hi"
+          class="header-wrapper"
+        >
+          <div class="page-header-element" id="ipim7">
+            <div id="i8ppm">page header Insert your text here</div>
+          </div>
+        </div>
+        <div class="content-wrapper" id="iydsh">
+          <div class="main-content-area" id="iqm0v">
+            <figure
+              data-i_designer-type="custom_line_chart"
+              id="i298j"
+            ></figure>
+            <div class="json-table-container" id="ilvug">
+              <div class="json-table-wrapper" id="ijafb">
+                <table
+                  id="json-table-c5621"
+                  width="100%"
+                  class="json-data-table table table-striped table-bordered"
+                >
+                  <thead id="i8137">
+                    <tr>
+                      <th
+                        id="json-table-c5621-colheader-0-0"
+                        colspan="2"
+                        rowspan="2"
+                      ></th>
+                      <th id="json-table-c5621-colheader-0-1" colspan="2">
+                        merged column header 1
+                      </th>
+                      <th id="json-table-c5621-colheader-0-2" colspan="3">
+                        merged column header 2
+                      </th>
+                      <th id="json-table-c5621-colheader-0-3" rowspan="2">
+                        merged column header 3
+                      </th>
+                    </tr>
+                    <tr>
+                      <th id="json-table-c5621-colheader-1-0">
+                        column header 1
+                      </th>
+                      <th id="json-table-c5621-colheader-1-1">
+                        column header 2
+                      </th>
+                      <th id="json-table-c5621-colheader-1-2">
+                        column header 3
+                      </th>
+                      <th id="json-table-c5621-colheader-1-3">
+                        column header 4
+                      </th>
+                      <th id="json-table-c5621-colheader-1-4">
+                        column header 5
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr id="iwcl3">
+                      <th
+                        id="json-table-c5621-rowheader-0-0"
+                        data-row="0"
+                        data-column-key="row_header_0"
+                        rowspan="2"
+                      >
+                        merged row header 1
+                      </th>
+                      <th
+                        id="json-table-c5621-rowheader-0-1"
+                        data-row="0"
+                        data-column-key="row_header_1"
+                      >
+                        row header 1
+                      </th>
+                      <td
+                        id="json-table-c5621-cell-0-0"
+                        data-row="0"
+                        data-column-key="data_col_0"
+                      >
+                        sample row 1 column 1
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-0-1"
+                        data-row="0"
+                        data-column-key="data_col_1"
+                      >
+                        sample row 1 column 2
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-0-2"
+                        data-row="0"
+                        data-column-key="data_col_2"
+                      >
+                        sample row 1 column 3
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-0-3"
+                        data-row="0"
+                        data-column-key="data_col_3"
+                      >
+                        sample row 1 column 4
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-0-4"
+                        data-row="0"
+                        data-column-key="data_col_4"
+                      >
+                        sample row 1 column 5
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-0-5"
+                        data-row="0"
+                        data-column-key="data_col_5"
+                      >
+                        sample row 1 column 6
+                      </td>
+                    </tr>
+                    <tr id="ixb9zn">
+                      <th
+                        id="json-table-c5621-rowheader-1-0"
+                        data-row="1"
+                        data-column-key="row_header_0"
+                      >
+                        row header 2
+                      </th>
+                      <td
+                        id="json-table-c5621-cell-1-0"
+                        data-row="1"
+                        data-column-key="data_col_0"
+                      >
+                        sample row 2 column 1
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-1-1"
+                        data-row="1"
+                        data-column-key="data_col_1"
+                      >
+                        sample row 2 column 2
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-1-2"
+                        data-row="1"
+                        data-column-key="data_col_2"
+                      >
+                        sample row 2 column 3
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-1-3"
+                        data-row="1"
+                        data-column-key="data_col_3"
+                      >
+                        sample row 2 column 4
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-1-4"
+                        data-row="1"
+                        data-column-key="data_col_4"
+                      >
+                        sample row 2 column 5
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-1-5"
+                        data-row="1"
+                        data-column-key="data_col_5"
+                      >
+                        sample row 2 column 6
+                      </td>
+                    </tr>
+                    <tr id="iraoca">
+                      <th
+                        id="json-table-c5621-rowheader-2-0"
+                        data-row="2"
+                        data-column-key="row_header_0"
+                      >
+                        merged row header 1
+                      </th>
+                      <th
+                        id="json-table-c5621-rowheader-2-1"
+                        data-row="2"
+                        data-column-key="row_header_1"
+                      >
+                        row header 3
+                      </th>
+                      <td
+                        id="json-table-c5621-cell-2-0"
+                        data-row="2"
+                        data-column-key="data_col_0"
+                      >
+                        sample row 3 column 1
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-2-1"
+                        data-row="2"
+                        data-column-key="data_col_1"
+                      >
+                        sample row 3 column 2
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-2-2"
+                        data-row="2"
+                        data-column-key="data_col_2"
+                      >
+                        sample row 3 column 3
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-2-3"
+                        data-row="2"
+                        data-column-key="data_col_3"
+                      >
+                        sample row 3 column 4
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-2-4"
+                        data-row="2"
+                        data-column-key="data_col_4"
+                      >
+                        sample row 3 column 5
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-2-5"
+                        data-row="2"
+                        data-column-key="data_col_5"
+                      >
+                        sample row 3 column 6
+                      </td>
+                    </tr>
+                    <tr id="id6oxe">
+                      <th
+                        id="json-table-c5621-rowheader-3-0"
+                        data-row="3"
+                        data-column-key="row_header_0"
+                        rowspan="2"
+                      >
+                        merged row header 2
+                      </th>
+                      <th
+                        id="json-table-c5621-rowheader-3-1"
+                        data-row="3"
+                        data-column-key="row_header_1"
+                      >
+                        row header 4
+                      </th>
+                      <td
+                        id="json-table-c5621-cell-3-0"
+                        data-row="3"
+                        data-column-key="data_col_0"
+                      >
+                        sample row 4 column 1
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-3-1"
+                        data-row="3"
+                        data-column-key="data_col_1"
+                      >
+                        sample row 4 column 2
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-3-2"
+                        data-row="3"
+                        data-column-key="data_col_2"
+                      >
+                        sample row 4 column 3
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-3-3"
+                        data-row="3"
+                        data-column-key="data_col_3"
+                      >
+                        sample row 4 column 4
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-3-4"
+                        data-row="3"
+                        data-column-key="data_col_4"
+                      >
+                        sample row 4 column 5
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-3-5"
+                        data-row="3"
+                        data-column-key="data_col_5"
+                      >
+                        sample row 4 column 6
+                      </td>
+                    </tr>
+                    <tr id="id3zlp">
+                      <th
+                        id="json-table-c5621-rowheader-4-0"
+                        data-row="4"
+                        data-column-key="row_header_0"
+                      >
+                        row header 5
+                      </th>
+                      <td
+                        id="json-table-c5621-cell-4-0"
+                        data-row="4"
+                        data-column-key="data_col_0"
+                      >
+                        sample row 5 column 1
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-4-1"
+                        data-row="4"
+                        data-column-key="data_col_1"
+                      >
+                        sample row 5 column 2
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-4-2"
+                        data-row="4"
+                        data-column-key="data_col_2"
+                      >
+                        sample row 5 column 3
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-4-3"
+                        data-row="4"
+                        data-column-key="data_col_3"
+                      >
+                        sample row 5 column 4
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-4-4"
+                        data-row="4"
+                        data-column-key="data_col_4"
+                      >
+                        sample row 5 column 5
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-4-5"
+                        data-row="4"
+                        data-column-key="data_col_5"
+                      >
+                        sample row 5 column 6
+                      </td>
+                    </tr>
+                    <tr id="iwvluo">
+                      <th
+                        id="json-table-c5621-rowheader-5-0"
+                        data-row="5"
+                        data-column-key="row_header_0"
+                      >
+                        merged row header 3
+                      </th>
+                      <th
+                        id="json-table-c5621-rowheader-5-1"
+                        data-row="5"
+                        data-column-key="row_header_1"
+                      >
+                        row header 6
+                      </th>
+                      <td
+                        id="json-table-c5621-cell-5-0"
+                        data-row="5"
+                        data-column-key="data_col_0"
+                      >
+                        sample row 6 column 1
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-5-1"
+                        data-row="5"
+                        data-column-key="data_col_1"
+                      >
+                        sample row 6 column 2
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-5-2"
+                        data-row="5"
+                        data-column-key="data_col_2"
+                      >
+                        sample row 6 column 3
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-5-3"
+                        data-row="5"
+                        data-column-key="data_col_3"
+                      >
+                        sample row 6 column 4
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-5-4"
+                        data-row="5"
+                        data-column-key="data_col_4"
+                      >
+                        sample row 6 column 5
+                      </td>
+                      <td
+                        id="json-table-c5621-cell-5-5"
+                        data-row="5"
+                        data-column-key="data_col_5"
+                      >
+                        sample row 6 column 6
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <style>
+                  /* Table Styles */
+                  .json-table-container {
+                    min-height: 100px;
+                    padding: 10px 0 10px 0;
+                    width: 100%;
+                    margin: 10px 0;
+                  }
+
+                  .json-table-wrapper {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                      Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    width: 100%;
+                    overflow-x: visible;
+                    overflow-y: visible;
+                  }
+
+                  .json-table-wrapper .dataTables_wrapper {
+                    overflow-x: auto;
+                    overflow-y: visible;
+                  }
+
+                  .json-data-table {
+                    width: 100%;
+                    table-layout: fixed;
+                    border-collapse: collapse;
+                    border: 2px solid #000;
+                  }
+
+                  /* Formula editing styles */
+                  .formula-error {
+                    background-color: #ffebee !important;
+                    color: #c62828 !important;
+                  }
+
+                  .cell-content.editing {
+                    background-color: #e3f2fd !important;
+                    outline: 2px solid #007bff !important;
+                    min-height: inherit;
+                    overflow: hidden;
+                  }
+
+                  td[contenteditable='true'],
+                  th[contenteditable='true'] {
+                    text-align: left !important;
+                    cursor: text;
+                  }
+
+                  /* Highlight styles - with higher specificity */
+                  td[data-highlighted='true'],
+                  th[data-highlighted='true'] {
+                    position: relative;
+                    box-sizing: border-box !important;
+                    border: 1px solid #000 !important;
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+
+                  td[data-highlighted='true']::after,
+                  th[data-highlighted='true']::after {
+                    content: '★';
+                    position: absolute;
+                    top: 2px;
+                    right: 2px;
+                    font-size: 10px;
+                    color: #ff6b35;
+                    font-weight: bold;
+                    z-index: 1;
+                  }
+
+                  /* Running Total Column Styles - with !important to override table styles */
+                  .running-total-column,
+                  td[data-running-total='true'],
+                  th[data-running-total='true'] {
+                    position: relative;
+                    box-sizing: border-box !important;
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+
+                  td[data-running-total='true'] .cell-content,
+                  th[data-running-total='true'] .cell-content {
+                    font-weight: bold !important;
+                  }
+
+                  /* Ensure running total styles take precedence over table styles */
+                  td[data-running-total='true'][style],
+                  th[data-running-total='true'][style] {
+                    background-color: var(--rt-bg-color) !important;
+                    color: var(--rt-text-color) !important;
+                    font-family: var(--rt-font-family) !important;
+                    font-size: var(--rt-font-size) !important;
+                  }
+                </style>
+                <script type="text/javascript">
+                  ;(function () {
+                    function initTable() {
+                      if (
+                        typeof $ === 'undefined' ||
+                        typeof $.fn.DataTable === 'undefined'
+                      ) {
+                        setTimeout(initTable, 100)
+                        return
+                      }
+
+                      const tableElement =
+                        document.getElementById('json-table-c5621')
+                      if (!tableElement) {
+                        setTimeout(initTable, 100)
+                        return
+                      }
+
+                      // Store formula data before DataTable initialization
+                      const formulaCells =
+                        tableElement.querySelectorAll('[data-formula]')
+                      const formulaData = Array.from(formulaCells).map(
+                        cell => ({
+                          cell: cell,
+                          formula: cell.getAttribute('data-formula'),
+                          calculatedValue: cell.getAttribute(
+                            'data-calculated-value'
+                          ),
+                          id:
+                            cell.id ||
+                            cell.getAttribute('data-row') +
+                              '-' +
+                              cell.getAttribute('data-column-key')
+                        })
+                      )
+
+                      // Destroy existing DataTable if it exists
+                      if ($.fn.DataTable.isDataTable(tableElement)) {
+                        $(tableElement).DataTable().destroy()
+                      }
+
+                      const isInPageSystem =
+                        tableElement.closest('.page-container')
+
+                      const dtOptions = {
+                        dom: 'Bfrtip',
+                        paging: false,
+                        info: false,
+                        lengthChange: true,
+                        pageLength: 10,
+                        fixedHeader: false,
+                        scrollX: true,
+                        fixedColumns: true,
+                        searching: false,
+                        buttons: [],
+                        ordering: false,
+                        order: [],
+                        drawCallback: function () {
+                          // Restore formula data after DataTable draw
+                          setTimeout(() => {
+                            formulaData.forEach(data => {
+                              const cell =
+                                document.getElementById(data.id) ||
+                                tableElement.querySelector(
+                                  '[data-row="' +
+                                    data.id.split('-')[0] +
+                                    '"][data-column-key="' +
+                                    data.id.split('-')[1] +
+                                    '"]'
+                                )
+                              if (cell) {
+                                if (data.formula)
+                                  cell.setAttribute(
+                                    'data-formula',
+                                    data.formula
+                                  )
+                                if (data.calculatedValue) {
+                                  cell.setAttribute(
+                                    'data-calculated-value',
+                                    data.calculatedValue
+                                  )
+                                  const cellContent = cell.querySelector('div')
+                                  if (cellContent) {
+                                    cellContent.textContent =
+                                      data.calculatedValue
+                                  }
+                                }
+                              }
+                            })
+
+                            // Trigger custom event to re-enable formulas
+                            const event = new CustomEvent('datatableRedrawn', {
+                              detail: {
+                                tableId: 'json-table-c5621',
+                                formulaData: formulaData
+                              }
+                            })
+                            document.dispatchEvent(event)
+                          }, 100)
+
+                          if (isInPageSystem) {
+                            const wrapper = this.closest('.dataTables_wrapper')
+                            if (wrapper) {
+                              wrapper.style.maxWidth = '100%'
+                              wrapper.style.overflow = 'hidden'
+                            }
+                          }
+                        },
+                        responsive: isInPageSystem
+                          ? {
+                              details: {
+                                display:
+                                  $.fn.dataTable.Responsive.display
+                                    .childRowImmediate,
+                                type: 'none',
+                                target: ''
+                              }
+                            }
+                          : false
+                      }
+                    }
+
+                    initTable()
+                  })()
+                </script>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-shared-region="footer"
+          data-condition="all"
+          id="isizb"
+          class="footer-wrapper"
+        >
+          <div class="page-footer-element" id="idici"></div>
+        </div>
+      </div>
+    </div>
+    <div
+      data-page-id="page-3"
+      data-page-index="2"
+      class="page-container"
+      id="i64vj"
+    >
+      <div class="page-content" id="iwl0h">
+        <div
+          data-shared-region="header"
+          data-condition="all"
+          id="icd5k"
+          class="header-wrapper"
+        >
+          <div class="page-header-element" id="i3f2t">
+            <div id="ih0ty">page header Insert your text here</div>
+          </div>
+        </div>
+        <div class="content-wrapper" id="i0fgf">
+          <div class="main-content-area" id="i3dxc">
+            <div class="json-table-container" id="i4zmhy">
+              <div class="json-table-wrapper" id="i9r8ce">
+                <table
+                  id="json-table-c9673"
+                  width="100%"
+                  class="json-data-table table table-striped table-bordered"
+                >
+                  <thead id="izeb1d">
+                    <tr>
+                      <th
+                        id="json-table-c9673-header-AccountType"
+                        data-column-key="AccountType"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-header"
+                      >
+                        Account Type
+                      </th>
+                      <th
+                        id="json-table-c9673-header-Currency"
+                        data-column-key="Currency"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-header"
+                      >
+                        Currency
+                      </th>
+                      <th
+                        id="json-table-c9673-header-Amount"
+                        data-column-key="Amount"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-header"
+                      >
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="even-row" id="iguszu">
+                      <td
+                        id="json-table-c9673-cell-0-AccountType"
+                        data-row="0"
+                        data-column-key="AccountType"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        Savings
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-0-Currency"
+                        data-row="0"
+                        data-column-key="Currency"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        GBP
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-0-Amount"
+                        data-row="0"
+                        data-column-key="Amount"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        1771.42
+                      </td>
+                    </tr>
+                    <tr class="odd-row" id="ikusfh">
+                      <td
+                        id="json-table-c9673-cell-1-AccountType"
+                        data-row="1"
+                        data-column-key="AccountType"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        Current
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-1-Currency"
+                        data-row="1"
+                        data-column-key="Currency"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        GBP
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-1-Amount"
+                        data-row="1"
+                        data-column-key="Amount"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        7830.00
+                      </td>
+                    </tr>
+                    <tr class="even-row" id="ibic2p">
+                      <td
+                        id="json-table-c9673-cell-2-AccountType"
+                        data-row="2"
+                        data-column-key="AccountType"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        Recurring Deposite
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-2-Currency"
+                        data-row="2"
+                        data-column-key="Currency"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        GBP
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-2-Amount"
+                        data-row="2"
+                        data-column-key="Amount"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        22730.11
+                      </td>
+                    </tr>
+                    <tr class="odd-row" id="isb9dk">
+                      <td
+                        id="json-table-c9673-cell-3-AccountType"
+                        data-row="3"
+                        data-column-key="AccountType"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        Term Deposite
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-3-Currency"
+                        data-row="3"
+                        data-column-key="Currency"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        GBP
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-3-Amount"
+                        data-row="3"
+                        data-column-key="Amount"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        103000.00
+                      </td>
+                    </tr>
+                    <tr class="even-row" id="irevgo">
+                      <td
+                        id="json-table-c9673-cell-4-AccountType"
+                        data-row="4"
+                        data-column-key="AccountType"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        Wealth
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-4-Currency"
+                        data-row="4"
+                        data-column-key="Currency"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        GBP
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-4-Amount"
+                        data-row="4"
+                        data-column-key="Amount"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        10000.00
+                      </td>
+                    </tr>
+                    <tr class="odd-row" id="i6pq28">
+                      <td
+                        id="json-table-c9673-cell-5-AccountType"
+                        data-row="5"
+                        data-column-key="AccountType"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        Credit Card
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-5-Currency"
+                        data-row="5"
+                        data-column-key="Currency"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        GBP
+                      </td>
+                      <td
+                        id="json-table-c9673-cell-5-Amount"
+                        data-row="5"
+                        data-column-key="Amount"
+                        data-gjs-hoverable="true"
+                        class="json-table-cell cell-content editable-cell"
+                      >
+                        98.00
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <style>
+                  /* Table Styles */
+                  .json-table-container {
+                    min-height: 100px;
+                    padding: 10px 0 10px 0;
+                    width: 100%;
+                    margin: 10px 0;
+                  }
+
+                  .json-table-wrapper {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                      Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    width: 100%;
+                    overflow-x: visible;
+                    overflow-y: visible;
+                  }
+
+                  .json-table-wrapper .dataTables_wrapper {
+                    overflow-x: auto;
+                    overflow-y: visible;
+                  }
+
+                  .json-data-table {
+                    width: 100%;
+                    table-layout: fixed;
+                    border-collapse: collapse;
+                    border: 2px solid #000;
+                  }
+
+                  /* Formula editing styles */
+                  .formula-error {
+                    background-color: #ffebee !important;
+                    color: #c62828 !important;
+                  }
+
+                  .cell-content.editing {
+                    background-color: #e3f2fd !important;
+                    outline: 2px solid #007bff !important;
+                    min-height: inherit;
+                    overflow: hidden;
+                  }
+
+                  td[contenteditable='true'],
+                  th[contenteditable='true'] {
+                    text-align: left !important;
+                    cursor: text;
+                  }
+
+                  /* Highlight styles - with higher specificity */
+                  td[data-highlighted='true'],
+                  th[data-highlighted='true'] {
+                    position: relative;
+                    box-sizing: border-box !important;
+                    border: 1px solid #000 !important;
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+
+                  td[data-highlighted='true']::after,
+                  th[data-highlighted='true']::after {
+                    content: '★';
+                    position: absolute;
+                    top: 2px;
+                    right: 2px;
+                    font-size: 10px;
+                    color: #ff6b35;
+                    font-weight: bold;
+                    z-index: 1;
+                  }
+
+                  /* Running Total Column Styles - with !important to override table styles */
+                  .running-total-column,
+                  td[data-running-total='true'],
+                  th[data-running-total='true'] {
+                    position: relative;
+                    box-sizing: border-box !important;
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+
+                  td[data-running-total='true'] .cell-content,
+                  th[data-running-total='true'] .cell-content {
+                    font-weight: bold !important;
+                  }
+
+                  /* Ensure running total styles take precedence over table styles */
+                  td[data-running-total='true'][style],
+                  th[data-running-total='true'][style] {
+                    background-color: var(--rt-bg-color) !important;
+                    color: var(--rt-text-color) !important;
+                    font-family: var(--rt-font-family) !important;
+                    font-size: var(--rt-font-size) !important;
+                  }
+                </style>
+                <script type="text/javascript">
+                  ;(function () {
+                    function initTable() {
+                      if (
+                        typeof $ === 'undefined' ||
+                        typeof $.fn.DataTable === 'undefined'
+                      ) {
+                        setTimeout(initTable, 100)
+                        return
+                      }
+
+                      const tableElement =
+                        document.getElementById('json-table-c9673')
+                      if (!tableElement) {
+                        setTimeout(initTable, 100)
+                        return
+                      }
+
+                      // Store formula data before DataTable initialization
+                      const formulaCells =
+                        tableElement.querySelectorAll('[data-formula]')
+                      const formulaData = Array.from(formulaCells).map(
+                        cell => ({
+                          cell: cell,
+                          formula: cell.getAttribute('data-formula'),
+                          calculatedValue: cell.getAttribute(
+                            'data-calculated-value'
+                          ),
+                          id:
+                            cell.id ||
+                            cell.getAttribute('data-row') +
+                              '-' +
+                              cell.getAttribute('data-column-key')
+                        })
+                      )
+
+                      // Destroy existing DataTable if it exists
+                      if ($.fn.DataTable.isDataTable(tableElement)) {
+                        $(tableElement).DataTable().destroy()
+                      }
+
+                      const isInPageSystem =
+                        tableElement.closest('.page-container')
+
+                      const dtOptions = {
+                        dom: 'Bfrtip',
+                        paging: false,
+                        info: false,
+                        lengthChange: true,
+                        pageLength: 10,
+                        fixedHeader: false,
+                        scrollX: false,
+                        fixedColumns: false,
+                        searching: false,
+                        buttons: [],
+                        ordering: false,
+                        order: [],
+                        drawCallback: function () {
+                          // Restore formula data after DataTable draw
+                          setTimeout(() => {
+                            formulaData.forEach(data => {
+                              const cell =
+                                document.getElementById(data.id) ||
+                                tableElement.querySelector(
+                                  '[data-row="' +
+                                    data.id.split('-')[0] +
+                                    '"][data-column-key="' +
+                                    data.id.split('-')[1] +
+                                    '"]'
+                                )
+                              if (cell) {
+                                if (data.formula)
+                                  cell.setAttribute(
+                                    'data-formula',
+                                    data.formula
+                                  )
+                                if (data.calculatedValue) {
+                                  cell.setAttribute(
+                                    'data-calculated-value',
+                                    data.calculatedValue
+                                  )
+                                  const cellContent = cell.querySelector('div')
+                                  if (cellContent) {
+                                    cellContent.textContent =
+                                      data.calculatedValue
+                                  }
+                                }
+                              }
+                            })
+
+                            // Trigger custom event to re-enable formulas
+                            const event = new CustomEvent('datatableRedrawn', {
+                              detail: {
+                                tableId: 'json-table-c9673',
+                                formulaData: formulaData
+                              }
+                            })
+                            document.dispatchEvent(event)
+                          }, 100)
+
+                          if (isInPageSystem) {
+                            const wrapper = this.closest('.dataTables_wrapper')
+                            if (wrapper) {
+                              wrapper.style.maxWidth = '100%'
+                              wrapper.style.overflow = 'hidden'
+                            }
+                          }
+                        },
+                        responsive: isInPageSystem
+                          ? {
+                              details: {
+                                display:
+                                  $.fn.dataTable.Responsive.display
+                                    .childRowImmediate,
+                                type: 'none',
+                                target: ''
+                              }
+                            }
+                          : false
+                      }
+                    }
+
+                    initTable()
+                  })()
+                </script>
+              </div>
+            </div>
+            <div class="rect-shape" id="i88aji"></div>
+            <button type="button" class="btn btn-primary">Primary</button>
+            <button type="button" class="btn btn-secondary">Secondary</button>
+            <button type="button" class="btn btn-success">Success</button>
+            <button type="button" class="btn btn-danger">Danger</button>
+            <button type="button" class="btn btn-warning">Warning</button>
+            <button type="button" class="btn btn-info">Info</button>
+            <button type="button" class="btn btn-light">Light</button>
+            <button type="button" class="btn btn-dark">Dark</button>
+          </div>
+        </div>
+        <div
+          data-shared-region="footer"
+          data-condition="all"
+          id="i7edu"
+          class="footer-wrapper"
+        >
+          <div class="page-footer-element" id="i6j1x"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      var items = document.querySelectorAll('#i298j')
+      for (var i = 0, len = items.length; i < len; i++) {
+        ;(function () {
+          const initializeChart = () => {
+            const ctx = this.id
+            const element = document.getElementById(ctx)
+
+            if (!element) {
+              console.warn('Chart container not found:', ctx)
+              return
+            }
+
+            let chart_Title = '' || 'Chart Title'
+            let chart_Title_align = '' || 'left'
+            let JsonPath1 = '' || ''
+            let chartType = 'pie-3d' || 'pie'
+            let chart_yAxis = '' || 'Values'
+            let chart_layout = '' || 'horizontal'
+            let swapAxis = '' === 'true' || false
+            let legendColors = '' || ''
+            let customColors = null
+            if (legendColors && legendColors.trim()) {
+              customColors = legendColors
+                .split(',')
+                .map(color => color.trim())
+                .filter(
+                  color =>
+                    color && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)
+                )
+
+              if (customColors.length === 0) {
+                customColors = null
+              }
+            }
+
+            let language = 'english'
+            let project_type = 'developmentJsonType'
+            let str = null
+            let seriesData = {}
+
+            try {
+              if (typeof localStorage !== 'undefined') {
+                language = localStorage.getItem('language') || 'english'
+                const common_json_data = JSON.parse(
+                  localStorage.getItem('common_json') || 'null'
+                )
+                if (common_json_data && JsonPath1) {
+                  str =
+                    common_json_data[language] &&
+                    common_json_data[language][JsonPath1]
+                }
+              }
+
+              if (
+                typeof project_type2 !== 'undefined' &&
+                project_type2 === 'downloadedJsonType'
+              ) {
+                project_type = 'downloadedJsonType'
+                if (
+                  typeof jsonData1 !== 'undefined' &&
+                  jsonData1[0] &&
+                  JsonPath1
+                ) {
+                  str =
+                    jsonData1[0][language] && jsonData1[0][language][JsonPath1]
+                }
+              }
+
+              if (str) {
+                seriesData = eval(str)
+                if (!seriesData.series) {
+                  throw new Error('Series array not found')
+                }
+              }
+            } catch (e) {
+              console.warn(
+                'JSON path evaluation failed, using default data:',
+                e.message
+              )
+              seriesData = {}
+            }
+
+            let seriesData2 = {}
+            let chartAlign = chart_layout + 'Align'
+
+            if (chartType === 'pie') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      data: [
+                        {
+                          name: 'Chrome',
+                          y: 70.67
+                        },
+                        {
+                          name: 'Edge',
+                          y: 14.77
+                        },
+                        {
+                          name: 'Firefox',
+                          y: 4.86
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: chartType,
+                  animation: false
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+                series: seriesData.series,
+                tooltip: {
+                  pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+                },
+                accessibility: {
+                  point: {
+                    valueSuffix: '%'
+                  }
+                },
+                credits: {
+                  enabled: false
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    colors: customColors,
+                    dataLabels: {
+                      enabled: false
+                    },
+                    showInLegend: true,
+                    animation: false
+                  }
+                }
+              }
+            }
+
+            if (chartType === 'bar') {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: [
+                      'Africa',
+                      'America',
+                      'Asia',
+                      'Europe',
+                      'Oceania'
+                    ]
+                  },
+                  series: [
+                    {
+                      name: 'Year 1990',
+                      data: [631, 727, 3202, 721, 26]
+                    },
+                    {
+                      name: 'Year 2000',
+                      data: [814, 841, 3714, 726, 31]
+                    },
+                    {
+                      name: 'Year 2010',
+                      data: [1044, 944, 4170, 735, 40]
+                    },
+                    {
+                      name: 'Year 2018',
+                      data: [1276, 1007, 4561, 746, 42]
+                    }
+                  ]
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: 'bar',
+                  animation: false,
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                  title: {
+                    text: null
+                  }
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis
+                  }
+                },
+                tooltip: {
+                  valueSuffix: ' millions'
+                },
+                plotOptions: {
+                  bar: {
+                    dataLabels: {
+                      enabled: true
+                    },
+                    animation: false
+                  },
+                  colors: customColors
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: 'right',
+                  [chartAlign]: 'top',
+                  x: -40,
+                  y: 80,
+                  floating: true,
+                  borderWidth: 1,
+                  backgroundColor: '#FFFFFF',
+                  shadow: true
+                },
+                credits: {
+                  enabled: false
+                },
+                series: seriesData.series
+              }
+            }
+
+            if (chartType === 'line') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Installation & Developers',
+                      data: [
+                        43934, 48656, 65165, 81827, 112143, 142383, 171533,
+                        165174, 155157, 161454, 154610
+                      ]
+                    },
+                    {
+                      name: 'Manufacturing',
+                      data: [
+                        24916, 37941, 29742, 29851, 32490, 30282, 38121, 36885,
+                        33726, 34243, 31050
+                      ]
+                    }
+                  ]
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: 'line',
+                  animation: false,
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis
+                  }
+                },
+                series: seriesData.series,
+                xAxis: {
+                  accessibility: {
+                    rangeDescription: ''
+                  }
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: 'right',
+                  [chartAlign]: 'middle'
+                },
+                plotOptions: {
+                  series: {
+                    label: {
+                      connectorAllowed: false
+                    },
+                    pointStart: 2010,
+                    colors: customColors,
+                    animation: false
+                  }
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout,
+                          align: 'center',
+                          [chartAlign]: 'bottom'
+                        }
+                      }
+                    }
+                  ]
+                },
+                colors: null,
+                credits: { enabled: false }
+              }
+            }
+
+            if (chartType === 'column') {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ['Africa', 'America', 'Asia']
+                  },
+                  series: [
+                    {
+                      name: 'Year 1990',
+                      data: [631, 727, 3202]
+                    },
+                    {
+                      name: 'Year 2000',
+                      data: [814, 841, 3714]
+                    },
+                    {
+                      name: 'Year 2010',
+                      data: [1044, 944, 4170]
+                    }
+                  ]
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: 'column',
+                  animation: false,
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                  title: {
+                    text: null
+                  }
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis
+                  },
+                  labels: {
+                    overflow: 'justify'
+                  }
+                },
+                tooltip: {
+                  valueSuffix: ' millions'
+                },
+                plotOptions: {
+                  column: {
+                    dataLabels: {
+                      enabled: true
+                    },
+                    animation: false
+                  },
+                  colors: customColors
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: 'right',
+                  [chartAlign]: 'top',
+                  x: -40,
+                  y: 80,
+                  floating: true,
+                  borderWidth: 1,
+                  backgroundColor: '#FFFFFF',
+                  shadow: true
+                },
+                credits: {
+                  enabled: false
+                },
+
+                series: seriesData.series
+              }
+            }
+
+            if (chartType === 'stacked-column') {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ['Arsenal', 'Chelsea']
+                  },
+                  series: [
+                    {
+                      name: 'BPL',
+                      data: [3, 55]
+                    },
+                    {
+                      name: 'FA Cup',
+                      data: [14, 8]
+                    },
+                    {
+                      name: 'CL',
+                      data: [0, 2]
+                    }
+                  ]
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  type: 'column',
+                  animation: false,
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis
+                  },
+                  stackLabels: {
+                    enabled: true,
+                    style: {
+                      fontWeight: 'bold',
+                      color: 'gray',
+                      textOutline: 'none'
+                    }
+                  }
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: 'left',
+                  x: 70,
+                  verticalAlign: 'top',
+                  y: 70,
+                  floating: true,
+                  backgroundColor: 'white',
+                  borderColor: '#CCC',
+                  borderWidth: 1,
+                  shadow: false
+                },
+                tooltip: {
+                  headerFormat: '<b>{point.x}</b><br/>',
+                  pointFormat:
+                    '{series.name}: {point.y}<br/>Total: {point.stackTotal}'
+                },
+                plotOptions: {
+                  column: {
+                    stacking: 'normal',
+                    dataLabels: {
+                      enabled: true
+                    },
+                    animation: false
+                  },
+                  colors: customColors
+                },
+
+                series: seriesData.series
+              }
+            }
+
+            if (chartType === 'stacked-bar') {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ['2020/21', '2019/20', '2018/19']
+                  },
+                  series: [
+                    {
+                      name: 'Cristiano Ronaldo',
+                      data: [4, 4, 6]
+                    },
+                    {
+                      name: 'Lionel Messi',
+                      data: [5, 3, 12]
+                    },
+                    {
+                      name: 'Robert Lewandowski',
+                      data: [5, 15, 8]
+                    }
+                  ]
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  type: 'bar',
+                  animation: false,
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis
+                  }
+                },
+                legend: {
+                  reversed: true
+                },
+                plotOptions: {
+                  series: {
+                    stacking: 'normal',
+                    dataLabels: {
+                      enabled: true
+                    },
+                    animation: false
+                  },
+                  colors: customColors
+                },
+
+                series: seriesData.series
+              }
+            }
+
+            if (chartType === 'drilldown_bar') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Browsers',
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: 'Chrome',
+                          y: 61.04,
+                          drilldown: 'Chrome'
+                        },
+                        {
+                          name: 'Safari',
+                          y: 9.47,
+                          drilldown: 'Safari'
+                        },
+                        {
+                          name: 'Other',
+                          y: 11.02,
+                          drilldown: null
+                        }
+                      ]
+                    }
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        name: 'Chrome',
+                        id: 'Chrome',
+                        data: [
+                          ['v97.0', 36.89],
+                          ['v96.0', 18.16],
+                          ['v95.0', 0.54]
+                        ]
+                      },
+                      {
+                        name: 'Safari',
+                        id: 'Safari',
+                        data: [
+                          ['v15.3', 0.1],
+                          ['v15.2', 2.01],
+                          ['v15.1', 2.29]
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  type: 'bar',
+                  animation: false
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+
+                xAxis: {
+                  type: 'category'
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis
+                  }
+                },
+                tooltip: {
+                  valueSuffix: ''
+                },
+                plotOptions: {
+                  series: {
+                    borderWidth: 0,
+                    dataLabels: {
+                      enabled: true,
+                      format: '{point.y:.1f}%'
+                    },
+                    animation: false,
+                    colors: customColors
+                  }
+                },
+                legend: {
+                  enabled: false
+                },
+                credits: {
+                  enabled: false
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown
+              }
+            }
+
+            if (chartType === 'drilldown_pie') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Browsers',
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: 'Chrome',
+                          y: 61.04,
+                          drilldown: 'Chrome'
+                        },
+                        {
+                          name: 'Safari',
+                          y: 9.47,
+                          drilldown: 'Safari'
+                        }
+                      ]
+                    }
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        name: 'Chrome',
+                        id: 'Chrome',
+                        data: [
+                          ['v97.0', 36.89],
+                          ['v96.0', 18.16],
+                          ['v95.0', 0.54]
+                        ]
+                      },
+                      {
+                        name: 'Safari',
+                        id: 'Safari',
+                        data: [
+                          ['v15.3', 0.1],
+                          ['v15.2', 2.01]
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  type: 'pie',
+                  animation: false
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+
+                tooltip: {
+                  pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+                },
+                accessibility: {
+                  point: {
+                    valueSuffix: '%'
+                  }
+                },
+                credits: {
+                  enabled: false
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                      enabled: false
+                    },
+                    colors: customColors,
+                    showInLegend: true,
+                    animation: false
+                  }
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown
+              }
+            }
+
+            if (chartType === 'drilldown_line') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Things',
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: 'Animals',
+                          y: 5,
+                          drilldown: 'animals'
+                        },
+                        {
+                          name: 'Fruits',
+                          y: 2,
+                          drilldown: 'fruits'
+                        }
+                      ]
+                    }
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        id: 'animals',
+                        data: [
+                          ['Cats', 4],
+                          ['Dogs', 2],
+                          ['Cows', 1]
+                        ]
+                      },
+                      {
+                        id: 'fruits',
+                        data: [
+                          ['Apples', 4],
+                          ['Oranges', 2]
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+              seriesData2 = {
+                chart: {
+                  type: 'line',
+                  animation: false
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+
+                yAxis: {
+                  title: {
+                    text: chart_yAxis
+                  }
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown,
+                xAxis: {
+                  accessibility: {
+                    rangeDescription: ''
+                  }
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: 'right',
+                  [chartAlign]: 'middle'
+                },
+                plotOptions: {
+                  series: {
+                    label: {
+                      connectorAllowed: false
+                    },
+                    pointStart: 2010,
+                    animation: false,
+                    colors: customColors
+                  }
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout,
+                          align: 'center',
+                          verticalAlign: 'bottom'
+                        }
+                      }
+                    }
+                  ]
+                },
+                credits: { enabled: false }
+              }
+            }
+
+            if (chartType === 'donut') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Registrations',
+                      colorByPoint: true,
+                      innerSize: '75%',
+                      data: [
+                        { name: 'EV', y: 23.9 },
+                        { name: 'Hybrids', y: 12.6 },
+                        { name: 'Diesel', y: 37.0 },
+                        { name: 'Petrol', y: 26.4 }
+                      ]
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'pie',
+                  animation: false,
+                  custom: {},
+                  events: {
+                    render() {
+                      const chart = this,
+                        series = chart.series[0]
+                      let customLabel = chart.options.chart.custom.label
+
+                      if (!customLabel) {
+                        customLabel = chart.options.chart.custom.label =
+                          chart.renderer
+                            .label('Total<br/><strong>2 877 820</strong>')
+                            .css({
+                              color:
+                                'var(--highcharts-neutral-color-100, #000)',
+                              textAnchor: 'middle'
+                            })
+                            .add()
+                      }
+
+                      const x = series.center[0] + chart.plotLeft
+                      const y =
+                        series.center[1] +
+                        chart.plotTop -
+                        customLabel.attr('height') / 2
+
+                      customLabel.attr({ x, y })
+
+                      customLabel.css({
+                        fontSize: `${series.center[2] / 12}px`
+                      })
+                    }
+                  }
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align
+                },
+
+                accessibility: {
+                  point: {
+                    valueSuffix: '%'
+                  }
+                },
+                tooltip: {
+                  pointFormat: '{series.name}: <b>{point.percentage:.0f}%</b>'
+                },
+                legend: {
+                  enabled: false
+                },
+                plotOptions: {
+                  series: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    colors: customColors,
+                    dataLabels: [
+                      {
+                        enabled: true,
+                        distance: 20,
+                        format: '{point.name}'
+                      },
+                      {
+                        enabled: true,
+                        distance: -15,
+                        format: '{point.percentage:.0f}%',
+                        style: {
+                          fontSize: '0.9em'
+                        }
+                      }
+                    ],
+                    showInLegend: true
+                  }
+                },
+                series: seriesData.series,
+                credits: { enabled: false }
+              }
+            }
+
+            if (chartType === 'scatter') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Basketball',
+                      marker: { symbol: 'circle' },
+                      data: [
+                        [2.01, 98],
+                        [2.05, 104],
+                        [2.0, 95],
+                        [2.1, 110],
+                        [2.02, 102]
+                      ]
+                    },
+                    {
+                      name: 'Triathlon',
+                      marker: { symbol: 'triangle' },
+                      data: [
+                        [1.75, 65],
+                        [1.8, 70],
+                        [1.78, 68],
+                        [1.82, 72],
+                        [1.76, 67]
+                      ]
+                    },
+                    {
+                      name: 'Volleyball',
+                      marker: { symbol: 'square' },
+                      data: [
+                        [1.9, 85],
+                        [1.88, 82],
+                        [1.95, 90],
+                        [1.92, 88],
+                        [1.87, 84]
+                      ]
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'scatter',
+                  animation: false,
+                  zooming: {
+                    type: 'xy'
+                  },
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title || 'Olympics athletes by height and weight',
+                  align: chart_Title_align || 'center'
+                },
+                xAxis: {
+                  title: { text: 'Height' },
+                  labels: { format: '{value} m' },
+                  startOnTick: true,
+                  endOnTick: true,
+                  showLastLabel: true
+                },
+                yAxis: {
+                  title: { text: 'Weight' },
+                  labels: { format: '{value} kg' }
+                },
+                legend: {
+                  enabled: true,
+                  layout: chart_layout || 'vertical',
+                  align: 'right',
+                  [chartAlign || 'verticalAlign']: 'middle'
+                },
+                tooltip: {
+                  pointFormat: 'Height: {point.x} m <br/> Weight: {point.y} kg'
+                },
+                plotOptions: {
+                  scatter: {
+                    marker: {
+                      radius: 2.5,
+                      symbol: 'circle',
+                      states: {
+                        hover: {
+                          enabled: true,
+                          lineColor: 'rgb(100,100,100)'
+                        }
+                      }
+                    },
+                    states: {
+                      hover: {
+                        marker: {
+                          enabled: false
+                        }
+                      }
+                    },
+                    jitter: { x: 0.005 }
+                  },
+                  colors: customColors
+                },
+
+                series: seriesData.series,
+                credits: { enabled: false }
+              }
+            }
+
+            if (chartType === 'area') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Asia',
+                      data: [502, 635, 809, 947, 1402, 3634, 5268]
+                    },
+                    {
+                      name: 'Africa',
+                      data: [106, 107, 111, 133, 221, 767, 1766]
+                    },
+                    {
+                      name: 'Europe',
+                      data: [163, 203, 276, 408, 547, 729, 628]
+                    },
+                    {
+                      name: 'America',
+                      data: [18, 31, 54, 156, 339, 818, 1201]
+                    },
+                    {
+                      name: 'Oceania',
+                      data: [2, 2, 2, 6, 13, 30, 46]
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'area',
+                  animation: false,
+                  inverted: swapAxis
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    'Historic and Estimated Population Growth by Region',
+                  align: chart_Title_align || 'center'
+                },
+                xAxis: {
+                  allowDecimals: false,
+                  labels: {
+                    formatter: function () {
+                      return this.value
+                    }
+                  },
+                  accessibility: {
+                    rangeDescription: 'Range: 1750 to 2050'
+                  },
+                  categories: [
+                    '1750',
+                    '1800',
+                    '1850',
+                    '1900',
+                    '1950',
+                    '2000',
+                    '2050'
+                  ]
+                },
+                yAxis: {
+                  title: {
+                    text: 'Population (millions)'
+                  },
+                  labels: {
+                    formatter: function () {
+                      return this.value / 1000 + 'B'
+                    }
+                  }
+                },
+                tooltip: {
+                  pointFormat:
+                    '{series.name} had <b>{point.y:,.0f}</b><br/> people in {point.category}'
+                },
+                plotOptions: {
+                  area: {
+                    stacking: 'normal',
+                    lineColor: '#666666',
+                    lineWidth: 1,
+                    marker: {
+                      lineWidth: 1,
+                      lineColor: '#666666'
+                    }
+                  },
+                  colors: customColors
+                },
+                legend: {
+                  layout: chart_layout || 'vertical',
+                  align: 'right',
+                  [chartAlign || 'verticalAlign']: 'middle'
+                },
+
+                series: seriesData.series,
+                credits: { enabled: false }
+              }
+            }
+
+            if (chartType === 'bubble') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      colorByPoint: true,
+                      data: [
+                        {
+                          x: 95,
+                          y: 95,
+                          z: 13.8,
+                          name: 'BE',
+                          country: 'Belgium'
+                        },
+                        {
+                          x: 86.5,
+                          y: 102.9,
+                          z: 14.7,
+                          name: 'DE',
+                          country: 'Germany'
+                        },
+                        {
+                          x: 80.8,
+                          y: 91.5,
+                          z: 15.8,
+                          name: 'FI',
+                          country: 'Finland'
+                        },
+                        {
+                          x: 80.4,
+                          y: 102.5,
+                          z: 12,
+                          name: 'NL',
+                          country: 'Netherlands'
+                        },
+                        {
+                          x: 80.3,
+                          y: 86.1,
+                          z: 11.8,
+                          name: 'SE',
+                          country: 'Sweden'
+                        },
+                        {
+                          x: 78.4,
+                          y: 70.1,
+                          z: 16.6,
+                          name: 'ES',
+                          country: 'Spain'
+                        },
+                        {
+                          x: 74.2,
+                          y: 68.5,
+                          z: 14.5,
+                          name: 'FR',
+                          country: 'France'
+                        },
+                        {
+                          x: 73.5,
+                          y: 83.1,
+                          z: 10,
+                          name: 'NO',
+                          country: 'Norway'
+                        },
+                        {
+                          x: 71,
+                          y: 93.2,
+                          z: 24.7,
+                          name: 'UK',
+                          country: 'United Kingdom'
+                        },
+                        {
+                          x: 69.2,
+                          y: 57.6,
+                          z: 10.4,
+                          name: 'IT',
+                          country: 'Italy'
+                        },
+                        {
+                          x: 68.6,
+                          y: 20,
+                          z: 16,
+                          name: 'RU',
+                          country: 'Russia'
+                        },
+                        {
+                          x: 65.5,
+                          y: 126.4,
+                          z: 35.3,
+                          name: 'US',
+                          country: 'United States'
+                        },
+                        {
+                          x: 65.4,
+                          y: 50.8,
+                          z: 28.5,
+                          name: 'HU',
+                          country: 'Hungary'
+                        },
+                        {
+                          x: 63.4,
+                          y: 51.8,
+                          z: 15.4,
+                          name: 'PT',
+                          country: 'Portugal'
+                        },
+                        {
+                          x: 64,
+                          y: 82.9,
+                          z: 31.3,
+                          name: 'NZ',
+                          country: 'New Zealand'
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'bubble',
+                  animation: false,
+                  plotBorderWidth: 1,
+                  zooming: {
+                    type: 'xy'
+                  },
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title || 'Sugar and fat intake per country',
+                  align: chart_Title_align || 'center'
+                },
+
+                accessibility: {
+                  point: {
+                    valueDescriptionFormat:
+                      '{index}. {point.name}, fat: {point.x}g, sugar: {point.y}g, obesity: {point.z}%.'
+                  }
+                },
+                xAxis: {
+                  gridLineWidth: 1,
+                  title: { text: 'Daily fat intake' },
+                  labels: { format: '{value} gr' },
+                  plotLines: [
+                    {
+                      dashStyle: 'dot',
+                      width: 2,
+                      value: 65,
+                      label: {
+                        rotation: 0,
+                        y: 15,
+                        style: { fontStyle: 'italic' },
+                        text: 'Safe fat intake 65g/day'
+                      },
+                      zIndex: 3
+                    }
+                  ],
+                  accessibility: {
+                    rangeDescription: 'Range: 60 to 100 grams.'
+                  }
+                },
+                yAxis: {
+                  startOnTick: false,
+                  endOnTick: false,
+                  title: { text: 'Daily sugar intake' },
+                  labels: { format: '{value} gr' },
+                  maxPadding: 0.2,
+                  plotLines: [
+                    {
+                      dashStyle: 'dot',
+                      width: 2,
+                      value: 50,
+                      label: {
+                        align: 'right',
+                        style: { fontStyle: 'italic' },
+                        text: 'Safe sugar intake 50g/day',
+                        x: -10
+                      },
+                      zIndex: 3
+                    }
+                  ],
+                  accessibility: {
+                    rangeDescription: 'Range: 0 to 160 grams.'
+                  }
+                },
+                legend: {
+                  enabled: false
+                },
+                tooltip: {
+                  useHTML: true,
+                  headerFormat: '<table>',
+                  pointFormat:
+                    '<tr><th colspan="2"><h3>{point.country}</h3></th></tr>' +
+                    '<tr><th>Fat intake:</th><td>{point.x}g</td></tr>' +
+                    '<tr><th>Sugar intake:</th><td>{point.y}g</td></tr>' +
+                    '<tr><th>Obesity (adults):</th><td>{point.z}%</td></tr>',
+                  footerFormat: '</table>',
+                  followPointer: true
+                },
+                plotOptions: {
+                  series: {
+                    dataLabels: {
+                      enabled: true,
+                      format: '{point.name}'
+                    }
+                  },
+                  colors: customColors
+                },
+                series: seriesData.series,
+                credits: { enabled: false }
+              }
+            }
+
+            if (chartType === 'spiderweb') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Allocated Budget',
+                      data: [43000, 19000, 60000, 35000, 17000, 10000],
+                      pointPlacement: 'on'
+                    },
+                    {
+                      name: 'Actual Spending',
+                      data: [50000, 39000, 42000, 31000, 26000, 14000],
+                      pointPlacement: 'on'
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  polar: true,
+                  type: 'line',
+                  animation: false
+                },
+                title: {
+                  text: chart_Title || 'Budget vs spending',
+                  x: -80,
+                  align: chart_Title_align || 'center'
+                },
+
+                accessibility: {
+                  description:
+                    'A spiderweb chart compares the allocated budget against actual spending. Each spoke represents a department. The chart shows departments like Marketing and IT overspending the most.'
+                },
+                pane: {
+                  size: '80%'
+                },
+                xAxis: {
+                  categories: [
+                    'Sales',
+                    'Marketing',
+                    'Development',
+                    'Customer Support',
+                    'Information Technology',
+                    'Administration'
+                  ],
+                  tickmarkPlacement: 'on',
+                  lineWidth: 0
+                },
+                yAxis: {
+                  gridLineInterpolation: 'polygon',
+                  lineWidth: 0,
+                  min: 0
+                },
+                tooltip: {
+                  shared: true,
+                  pointFormat:
+                    '<span style="color:{series.color}">{series.name}: <b>${point.y:,.0f}</b><br/>'
+                },
+                legend: {
+                  layout: chart_layout || 'vertical',
+                  align: 'right',
+                  [chartAlign || 'verticalAlign']: 'middle'
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        title: {
+                          x: 0
+                        },
+                        legend: {
+                          align: 'center',
+                          verticalAlign: 'bottom',
+                          layout: 'horizontal'
+                        },
+                        pane: {
+                          size: '70%'
+                        }
+                      }
+                    }
+                  ]
+                },
+                series: seriesData.series,
+                credits: { enabled: false }
+              }
+            }
+
+            if (chartType === 'candlestick') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: 'candlestick',
+                      name: 'AAPL',
+                      data: [
+                        [Date.UTC(2024, 4, 1), 140.0, 145.0, 138.0, 143.0],
+                        [Date.UTC(2024, 4, 2), 143.0, 147.0, 141.0, 146.5],
+                        [Date.UTC(2024, 4, 3), 146.5, 150.0, 145.0, 148.0],
+                        [Date.UTC(2024, 4, 4), 148.0, 149.0, 144.0, 145.0],
+                        [Date.UTC(2024, 4, 5), 145.0, 146.0, 140.0, 142.0]
+                      ]
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'candlestick',
+                  animation: false
+                },
+                title: {
+                  text: chart_Title || 'AAPL Stock Price (Demo)',
+                  align: chart_Title_align || 'center'
+                },
+                xAxis: {
+                  type: 'datetime'
+                },
+                yAxis: {
+                  title: {
+                    text: 'Stock Price'
+                  }
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2
+                },
+                plotOptions: {
+                  series: {
+                    color: customColors ? customColors[0] : '#d32f2f',
+                    upColor: customColors ? customColors[1] : '#388e3c'
+                  }
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        xAxis: {
+                          labels: {
+                            rotation: -45
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            if (chartType === 'candlestick-live') {
+              const symbol = 'btcusdt'
+              const interval = '1m'
+
+              seriesData = {
+                series: [
+                  {
+                    type: 'candlestick',
+                    name: 'BTC/USDT',
+                    id: 'live-series',
+                    data: []
+                  }
+                ]
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'candlestick',
+                  events: {
+                    load: function () {
+                      const chart = this
+                      const series = chart.get('live-series')
+
+                      fetch(
+                        `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`
+                      )
+                        .then(res => res.json())
+                        .then(data => {
+                          const ohlc = data.map(d => [
+                            d[0],
+                            parseFloat(d[1]),
+                            parseFloat(d[2]),
+                            parseFloat(d[3]),
+                            parseFloat(d[4])
+                          ])
+                          series.setData(ohlc, true, false, false)
+                        })
+
+                      const ws = new WebSocket(
+                        `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`
+                      )
+
+                      ws.onmessage = function (event) {
+                        const msg = JSON.parse(event.data)
+                        const k = msg.k
+
+                        const point = [
+                          k.t,
+                          parseFloat(k.o),
+                          parseFloat(k.h),
+                          parseFloat(k.l),
+                          parseFloat(k.c)
+                        ]
+
+                        const last = series.data[series.data.length - 1]
+                        if (last && last.x === point[0]) {
+                          last.update(
+                            {
+                              open: point[1],
+                              high: point[2],
+                              low: point[3],
+                              close: point[4]
+                            },
+                            true,
+                            false
+                          )
+                        } else {
+                          series.addPoint(point, true, series.data.length > 100)
+                        }
+                      }
+                    }
+                  }
+                },
+                title: {
+                  text: chart_Title || 'Live BTC/USDT Candlestick Chart',
+                  align: chart_Title_align || 'center'
+                },
+
+                xAxis: {
+                  type: 'datetime'
+                },
+                yAxis: {
+                  title: {
+                    text: 'Price'
+                  }
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2
+                },
+                plotOptions: {
+                  candlestick: {
+                    color: customColors ? customColors[0] : '#d32f2f',
+                    upColor: customColors ? customColors[1] : '#388e3c'
+                  }
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            if (chartType === 'ohlc') {
+              seriesData = {
+                series: [
+                  {
+                    type: 'ohlc',
+                    name: 'Demo OHLC',
+                    id: 'ohlc-static-series',
+                    data: [
+                      [Date.UTC(2023, 7, 1), 100, 110, 90, 105],
+                      [Date.UTC(2023, 7, 2), 105, 115, 95, 100],
+                      [Date.UTC(2023, 7, 3), 100, 108, 97, 107],
+                      [Date.UTC(2023, 7, 4), 107, 112, 102, 104],
+                      [Date.UTC(2023, 7, 5), 104, 118, 100, 117]
+                    ]
+                  }
+                ]
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'ohlc'
+                },
+                title: {
+                  text: chart_Title || 'Static OHLC Chart',
+                  align: chart_Title_align || 'center'
+                },
+
+                xAxis: {
+                  type: 'datetime'
+                },
+                yAxis: {
+                  title: {
+                    text: 'Price'
+                  }
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2
+                },
+                plotOptions: {
+                  ohlc: {
+                    color: customColors ? customColors[0] : '#d32f2f',
+                    upColor: customColors ? customColors[1] : '#388e3c'
+                  }
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            if (chartType === 'ohlc-live') {
+              const symbol = 'btcusdt'
+              const interval = '1m'
+
+              seriesData = {
+                series: [
+                  {
+                    type: 'ohlc',
+                    name: 'BTC/USDT',
+                    id: 'live-ohlc-series',
+                    data: []
+                  }
+                ]
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'ohlc',
+                  events: {
+                    load: function () {
+                      const chart = this
+                      const series = chart.get('live-ohlc-series')
+
+                      fetch(
+                        `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`
+                      )
+                        .then(res => res.json())
+                        .then(data => {
+                          const ohlc = data.map(d => [
+                            d[0],
+                            parseFloat(d[1]),
+                            parseFloat(d[2]),
+                            parseFloat(d[3]),
+                            parseFloat(d[4])
+                          ])
+                          series.setData(ohlc, true, false, false)
+                        })
+
+                      const ws = new WebSocket(
+                        `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`
+                      )
+
+                      ws.onmessage = function (event) {
+                        const msg = JSON.parse(event.data)
+                        const k = msg.k
+
+                        const point = [
+                          k.t,
+                          parseFloat(k.o),
+                          parseFloat(k.h),
+                          parseFloat(k.l),
+                          parseFloat(k.c)
+                        ]
+
+                        const last = series.data[series.data.length - 1]
+                        if (last && last.x === point[0]) {
+                          last.update(
+                            {
+                              open: point[1],
+                              high: point[2],
+                              low: point[3],
+                              close: point[4]
+                            },
+                            true,
+                            false
+                          )
+                        } else {
+                          series.addPoint(point, true, series.data.length > 100)
+                        }
+                      }
+                    }
+                  }
+                },
+                title: {
+                  text: chart_Title || 'Live BTC/USDT OHLC Chart',
+                  align: chart_Title_align || 'center'
+                },
+
+                xAxis: {
+                  type: 'datetime'
+                },
+                yAxis: {
+                  title: {
+                    text: 'Price'
+                  }
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2
+                },
+                plotOptions: {
+                  ohlc: {
+                    color: customColors ? customColors[0] : '#d32f2f',
+                    upColor: customColors ? customColors[1] : '#388e3c'
+                  }
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            if (chartType === 'line-column') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Precipitation',
+                      type: 'column',
+                      yAxis: 1,
+                      data: [
+                        45.7, 37.0, 28.9, 17.1, 39.2, 18.9, 90.2, 78.5, 74.6,
+                        18.7, 17.1, 16.0
+                      ],
+                      tooltip: {
+                        valueSuffix: ' mm'
+                      }
+                    },
+                    {
+                      name: 'Temperature',
+                      type: 'spline',
+                      data: [
+                        -11.4, -9.5, -14.2, 0.2, 7.0, 12.1, 13.5, 13.6, 8.2,
+                        -2.8, -12.0, -15.5
+                      ],
+                      tooltip: {
+                        valueSuffix: '°C'
+                      }
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  zooming: { type: 'xy' },
+                  animation: false,
+                  inverted: swapAxis
+                },
+                title: {
+                  text: chart_Title || 'Karasjok weather, 2023',
+                  align: chart_Title_align || 'left'
+                },
+
+                xAxis: [
+                  {
+                    categories: [
+                      'Jan',
+                      'Feb',
+                      'Mar',
+                      'Apr',
+                      'May',
+                      'Jun',
+                      'Jul',
+                      'Aug',
+                      'Sep',
+                      'Oct',
+                      'Nov',
+                      'Dec'
+                    ],
+                    crosshair: true
+                  }
+                ],
+                yAxis: [
+                  {
+                    labels: {
+                      format: '{value}°C'
+                    },
+                    title: {
+                      text: 'Temperature'
+                    },
+                    lineColor: Highcharts.getOptions().colors[1],
+                    lineWidth: 2
+                  },
+                  {
+                    title: {
+                      text: 'Precipitation'
+                    },
+                    labels: {
+                      format: '{value} mm'
+                    },
+                    lineColor: Highcharts.getOptions().colors[0],
+                    lineWidth: 2,
+                    opposite: true
+                  }
+                ],
+                tooltip: {
+                  shared: true
+                },
+                legend: {
+                  align: chart_layout || 'left',
+                  [chartAlign || 'verticalAlign']: 'top'
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout || 'horizontal',
+                          align: 'center',
+                          verticalAlign: 'bottom'
+                        }
+                      }
+                    }
+                  ]
+                },
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            if (chartType === 'donut-3d') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: 'Medals',
+                      data: [
+                        ['Norway', 16],
+                        ['Germany', 12],
+                        ['USA', 8],
+                        ['Sweden', 8],
+                        ['Netherlands', 8],
+                        ['ROC', 6],
+                        ['Austria', 7],
+                        ['Canada', 4],
+                        ['Japan', 3]
+                      ]
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'pie',
+                  options3d: {
+                    enabled: true,
+                    alpha: 45
+                  },
+                  animation: false
+                },
+                title: {
+                  text: chart_Title || 'Beijing 2022 gold medals by country',
+                  align: chart_Title_align || 'center'
+                },
+
+                subtitle: {
+                  text: '3D donut in Highcharts'
+                },
+                plotOptions: {
+                  pie: {
+                    innerSize: 100,
+                    depth: 45,
+                    colors: customColors
+                  }
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        legend: {
+                          enabled: false
+                        }
+                      }
+                    }
+                  ]
+                },
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            if (chartType === 'pie-3d') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: 'pie',
+                      name: 'Share',
+                      data: [
+                        ['Samsung', 23],
+                        ['Apple', 18],
+                        {
+                          name: 'Xiaomi',
+                          y: 12,
+                          sliced: true,
+                          selected: true
+                        },
+                        ['Oppo*', 9],
+                        ['Vivo', 8],
+                        ['Others', 30]
+                      ]
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'pie',
+                  options3d: {
+                    enabled: true,
+                    alpha: 45,
+                    beta: 0
+                  },
+                  animation: false
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    'Global smartphone shipments market share, Q1 2022',
+                  align: chart_Title_align || 'center'
+                },
+
+                accessibility: {
+                  point: {
+                    valueSuffix: '%'
+                  }
+                },
+                tooltip: {
+                  pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    depth: 35,
+                    colors: customColors,
+                    dataLabels: {
+                      enabled: true,
+                      format: '{point.name}'
+                    }
+                  }
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        legend: {
+                          enabled: false
+                        }
+                      }
+                    }
+                  ]
+                },
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            if (chartType === 'column-3d') {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: 'column',
+                      data: [
+                        ['Toyota', 1795],
+                        ['Volkswagen', 1242],
+                        ['Volvo', 1074],
+                        ['Tesla', 832],
+                        ['Hyundai', 593],
+                        ['MG', 509],
+                        ['Skoda', 471],
+                        ['BMW', 442],
+                        ['Ford', 385],
+                        ['Nissan', 371]
+                      ],
+                      colorByPoint: true
+                    }
+                  ]
+                }
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: 'column',
+                  options3d: {
+                    enabled: true,
+                    alpha: 15,
+                    beta: 15,
+                    depth: 50,
+                    viewDistance: 25
+                  },
+                  animation: false
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    'Sold passenger cars in Norway by brand, May 2024',
+                  align: chart_Title_align || 'center'
+                },
+
+                xAxis: {
+                  type: 'category'
+                },
+                yAxis: {
+                  title: {
+                    enabled: false
+                  }
+                },
+                tooltip: {
+                  headerFormat: '<b>{point.key}</b><br>',
+                  pointFormat: 'Cars sold: {point.y}'
+                },
+                legend: {
+                  enabled: false
+                },
+                plotOptions: {
+                  column: {
+                    depth: 25,
+                    colorByPoint: !customColors
+                  },
+                  colors: customColors
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500
+                      },
+                      chartOptions: {
+                        xAxis: {
+                          labels: {
+                            rotation: -45
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                credits: {
+                  enabled: false
+                }
+              }
+            }
+
+            try {
+              if (window.Highcharts) {
+                const existingChart = window.Highcharts.charts.find(
+                  chart =>
+                    chart && chart.container && chart.container.id === ctx
+                )
+                if (existingChart) {
+                  existingChart.destroy()
+                }
+
+                const chart = window.Highcharts.chart(ctx, seriesData2)
+
+                element.chartInstance = chart
+
+                setTimeout(() => {
+                  if (chart && chart.reflow) {
+                    chart.reflow()
+                  }
+                }, 100)
+              }
+            } catch (error) {
+              console.error('Error creating Highcharts chart:', error)
+              element.innerHTML =
+                '<div style="padding: 20px; text-align: center; color: #666;">Chart could not be rendered</div>'
+            }
+          }
+
+          const loadHighcharts = () => {
+            return new Promise((resolve, reject) => {
+              if (window.Highcharts) {
+                resolve()
+                return
+              }
+
+              const script = document.createElement('script')
+              script.src = 'https://code.highcharts.com/11.4.8/highcharts.js'
+              script.onload = () => {
+                const drilldownScript = document.createElement('script')
+                drilldownScript.src =
+                  'https://code.highcharts.com/11.4.8/modules/drilldown.js'
+                drilldownScript.onload = resolve
+                drilldownScript.onerror = resolve
+                document.head.appendChild(drilldownScript)
+              }
+              script.onerror = reject
+              document.head.appendChild(script)
+            })
+          }
+
+          const init = async () => {
+            try {
+              await loadHighcharts()
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeChart)
+              } else {
+                setTimeout(initializeChart, 50)
+              }
+            } catch (error) {
+              console.error('Failed to load Highcharts:', error)
+            }
+          }
+
+          if (!this.highchartsInitialized) {
+            this.highchartsInitialized = true
+            init()
+          }
+
+          this.on('removed', () => {
+            const element = document.getElementById(this.id)
+            if (element && element.chartInstance) {
+              element.chartInstance.destroy()
+              element.chartInstance = null
+            }
+            this.highchartsInitialized = false
+          })
+
+          if (typeof window !== 'undefined') {
+            window.addEventListener('beforeprint', () => {
+              setTimeout(initializeChart, 3000)
+            })
+
+            window.addEventListener('afterprint', () => {
+              setTimeout(initializeChart, 3000)
+            })
+          }
+        }.bind(items[i])())
+      }
+    </script>
+  </body>
+</html>
