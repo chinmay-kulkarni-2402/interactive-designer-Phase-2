@@ -9,7 +9,7 @@ function subreportPlugin(editor) {
         tagName: "div",
         classes: ["subreport-block"],
         attributes: { class: "subreport-container" },
-        droppable: true, 
+        droppable: true,
         draggable: true,
         resizable: true,
         copyable: true,
@@ -20,35 +20,30 @@ function subreportPlugin(editor) {
           'display': 'block',
           'width': '100%'
         },
-traits: [
-  {
-    type: 'select',
-    name: 'filterColumn',
-    label: 'Select Column',
-    options: [{ value: '', label: 'None' }]
-  },
-  {
-    type: 'text',
-    name: 'filterValue',
-    label: 'Filter Value'
-  },
-  {
-    type: 'checkbox',
-    name: 'showData',
-    label: 'Show Data'
-  },
-  {
-    type: 'checkbox',
-    name: 'mergeHeaderFooter',
-    label: 'Merge Header/Footer'
-  },
+        traits: [
+          {
+            type: 'select',
+            name: 'filterColumn',
+            label: 'Select Column',
+            options: [{ value: '', label: 'None' }]
+          },
+          {
+            type: 'text',
+            name: 'filterValue',
+            label: 'Filter Value'
+          },
+          {
+            type: 'checkbox',
+            name: 'mergeHeaderFooter',
+            label: 'Merge Header/Footer'
+          },
   {
     type: 'checkbox',
     name: 'sharePageNumber',
     label: 'Share Page Number',
     default: true  // ✅ Default checked
   }
-]
+        ]
       },
 
       init() {
@@ -70,18 +65,19 @@ traits: [
           console.warn("⚠️ Couldn't set merge trait visibility in init():", e);
         }
 
-this.on("change:attributes:showData", this.onShowDataToggle);
-      this.on("change:attributes:filePath", this.onPathChange);
-      this.on("change:attributes:mergeHeaderFooter", this.onMergeHeaderToggle);
-      this.on("change:attributes:filterColumn", this.onFilterChange);
-      this.on("change:attributes:filterValue", this.onFilterChange);
-      this.silentUpdate = false;
+        this.on("change:attributes:filePath", this.onPathChange);
+        this.on("change:attributes:mergeHeaderFooter", this.onMergeHeaderToggle);
+        this.on("change:attributes:filterColumn", this.onFilterChange);
+        this.on("change:attributes:filterValue", this.onFilterChange);
+        this.silentUpdate = false;
 
         // Add initial placeholder component if empty
         if (this.components().length === 0) {
           this.components().add({
             type: 'div',
             content: '📄 Double-click to choose subreport',
+            selectable: false,
+            hoverable: false,
             style: {
               color: '#999',
               padding: '15px',
@@ -100,14 +96,11 @@ this.on("change:attributes:showData", this.onShowDataToggle);
       },
 
       onFilterChange() {
-      const showData = this.getAttributes().showData;
-      if (showData === true || showData === "true") {
-        const view = this.view;
-        if (view && typeof view.renderSubreportAsComponents === "function") {
-          view.renderSubreportAsComponents();
+        const showData = this.getAttributes().showData;
+        if (showData === true || showData === "true") {
+          const view = this.view;
         }
-      }
-    },
+      },
 
       onPathChange() {
         const newPath = this.getAttributes().filePath;
@@ -125,15 +118,6 @@ this.on("change:attributes:showData", this.onShowDataToggle);
         }
       },
 
-      onShowDataToggle() {
-        const showData = this.getAttributes().showData;
-        const view = this.view;
-        console.log("🧩 Show Data changed to:", showData);
-        if (view && typeof view.toggleSubreportDisplay === "function") {
-          view.toggleSubreportDisplay(showData);
-        }
-      },
-
       onMergeHeaderToggle() {
         const merge = this.getAttributes().mergeHeaderFooter;
         console.log("🧩 Merge Header/Footer changed to:", merge);
@@ -145,7 +129,7 @@ this.on("change:attributes:showData", this.onShowDataToggle);
     },
 
     view: {
-      events: { 
+      events: {
         dblclick: "onDoubleClick"
       },
 
@@ -161,19 +145,14 @@ this.on("change:attributes:showData", this.onShowDataToggle);
         this.listenTo(this.model, 'change:attributes:showData', this.handleShowDataChange);
       },
 
-      handleShowDataChange() {
-        const showData = this.model.getAttributes().showData;
-        this.toggleSubreportDisplay(showData === true || showData === "true");
-      },
-
       async onDoubleClick() {
-          const showData = this.model.getAttributes().showData;
-  if (showData === true || showData === "true") {
-    console.log("🚫 Subreport data is shown - double-click disabled");
-    e.stopPropagation();
-    e.preventDefault();
-    return;
-  }
+        const showData = this.model.getAttributes().showData;
+        if (showData === true || showData === "true") {
+          console.log("🚫 Subreport data is shown - double-click disabled");
+          e.stopPropagation();
+          e.preventDefault();
+          return;
+        }
         console.log("🖱️ Double-click detected on subreport component");
         const model = this.model;
         const attrs = model.getAttributes();
@@ -258,46 +237,46 @@ this.on("change:attributes:showData", this.onShowDataToggle);
             });
 
             document.querySelectorAll(".add-subreport-btn").forEach(btn => {
-              btn.addEventListener("click", async (e) => {
-                const name = e.target.dataset.name;
-                const templateId = e.target.dataset.id;
+// Around line 130 in subreportPlugin
+btn.addEventListener("click", async (e) => {
+    const name = e.target.dataset.name;
+    const templateId = e.target.dataset.id;
 
-                if (currentFile && currentFile === templateId) {
-                  alert(`"${name}" is already added.`);
-                  return;
-                }
+    if (currentFile && currentFile === templateId) {
+        alert(`"${name}" is already added.`);
+        return;
+    }
 
-                if (currentFile && currentFile !== templateId) {
-                  const proceed = confirm(`"${name}" is already added. Replace it with "${name}"?`);
-                  if (!proceed) return;
-                }
+    if (currentFile && currentFile !== templateId) {
+        const proceed = confirm(`Template already added. Replace it with "${name}"?`);
+        if (!proceed) return;
+    }
 
-                modal.close();
-                console.log("📡 Fetching selected template:", name, templateId);
+    modal.close();
+    console.log("📡 Fetching selected template:", name, templateId);
 
-                try {
-                  const templateRes = await fetch(`${apiUrl}/${templateId}`, { cache: "no-store" });
-                  if (!templateRes.ok) throw new Error(`HTTP ${templateRes.status}`);
-                  const templateData = await templateRes.json();
-                  const htmlContent = templateData.EditableHtml;
-                  if (!htmlContent) throw new Error("No EditableHtml found");
+    try {
+        const templateRes = await fetch(`${apiUrl}/${templateId}`, { cache: "no-store" });
+        if (!templateRes.ok) throw new Error(`HTTP ${templateRes.status}`);
+        const templateData = await templateRes.json();
+        const htmlContent = templateData.EditableHtml;
+        if (!htmlContent) throw new Error("No EditableHtml found");
 
-                  await this.loadSubreportFromHTML(htmlContent, name);
+        await this.loadSubreportFromHTML(htmlContent, name);
 
-                  model.silentUpdate = true;
-                  model.addAttributes({
-                    filePath: templateId,
-                    templateName: name,
-                    showData: false,
-                  });
+        model.silentUpdate = true;
+        model.addAttributes({
+            filePath: templateId,
+            templateName: name,
+            showData: false,
+            sharePageNumber: true  // ✅ ADD: Set default value
+        });
 
-
-
-                } catch (err) {
-                  console.error("❌ Failed to fetch subreport template:", err);
-                  alert(`Failed to fetch template: ${err.message}`);
-                }
-              });
+    } catch (err) {
+        console.error("❌ Failed to fetch subreport template:", err);
+        alert(`Failed to fetch template: ${err.message}`);
+    }
+});
             });
           };
 
@@ -309,139 +288,109 @@ this.on("change:attributes:showData", this.onShowDataToggle);
         }
       },
 
-async loadSubreportFromHTML(htmlContent, name = "") {
-      try {
-        const { innerContent, styles, hasHeaderOrFooter } = this.extractSubreportHTML(htmlContent);
-
-        // Extract column headers from tables
-        const columns = this.extractTableColumns(innerContent);
-        this.updateFilterColumnOptions(columns);
-
-        // Update merge trait visibility
+      async loadSubreportFromHTML(htmlContent, name = "") {
         try {
-          const traits = this.model.get("traits");
-          if (traits && typeof traits.find === "function") {
-            const mt = traits.find(t => {
-              try { return t.get("name") === "mergeHeaderFooter"; } catch (e) { return false; }
-            });
-            if (mt) {
-              mt.set("visible", !!hasHeaderOrFooter);
-              console.log(`🔎 Merge trait visibility set to ${!!hasHeaderOrFooter}`);
+          const { innerContent, styles, hasHeaderOrFooter } = this.extractSubreportHTML(htmlContent);
+
+          // Extract column headers from tables
+          const columns = this.extractTableColumns(innerContent);
+          this.updateFilterColumnOptions(columns);
+
+          // Update merge trait visibility
+          try {
+            const traits = this.model.get("traits");
+            if (traits && typeof traits.find === "function") {
+              const mt = traits.find(t => {
+                try { return t.get("name") === "mergeHeaderFooter"; } catch (e) { return false; }
+              });
+              if (mt) {
+                mt.set("visible", !!hasHeaderOrFooter);
+                console.log(`🔎 Merge trait visibility set to ${!!hasHeaderOrFooter}`);
+              }
             }
+          } catch (e) {
+            console.warn("⚠️ Couldn't update merge trait visibility:", e);
           }
-        } catch (e) {
-          console.warn("⚠️ Couldn't update merge trait visibility:", e);
+
+          this.cachedSubreport = { innerContent, styles, templateName: name, hasHeaderOrFooter };
+          this.injectStylesToCanvas(styles);
+
+          // Show placeholder message
+          this.showPlaceholder(name);
+
+          console.log("✅ Subreport HTML loaded successfully:", name);
+        } catch (err) {
+          console.error("❌ Error processing HTML:", err);
+          this.showErrorPlaceholder(err.message);
         }
+      },
 
-        this.cachedSubreport = { innerContent, styles, templateName: name, hasHeaderOrFooter };
-        this.injectStylesToCanvas(styles);
-        
-        // Show placeholder message
-        this.showPlaceholder(name);
-        
-        console.log("✅ Subreport HTML loaded successfully:", name);
-      } catch (err) {
-        console.error("❌ Error processing HTML:", err);
-        this.showErrorPlaceholder(err.message);
-      }
-    },
+      extractTableColumns(htmlText) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
+        const tables = doc.querySelectorAll('table');
+        const allHeaders = new Set();
 
-    extractTableColumns(htmlText) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, "text/html");
-      const tables = doc.querySelectorAll('table');
-      const allHeaders = new Set();
-
-      tables.forEach(table => {
-        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-        headers.forEach(header => {
-          if (header) allHeaders.add(header);
+        tables.forEach(table => {
+          const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+          headers.forEach(header => {
+            if (header) allHeaders.add(header);
+          });
         });
-      });
 
-      return Array.from(allHeaders);
-    },
+        return Array.from(allHeaders);
+      },
 
 
-    updateFilterColumnOptions(columns) {
-      const options = [{ value: '', label: 'None' }];
-      columns.forEach(col => {
-        options.push({ value: col, label: col });
-      });
+      updateFilterColumnOptions(columns) {
+        const options = [{ value: '', label: 'None' }];
+        columns.forEach(col => {
+          options.push({ value: col, label: col });
+        });
 
-      const traits = this.model.get("traits");
-      const filterTrait = traits.find(t => t.get("name") === "filterColumn");
-      if (filterTrait) {
-        filterTrait.set("options", options);
-      }
-    },
-
-    renderSubreportAsComponents() {
-      console.log("🎨 Rendering subreport as GrapeJS components...");
-      
-      const attrs = this.model.getAttributes();
-      const merge = attrs.mergeHeaderFooter !== false && attrs.mergeHeaderFooter !== "false";
-      const filterColumn = attrs.filterColumn;
-      const filterValue = attrs.filterValue?.toLowerCase() || '';
-      const hasFilter = filterColumn && filterValue;
-      
-      // Clear existing content
-      this.model.components().reset();
-
-      // Process HTML content
-      let processed = this.getProcessedInnerContent(this.cachedSubreport.innerContent);
-      
-      if (hasFilter) {
-        processed = this.applyTableFilter(processed, filterColumn, filterValue);
-      }
-      
-      // Parse HTML and convert to components
-      const parser = new DOMParser();
-      const tempDoc = parser.parseFromString(processed, "text/html");
-      const body = tempDoc.body;
-
-      // Handle merge logic
-      if (merge && this.cachedSubreport.hasHeaderOrFooter) {
-        this.handleMergeMode(body);
-      } else {
-        this.handleNormalMode(body, merge);
-      }
-    },
-
-    applyTableFilter(htmlText, columnName, filterValue) {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, "text/html");
-      const table = doc.querySelector('.json-table-container table, .table');
-      if (!table) return htmlText;
-
-      const headerRow = table.querySelector('thead tr');
-      if (!headerRow) return htmlText;
-
-      const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
-      const columnIndex = headers.indexOf(columnName);
-      if (columnIndex === -1) return htmlText;
-
-      const rows = Array.from(table.querySelectorAll('tbody tr'));
-      rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('td'));
-        if (cells[columnIndex]?.textContent.toLowerCase().includes(filterValue)) {
-          // Keep row
-        } else {
-          row.remove();
+        const traits = this.model.get("traits");
+        const filterTrait = traits.find(t => t.get("name") === "filterColumn");
+        if (filterTrait) {
+          filterTrait.set("options", options);
         }
-      });
+      },
 
-      return doc.body.innerHTML; // Return filtered HTML
-    },
+      applyTableFilter(htmlText, columnName, filterValue) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
+        const table = doc.querySelector('.json-table-container table, .table');
+        if (!table) return htmlText;
+
+        const headerRow = table.querySelector('thead tr');
+        if (!headerRow) return htmlText;
+
+        const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+        const columnIndex = headers.indexOf(columnName);
+        if (columnIndex === -1) return htmlText;
+
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        rows.forEach(row => {
+          const cells = Array.from(row.querySelectorAll('td'));
+          if (cells[columnIndex]?.textContent.toLowerCase().includes(filterValue)) {
+            // Keep row
+          } else {
+            row.remove();
+          }
+        });
+
+        return doc.body.innerHTML; // Return filtered HTML
+      },
 
       showPlaceholder(templateName) {
         // Clear any existing components first
         this.model.components().reset();
-        
+
         // Add a simple text placeholder
         this.model.components().add({
           type: 'div',
           content: `📄 Subreport loaded: ${templateName || 'Unknown'}<br><small style="color:#888;">Toggle "Show Data" to render content</small>`,
+          selectable: false,
+          hoverable: false,
           style: {
             color: '#666',
             padding: '15px',
@@ -461,6 +410,8 @@ async loadSubreportFromHTML(htmlContent, name = "") {
         this.model.components().add({
           type: 'div',
           content: '📄 Double-click to choose subreport',
+          selectable: false,
+          hoverable: false,
           style: {
             color: '#999',
             padding: '15px',
@@ -486,6 +437,8 @@ async loadSubreportFromHTML(htmlContent, name = "") {
         this.model.components().add({
           type: 'div',
           content: `⚠️ Failed to load: ${message}`,
+          selectable: false,
+          hoverable: false,
           style: {
             color: 'red',
             padding: '10px'
@@ -497,90 +450,10 @@ async loadSubreportFromHTML(htmlContent, name = "") {
         this.model.components().reset();
       },
 
-// Around line 150 in subreportPlugin.js
-toggleSubreportDisplay(showData) {
-  console.log("🔄 Toggle subreport display:", showData);
-  
-  if (!showData) {
-    // Hide: show placeholder
-    const attrs = this.model.getAttributes();
-    const templateName = attrs.templateName || attrs.filePath || "Unknown";
-    this.showPlaceholder(templateName);
-    return;
-  }
-
-  // Show: render components
-  if (!this.cachedSubreport) {
-    console.warn("⚠️ No cached subreport to display");
-    return;
-  }
-
-  this.renderSubreportAsComponents();
-  
-  // ✅ Make all subreport content non-editable
-  setTimeout(() => {
-    this.makeSubreportContentNonEditable();
-  }, 100);
-},
-
-// ✅ ADD this new method right after toggleSubreportDisplay
-makeSubreportContentNonEditable() {
-  console.log("🔒 Making subreport content non-editable");
-  
-  const allChildren = this.model.components();
-  
-  const makeNonEditable = (component) => {
-    component.set({
-      editable: false,
-      selectable: false,
-      hoverable: false,
-      clickable: false,
-      draggable: false,
-      droppable: false,
-      copyable: false,
-      removable: false
-    });
-    
-    // Apply pointer-events: none to DOM element
-    const el = component.getEl();
-    if (el) {
-      el.style.pointerEvents = 'none';
-      el.style.userSelect = 'none';
-    }
-    
-    // Recursively apply to children
-    const children = component.components();
-    if (children && children.length > 0) {
-      children.forEach(child => makeNonEditable(child));
-    }
-  };
-  
-  allChildren.forEach(child => makeNonEditable(child));
-  
-  // Keep the subreport container itself selectable for repositioning
-  this.model.set({
-    editable: false,
-    selectable: true,
-    hoverable: true,
-    draggable: true,
-    droppable: false,
-    clickable: true 
-  });
-},
-
-      toggleMergeHeaderFooter(merge) {
-        console.log("🔄 Merge header/footer toggled:", merge);
-        // Re-render if data is shown
-        const showData = this.model.getAttributes().showData;
-        if (showData === true || showData === "true") {
-          this.renderSubreportAsComponents();
-        }
-      },
-
       handleNormalMode(bodyElement, merge) {
         // If merge is false, extract only main-content-area
         let contentRoot = bodyElement;
-        
+
         if (!merge) {
           const mainContent = bodyElement.querySelector(".main-content-area");
           if (mainContent) {
@@ -595,7 +468,7 @@ makeSubreportContentNonEditable() {
 
       handleMergeMode(bodyElement) {
         console.log("🔀 Merge mode: Checking if page is fresh...");
-        
+
         const frameDoc = editor.Canvas.getFrameEl()?.contentDocument;
         if (!frameDoc) {
           console.warn("⚠️ No frame document found");
@@ -646,23 +519,23 @@ makeSubreportContentNonEditable() {
             const clone = section.cloneNode(true);
             const subInClone = clone.querySelector(".subreport-block");
             if (subInClone) subInClone.remove();
-            
+
             const childCount = clone.children.length;
             const hasContent = clone.textContent.trim().length > 0;
-            
+
             if (childCount > 0 || hasContent) {
               console.log(`❌ Page not fresh: ${selector} has content`);
               return false;
             }
           }
         }
-        
+
         return true;
       },
 
       performPageMerge(subreportBody, pageContainer) {
         console.log("🔀 Performing page-level merge...");
-        
+
         // Find target sections in main page
         const headerTarget = pageContainer.querySelector(".page-header-element");
         const contentTarget = pageContainer.querySelector(".main-content-area");
@@ -675,7 +548,7 @@ makeSubreportContentNonEditable() {
 
         // Find GrapeJS components for targets
         const pageModel = this.findPageModel(pageContainer);
-        
+
         if (!pageModel) {
           console.warn("⚠️ Could not find page model");
           return;
@@ -721,51 +594,51 @@ makeSubreportContentNonEditable() {
 
       findComponentByEl(parent, targetEl) {
         if (parent.getEl() === targetEl) return parent;
-        
+
         const children = parent.components();
         for (let i = 0; i < children.length; i++) {
           const found = this.findComponentByEl(children.at(i), targetEl);
           if (found) return found;
         }
-        
+
         return null;
       },
 
-// Around line 450 in subreportPlugin.js - UPDATE this method:
-convertHTMLToComponents(htmlElement, parentModel, insertIndex = -1) {
-  const children = Array.from(htmlElement.children);
-  
-  children.forEach((child, idx) => {
-    const componentDef = this.htmlElementToComponent(child);
-    if (componentDef) {
-      // ✅ Mark ALL components from subreport
-      componentDef.attributes = componentDef.attributes || {};
-      componentDef.attributes['data-subreport-content'] = 'true';
-      componentDef.attributes['data-subreport-source'] = this.model.getId();
-      
-      // ✅ Make components droppable and moveable
-      componentDef.droppable = false;
-      componentDef.draggable = false;
-      componentDef.copyable = false;
-      componentDef.removable = false;
-      
-      if (insertIndex >= 0) {
-        parentModel.components().add(componentDef, { at: insertIndex + idx });
-      } else {
-        parentModel.components().add(componentDef);
-      }
-      
-      console.log(`✅ Added subreport child component: ${componentDef.tagName || 'unknown'}`);
-    }
-  });
-},
+      // Around line 450 in subreportPlugin.js - UPDATE this method:
+      convertHTMLToComponents(htmlElement, parentModel, insertIndex = -1) {
+        const children = Array.from(htmlElement.children);
+
+        children.forEach((child, idx) => {
+          const componentDef = this.htmlElementToComponent(child);
+          if (componentDef) {
+            // ✅ Mark ALL components from subreport
+            componentDef.attributes = componentDef.attributes || {};
+            componentDef.attributes['data-subreport-content'] = 'true';
+            componentDef.attributes['data-subreport-source'] = this.model.getId();
+
+            // ✅ Make components droppable and moveable
+            componentDef.droppable = false;
+            componentDef.draggable = false;
+            componentDef.copyable = false;
+            componentDef.removable = false;
+
+            if (insertIndex >= 0) {
+              parentModel.components().add(componentDef, { at: insertIndex + idx });
+            } else {
+              parentModel.components().add(componentDef);
+            }
+
+            console.log(`✅ Added subreport child component: ${componentDef.tagName || 'unknown'}`);
+          }
+        });
+      },
 
       htmlElementToComponent(element) {
         // Convert HTML element to GrapeJS component definition
         const tagName = element.tagName.toLowerCase();
         const classes = Array.from(element.classList);
         const attributes = {};
-        
+
         // Copy attributes
         Array.from(element.attributes).forEach(attr => {
           if (attr.name !== 'class' && attr.name !== 'style') {
@@ -807,7 +680,7 @@ convertHTMLToComponents(htmlElement, parentModel, insertIndex = -1) {
 
         // Recursively convert children if not a text element
         if (element.children.length > 0 && !['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'].includes(tagName)) {
-          componentDef.components = Array.from(element.children).map(child => 
+          componentDef.components = Array.from(element.children).map(child =>
             this.htmlElementToComponent(child)
           ).filter(Boolean);
         } else if (!componentDef.content && element.textContent.trim()) {
@@ -820,7 +693,7 @@ convertHTMLToComponents(htmlElement, parentModel, insertIndex = -1) {
       extractSubreportHTML(htmlText) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, "text/html");
-console.log("doc", doc)
+        console.log("doc", doc)
         const styles = [];
         doc.querySelectorAll("style, link[rel='stylesheet']").forEach(tag => {
           styles.push(tag.outerHTML);
@@ -839,12 +712,12 @@ console.log("doc", doc)
         const frameDoc = editor.Canvas.getFrameEl()?.contentDocument;
         if (!frameDoc) return console.warn("⚠️ Frame document not found");
         const head = frameDoc.querySelector("head");
-        
+
         stylesArray.forEach((styleHtml, idx) => {
           const tempDiv = document.createElement("div");
           tempDiv.innerHTML = styleHtml;
           const styleNode = tempDiv.firstElementChild;
-          
+
           if (styleNode) {
             if (styleNode.tagName === "STYLE") {
               const cssText = styleNode.textContent;

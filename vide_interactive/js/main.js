@@ -127,10 +127,10 @@ window.editor = InteractiveDesigner.init({
   },
 });
 
-window.addEventListener("beforeunload", (event) => {
-  console.warn("⚠️ PAGE RELOAD TRIGGERED! Source unknown.");
-  debugger; // stops execution so you can inspect the call stack
-});
+// window.addEventListener("beforeunload", (event) => {
+//   console.warn("⚠️ PAGE RELOAD TRIGGERED! Source unknown.");
+//   debugger; // stops execution so you can inspect the call stack
+// });
 
 
 // window.addEventListener("load", () => {
@@ -2734,7 +2734,7 @@ async function generatePrintDialog() {
     #pdf-preview-iframe {
       flex: 1;
       border: none;
-      background: #525659;
+     background: #ffffff;
     }
     #pdf-preview-footer {
       padding: 15px 20px;
@@ -2796,7 +2796,7 @@ async function generatePrintDialog() {
       <div id="pdf-preview-header">
         <div>
           <h3 style="margin: 0;">PDF Preview</h3>
-          <small style="color: #666;">Total Pages: ${totalPages}</small>
+          <small id="pdf-total-pages" style="color: #666;">Total Pages: ${totalPages}</small>
         </div>
         <div id="pdf-preview-controls">
           <label>
@@ -2824,6 +2824,34 @@ async function generatePrintDialog() {
     </div>
   `;
   document.body.appendChild(modal);
+// ✅ ADD: Listen for page count updates from iframe
+  let pageCountListener = function(event) {
+    if (event.data && event.data.type === 'pageCountUpdate') {
+      const totalPages = event.data.totalPages;
+      console.log("📊 [PREVIEW] Received page count update: " + totalPages);
+      
+      // Update the modal title
+      const modal = document.getElementById('pdf-preview-modal');
+            console.log("📊 modallllll" + modal);
+      if (modal) {
+        const titleElement = document.getElementById('pdf-total-pages');
+              console.log("📊 h3 smalllll " + titleElement);
+        if (titleElement) {
+          titleElement.textContent = 'Total Pages: ' + totalPages;
+          console.log("modal updated with latest page count", titleElement.textContent,"rfgefe", totalPages)
+        }
+      }
+    }
+  };
+
+  window.addEventListener('message', pageCountListener);
+
+  // Clean up listener when modal closes
+  const originalRemove = modal.remove;
+  modal.remove = function() {
+    window.removeEventListener('message', pageCountListener);
+    originalRemove.call(this);
+  };
 
   // Get elements
   const iframe = modal.querySelector("#pdf-preview-iframe");
@@ -2832,135 +2860,1170 @@ async function generatePrintDialog() {
   const generateBtn = modal.querySelector("#pdf-generate-btn");
   const cancelBtn = modal.querySelector("#pdf-cancel-btn");
 
-  // Function to filter pages and generate HTML
-  function getFilteredHtml(mode, customPages = "") {
-    const clone = document.createElement("div");
-    clone.innerHTML = html;
-    const containers = Array.from(clone.querySelectorAll(".page-container"));
+  // ✅ NEW: Expand subreports in filtered HTML
+async function expandSubreports(htmlString) {
+    console.log("🔍 [EXPAND] Starting subreport expansion...");
+    console.log("🔍 [EXPAND] HTML length:", htmlString.length);
 
-    let pagesToKeep = [];
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
 
-    if (mode === "all") {
-      pagesToKeep = containers.map((_, i) => i);
-    } else if (mode === "odd") {
-      pagesToKeep = containers.map((_, i) => i).filter(i => (i + 1) % 2 === 1);
-    } else if (mode === "even") {
-      pagesToKeep = containers.map((_, i) => i).filter(i => (i + 1) % 2 === 0);
-    } else if (mode === "custom") {
-      const ranges = customPages.split(",").map(s => s.trim());
-      ranges.forEach(range => {
-        if (range.includes("-")) {
-          const [start, end] = range.split("-").map(n => parseInt(n.trim()));
-          for (let i = start; i <= end; i++) {
-            if (i >= 1 && i <= totalPages) pagesToKeep.push(i - 1);
-          }
-        } else {
-          const page = parseInt(range);
-          if (page >= 1 && page <= totalPages) pagesToKeep.push(page - 1);
-        }
-      });
-      pagesToKeep = [...new Set(pagesToKeep)].sort((a, b) => a - b);
+    const subreportSelectors = [
+        '.subreport-container',
+        '[data-gjs-type="subreport"]',
+        '.subreport-block'
+    ];
+
+    const subreports = [];
+    subreportSelectors.forEach(selector => {
+        const elements = doc.querySelectorAll(selector);
+        console.log(`🔍 [EXPAND] Selector "${selector}" found ${elements.length} elements`);
+        elements.forEach(el => subreports.push(el));
+    });
+
+    console.log("🔍 [EXPAND] Total subreports found:", subreports.length);
+
+    if (subreports.length === 0) {
+        console.log("✅ [EXPAND] No subreports to expand");
+        return { html: htmlString, styles: [] };
     }
 
-    containers.forEach((container, index) => {
-      if (!pagesToKeep.includes(index)) {
-        container.remove();
+    const allSubreportStyles = [];
+
+    for (let i = 0; i < subreports.length; i++) {
+        const subreportElement = subreports[i];
+        console.log(`\n📦 [EXPAND] Processing subreport ${i + 1}/${subreports.length}`);
+
+        const getAttr = (name) => {
+            const variations = [name, name.toLowerCase(), name.replace(/([A-Z])/g, '-$1').toLowerCase()];
+            for (const variant of variations) {
+                const val = subreportElement.getAttribute(variant);
+                if (val !== null && val !== undefined && val !== '') {
+                    return val;
+                }
+            }
+            return null;
+        };
+
+        const filePath = getAttr('filePath') || getAttr('filepath');
+        console.log("✅ [EXPAND] Found filepath:", filePath);
+
+        if (!filePath) {
+            console.warn("⚠️ [EXPAND] No filePath found, skipping");
+            continue;
+        }
+
+        const filterColumn = getAttr('filterColumn') || getAttr('filtercolumn');
+        const filterValue = getAttr('filterValue') || getAttr('filtervalue');
+        const sharePageNumber = getAttr('sharePageNumber') !== 'false';
+
+        console.log("🔍 [EXPAND] Extracted attributes:", { filePath, filterColumn, filterValue, sharePageNumber });
+
+        try {
+            const apiUrl = `http://192.168.0.188:8081/api/getTemplate/${filePath}`;
+            console.log("🌐 [EXPAND] Fetching template from:", apiUrl);
+
+            const response = await fetch(apiUrl, { cache: 'no-store' });
+            console.log("🌐 [EXPAND] Response status:", response.status);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const templateData = await response.json();
+            console.log("🌐 [EXPAND] Template data received:", Object.keys(templateData));
+
+            let htmlContent = templateData.EditableHtml;
+
+            if (!htmlContent) {
+                throw new Error("No EditableHtml in template");
+            }
+
+            console.log("✅ [EXPAND] HTML content length:", htmlContent.length);
+
+            const tempDoc = parser.parseFromString(htmlContent, 'text/html');
+            const styleElements = tempDoc.querySelectorAll('style, link[rel="stylesheet"]');
+            console.log("🎨 [EXPAND] Found", styleElements.length, "style elements");
+
+            styleElements.forEach((styleEl, idx) => {
+                const styleContent = styleEl.outerHTML;
+                allSubreportStyles.push(styleContent);
+            });
+
+            const hasPageContainers = tempDoc.querySelectorAll('.page-container').length > 0;
+            console.log("📄 [EXPAND] Subreport has page-container:", hasPageContainers);
+
+            const bodyContent = tempDoc.querySelector('body');
+            let contentToInsert = bodyContent ? bodyContent.innerHTML : htmlContent;
+
+            console.log("📄 [EXPAND] Initial content length:", contentToInsert.length);
+
+            if (filterColumn && filterValue) {
+                console.log(`🔍 [EXPAND] Applying filter: ${filterColumn} contains "${filterValue}"`);
+                contentToInsert = applyTableFilter(contentToInsert, filterColumn, filterValue);
+            }
+
+            // ✅ NEW LOGIC: If subreport has page-containers, ALWAYS insert as separate pages after current page
+            if (hasPageContainers) {
+                console.log("📄 [EXPAND] Page-based subreport detected - will insert after current page");
+                
+                const subreportDoc = parser.parseFromString(contentToInsert, 'text/html');
+                const pageContainers = subreportDoc.querySelectorAll('.page-container');
+                
+                pageContainers.forEach((page, idx) => {
+                    page.setAttribute('data-subreport-page', 'true');
+                    page.setAttribute('data-subreport-id', filePath);
+                    page.setAttribute('data-share-page-number', sharePageNumber);
+                    page.setAttribute('data-subreport-page-index', idx);
+                    console.log(`📄 [EXPAND] Marked page ${idx} with subreport attributes`);
+                });
+                
+                contentToInsert = subreportDoc.body.innerHTML;
+                
+                // Find parent page container
+                let currentPage = subreportElement.closest('.page-container');
+                
+                if (currentPage) {
+                    // Replace subreport div with marker
+                    const replacementHTML = `
+                        <div class="subreport-page-marker" 
+                             data-subreport-id="${filePath}"
+                             data-share-page-number="${sharePageNumber}"
+                             style="display:none;">
+                        </div>
+                    `;
+                    subreportElement.outerHTML = replacementHTML;
+                    
+                    // Insert subreport pages after current page
+                    const tempContainer = doc.createElement('div');
+                    tempContainer.innerHTML = contentToInsert;
+                    
+                    let insertAfter = currentPage;
+                    Array.from(tempContainer.querySelectorAll('.page-container')).forEach(subPage => {
+                        insertAfter.insertAdjacentElement('afterend', subPage);
+                        insertAfter = subPage;
+                    });
+                    
+                    console.log(`✅ [EXPAND] Inserted ${pageContainers.length} subreport pages after current page`);
+                } else {
+                    console.warn("⚠️ [EXPAND] Could not find parent page container");
+                    subreportElement.outerHTML = `<div class="expanded-subreport" data-subreport-id="${filePath}">${contentToInsert}</div>`;
+                }
+            } else {
+                // Inline subreport (no page-container)
+                console.log("🔄 [EXPAND] Inline subreport - replacing content in place");
+                const replacementHTML = `<div class="expanded-subreport" data-subreport-id="${filePath}" data-share-page-number="${sharePageNumber}">${contentToInsert}</div>`;
+                subreportElement.outerHTML = replacementHTML;
+            }
+
+            console.log("✅ [EXPAND] Successfully expanded subreport", i + 1, ":", filePath);
+
+        } catch (error) {
+            console.error(`❌ [EXPAND] Failed to fetch subreport ${filePath}:`, error);
+            subreportElement.outerHTML = `<div class="subreport-error" style="color:red;padding:10px;border:1px solid red;">⚠️ Failed to load subreport: ${error.message}</div>`;
+        }
+    }
+
+    console.log("✅ [EXPAND] Expansion complete. Final HTML length:", doc.body.innerHTML.length);
+    console.log("🎨 [EXPAND] Total styles extracted:", allSubreportStyles.length);
+
+    return { html: doc.body.innerHTML, styles: allSubreportStyles };
+}
+
+// ✅ NEW: Apply pagination logic to preview HTML
+async function applyPreviewPagination(htmlString) {
+  console.log("📄 [PAGINATION] Starting preview pagination...");
+  
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlString, "text/html");
+  const pageContainers = doc.querySelectorAll('.page-container');
+  
+  if (pageContainers.length === 0) {
+    console.warn("⚠️ [PAGINATION] No page containers found");
+    return htmlString;
+  }
+  
+  // Get page dimensions from first page
+  const firstPage = pageContainers[0];
+  const pageContent = firstPage.querySelector('.page-content');
+  if (!pageContent) return htmlString;
+  
+  const pageHeight = parseInt(window.getComputedStyle(pageContent).height) || 1027;
+  
+  console.log(`📏 [PAGINATION] Page height: ${pageHeight}px`);
+  
+  const newPages = [];
+  
+  for (let pageIndex = 0; pageIndex < pageContainers.length; pageIndex++) {
+    const pageContainer = pageContainers[pageIndex];
+    const mainContent = pageContainer.querySelector('.main-content-area');
+    
+    if (!mainContent) {
+      newPages.push(pageContainer.outerHTML);
+      continue;
+    }
+    
+    const children = Array.from(mainContent.children);
+    
+    if (children.length === 0) {
+      newPages.push(pageContainer.outerHTML);
+      continue;
+    }
+    
+    // Calculate available height (accounting for header/footer)
+    const headerWrapper = pageContainer.querySelector('.header-wrapper');
+    const footerWrapper = pageContainer.querySelector('.footer-wrapper');
+    
+    const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 0;
+    const footerHeight = footerWrapper ? footerWrapper.offsetHeight : 0;
+    const availableHeight = pageHeight - headerHeight - footerHeight - 40; // 40px buffer
+    
+    console.log(`📐 [PAGINATION] Page ${pageIndex}: available height = ${availableHeight}px`);
+    
+    // Check if content overflows
+    const contentHeight = mainContent.scrollHeight;
+    
+    if (contentHeight <= availableHeight) {
+      // No overflow, keep as is
+      newPages.push(pageContainer.outerHTML);
+      console.log(`✅ [PAGINATION] Page ${pageIndex}: no overflow (${contentHeight}px <= ${availableHeight}px)`);
+      continue;
+    }
+    
+    console.log(`⚠️ [PAGINATION] Page ${pageIndex}: overflow detected (${contentHeight}px > ${availableHeight}px)`);
+    
+    // Split content across multiple pages
+    const splitPages = splitContentIntoPages(
+      pageContainer,
+      children,
+      availableHeight,
+      headerWrapper,
+      footerWrapper
+    );
+    
+    newPages.push(...splitPages);
+    console.log(`✂️ [PAGINATION] Split page ${pageIndex} into ${splitPages.length} pages`);
+  }
+  
+  // Reconstruct HTML with new pages
+  const body = doc.body;
+  body.innerHTML = '';
+  newPages.forEach(pageHtml => {
+    body.insertAdjacentHTML('beforeend', pageHtml);
+  });
+  
+  console.log(`✅ [PAGINATION] Pagination complete: ${pageContainers.length} → ${newPages.length} pages`);
+  
+  return doc.documentElement.outerHTML;
+}
+
+// ✅ NEW: Split content into multiple pages
+function splitContentIntoPages(pageContainer, children, availableHeight, headerWrapper, footerWrapper) {
+  const pages = [];
+  const pageTemplate = pageContainer.cloneNode(false);
+  
+  let currentPage = pageTemplate.cloneNode(true);
+  let currentPageContent = document.createElement('div');
+  currentPageContent.className = 'page-content';
+  currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
+  
+  // Add header
+  if (headerWrapper) {
+    currentPageContent.appendChild(headerWrapper.cloneNode(true));
+  }
+  
+  // Add content wrapper
+  const contentWrapper = document.createElement('div');
+  contentWrapper.className = 'content-wrapper';
+  contentWrapper.style.cssText = pageContainer.querySelector('.content-wrapper').style.cssText;
+  
+  const mainContent = document.createElement('div');
+  mainContent.className = 'main-content-area';
+  mainContent.style.cssText = pageContainer.querySelector('.main-content-area').style.cssText;
+  
+  contentWrapper.appendChild(mainContent);
+  currentPageContent.appendChild(contentWrapper);
+  
+  let currentHeight = 0;
+  
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    const childHeight = getElementHeight(child);
+    
+    console.log(`📦 [PAGINATION] Element ${i}: ${childHeight}px`);
+    
+    // Check if adding this element would overflow
+    if (currentHeight + childHeight > availableHeight && currentHeight > 0) {
+      // Finish current page
+      if (footerWrapper) {
+        currentPageContent.appendChild(footerWrapper.cloneNode(true));
+      }
+      currentPage.appendChild(currentPageContent);
+      pages.push(currentPage.outerHTML);
+      
+      console.log(`📄 [PAGINATION] Created page with ${currentHeight}px of content`);
+      
+      // Start new page
+      currentPage = pageTemplate.cloneNode(true);
+      currentPageContent = document.createElement('div');
+      currentPageContent.className = 'page-content';
+      currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
+      
+      if (headerWrapper) {
+        currentPageContent.appendChild(headerWrapper.cloneNode(true));
+      }
+      
+      const newContentWrapper = document.createElement('div');
+      newContentWrapper.className = 'content-wrapper';
+      newContentWrapper.style.cssText = contentWrapper.style.cssText;
+      
+      const newMainContent = document.createElement('div');
+      newMainContent.className = 'main-content-area';
+      newMainContent.style.cssText = mainContent.style.cssText;
+      
+      newContentWrapper.appendChild(newMainContent);
+      currentPageContent.appendChild(newContentWrapper);
+      
+      mainContent = newMainContent;
+      currentHeight = 0;
+    }
+    
+    // Add element to current page
+    mainContent.appendChild(child.cloneNode(true));
+    currentHeight += childHeight;
+  }
+  
+  // Add last page
+  if (footerWrapper) {
+    currentPageContent.appendChild(footerWrapper.cloneNode(true));
+  }
+  currentPage.appendChild(currentPageContent);
+  pages.push(currentPage.outerHTML);
+  
+  console.log(`📄 [PAGINATION] Created final page with ${currentHeight}px of content`);
+  
+  return pages;
+}
+
+// ✅ Helper: Get element height accurately
+function getElementHeight(element) {
+  // Create temporary container to measure
+  const temp = document.createElement('div');
+  temp.style.cssText = 'position: absolute; visibility: hidden; width: 100%;';
+  temp.appendChild(element.cloneNode(true));
+  document.body.appendChild(temp);
+  
+  const height = temp.offsetHeight;
+  document.body.removeChild(temp);
+  
+  return height;
+}
+// ✅ NEW: Apply table filtering
+function applyTableFilter(htmlText, columnName, filterValue) {
+  console.log(`🔎 [FILTER] Applying filter: column="${columnName}", value="${filterValue}"`);
+  
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText, "text/html");
+  const table = doc.querySelector('.json-table-container table, .table, table');
+  
+  if (!table) {
+    console.warn("⚠️ [FILTER] No table found in HTML");
+    return htmlText;
+  }
+  
+  console.log("✅ [FILTER] Table found");
+
+  const headerRow = table.querySelector('thead tr');
+  if (!headerRow) {
+    console.warn("⚠️ [FILTER] No header row found");
+    return htmlText;
+  }
+
+  const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+  console.log("🔍 [FILTER] Table headers:", headers);
+  
+  const columnIndex = headers.indexOf(columnName);
+  if (columnIndex === -1) {
+    console.warn(`⚠️ [FILTER] Column "${columnName}" not found in headers`);
+    return htmlText;
+  }
+  
+  console.log(`✅ [FILTER] Column "${columnName}" found at index ${columnIndex}`);
+
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  console.log(`🔍 [FILTER] Total rows before filter: ${rows.length}`);
+  
+  let removedCount = 0;
+  rows.forEach((row, idx) => {
+    const cells = Array.from(row.querySelectorAll('td'));
+    const cellValue = cells[columnIndex]?.textContent.toLowerCase() || '';
+    const matches = cellValue.includes(filterValue.toLowerCase());
+    
+    if (!matches) {
+      row.remove();
+      removedCount++;
+    }
+  });
+  
+  console.log(`✅ [FILTER] Removed ${removedCount} rows, kept ${rows.length - removedCount} rows`);
+
+  return doc.body.innerHTML;
+}
+
+// Function to filter pages and generate HTML
+async function getFilteredHtml(mode, customPages = "") {
+  console.log("\n🎯 [FILTER-HTML] Starting getFilteredHtml...");
+  console.log("🎯 [FILTER-HTML] Mode:", mode, "Custom:", customPages);
+  
+  const clone = document.createElement("div");
+  clone.innerHTML = html;
+  const containers = Array.from(clone.querySelectorAll(".page-container"));
+  
+  console.log(`🎯 [FILTER-HTML] Total pages BEFORE expansion: ${containers.length}`);
+
+  // ✅ FIX: Expand subreports FIRST
+  console.log("🎯 [FILTER-HTML] Expanding subreports before filtering...");
+  const { html: expandedHtml, styles: subreportStyles } = await expandSubreports(clone.innerHTML);
+  
+  // ✅ FIX: Re-parse after expansion
+  clone.innerHTML = expandedHtml;
+  const allContainers = Array.from(clone.querySelectorAll(".page-container"));
+  console.log(`🎯 [FILTER-HTML] Total pages AFTER expansion: ${allContainers.length}`);
+
+  // ✅ NOW apply page filtering
+  let pagesToKeep = [];
+
+  if (mode === "all") {
+    pagesToKeep = allContainers.map((_, i) => i);
+  } else if (mode === "odd") {
+    pagesToKeep = allContainers.map((_, i) => i).filter(i => (i + 1) % 2 === 1);
+  } else if (mode === "even") {
+    pagesToKeep = allContainers.map((_, i) => i).filter(i => (i + 1) % 2 === 0);
+  } else if (mode === "custom") {
+    const ranges = customPages.split(",").map(s => s.trim());
+    ranges.forEach(range => {
+      if (range.includes("-")) {
+        const [start, end] = range.split("-").map(n => parseInt(n.trim()));
+        for (let i = start; i <= end; i++) {
+          if (i >= 1 && i <= allContainers.length) pagesToKeep.push(i - 1);
+        }
+      } else {
+        const page = parseInt(range);
+        if (page >= 1 && page <= allContainers.length) pagesToKeep.push(page - 1);
       }
     });
-
-    return clone.innerHTML;
+    pagesToKeep = [...new Set(pagesToKeep)].sort((a, b) => a - b);
   }
+
+  console.log(`🎯 [FILTER-HTML] Pages to keep:`, pagesToKeep);
+
+  allContainers.forEach((container, index) => {
+    if (!pagesToKeep.includes(index)) {
+      container.remove();
+    }
+  });
+
+  console.log("✅ [FILTER-HTML] getFilteredHtml complete\n");
+  
+  return { html: clone.innerHTML, styles: subreportStyles };
+}
 
   // Function to build final HTML with chart initialization
-  function buildFinalHtml(filteredBodyHtml, customCss = css) {
-    const canvasResources = {
-      styles: [
-        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
-        "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
-        "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
-        "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
-        "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
-        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
-        "https://fonts.googleapis.com/icon?family=Material+Icons",
-        "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
-        "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
-      ],
-      scripts: [
-        "https://code.jquery.com/jquery-3.3.1.slim.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
-        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
-        "https://code.jquery.com/jquery-2.1.1.min.js",
-        "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
-        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
-        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
-        "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
-        "https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js",
-        "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
-        "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
-        "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js",
-        "https://code.jquery.com/jquery-3.6.0.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
-        "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
-        "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
-        "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
-        "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
-        "https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
-        "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
-      ]
-    };
+function buildFinalHtml(htmlContent, subreportStyles = []) {
+    console.log("🏗️ [BUILD] Building final HTML...");
+    console.log("🏗️ [BUILD] Main CSS length:", editor.getCss().length);
+    console.log("🏗️ [BUILD] Subreport styles count:", subreportStyles.length);
 
-    const externalStyles = canvasResources.styles
-      .map((url) => `<link rel="stylesheet" href="${url}">`)
-      .join("\n");
-
-    const externalScripts = canvasResources.scripts
-      .map((url) => `<script src="${url}"></script>`)
-      .join("\n");
-
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          ${externalStyles}
-          ${externalScripts}
-          <style>${customCss}</style>
-        </head>
-        <body>
-          ${filteredBodyHtml}
-        </body>
-      </html>
+    const mainCSS = editor.getCss();
+    
+    const combinedStyles = `
+        <style>${mainCSS}</style>
+        ${subreportStyles.join('\n')}
     `;
-  }
+    
+    console.log("🏗️ [BUILD] Combined styles length:", combinedStyles.length);
 
-  // Update preview with chart initialization
-  async function updatePreview() {
-    const mode = modeSelect.value;
-    const custom = customInput.value;
-    const filteredBodyHtml = getFilteredHtml(mode, custom);
-    const finalHtml = buildFinalHtml(filteredBodyHtml);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    
+    const allPages = Array.from(doc.querySelectorAll('.page-container'));
+    console.log("📄 [BUILD] Total pages found:", allPages.length);
+    
+    // ✅ Check if there are any subreport pages or markers
+    const hasSubreportPages = allPages.some(page => 
+        page.getAttribute('data-subreport-page') === 'true'
+    );
+    const hasSubreportMarkers = doc.querySelector('.subreport-page-marker') !== null;
+    
+    let finalBodyHTML;
+    let totalPages;
+    
+    if (hasSubreportPages || hasSubreportMarkers) {
+        console.log("📄 [BUILD] Subreports detected, reorganizing pages...");
+        
+        const mainPages = [];
+        const subreportPageGroups = new Map();
+        
+        allPages.forEach((page, idx) => {
+            if (page.getAttribute('data-subreport-page') === 'true') {
+                const subreportId = page.getAttribute('data-subreport-id');
+                if (!subreportPageGroups.has(subreportId)) {
+                    subreportPageGroups.set(subreportId, []);
+                }
+                subreportPageGroups.get(subreportId).push(page);
+                console.log(`📄 [BUILD] Found subreport page ${idx} for subreport ${subreportId}`);
+            } else {
+                mainPages.push(page);
+            }
+        });
+        
+        const reorganizedPages = [];
+        mainPages.forEach((mainPage, idx) => {
+            reorganizedPages.push(mainPage);
+            
+            const marker = mainPage.querySelector('.subreport-page-marker');
+            if (marker) {
+                const subreportId = marker.getAttribute('data-subreport-id');
+                const sharePageNumber = marker.getAttribute('data-share-page-number') !== 'false';
+                
+                console.log(`📄 [BUILD] Found subreport marker for ${subreportId}, sharePageNumber: ${sharePageNumber}`);
+                
+                const subreportPages = subreportPageGroups.get(subreportId) || [];
+                subreportPages.forEach(subPage => {
+                    // ✅ Set skip attribute based on sharePageNumber
+                    subPage.setAttribute('data-skip-page-number', !sharePageNumber);
+                    reorganizedPages.push(subPage);
+                });
+                
+                marker.remove();
+            }
+        });
+        
+        console.log("📄 [BUILD] Reorganized pages count:", reorganizedPages.length);
+        
+        doc.body.innerHTML = '';
+        reorganizedPages.forEach(page => doc.body.appendChild(page));
+        
+        totalPages = reorganizedPages.length;
+    } else {
+        console.log("📄 [BUILD] No subreports detected, using original page structure");
+        totalPages = allPages.length > 0 ? allPages.length : 1;
+    }
+    
+    finalBodyHTML = doc.body.innerHTML;
 
-    const blob = new Blob([finalHtml], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    iframe.src = url;
-
-    // Wait for iframe to load and charts to render
-    await new Promise((resolve) => {
-      iframe.onload = () => {
-        setTimeout(resolve, 2500); // Extra time for charts to render
-      };
+    console.log(`📊 [BUILD] Total pages after processing: ${totalPages}`);
+    
+    const paginationScript = `
+  <script>
+    console.log("📄 [PREVIEW-PAGINATION] Script loaded");
+    
+    if (window.parent) {
+      window.parent.postMessage({
+        type: 'pageCountUpdate',
+        totalPages: ${totalPages}
+      }, '*');
+      console.log("📊 [PREVIEW-PAGINATION] Initial page count sent: ${totalPages}");
+    }
+    
+    window.addEventListener('DOMContentLoaded', function() {
+      console.log("📄 [PREVIEW-PAGINATION] DOM loaded, starting pagination...");
+      
+      setTimeout(function() {
+        paginatePreview();
+      }, 5000);
     });
+    function findDecorationsInDocument() {
+      // Search entire document for decorations that might be outside page-container
+      const allWatermarks = document.querySelectorAll('.watermark, [data-watermark]');
+      const allPageNumbers = document.querySelectorAll('.page-number, [data-page-number]');
+      
+      console.log("🔍 [SEARCH] Found watermarks in document:", allWatermarks.length);
+      console.log("🔍 [SEARCH] Found page numbers in document:", allPageNumbers.length);
+      
+      return {
+        watermark: allWatermarks.length > 0 ? allWatermarks[0] : null,
+        pageNumber: allPageNumbers.length > 0 ? allPageNumbers[0] : null
+      };
+    }
+
+   function paginatePreview() {
+  debugger
+  console.log("🔄 [PREVIEW-PAGINATION] Starting pagination process");
+    const documentDecorations = findDecorationsInDocument();
+  const pageContainers = document.querySelectorAll('.page-container');
+  console.log("📦 [PREVIEW-PAGINATION] Found " + pageContainers.length + " page containers");
+  
+  // ✅ Handle no page-container case (canvas/freeform content)
+  if (pageContainers.length === 0) {
+    console.log("✅ [PREVIEW-PAGINATION] No page containers - canvas/freeform mode");
+    if (window.parent) {
+      window.parent.postMessage({
+        type: 'pageCountUpdate',
+        totalPages: 1
+      }, '*');
+    }
+    return;
+  }
+  
+  const firstPage = pageContainers[0];
+  const firstPageContent = firstPage.querySelector('.page-content');
+  
+  // ✅ Handle missing page-content
+  if (!firstPageContent) {
+    console.log("✅ [PREVIEW-PAGINATION] No page-content structure - simple page mode");
+    if (window.parent) {
+      window.parent.postMessage({
+        type: 'pageCountUpdate',
+        totalPages: pageContainers.length
+      }, '*');
+    }
+    return;
+  }
+  
+  const pageSettings = extractPageSettings(firstPage);
+    if (!pageSettings.watermark && documentDecorations.watermark) {
+    console.log("🔧 [FIX] Using document-level watermark");
+    pageSettings.watermark = {
+      content: documentDecorations.watermark.textContent || documentDecorations.watermark.getAttribute('data-watermark'),
+      style: documentDecorations.watermark.style.cssText,
+      element: documentDecorations.watermark.cloneNode(true)
+    };
+  }
+  
+  if (!pageSettings.pageNumberFormat && documentDecorations.pageNumber) {
+    console.log("🔧 [FIX] Using document-level page number");
+    const text = documentDecorations.pageNumber.textContent.trim();
+    const format = documentDecorations.pageNumber.getAttribute('data-format') || text.replace(/\d+/g, '{n}') || 'Page {n}';
+    
+    pageSettings.pageNumberFormat = format;
+    pageSettings.pageNumberPosition = {
+      style: documentDecorations.pageNumber.style.cssText,
+      classList: Array.from(documentDecorations.pageNumber.classList),
+      element: documentDecorations.pageNumber.cloneNode(true)
+    };
   }
 
+  console.log("⚙️ [PREVIEW-PAGINATION] Page settings:", pageSettings);
+
+  const pageHeight = parseInt(window.getComputedStyle(firstPageContent).height) || 1027;
+  console.log("📏 [PREVIEW-PAGINATION] Page height: " + pageHeight + "px");
+
+  const allNewPages = [];
+  let globalPageNumber = 1;
+
+  for (let i = 0; i < pageContainers.length; i++) {
+    const pageContainer = pageContainers[i];
+    const mainContent = pageContainer.querySelector('.main-content-area');
+
+    const skipPageNumber = pageContainer.getAttribute('data-skip-page-number') === 'true';
+
+    // If no main-content, just apply settings and store page
+    if (!mainContent) {
+      if (!skipPageNumber) {
+        applyPageSettings(pageContainer, pageSettings, globalPageNumber);
+        globalPageNumber++;
+      } else {
+        applyPageSettings(pageContainer, pageSettings, null);
+      }
+      allNewPages.push(pageContainer.outerHTML);
+      continue;
+    }
+
+    const headerWrapper = pageContainer.querySelector('.header-wrapper');
+    const footerWrapper = pageContainer.querySelector('.footer-wrapper');
+
+    const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 0;
+    const footerHeight = footerWrapper ? footerWrapper.offsetHeight : 0;
+    const availableHeight = pageHeight - headerHeight - footerHeight - 40;
+
+    console.log("📐 [PREVIEW-PAGINATION] Page " + i + ": available=" + availableHeight + "px");
+
+    const contentHeight = mainContent.scrollHeight;
+
+    // ✅ CASE 1 — NO OVERFLOW
+    if (contentHeight <= availableHeight) {
+      if (!skipPageNumber) {
+        applyPageSettings(pageContainer, pageSettings, globalPageNumber);
+        globalPageNumber++;
+      } else {
+        applyPageSettings(pageContainer, pageSettings, null);
+      }
+
+      // NEW: store as HTML string
+      allNewPages.push(pageContainer.outerHTML);
+
+      console.log("✅ [PREVIEW-PAGINATION] Page " + i + ": no overflow");
+      continue;
+    }
+
+    // --------------------------------------------------------------
+    // ❗ CASE 2 — PAGE OVERFLOW → SPLIT INTO MULTIPLE NEW PAGES
+    // --------------------------------------------------------------
+
+    console.log("⚠️ [PREVIEW-PAGINATION] Page " + i + ": overflow detected (" + contentHeight + " > " + availableHeight + ")");
+
+    const tableRows = extractTableRows(mainContent);
+    console.log("📦 [PREVIEW-PAGINATION] Extracted " + tableRows.length + " table rows");
+
+    // === NEW REPLACED BLOCK STARTS HERE ===
+    if (tableRows.length > 0) {
+      const newPages = splitTableIntoPages(
+        pageContainer,
+        tableRows,
+        availableHeight,
+        headerWrapper,
+        footerWrapper,
+        pageSettings,
+        globalPageNumber,
+        skipPageNumber
+      );
+
+      allNewPages.push(...newPages);
+
+      if (!skipPageNumber) {
+        globalPageNumber += newPages.length;
+      }
+
+      console.log("✂️ [PREVIEW-PAGINATION] Split page " + i + " into " + newPages.length + " pages");
+    } else {
+      const children = Array.from(mainContent.children);
+
+      const newPages = splitIntoPages(
+        pageContainer,
+        children,
+        availableHeight,
+        headerWrapper,
+        footerWrapper,
+        pageSettings,
+        globalPageNumber,
+        skipPageNumber
+      );
+
+      allNewPages.push(...newPages);
+
+      if (!skipPageNumber) {
+        globalPageNumber += newPages.length;
+      }
+
+      console.log("✂️ [PREVIEW-PAGINATION] Split page " + i + " into " + newPages.length + " pages");
+    }
+    // === NEW BLOCK ENDS HERE ===
+  }
+
+  // -------------------------------------------------------------------
+  // FINAL APPLY — REPLACE BODY WITH NEW PAGES (ALREADY HTML STRINGS)
+  // -------------------------------------------------------------------
+
+  console.log("🧹 Clearing body and inserting fresh pages…");
+
+  document.body.innerHTML = '';
+  allNewPages.forEach(html => {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    document.body.appendChild(wrapper.firstElementChild);
+  });
+
+  console.log("✅ [PREVIEW-PAGINATION] Pagination complete: " + allNewPages.length + " pages");
+
+  if (window.parent) {
+    window.parent.postMessage({
+      type: 'pageCountUpdate',
+      totalPages: allNewPages.length
+    }, '*');
+  }
+}
+
+
+function extractPageSettings(pageContainer) {
+      const settings = {
+        backgroundColor: window.getComputedStyle(pageContainer).backgroundColor || '#ffffff',
+        margin: window.getComputedStyle(pageContainer).margin || '0',
+        padding: window.getComputedStyle(pageContainer).padding || '0',
+        watermark: null,
+        pageNumberFormat: null,
+        pageNumberPosition: null,
+        containerStyle: pageContainer.style.cssText,
+        containerClasses: Array.from(pageContainer.classList)
+      };
+  
+      // ✅ FIX: Search for watermark in entire document (not just first page)
+      const watermark = pageContainer.querySelector('.watermark, [data-watermark]');
+      if (watermark) {
+        console.log("✅ [EXTRACT] Found watermark:", watermark.textContent);
+        settings.watermark = {
+          content: watermark.textContent || watermark.getAttribute('data-watermark'),
+          style: watermark.style.cssText,
+          element: watermark.cloneNode(true)
+        };
+      } else {
+        console.log("⚠️ [EXTRACT] No watermark found in page container");
+      }
+  
+      // ✅ FIX: Search for page number in entire document
+      const pageNumber = pageContainer.querySelector('.page-number, [data-page-number]');
+      if (pageNumber) {
+        console.log("✅ [EXTRACT] Found page number:", pageNumber.textContent);
+        
+        // Extract format from data attribute or infer from text
+        let format = pageNumber.getAttribute('data-format');
+        if (!format) {
+          const text = pageNumber.textContent.trim();
+          // Try to infer format from text like "Page 1" -> "Page {n}"
+          format = text.replace(/\d+/g, '{n}');
+          if (!format.includes('{n}')) {
+            format = 'Page {n}'; // Default fallback
+          }
+        }
+        
+        settings.pageNumberFormat = format;
+        settings.pageNumberPosition = {
+          style: pageNumber.style.cssText,
+          classList: Array.from(pageNumber.classList),
+          element: pageNumber.cloneNode(true)
+        };
+        
+        console.log("✅ [EXTRACT] Page number format:", format);
+      } else {
+        console.log("⚠️ [EXTRACT] No page number found in page container");
+      }
+  
+      console.log("📋 [EXTRACT] Final settings:", {
+        hasWatermark: !!settings.watermark,
+        hasPageNumber: !!settings.pageNumberFormat,
+        backgroundColor: settings.backgroundColor
+      });
+      
+      return settings;
+    }
+
+function applyPageSettings(pageContainer, settings, pageNumber) {
+      // ✅ FIX: Apply container-level styles first
+      if (settings.containerStyle) {
+        pageContainer.style.cssText = settings.containerStyle;
+      }
+      
+      if (settings.backgroundColor) {
+        pageContainer.style.backgroundColor = settings.backgroundColor;
+      }
+  
+      if (settings.margin) {
+        pageContainer.style.margin = settings.margin;
+      }
+  
+      if (settings.padding) {
+        pageContainer.style.padding = settings.padding;
+      }
+  
+      // ✅ FIX: Use cloned watermark element to preserve all properties
+      if (settings.watermark && settings.watermark.element) {
+        let existing = pageContainer.querySelector('.watermark');
+        if (!existing) {
+          const watermarkEl = settings.watermark.element.cloneNode(true);
+          pageContainer.appendChild(watermarkEl);
+        }
+      }
+  
+      // ✅ FIX: Use cloned page number element and update only the number
+      if (settings.pageNumberFormat && pageNumber !== null && settings.pageNumberPosition && settings.pageNumberPosition.element) {
+        const numberText = settings.pageNumberFormat.replace('{n}', pageNumber);
+        let pageNumEl = pageContainer.querySelector('.page-number, [data-page-number]');
+    
+        if (!pageNumEl) {
+          pageNumEl = settings.pageNumberPosition.element.cloneNode(true);
+          pageContainer.appendChild(pageNumEl);
+        }
+    
+        pageNumEl.textContent = numberText;
+        pageNumEl.setAttribute('data-page-number', pageNumber);
+      } else if (settings.pageNumberFormat && pageNumber === null) {
+        const pageNumEl = pageContainer.querySelector('.page-number, [data-page-number]');
+        if (pageNumEl) {
+          pageNumEl.remove();
+        }
+      }
+    }
+
+    function extractTableRows(mainContent) {
+      const rows = [];
+      const subreports = mainContent.querySelectorAll('.subreport-block, .subreport-container, .expanded-subreport');
+  
+      if (subreports.length > 0) {
+        console.log("📦 [PREVIEW-PAGINATION] Found " + subreports.length + " subreports");
+    
+        subreports.forEach(function(subreport) {
+          const tables = subreport.querySelectorAll('table');
+      
+          tables.forEach(function(table) {
+            const tbody = table.querySelector('tbody');
+            if (tbody) {
+              const tableRows = Array.from(tbody.querySelectorAll('tr'));
+              console.log("📊 [PREVIEW-PAGINATION] Found table with " + tableRows.length + " rows");
+          
+              const tableStructure = {
+                table: table.cloneNode(false),
+                thead: table.querySelector('thead') ? table.querySelector('thead').cloneNode(true) : null,
+                tfoot: table.querySelector('tfoot') ? table.querySelector('tfoot').cloneNode(true) : null,
+                rows: tableRows
+              };
+          
+              rows.push(tableStructure);
+            }
+          });
+        });
+      } else {
+        const tables = mainContent.querySelectorAll('table');
+        tables.forEach(function(table) {
+          const tbody = table.querySelector('tbody');
+          if (tbody) {
+            const tableRows = Array.from(tbody.querySelectorAll('tr'));
+        
+            const tableStructure = {
+              table: table.cloneNode(false),
+              thead: table.querySelector('thead') ? table.querySelector('thead').cloneNode(true) : null,
+              tfoot: table.querySelector('tfoot') ? table.querySelector('tfoot').cloneNode(true) : null,
+              rows: tableRows
+            };
+        
+            rows.push(tableStructure);
+          }
+        });
+      }
+  
+      return rows;
+    }
+
+function splitTableIntoPages(templatePage, tableStructures, availableHeight, headerWrapper, footerWrapper, pageSettings, startPageNumber, skipPageNumber) {
+      const pages = [];
+      let currentPageNumber = startPageNumber;
+  
+      tableStructures.forEach(function(tableStructure) {
+        const rows = tableStructure.rows;
+        const tableTemplate = tableStructure.table;
+        const thead = tableStructure.thead;
+        const tfoot = tableStructure.tfoot;
+    
+        const theadHeight = thead ? thead.offsetHeight : 0;
+        const tfootHeight = tfoot ? tfoot.offsetHeight : 0;
+        const tableOverhead = theadHeight + tfootHeight;
+    
+        // ✅ Clone entire page to preserve all structure
+        let currentPage = templatePage.cloneNode(true);
+        let mainContent = currentPage.querySelector('.main-content-area');
+        
+        // ✅ Clear only main-content-area
+        mainContent.innerHTML = '';
+    
+        let currentTable = tableTemplate.cloneNode(false);
+        if (thead) currentTable.appendChild(thead.cloneNode(true));
+    
+        let currentTbody = document.createElement('tbody');
+        currentTable.appendChild(currentTbody);
+    
+        let currentHeight = tableOverhead;
+    
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const rowHeight = row.offsetHeight || 40;
+      
+          if (currentHeight + rowHeight > availableHeight && currentHeight > tableOverhead) {
+            if (tfoot) currentTable.appendChild(tfoot.cloneNode(true));
+            mainContent.appendChild(currentTable);
+        
+            if (!skipPageNumber) {
+              applyPageSettings(currentPage, pageSettings, currentPageNumber);
+              currentPageNumber++;
+            } else {
+              applyPageSettings(currentPage, pageSettings, null);
+            }
+            
+            pages.push(currentPage.outerHTML);
+        
+            // ✅ Create new page by cloning template again
+            currentPage = templatePage.cloneNode(true);
+            mainContent = currentPage.querySelector('.main-content-area');
+            mainContent.innerHTML = ''; // Clear only main-content
+        
+            currentTable = tableTemplate.cloneNode(false);
+            if (thead) currentTable.appendChild(thead.cloneNode(true));
+            currentTbody = document.createElement('tbody');
+            currentTable.appendChild(currentTbody);
+        
+            currentHeight = tableOverhead;
+          }
+      
+          currentTbody.appendChild(row.cloneNode(true));
+          currentHeight += rowHeight;
+        }
+    
+        if (tfoot) currentTable.appendChild(tfoot.cloneNode(true));
+        mainContent.appendChild(currentTable);
+    
+        if (!skipPageNumber) {
+          applyPageSettings(currentPage, pageSettings, currentPageNumber);
+          currentPageNumber++;
+        } else {
+          applyPageSettings(currentPage, pageSettings, null);
+        }
+        
+        pages.push(currentPage.outerHTML);
+      });
+  
+      return pages;
+    }
+
+    function splitIntoPages(templatePage, children, availableHeight, headerWrapper, footerWrapper, pageSettings, startPageNumber, skipPageNumber) {
+      const pages = [];
+      let currentPageNumber = startPageNumber;
+  
+      // ✅ Clone entire page to preserve structure
+      let currentPage = templatePage.cloneNode(true);
+      let mainContent = currentPage.querySelector('.main-content-area');
+      
+      // ✅ Clear only main-content-area
+      mainContent.innerHTML = '';
+      
+      let currentHeight = 0;
+  
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        const childHeight = child.offsetHeight || 50;
+    
+        if (currentHeight + childHeight > availableHeight && currentHeight > 0) {
+          if (!skipPageNumber) {
+            applyPageSettings(currentPage, pageSettings, currentPageNumber);
+            currentPageNumber++;
+          } else {
+            applyPageSettings(currentPage, pageSettings, null);
+          }
+          
+          pages.push(currentPage.outerHTML);
+      
+          // ✅ Create new page by cloning template again
+          currentPage = templatePage.cloneNode(true);
+          mainContent = currentPage.querySelector('.main-content-area');
+          mainContent.innerHTML = ''; // Clear only main-content
+          
+          currentHeight = 0;
+        }
+    
+        mainContent.appendChild(child.cloneNode(true));
+        currentHeight += childHeight;
+      }
+  
+      if (!skipPageNumber) {
+        applyPageSettings(currentPage, pageSettings, currentPageNumber);
+      } else {
+        applyPageSettings(currentPage, pageSettings, null);
+      }
+      
+      pages.push(currentPage.outerHTML);
+  
+      return pages;
+    }
+      
+function createNewPage(templatePage, headerWrapper, footerWrapper) {
+      // ✅ Simply clone the entire page with all its structure and decorations
+      const newPage = templatePage.cloneNode(true);
+      
+      // ✅ Find the main-content-area in the new page
+      const newMainContent = newPage.querySelector('.main-content-area');
+      
+      // ✅ Clear ONLY the main-content-area, preserving everything else
+      if (newMainContent) {
+        newMainContent.innerHTML = '';
+      }
+      
+      return newPage;
+    }
+
+    function clonePageDecoration(sourcePageContainer, targetPageContainer) {
+      // ✅ Clone watermark if exists
+      const watermark = sourcePageContainer.querySelector('.watermark, [data-watermark]');
+      if (watermark && !targetPageContainer.querySelector('.watermark, [data-watermark]')) {
+        const clonedWatermark = watermark.cloneNode(true);
+        targetPageContainer.appendChild(clonedWatermark);
+      }
+      
+      // ✅ Clone page number element structure (number will be updated by applyPageSettings)
+      const pageNum = sourcePageContainer.querySelector('.page-number, [data-page-number]');
+      if (pageNum && !targetPageContainer.querySelector('.page-number, [data-page-number]')) {
+        const clonedPageNum = pageNum.cloneNode(true);
+        targetPageContainer.appendChild(clonedPageNum);
+      }
+      
+      // ✅ Copy background and styling
+      targetPageContainer.style.backgroundColor = sourcePageContainer.style.backgroundColor;
+      targetPageContainer.style.margin = sourcePageContainer.style.margin;
+      targetPageContainer.style.padding = sourcePageContainer.style.padding;
+    }
+  </script>
+    `;
+
+    const fullHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Preview</title>
+    ${combinedStyles}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: white; }
+        .page-container { background: white; margin: 20px auto; box-shadow: 0 0 10px rgba(0,0,0,0.3); position: relative; page-break-after: always; align:center; }
+        @media print {
+            body { background: white; }
+            .page-container { margin: 0; box-shadow: none; page-break-after: always; }
+        }
+    </style>
+    ${paginationScript}
+</head>
+<body>
+    ${finalBodyHTML}
+</body>
+</html>
+    `;
+
+    return fullHTML;
+}
+  // Update preview with chart initialization
+async function updatePreview() {
+  console.log("\n🖼️ [PREVIEW] Starting preview update...");
+  
+  const mode = modeSelect.value;
+  const custom = customInput.value;
+  
+  console.log("🖼️ [PREVIEW] Mode:", mode, "Custom:", custom);
+  
+  const { html: filteredBodyHtml, styles: subreportStyles } = await getFilteredHtml(mode, custom);
+  
+  console.log("🖼️ [PREVIEW] Filtered HTML length:", filteredBodyHtml.length);
+  console.log("🖼️ [PREVIEW] Subreport styles count:", subreportStyles.length);
+  
+const finalHtml = buildFinalHtml(filteredBodyHtml, subreportStyles, css);
+
+  
+  console.log("🖼️ [PREVIEW] Final HTML length:", finalHtml.length);
+
+  const blob = new Blob([finalHtml], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  
+  console.log("🖼️ [PREVIEW] Setting iframe src...");
+  iframe.src = url;
+
+  await new Promise((resolve) => {
+    iframe.onload = () => {
+      console.log("✅ [PREVIEW] Iframe loaded");
+      
+      // Wait for pagination script to run inside iframe
+      setTimeout(() => {
+        console.log("✅ [PREVIEW] Preview complete after delay");
+        resolve();
+      }, 3000); // Give time for pagination to complete
+    };
+  });
+}
   // Event listeners
   modeSelect.addEventListener("change", () => {
     customInput.style.display = modeSelect.value === "custom" ? "inline-block" : "none";
@@ -2975,132 +4038,108 @@ async function generatePrintDialog() {
     modal.remove();
   });
 
-  generateBtn.addEventListener("click", async () => {
-    modal.remove();
+generateBtn.addEventListener("click", async () => {
+  console.log("\n🚀 [GENERATE] Starting PDF generation...");
+  
+  modal.remove();
 
-    // Show loading overlay
-    let overlay = document.createElement("div");
-    overlay.id = "pdf-loading-overlay";
-    Object.assign(overlay.style, {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(0,0,0,0.5)",
-      color: "#fff",
-      fontSize: "24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 9999,
+  let overlay = document.createElement("div");
+  overlay.id = "pdf-loading-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "rgba(0,0,0,0.5)",
+    color: "#fff",
+    fontSize: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  });
+  overlay.innerText = "Generating PDF...";
+  document.body.appendChild(overlay);
+
+  try {
+    const mode = modeSelect.value;
+    const custom = customInput.value;
+    
+    console.log("🚀 [GENERATE] Getting filtered HTML...");
+    const { html: filteredBodyHtml, styles: subreportStyles } = await getFilteredHtml(mode, custom);
+    
+    console.log("🚀 [GENERATE] Filtered HTML length:", filteredBodyHtml.length);
+    console.log("🚀 [GENERATE] Subreport styles count:", subreportStyles.length);
+
+    // Remove margin and box-shadow from page-container IDs in CSS
+    const tempContainer = document.createElement("div");
+    tempContainer.innerHTML = filteredBodyHtml;
+    const remainingPageContainers = tempContainer.querySelectorAll(".page-container");
+    const idsToClean = Array.from(remainingPageContainers)
+      .filter(el => el.id)
+      .map(el => el.id);
+
+    let cleanedCss = css;
+    idsToClean.forEach(id => {
+      const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
+      cleanedCss = cleanedCss.replace(marginRegex, "$1");
+
+      const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
+      cleanedCss = cleanedCss.replace(boxShadowRegex, "$1");
     });
-    overlay.innerText = "Generating PDF...";
-    document.body.appendChild(overlay);
 
-    try {
-      // ✅ Re-ensure all charts are rendered
+    // Extract @page rule
+    let pageSize = null;
+    let orientation = null;
+    let width = null;
+    let height = null;
 
-      const mode = modeSelect.value;
-      const custom = customInput.value;
-      const filteredBodyHtml = getFilteredHtml(mode, custom);
+    const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
+    if (pageRuleMatch) {
+      const rule = pageRuleMatch[0];
 
-      // Remove margin and box-shadow from page-container IDs in CSS
-      const tempContainer = document.createElement("div");
-      tempContainer.innerHTML = filteredBodyHtml;
-      const remainingPageContainers = tempContainer.querySelectorAll(".page-container");
-      const idsToClean = Array.from(remainingPageContainers)
-        .filter(el => el.id)
-        .map(el => el.id);
+      const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
+      if (sizeMatch) {
+        const sizeValue = sizeMatch[1].trim();
 
-      let cleanedCss = css;
-      idsToClean.forEach(id => {
-        const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
-        cleanedCss = cleanedCss.replace(marginRegex, "$1");
-
-        const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
-        cleanedCss = cleanedCss.replace(boxShadowRegex, "$1");
-      });
-
-      // Handle Subreport Embedding
-      const subreports = tempContainer.querySelectorAll('.subreport-container');
-      for (const sub of subreports) {
-        const src = sub.getAttribute('data-subreport-src');
-        if (src) {
-          try {
-            const res = await fetch(src);
-            const subHtml = await res.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(subHtml, 'text/html');
-
-            const subContent = doc.body ? doc.body.innerHTML : subHtml;
-
-            const wrapper = document.createElement('div');
-            wrapper.classList.add('embedded-subreport');
-            wrapper.innerHTML = subContent;
-
-            if (sub.getAttribute('data-merge-header-footer') === 'true') {
-              // Merge header/footer logic placeholder
-            }
-
-            sub.innerHTML = wrapper.outerHTML;
-          } catch (err) {
-            console.warn('⚠️ Subreport Load Failed:', src, err);
-            sub.innerHTML = `<div style="color:red;">Failed to embed subreport (${src})</div>`;
+        const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
+        if (standardMatch) {
+          pageSize = standardMatch[1].toUpperCase();
+          orientation = (standardMatch[2] || "portrait").toLowerCase();
+        } else {
+          const parts = sizeValue.split(/\s+/);
+          if (parts.length >= 2) {
+            width = parts[0].trim();
+            height = parts[1].trim();
           }
         }
       }
 
-      // Extract @page rule
-      let pageSize = null;
-      let orientation = null;
-      let width = null;
-      let height = null;
+      cleanedCss = cleanedCss.replace(/@page\s*{[^}]*}/g, "").trim();
+    }
 
-      const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
-      if (pageRuleMatch) {
-        const rule = pageRuleMatch[0];
+    let hasPayload = false;
+    let payload = {};
 
-        const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
-        if (sizeMatch) {
-          const sizeValue = sizeMatch[1].trim();
-
-          const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
-          if (standardMatch) {
-            pageSize = standardMatch[1].toUpperCase();
-            orientation = (standardMatch[2] || "portrait").toLowerCase();
-          } else {
-            const parts = sizeValue.split(/\s+/);
-            if (parts.length >= 2) {
-              width = parts[0].trim();
-              height = parts[1].trim();
-            }
-          }
-        }
-
-        cleanedCss = cleanedCss.replace(/@page\s*{[^}]*}/g, "").trim();
+    if (pageRuleMatch) {
+      if (pageSize) {
+        payload = { pageSize, orientation: orientation || "portrait" };
+        hasPayload = true;
+      } else if (width && height) {
+        payload = { width, height };
+        hasPayload = true;
       }
+    }
 
-      let hasPayload = false;
-      let payload = {};
+    if (hasPayload) {
+      console.log("🧾 Extracted payload:", payload);
+    } else {
+      console.log("⚠️ No @page rule found — skipping payload");
+    }
 
-      if (pageRuleMatch) {
-        if (pageSize) {
-          payload = { pageSize, orientation: orientation || "portrait" };
-          hasPayload = true;
-        } else if (width && height) {
-          payload = { width, height };
-          hasPayload = true;
-        }
-      }
+    const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss, subreportStyles);
 
-      if (hasPayload) {
-        console.log("🧾 Extracted payload:", payload);
-      } else {
-        console.log("⚠️ No @page rule found — skipping payload");
-      }
-
-      const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss);
 
       // Debug download
       console.log("🚀 Final HTML being sent to PDF API");

@@ -3349,10 +3349,12 @@ function createTable(container) {
   const tableComponentDef = {
     tagName: 'table',
     type: 'enhanced-table',
+     style: {
+          "padding": "5px 0 10px 0",
+        },
     attributes: {
       id: `table${uniqueID}`,
       class: 'table table-striped table-bordered',
-      width: '100%'
     },
     components: tableComponents
   };
