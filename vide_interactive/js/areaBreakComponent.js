@@ -1,11 +1,3 @@
-/**
- * FLOW LAYOUT — Combined fixes for:
- * 1) Partial splitting (only overflow moved)
- * 2) Immediate DOM update when changing content (model-first)
- * 3) Reliable, debounced reflow on updates (no click needed)
- *
- * Usage: replace existing flowLayoutComponent implementation with this.
- */
 function flowLayoutComponent(editor) {
   const domc = editor.DomComponents;
   const bm = editor.BlockManager;
@@ -45,6 +37,40 @@ function flowLayoutComponent(editor) {
   const findModelByDOMId = (id) => {
     if (!id) return null;
     return editor.getWrapper().find("#" + id)[0] || null;
+  };
+
+  // Deep clone all inline and computed styles
+  const cloneStyles = (sourceEl) => {
+    const styles = {};
+    const computed = window.getComputedStyle(sourceEl);
+    
+    // Copy important style properties
+    const props = [
+      'color', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle',
+      'textAlign', 'textDecoration', 'lineHeight', 'letterSpacing',
+      'backgroundColor', 'padding', 'margin', 'border', 'borderRadius',
+      'display', 'width', 'maxWidth', 'minWidth'
+    ];
+    
+    props.forEach(prop => {
+      const value = computed.getPropertyValue(prop);
+      if (value) styles[prop] = value;
+    });
+    
+    return styles;
+  };
+
+  // Check if element is a table
+  const isTable = (el) => {
+    return el.tagName === 'TABLE' || 
+           el.classList?.contains('table') ||
+           el.closest('table') !== null;
+  };
+
+  // Check if element is a JSON table
+  const isJsonTable = (el) => {
+    return el.getAttribute('data-gjs-type') === 'json-table' ||
+           el.classList?.contains('json-table-container');
   };
 
   /* ---------------------------
@@ -161,6 +187,87 @@ function flowLayoutComponent(editor) {
       },
 
       /**
+       * Split table rows intelligently
+       */
+      splitTableContent(tableEl, compModel, remainPx) {
+        if (!tableEl || remainPx <= 0) return null;
+
+        const tbody = tableEl.querySelector('tbody') || tableEl;
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        if (rows.length <= 1) return null;
+
+        // Get headers
+        let headerHTML = '';
+        const thead = tableEl.querySelector('thead');
+        if (thead) {
+          headerHTML = thead.outerHTML;
+        } else {
+          // First row might be header
+          const firstRow = rows[0];
+          if (firstRow.querySelector('th')) {
+            headerHTML = `<thead>${firstRow.outerHTML}</thead>`;
+            rows.shift(); // Remove header from data rows
+          }
+        }
+
+        // No data rows to split
+        if (rows.length === 0) return null;
+
+        // Binary search for split point
+        const flow = tableEl.closest(".flow-content");
+        if (!flow) return null;
+        
+        let left = 1;
+        let right = rows.length;
+        let best = -1;
+
+        while (left <= right) {
+          const mid = Math.floor((left + right) / 2);
+          
+          const testTable = tableEl.cloneNode(false);
+          
+          // Copy all inline styles
+          testTable.style.cssText = tableEl.style.cssText || '';
+          
+          // Copy important attributes
+          if (tableEl.className) testTable.className = tableEl.className;
+          if (tableEl.border) testTable.border = tableEl.border;
+          if (tableEl.cellPadding) testTable.cellPadding = tableEl.cellPadding;
+          if (tableEl.cellSpacing) testTable.cellSpacing = tableEl.cellSpacing;
+          
+          testTable.innerHTML = headerHTML + '<tbody>' + rows.slice(0, mid).map(r => r.outerHTML).join('') + '</tbody>';
+          
+          testTable.style.position = 'absolute';
+          testTable.style.visibility = 'hidden';
+          testTable.style.width = flow.clientWidth + 'px';
+          
+          flow.appendChild(testTable);
+          const h = testTable.offsetHeight;
+          flow.removeChild(testTable);
+
+          if (h <= remainPx) {
+            best = mid;
+            left = mid + 1;
+          } else {
+            right = mid - 1;
+          }
+        }
+
+        if (best > 0 && best < rows.length) {
+          const remainingRows = rows.slice(0, best).map(r => r.outerHTML).join('');
+          const overflowRows = rows.slice(best).map(r => r.outerHTML).join('');
+          
+          return {
+            remainingHTML: headerHTML + '<tbody>' + remainingRows + '</tbody>',
+            overflowHTML: headerHTML + '<tbody>' + overflowRows + '</tbody>',
+          };
+        }
+        
+        return null;
+      },
+
+      /**
        * Try to split content to fit remainPx (pixels).
        * Returns { remainingHTML, overflowHTML } or null if can't split.
        */
@@ -227,7 +334,7 @@ function flowLayoutComponent(editor) {
       },
 
       /**
-       * Reflow implementation
+       * Reflow implementation - processes ALL columns sequentially
        */
       reflow() {
         const layoutEl = this.el;
@@ -239,18 +346,27 @@ function flowLayoutComponent(editor) {
         const cols = Array.from(layoutEl.querySelectorAll(".flow-col"));
         if (!cols.length) return;
 
+        // Track processed items globally to prevent infinite loops
+        const processedIds = new Set();
+
+        // Process each column sequentially
         for (let colIndex = 0; colIndex < cols.length; colIndex++) {
           const col = cols[colIndex];
           const flow = col.querySelector(".flow-content");
           if (!flow) continue;
 
-          // Snapshot children since DOM may change during loop
+          const isLastColumn = colIndex === cols.length - 1;
+
+          // Get fresh list of items for this column
           const items = Array.from(flow.children);
+          
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
-            // Ensure id + model sync
-            ensureIdSync(item, findModelByDOMId(item.id));
-
+            
+            // Skip if already processed in this reflow cycle
+            const itemId = ensureIdSync(item, findModelByDOMId(item.id));
+            if (processedIds.has(itemId)) continue;
+            
             const itemRect = item.getBoundingClientRect();
             const flowRect = flow.getBoundingClientRect();
 
@@ -262,31 +378,231 @@ function flowLayoutComponent(editor) {
             // remaining pixels inside layout from this item's top
             const remainPx = Math.floor(layoutHeight - itemTopRel);
 
+            // Check if item overflows
             if (itemBottomRel > layoutHeight) {
+              // If this is the last column, hide overflow instead of moving
+              if (isLastColumn) {
+                // Clip content that extends beyond layout
+                item.style.maxHeight = remainPx + 'px';
+                item.style.overflow = 'hidden';
+                processedIds.add(itemId);
+                continue;
+              }
+
               const nextCol = cols[colIndex + 1];
-              if (!nextCol) continue;
+              if (!nextCol) continue; // No next column available
+              
               const nextFlow = nextCol.querySelector(".flow-content");
               if (!nextFlow) continue;
 
               const compModel = findModelByDOMId(item.id);
-              const isTextLike = compModel && ((compModel.is && compModel.is("text")) || (compModel.get && compModel.get("type") === CUSTOM_TEXT_TYPE));
-
+              
+              // Check if it's a table (HTML or JSON)
+              const isTableEl = isTable(item);
+              const isJsonTableEl = isJsonTable(item);
+              
               let handled = false;
 
-              // Attempt partial split for text-like items if some remainPx available
-              if (isTextLike && remainPx > 8) {
+              // Handle table splitting
+              if (isTableEl && remainPx > 50) {
+                try {
+                  let actualTable = item;
+                  if (item.tagName !== 'TABLE') {
+                    actualTable = item.querySelector('table');
+                  }
+                  
+                  if (actualTable) {
+                    const splitRes = this.splitTableContent(actualTable, compModel, remainPx);
+                    if (splitRes && splitRes.remainingHTML && splitRes.overflowHTML) {
+                      // Update current table with remaining rows
+                      actualTable.innerHTML = splitRes.remainingHTML;
+                      
+                      // Create overflow table with proper styling
+                      const newTableWrapper = item.cloneNode(false);
+                      const newTable = actualTable.cloneNode(false);
+                      newTable.innerHTML = splitRes.overflowHTML;
+                      
+                      // Copy all styles from original table
+                      const tableStyles = cloneStyles(actualTable);
+                      Object.assign(newTable.style, tableStyles);
+                      
+                      // Generate unique ID for the new table
+                      const newItemId = "flow-item-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 10000);
+                      
+                      if (item.tagName === 'TABLE') {
+                        newTable.id = newItemId;
+                        nextFlow.insertBefore(newTable, nextFlow.firstChild);
+                      } else {
+                        newTableWrapper.id = newItemId;
+                        const wrapperStyles = cloneStyles(item);
+                        Object.assign(newTableWrapper.style, wrapperStyles);
+                        newTableWrapper.appendChild(newTable);
+                        nextFlow.insertBefore(newTableWrapper, nextFlow.firstChild);
+                      }
+                      
+                      // Create model for new table
+                      if (compModel) {
+                        try {
+                          const newModel = compModel.clone();
+                          newModel.set('attributes', { 
+                            id: newItemId,
+                            'data-table-continuation': 'true'
+                          });
+                          
+                          const layoutModel = this.model;
+                          const colModels = layoutModel.components();
+                          const targetColModel = colModels.at(colIndex + 1);
+                          const targetFlowModel = targetColModel && targetColModel.components().at(0);
+                          
+                          if (targetFlowModel) {
+                            targetFlowModel.components().add(newModel, { at: 0 });
+                          }
+                        } catch (e) {
+                          console.warn("Table model creation failed", e);
+                        }
+                      }
+                      
+                      handled = true;
+                      processedIds.add(itemId);
+                      processedIds.add(newItemId);
+                      
+                      // Mark original item as processed to prevent re-processing
+                      item.setAttribute('data-table-split', 'true');
+                      
+                      scheduleReflow(this, 50);
+                      return;
+                    } else {
+                      // If split fails but table overflows, try to move entire table
+                      // only if it's not too large for the next column
+                      if (!isLastColumn) {
+                        const capturedStyles = cloneStyles(item);
+                        const capturedClasses = item.className;
+                        
+                        nextFlow.insertBefore(item, nextFlow.firstChild);
+                        Object.assign(item.style, capturedStyles);
+                        item.className = capturedClasses;
+                        
+                        if (compModel) {
+                          const layoutModel = this.model;
+                          const colModels = layoutModel.components();
+                          const sourceColModel = colModels.at(colIndex);
+                          const targetColModel = colModels.at(colIndex + 1);
+                          const sourceFlowModel = sourceColModel && sourceColModel.components().at(0);
+                          const targetFlowModel = targetColModel && targetColModel.components().at(0);
+
+                          if (sourceFlowModel && targetFlowModel) {
+                            sourceFlowModel.components().remove(compModel);
+                            targetFlowModel.components().add(compModel, { at: 0 });
+                          }
+                        }
+                        
+                        handled = true;
+                        processedIds.add(itemId);
+                        scheduleReflow(this, 50);
+                        return;
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn("Table split error", err);
+                }
+              }
+
+              // Handle JSON table - move entire table to next column
+              if (isJsonTableEl && !handled) {
+                try {
+                  // Clone the entire JSON table container with all attributes
+                  const clonedJsonTable = item.cloneNode(true);
+                  const newItemId = "flow-item-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 10000);
+                  clonedJsonTable.id = newItemId;
+                  
+                  nextFlow.insertBefore(clonedJsonTable, nextFlow.firstChild);
+                  
+                  // Remove from current column
+                  item.remove();
+                  
+                  if (compModel) {
+                    const layoutModel = this.model;
+                    const colModels = layoutModel.components();
+                    const sourceColModel = colModels.at(colIndex);
+                    const targetColModel = colModels.at(colIndex + 1);
+                    const sourceFlowModel = sourceColModel && sourceColModel.components().at(0);
+                    const targetFlowModel = targetColModel && targetColModel.components().at(0);
+
+                    if (sourceFlowModel && targetFlowModel) {
+                      sourceFlowModel.components().remove(compModel);
+                      compModel.set('attributes', { id: newItemId });
+                      targetFlowModel.components().add(compModel, { at: 0 });
+                    }
+                  }
+                  
+                  handled = true;
+                  processedIds.add(itemId);
+                  processedIds.add(newItemId);
+                  scheduleReflow(this, 50);
+                  return;
+                } catch (err) {
+                  console.warn("JSON table move error", err);
+                }
+              }
+
+              // Handle text splitting for text-like elements
+              const isTextLike = compModel && ((compModel.is && compModel.is("text")) || (compModel.get && compModel.get("type") === CUSTOM_TEXT_TYPE));
+
+              if (!handled && isTextLike && remainPx > 8) {
                 try {
                   const splitRes = this.splitTextContent(item, compModel, remainPx);
                   if (splitRes) {
-                    // 1) Update model FIRST (silent), then DOM immediately to avoid model overwriting
+                    // Check if remaining content is too small (orphaned text)
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = splitRes.remainingHTML;
+                    const remainingText = tempDiv.textContent.trim();
+                    
+                    // If remaining text is less than 20 characters or very short, move entire element
+                    if (remainingText.length < 20) {
+                      // Move entire element instead of splitting
+                      const capturedStyles = cloneStyles(item);
+                      const capturedClasses = item.className;
+                      
+                      nextFlow.insertBefore(item, nextFlow.firstChild);
+                      Object.assign(item.style, capturedStyles);
+                      item.className = capturedClasses;
+                      
+                      if (compModel) {
+                        const layoutModel = this.model;
+                        const colModels = layoutModel.components();
+                        const sourceColModel = colModels.at(colIndex);
+                        const targetColModel = colModels.at(colIndex + 1);
+                        const sourceFlowModel = sourceColModel && sourceColModel.components().at(0);
+                        const targetFlowModel = targetColModel && targetColModel.components().at(0);
+
+                        if (sourceFlowModel && targetFlowModel) {
+                          const modelStyles = compModel.getStyle ? compModel.getStyle() : {};
+                          sourceFlowModel.components().remove(compModel);
+                          targetFlowModel.components().add(compModel, { at: 0 });
+                          if (compModel.setStyle) {
+                            compModel.setStyle(Object.assign({}, modelStyles, capturedStyles));
+                          }
+                        }
+                      }
+                      
+                      handled = true;
+                      processedIds.add(itemId);
+                      scheduleReflow(this, 50);
+                      return;
+                    }
+                    
+                    // Capture styles BEFORE any changes
+                    const capturedStyles = cloneStyles(item);
+                    
+                    // 1) Update current element content (model + DOM)
                     try {
-                      // Some custom components store content differently; we attempt common methods:
                       if (compModel && compModel.set) {
                         compModel.set({ content: splitRes.remainingHTML }, { silent: true });
                       }
-                    } catch (e) { /* ignore set error */ }
+                    } catch (e) { /* ignore */ }
 
-                    // Force DOM sync immediately (model.view may be available)
+                    // Update DOM
                     try {
                       const viewEl = compModel && compModel.view && compModel.view.el;
                       if (viewEl) {
@@ -298,24 +614,54 @@ function flowLayoutComponent(editor) {
                       item.innerHTML = splitRes.remainingHTML;
                     }
 
-                    // 2) Create new model for overflow and insert at top of next column's model
+                    // 2) Create new element for overflow with FULL style copying but NO padding
+                    const newItemId = "flow-item-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 10000);
                     let newModel = null;
+                    
+                    // Remove padding from continuation styles
+                    const continuationStyles = Object.assign({}, capturedStyles);
+                    continuationStyles.padding = '0';
+                    continuationStyles.paddingTop = '0';
+                    continuationStyles.paddingBottom = '0';
+                    continuationStyles.paddingLeft = '0';
+                    continuationStyles.paddingRight = '0';
+                    continuationStyles.margin = '0';
+                    continuationStyles.marginTop = '0';
+                    continuationStyles.marginBottom = '0';
+                    
                     try {
-                      newModel = editor.Components.addComponent({
+                      const modelConfig = {
                         type: compModel.get("type"),
                         content: splitRes.overflowHTML,
-                        style: compModel.getStyle ? compModel.getStyle() : undefined,
-                        attributes: compModel.getAttributes ? compModel.getAttributes() : undefined,
-                      });
+                        attributes: Object.assign({}, compModel.getAttributes ? compModel.getAttributes() : {}, { 
+                          id: newItemId,
+                          'data-flow-continuation': 'true'
+                        })
+                      };
+                      
+                      // Copy model styles without padding
+                      if (compModel.getStyle) {
+                        const baseStyle = compModel.getStyle();
+                        modelConfig.style = Object.assign({}, baseStyle, continuationStyles);
+                      } else {
+                        modelConfig.style = continuationStyles;
+                      }
+                      
+                      newModel = editor.Components.addComponent(modelConfig);
                     } catch (e) {
-                      // fallback minimal
+                      // Fallback
                       newModel = editor.Components.addComponent({
                         type: compModel.get("type") || "text",
                         content: splitRes.overflowHTML,
+                        attributes: { 
+                          id: newItemId,
+                          'data-flow-continuation': 'true'
+                        },
+                        style: continuationStyles
                       });
                     }
 
-                    // Add to target model flow if possible
+                    // Add to next column
                     try {
                       const layoutModel = this.model;
                       const colModels = layoutModel.components();
@@ -324,23 +670,33 @@ function flowLayoutComponent(editor) {
 
                       if (targetFlowModel) {
                         targetFlowModel.components().add(newModel, { at: 0 });
-                      } else {
-                        nextFlow.insertBefore(document.createRange().createContextualFragment(splitRes.overflowHTML), nextFlow.firstChild);
+                        
+                        // Force style application on the new element
+                        setTimeout(() => {
+                          try {
+                            const newEl = newModel.view && newModel.view.el;
+                            if (newEl) {
+                              Object.assign(newEl.style, continuationStyles);
+                            }
+                          } catch (e) {}
+                        }, 10);
                       }
                     } catch (e) {
-                      // DOM fallback
-                      try { nextFlow.insertBefore(document.createRange().createContextualFragment(splitRes.overflowHTML), nextFlow.firstChild); } catch (err) { }
+                      console.warn("Failed to add overflow model", e);
                     }
 
-                    // Clear selection and select newly added overflow for UX
+                    // Mark as processed
+                    processedIds.add(itemId);
+                    processedIds.add(newItemId);
+                    
+                    // Clear selection
                     editor.select(null);
                     setTimeout(() => {
                       try { editor.select(newModel); } catch (e) { }
                     }, 10);
 
                     handled = true;
-                    // After partial-split we must recompute layout
-                    scheduleReflow(this, 30);
+                    scheduleReflow(this, 50);
                     return;
                   }
                 } catch (err) {
@@ -348,37 +704,58 @@ function flowLayoutComponent(editor) {
                 }
               }
 
-              // Fallback: move the entire block (DOM + model if available)
-              try {
-                nextFlow.insertBefore(item, nextFlow.firstChild);
+              // Fallback: move entire element with full style copying
+              if (!handled) {
+                try {
+                  // Capture ALL styles before move
+                  const capturedStyles = cloneStyles(item);
+                  const capturedClasses = item.className;
+                  
+                  // Move DOM element
+                  nextFlow.insertBefore(item, nextFlow.firstChild);
+                  
+                  // Reapply styles and attributes
+                  Object.assign(item.style, capturedStyles);
+                  item.className = capturedClasses;
+                  
+                  // Move model
+                  if (compModel) {
+                    const layoutModel = this.model;
+                    const colModels = layoutModel.components();
+                    const sourceColModel = colModels.at(colIndex);
+                    const targetColModel = colModels.at(colIndex + 1);
+                    const sourceFlowModel = sourceColModel && sourceColModel.components().at(0);
+                    const targetFlowModel = targetColModel && targetColModel.components().at(0);
 
-                if (compModel) {
-                  // Move model objects between columns in GrapesJS model tree
-                  const layoutModel = this.model;
-                  const colModels = layoutModel.components();
-                  const sourceColModel = colModels.at(colIndex);
-                  const targetColModel = colModels.at(colIndex + 1);
-                  const sourceFlowModel = sourceColModel && sourceColModel.components().at(0);
-                  const targetFlowModel = targetColModel && targetColModel.components().at(0);
-
-                  if (sourceFlowModel && targetFlowModel) {
-                    sourceFlowModel.components().remove(compModel);
-                    targetFlowModel.components().add(compModel, { at: 0 });
+                    if (sourceFlowModel && targetFlowModel) {
+                      // Preserve model styles
+                      const modelStyles = compModel.getStyle ? compModel.getStyle() : {};
+                      
+                      sourceFlowModel.components().remove(compModel);
+                      targetFlowModel.components().add(compModel, { at: 0 });
+                      
+                      // Reapply styles to model
+                      if (compModel.setStyle) {
+                        compModel.setStyle(Object.assign({}, modelStyles, capturedStyles));
+                      }
+                    }
                   }
+
+                  handled = true;
+                  processedIds.add(itemId);
+                  scheduleReflow(this, 50);
+                  return;
+                } catch (err) {
+                  console.warn("Flow: move fallback failed", err);
                 }
-
-                handled = true;
-                scheduleReflow(this, 30);
-                return;
-              } catch (err) {
-                console.warn("Flow: move fallback failed", err);
               }
-
-              if (!handled) continue;
-            } // if overflow
-          } // for items
-        } // for cols
-      }, // reflow
+            } else {
+              // Item fits - mark as processed
+              processedIds.add(itemId);
+            }
+          }
+        }
+      },
     },
   });
 

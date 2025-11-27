@@ -13,7 +13,7 @@ window.editor = InteractiveDesigner.init({
     componentFirst: true,
   },
   plugins: [
-    //initNotificationsPlugin,
+    initNotificationsPlugin,
     "code-editor-component",
     "postcss-parser-component",
     "webpage-component",
@@ -3329,460 +3329,441 @@ async function generatePrintDialog() {
   }
 
   // Function to build final HTML with chart initialization
-  function buildFinalHtml(htmlContent, subreportStyles = []) {
-    console.log("🏗️ [BUILD] Building final HTML...");
-    console.log("🏗️ [BUILD] Main CSS length:", editor.getCss().length);
-    console.log("🏗️ [BUILD] Subreport styles count:", subreportStyles.length);
+function buildFinalHtml(htmlContent, subreportStyles = []) {
+  console.log("🏗️ [BUILD] Building final HTML...");
+  console.log("🏗️ [BUILD] Main CSS length:", editor.getCss().length);
+  console.log("🏗️ [BUILD] Subreport styles count:", subreportStyles.length);
 
-    const mainCSS = editor.getCss();
+  const mainCSS = editor.getCss();
 
-    // Ensure subreportStyles is an array and non-empty before joining
-    const subStyles = Array.isArray(subreportStyles) && subreportStyles.length
-      ? subreportStyles.join('\n')
-      : '';
+  // Ensure subreportStyles is an array and non-empty before joining
+  const subStyles = Array.isArray(subreportStyles) && subreportStyles.length
+    ? subreportStyles.join('\n')
+    : '';
 
-    const combinedStyles = `
-    <style>${mainCSS}</style>
-    ${subStyles}
+  const combinedStyles = `
+  <style>${mainCSS}</style>
+  ${subStyles}
 `;
 
+  console.log("🏗️ [BUILD] Combined styles length:", combinedStyles.length);
 
-    console.log("🏗️ [BUILD] Combined styles length:", combinedStyles.length);
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlContent, 'text/html');
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
+  const allPages = Array.from(doc.querySelectorAll('.page-container'));
+  console.log("📄 [BUILD] Total pages found:", allPages.length);
 
-    const allPages = Array.from(doc.querySelectorAll('.page-container'));
-    console.log("📄 [BUILD] Total pages found:", allPages.length);
+  // ✅ Check if there are any subreport pages or markers
+  const hasSubreportPages = allPages.some(page =>
+    page.getAttribute('data-subreport-page') === 'true'
+  );
+  const hasSubreportMarkers = doc.querySelector('.subreport-page-marker') !== null;
 
-    // ✅ Check if there are any subreport pages or markers
-    const hasSubreportPages = allPages.some(page =>
-      page.getAttribute('data-subreport-page') === 'true'
-    );
-    const hasSubreportMarkers = doc.querySelector('.subreport-page-marker') !== null;
+  let finalBodyHTML;
+  let totalPages;
 
-    let finalBodyHTML;
-    let totalPages;
+  if (hasSubreportPages || hasSubreportMarkers) {
+    console.log("📄 [BUILD] Subreports detected, reorganizing pages...");
 
-    if (hasSubreportPages || hasSubreportMarkers) {
-      console.log("📄 [BUILD] Subreports detected, reorganizing pages...");
+    const mainPages = [];
+    const subreportPageGroups = new Map();
 
-      const mainPages = [];
-      const subreportPageGroups = new Map();
-
-      allPages.forEach((page, idx) => {
-        if (page.getAttribute('data-subreport-page') === 'true') {
-          const subreportId = page.getAttribute('data-subreport-id');
-          if (!subreportPageGroups.has(subreportId)) {
-            subreportPageGroups.set(subreportId, []);
-          }
-          subreportPageGroups.get(subreportId).push(page);
-          console.log(`📄 [BUILD] Found subreport page ${idx} for subreport ${subreportId}`);
-        } else {
-          mainPages.push(page);
+    allPages.forEach((page, idx) => {
+      if (page.getAttribute('data-subreport-page') === 'true') {
+        const subreportId = page.getAttribute('data-subreport-id');
+        if (!subreportPageGroups.has(subreportId)) {
+          subreportPageGroups.set(subreportId, []);
         }
-      });
-
-      const reorganizedPages = [];
-      mainPages.forEach((mainPage, idx) => {
-        reorganizedPages.push(mainPage);
-
-        const marker = mainPage.querySelector('.subreport-page-marker');
-        if (marker) {
-          const subreportId = marker.getAttribute('data-subreport-id');
-          const sharePageNumber = marker.getAttribute('data-share-page-number') !== 'false';
-
-          console.log(`📄 [BUILD] Found subreport marker for ${subreportId}, sharePageNumber: ${sharePageNumber}`);
-
-          const subreportPages = subreportPageGroups.get(subreportId) || [];
-          subreportPages.forEach(subPage => {
-            // ✅ Set skip attribute based on sharePageNumber
-            subPage.setAttribute('data-skip-page-number', !sharePageNumber);
-            reorganizedPages.push(subPage);
-          });
-
-          marker.remove();
-        }
-      });
-
-      console.log("📄 [BUILD] Reorganized pages count:", reorganizedPages.length);
-
-      doc.body.innerHTML = '';
-      reorganizedPages.forEach(page => doc.body.appendChild(page));
-
-      totalPages = reorganizedPages.length;
-    } else {
-      console.log("📄 [BUILD] No subreports detected, using original page structure");
-      totalPages = allPages.length > 0 ? allPages.length : 1;
-    }
-
-    finalBodyHTML = doc.body.innerHTML;
-
-    console.log(`📊 [BUILD] Total pages after processing: ${totalPages}`);
-
-    const paginationScript = `
-  <script>
-    console.log("📄 [PREVIEW-PAGINATION] Script loaded");
-    
-    if (window.parent) {
-      window.parent.postMessage({
-        type: 'pageCountUpdate',
-        totalPages: ${totalPages}
-      }, '*');
-      console.log("📊 [PREVIEW-PAGINATION] Initial page count sent: ${totalPages}");
-    }
-    
-    window.addEventListener('DOMContentLoaded', function() {
-      console.log("📄 [PREVIEW-PAGINATION] DOM loaded, starting pagination...");
-      
-      setTimeout(function() {
-        paginatePreview();
-      }, 5000);
+        subreportPageGroups.get(subreportId).push(page);
+        console.log(`📄 [BUILD] Found subreport page ${idx} for subreport ${subreportId}`);
+      } else {
+        mainPages.push(page);
+      }
     });
-    function findDecorationsInDocument() {
-      // Search entire document for decorations that might be outside page-container
-      const allWatermarks = document.querySelectorAll('.watermark, [data-watermark]');
-      const allPageNumbers = document.querySelectorAll('.page-number, [data-page-number]');
-      
-      console.log("🔍 [SEARCH] Found watermarks in document:", allWatermarks.length);
-      console.log("🔍 [SEARCH] Found page numbers in document:", allPageNumbers.length);
-      
-      return {
-        watermark: allWatermarks.length > 0 ? allWatermarks[0] : null,
-        pageNumber: allPageNumbers.length > 0 ? allPageNumbers[0] : null
-      };
-    }
 
-   function paginatePreview() {
-  debugger
-  console.log("🔄 [PREVIEW-PAGINATION] Starting pagination process");
-    const documentDecorations = findDecorationsInDocument();
-  const pageContainers = document.querySelectorAll('.page-container');
-  console.log("📦 [PREVIEW-PAGINATION] Found " + pageContainers.length + " page containers");
-  
-  // ✅ Handle no page-container case (canvas/freeform content)
-  if (pageContainers.length === 0) {
-    console.log("✅ [PREVIEW-PAGINATION] No page containers - canvas/freeform mode");
-    if (window.parent) {
-      window.parent.postMessage({
-        type: 'pageCountUpdate',
-        totalPages: 1
-      }, '*');
-    }
-    return;
-  }
-  
-  const firstPage = pageContainers[0];
-  const firstPageContent = firstPage.querySelector('.page-content');
-  
-  // ✅ Handle missing page-content
-  if (!firstPageContent) {
-    console.log("✅ [PREVIEW-PAGINATION] No page-content structure - simple page mode");
-    if (window.parent) {
-      window.parent.postMessage({
-        type: 'pageCountUpdate',
-        totalPages: pageContainers.length
-      }, '*');
-    }
-    return;
-  }
-  
-  const pageSettings = extractPageSettings(firstPage);
-    if (!pageSettings.watermark && documentDecorations.watermark) {
-    console.log("🔧 [FIX] Using document-level watermark");
-    pageSettings.watermark = {
-      content: documentDecorations.watermark.textContent || documentDecorations.watermark.getAttribute('data-watermark'),
-      style: documentDecorations.watermark.style.cssText,
-      element: documentDecorations.watermark.cloneNode(true)
-    };
-  }
-  
-  if (!pageSettings.pageNumberFormat && documentDecorations.pageNumber) {
-    console.log("🔧 [FIX] Using document-level page number");
-    const text = documentDecorations.pageNumber.textContent.trim();
-    const format = documentDecorations.pageNumber.getAttribute('data-format') || text.replace(/\d+/g, '{n}') || 'Page {n}';
-    
-    pageSettings.pageNumberFormat = format;
-    pageSettings.pageNumberPosition = {
-      style: documentDecorations.pageNumber.style.cssText,
-      classList: Array.from(documentDecorations.pageNumber.classList),
-      element: documentDecorations.pageNumber.cloneNode(true)
-    };
-  }
+    const reorganizedPages = [];
+    mainPages.forEach((mainPage, idx) => {
+      reorganizedPages.push(mainPage);
 
-  console.log("⚙️ [PREVIEW-PAGINATION] Page settings:", pageSettings);
+      const marker = mainPage.querySelector('.subreport-page-marker');
+      if (marker) {
+        const subreportId = marker.getAttribute('data-subreport-id');
+        const sharePageNumber = marker.getAttribute('data-share-page-number') !== 'false';
 
-  const pageHeight = parseInt(window.getComputedStyle(firstPageContent).height) || 1027;
-  console.log("📏 [PREVIEW-PAGINATION] Page height: " + pageHeight + "px");
+        console.log(`📄 [BUILD] Found subreport marker for ${subreportId}, sharePageNumber: ${sharePageNumber}`);
 
-  const allNewPages = [];
-  let globalPageNumber = 1;
+        const subreportPages = subreportPageGroups.get(subreportId) || [];
+        subreportPages.forEach(subPage => {
+          // ✅ Set skip attribute based on sharePageNumber
+          subPage.setAttribute('data-skip-page-number', !sharePageNumber);
+          reorganizedPages.push(subPage);
+        });
 
-  for (let i = 0; i < pageContainers.length; i++) {
-    const pageContainer = pageContainers[i];
-    const mainContent = pageContainer.querySelector('.main-content-area');
-
-    const skipPageNumber = pageContainer.getAttribute('data-skip-page-number') === 'true';
-
-    // If no main-content, just apply settings and store page
-    if (!mainContent) {
-      if (!skipPageNumber) {
-        applyPageSettings(pageContainer, pageSettings, globalPageNumber);
-        globalPageNumber++;
-      } else {
-        applyPageSettings(pageContainer, pageSettings, null);
+        marker.remove();
       }
-      allNewPages.push(pageContainer.outerHTML);
-      continue;
-    }
+    });
 
-    const headerWrapper = pageContainer.querySelector('.header-wrapper');
-    const footerWrapper = pageContainer.querySelector('.footer-wrapper');
+    console.log("📄 [BUILD] Reorganized pages count:", reorganizedPages.length);
 
-    const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 0;
-    const footerHeight = footerWrapper ? footerWrapper.offsetHeight : 0;
-    const availableHeight = pageHeight - headerHeight - footerHeight - 40;
+    doc.body.innerHTML = '';
+    reorganizedPages.forEach(page => doc.body.appendChild(page));
 
-    console.log("📐 [PREVIEW-PAGINATION] Page " + i + ": available=" + availableHeight + "px");
-
-    const contentHeight = mainContent.scrollHeight;
-
-    // ✅ CASE 1 — NO OVERFLOW
-    if (contentHeight <= availableHeight) {
-      if (!skipPageNumber) {
-        applyPageSettings(pageContainer, pageSettings, globalPageNumber);
-        globalPageNumber++;
-      } else {
-        applyPageSettings(pageContainer, pageSettings, null);
-      }
-
-      // NEW: store as HTML string
-      allNewPages.push(pageContainer.outerHTML);
-
-      console.log("✅ [PREVIEW-PAGINATION] Page " + i + ": no overflow");
-      continue;
-    }
-
-    // --------------------------------------------------------------
-    // ❗ CASE 2 — PAGE OVERFLOW → SPLIT INTO MULTIPLE NEW PAGES
-    // --------------------------------------------------------------
-
-    console.log("⚠️ [PREVIEW-PAGINATION] Page " + i + ": overflow detected (" + contentHeight + " > " + availableHeight + ")");
-
-    const tableRows = extractTableRows(mainContent);
-    console.log("📦 [PREVIEW-PAGINATION] Extracted " + tableRows.length + " table rows");
-
-    // === NEW REPLACED BLOCK STARTS HERE ===
-    if (tableRows.length > 0) {
-      const newPages = splitTableIntoPages(
-        pageContainer,
-        tableRows,
-        availableHeight,
-        headerWrapper,
-        footerWrapper,
-        pageSettings,
-        globalPageNumber,
-        skipPageNumber
-      );
-
-      allNewPages.push(...newPages);
-
-      if (!skipPageNumber) {
-        globalPageNumber += newPages.length;
-      }
-
-      console.log("✂️ [PREVIEW-PAGINATION] Split page " + i + " into " + newPages.length + " pages");
-    } else {
-      const children = Array.from(mainContent.children);
-
-      const newPages = splitIntoPages(
-        pageContainer,
-        children,
-        availableHeight,
-        headerWrapper,
-        footerWrapper,
-        pageSettings,
-        globalPageNumber,
-        skipPageNumber
-      );
-
-      allNewPages.push(...newPages);
-
-      if (!skipPageNumber) {
-        globalPageNumber += newPages.length;
-      }
-
-      console.log("✂️ [PREVIEW-PAGINATION] Split page " + i + " into " + newPages.length + " pages");
-    }
-    // === NEW BLOCK ENDS HERE ===
+    totalPages = reorganizedPages.length;
+  } else {
+    console.log("📄 [BUILD] No subreports detected, using original page structure");
+    totalPages = allPages.length > 0 ? allPages.length : 1;
   }
 
-  // -------------------------------------------------------------------
-  // FINAL APPLY — REPLACE BODY WITH NEW PAGES (ALREADY HTML STRINGS)
-  // -------------------------------------------------------------------
+  finalBodyHTML = doc.body.innerHTML;
 
-  console.log("🧹 Clearing body and inserting fresh pages…");
+  console.log(`📊 [BUILD] Total pages after processing: ${totalPages}`);
 
-  document.body.innerHTML = '';
-  allNewPages.forEach(html => {
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = html;
-    document.body.appendChild(wrapper.firstElementChild);
-  });
-
-  console.log("✅ [PREVIEW-PAGINATION] Pagination complete: " + allNewPages.length + " pages");
-
+  const paginationScript = `
+<script>
+  console.log("📄 [PREVIEW-PAGINATION] Script loaded");
+  
   if (window.parent) {
     window.parent.postMessage({
       type: 'pageCountUpdate',
-      totalPages: allNewPages.length
+      totalPages: ${totalPages}
+    }, '*');
+    console.log("📊 [PREVIEW-PAGINATION] Initial page count sent: ${totalPages}");
+  }
+  
+  window.addEventListener('DOMContentLoaded', function() {
+    console.log("📄 [PREVIEW-PAGINATION] DOM loaded, starting pagination...");
+    
+    setTimeout(function() {
+      paginatePreview();
+    }, 5000);
+  });
+  function findDecorationsInDocument() {
+    // Search entire document for decorations that might be outside page-container
+    const allWatermarks = document.querySelectorAll('.watermark, [data-watermark]');
+    const allPageNumbers = document.querySelectorAll('.page-number, [data-page-number]');
+    
+    console.log("🔍 [SEARCH] Found watermarks in document:", allWatermarks.length);
+    console.log("🔍 [SEARCH] Found page numbers in document:", allPageNumbers.length);
+    
+    return {
+      watermark: allWatermarks.length > 0 ? allWatermarks[0] : null,
+      pageNumber: allPageNumbers.length > 0 ? allPageNumbers[0] : null
+    };
+  }
+
+ function paginatePreview() {
+debugger
+console.log("🔄 [PREVIEW-PAGINATION] Starting pagination process");
+  const documentDecorations = findDecorationsInDocument();
+const pageContainers = document.querySelectorAll('.page-container');
+console.log("📦 [PREVIEW-PAGINATION] Found " + pageContainers.length + " page containers");
+
+// ✅ Handle no page-container case (canvas/freeform content)
+if (pageContainers.length === 0) {
+  console.log("✅ [PREVIEW-PAGINATION] No page containers - canvas/freeform mode");
+  if (window.parent) {
+    window.parent.postMessage({
+      type: 'pageCountUpdate',
+      totalPages: 1
     }, '*');
   }
+  return;
+}
+
+// ✅ Handle missing page-content
+const firstPage = pageContainers[0];
+const firstPageContent = firstPage.querySelector('.page-content');
+
+if (!firstPageContent) {
+  console.log("✅ [PREVIEW-PAGINATION] No page-content structure - simple page mode");
+  if (window.parent) {
+    window.parent.postMessage({
+      type: 'pageCountUpdate',
+      totalPages: pageContainers.length
+    }, '*');
+  }
+  return;
+}
+
+const pageSettings = extractPageSettings(firstPage);
+  if (!pageSettings.watermark && documentDecorations.watermark) {
+  console.log("🔧 [FIX] Using document-level watermark");
+  pageSettings.watermark = {
+    content: documentDecorations.watermark.textContent || documentDecorations.watermark.getAttribute('data-watermark'),
+    style: documentDecorations.watermark.style.cssText,
+    element: documentDecorations.watermark.cloneNode(true)
+  };
+}
+
+if (!pageSettings.pageNumberFormat && documentDecorations.pageNumber) {
+  console.log("🔧 [FIX] Using document-level page number");
+  const text = documentDecorations.pageNumber.textContent.trim();
+  const format = documentDecorations.pageNumber.getAttribute('data-format') || text.replace(/\d+/g, '{n}') || 'Page {n}';
+  
+  pageSettings.pageNumberFormat = format;
+  pageSettings.pageNumberPosition = {
+    style: documentDecorations.pageNumber.style.cssText,
+    classList: Array.from(documentDecorations.pageNumber.classList),
+    element: documentDecorations.pageNumber.cloneNode(true)
+  };
+}
+
+console.log("⚙️ [PREVIEW-PAGINATION] Page settings:", pageSettings);
+
+const pageHeight = parseInt(window.getComputedStyle(firstPageContent).height) || 1027;
+console.log("📏 [PREVIEW-PAGINATION] Page height: " + pageHeight + "px");
+
+const allNewPages = [];
+let globalPageNumber = 1;
+
+for (let i = 0; i < pageContainers.length; i++) {
+  const pageContainer = pageContainers[i];
+  const mainContent = pageContainer.querySelector('.main-content-area');
+
+  const skipPageNumber = pageContainer.getAttribute('data-skip-page-number') === 'true';
+
+  // If no main-content, just apply settings and store page
+  if (!mainContent) {
+    if (!skipPageNumber) {
+      applyPageSettings(pageContainer, pageSettings, globalPageNumber);
+      globalPageNumber++;
+    } else {
+      applyPageSettings(pageContainer, pageSettings, null);
+    }
+    allNewPages.push(pageContainer.outerHTML);
+    continue;
+  }
+
+  const headerWrapper = pageContainer.querySelector('.header-wrapper');
+  const footerWrapper = pageContainer.querySelector('.footer-wrapper');
+
+  const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 0;
+  const footerHeight = footerWrapper ? footerWrapper.offsetHeight : 0;
+  const availableHeight = pageHeight - headerHeight - footerHeight - 40;
+
+  console.log("📐 [PREVIEW-PAGINATION] Page " + i + ": available=" + availableHeight + "px");
+
+  const contentHeight = mainContent.scrollHeight;
+
+  // ✅ CASE 1 — NO OVERFLOW
+  if (contentHeight <= availableHeight) {
+    if (!skipPageNumber) {
+      applyPageSettings(pageContainer, pageSettings, globalPageNumber);
+      globalPageNumber++;
+    } else {
+      applyPageSettings(pageContainer, pageSettings, null);
+    }
+
+    // NEW: store as HTML string
+    allNewPages.push(pageContainer.outerHTML);
+
+    console.log("✅ [PREVIEW-PAGINATION] Page " + i + ": no overflow");
+    continue;
+  }
+
+  // --------------------------------------------------------------
+  // ❗ CASE 2 — PAGE OVERFLOW → SPLIT INTO MULTIPLE NEW PAGES
+  // --------------------------------------------------------------
+
+  console.log("⚠️ [PREVIEW-PAGINATION] Page " + i + ": overflow detected (" + contentHeight + " > " + availableHeight + ")");
+
+  const tableRows = extractTableRows(mainContent);
+  console.log("📦 [PREVIEW-PAGINATION] Extracted " + tableRows.length + " table rows");
+
+  // === NEW REPLACED BLOCK STARTS HERE ===
+  if (tableRows.length > 0) {
+    const newPages = splitTableIntoPages(
+      pageContainer,
+      tableRows,
+      availableHeight,
+      headerWrapper,
+      footerWrapper,
+      pageSettings,
+      globalPageNumber,
+      skipPageNumber
+    );
+
+    allNewPages.push(...newPages);
+
+    if (!skipPageNumber) {
+      globalPageNumber += newPages.length;
+    }
+
+    console.log("✂️ [PREVIEW-PAGINATION] Split page " + i + " into " + newPages.length + " pages");
+  } else {
+    const children = Array.from(mainContent.children);
+
+    const newPages = splitIntoPages(
+      pageContainer,
+      children,
+      availableHeight,
+      headerWrapper,
+      footerWrapper,
+      pageSettings,
+      globalPageNumber,
+      skipPageNumber
+    );
+
+    allNewPages.push(...newPages);
+
+    if (!skipPageNumber) {
+      globalPageNumber += newPages.length;
+    }
+
+    console.log("✂️ [PREVIEW-PAGINATION] Split page " + i + " into " + newPages.length + " pages");
+  }
+  // === NEW BLOCK ENDS HERE ===
+}
+
+// -------------------------------------------------------------------
+// FINAL APPLY — REPLACE BODY WITH NEW PAGES (ALREADY HTML STRINGS)
+// -------------------------------------------------------------------
+
+console.log("🧹 Clearing body and inserting fresh pages…");
+
+document.body.innerHTML = '';
+allNewPages.forEach(html => {
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  document.body.appendChild(wrapper.firstElementChild);
+});
+
+console.log("✅ [PREVIEW-PAGINATION] Pagination complete: " + allNewPages.length + " pages");
+
+if (window.parent) {
+  window.parent.postMessage({
+    type: 'pageCountUpdate',
+    totalPages: allNewPages.length
+  }, '*');
+}
 }
 
 
 function extractPageSettings(pageContainer) {
-      const settings = {
-        backgroundColor: window.getComputedStyle(pageContainer).backgroundColor || '#ffffff',
-        margin: window.getComputedStyle(pageContainer).margin || '0',
-        padding: window.getComputedStyle(pageContainer).padding || '0',
-        watermark: null,
-        pageNumberFormat: null,
-        pageNumberPosition: null,
-        containerStyle: pageContainer.style.cssText,
-        containerClasses: Array.from(pageContainer.classList)
+    const settings = {
+      backgroundColor: window.getComputedStyle(pageContainer).backgroundColor || '#ffffff',
+      margin: window.getComputedStyle(pageContainer).margin || '0',
+      padding: window.getComputedStyle(pageContainer).padding || '0',
+      watermark: null,
+      pageNumberFormat: null,
+      pageNumberPosition: null,
+      containerStyle: pageContainer.style.cssText,
+      containerClasses: Array.from(pageContainer.classList)
+    };
+
+    // ✅ FIX: Search for watermark in entire document (not just first page)
+    const watermark = pageContainer.querySelector('.watermark, [data-watermark]');
+    if (watermark) {
+      console.log("✅ [EXTRACT] Found watermark:", watermark.textContent);
+      settings.watermark = {
+        content: watermark.textContent || watermark.getAttribute('data-watermark'),
+        style: watermark.style.cssText,
+        element: watermark.cloneNode(true)
       };
-  
-      // ✅ FIX: Search for watermark in entire document (not just first page)
-      const watermark = pageContainer.querySelector('.watermark, [data-watermark]');
-      if (watermark) {
-        console.log("✅ [EXTRACT] Found watermark:", watermark.textContent);
-        settings.watermark = {
-          content: watermark.textContent || watermark.getAttribute('data-watermark'),
-          style: watermark.style.cssText,
-          element: watermark.cloneNode(true)
-        };
-      } else {
-        console.log("⚠️ [EXTRACT] No watermark found in page container");
-      }
-  
-      // ✅ FIX: Search for page number in entire document
-      const pageNumber = pageContainer.querySelector('.page-number, [data-page-number]');
-      if (pageNumber) {
-        console.log("✅ [EXTRACT] Found page number:", pageNumber.textContent);
-        
-        // Extract format from data attribute or infer from text
-        let format = pageNumber.getAttribute('data-format');
-        if (!format) {
-          const text = pageNumber.textContent.trim();
-          // Try to infer format from text like "Page 1" -> "Page {n}"
-          format = text.replace(/\d+/g, '{n}');
-          if (!format.includes('{n}')) {
-            format = 'Page {n}'; // Default fallback
-          }
-        }
-        
-        settings.pageNumberFormat = format;
-        settings.pageNumberPosition = {
-          style: pageNumber.style.cssText,
-          classList: Array.from(pageNumber.classList),
-          element: pageNumber.cloneNode(true)
-        };
-        
-        console.log("✅ [EXTRACT] Page number format:", format);
-      } else {
-        console.log("⚠️ [EXTRACT] No page number found in page container");
-      }
-  
-      console.log("📋 [EXTRACT] Final settings:", {
-        hasWatermark: !!settings.watermark,
-        hasPageNumber: !!settings.pageNumberFormat,
-        backgroundColor: settings.backgroundColor
-      });
-      
-      return settings;
+    } else {
+      console.log("⚠️ [EXTRACT] No watermark found in page container");
     }
+
+    // ✅ FIX: Search for page number in entire document
+    const pageNumber = pageContainer.querySelector('.page-number, [data-page-number]');
+    if (pageNumber) {
+      console.log("✅ [EXTRACT] Found page number:", pageNumber.textContent);
+      
+      // Extract format from data attribute or infer from text
+      let format = pageNumber.getAttribute('data-format');
+      if (!format) {
+        const text = pageNumber.textContent.trim();
+        // Try to infer format from text like "Page 1" -> "Page {n}"
+        format = text.replace(/\d+/g, '{n}');
+        if (!format.includes('{n}')) {
+          format = 'Page {n}'; // Default fallback
+        }
+      }
+      
+      settings.pageNumberFormat = format;
+      settings.pageNumberPosition = {
+        style: pageNumber.style.cssText,
+        classList: Array.from(pageNumber.classList),
+        element: pageNumber.cloneNode(true)
+      };
+      
+      console.log("✅ [EXTRACT] Page number format:", format);
+    } else {
+      console.log("⚠️ [EXTRACT] No page number found in page container");
+    }
+
+    console.log("📋 [EXTRACT] Final settings:", {
+      hasWatermark: !!settings.watermark,
+      hasPageNumber: !!settings.pageNumberFormat,
+      backgroundColor: settings.backgroundColor
+    });
+    
+    return settings;
+  }
 
 function applyPageSettings(pageContainer, settings, pageNumber) {
-      // ✅ FIX: Apply container-level styles first
-      if (settings.containerStyle) {
-        pageContainer.style.cssText = settings.containerStyle;
-      }
-      
-      if (settings.backgroundColor) {
-        pageContainer.style.backgroundColor = settings.backgroundColor;
-      }
-  
-      if (settings.margin) {
-        pageContainer.style.margin = settings.margin;
-      }
-  
-      if (settings.padding) {
-        pageContainer.style.padding = settings.padding;
-      }
-  
-      // ✅ FIX: Use cloned watermark element to preserve all properties
-      if (settings.watermark && settings.watermark.element) {
-        let existing = pageContainer.querySelector('.watermark');
-        if (!existing) {
-          const watermarkEl = settings.watermark.element.cloneNode(true);
-          pageContainer.appendChild(watermarkEl);
-        }
-      }
-  
-      // ✅ FIX: Use cloned page number element and update only the number
-      if (settings.pageNumberFormat && pageNumber !== null && settings.pageNumberPosition && settings.pageNumberPosition.element) {
-        const numberText = settings.pageNumberFormat.replace('{n}', pageNumber);
-        let pageNumEl = pageContainer.querySelector('.page-number, [data-page-number]');
+    // ✅ FIX: Apply container-level styles first
+    if (settings.containerStyle) {
+      pageContainer.style.cssText = settings.containerStyle;
+    }
     
-        if (!pageNumEl) {
-          pageNumEl = settings.pageNumberPosition.element.cloneNode(true);
-          pageContainer.appendChild(pageNumEl);
-        }
-    
-        pageNumEl.textContent = numberText;
-        pageNumEl.setAttribute('data-page-number', pageNumber);
-      } else if (settings.pageNumberFormat && pageNumber === null) {
-        const pageNumEl = pageContainer.querySelector('.page-number, [data-page-number]');
-        if (pageNumEl) {
-          pageNumEl.remove();
-        }
+    if (settings.backgroundColor) {
+      pageContainer.style.backgroundColor = settings.backgroundColor;
+    }
+
+    if (settings.margin) {
+      pageContainer.style.margin = settings.margin;
+    }
+
+    if (settings.padding) {
+      pageContainer.style.padding = settings.padding;
+    }
+
+    // ✅ FIX: Use cloned watermark element to preserve all properties
+    if (settings.watermark && settings.watermark.element) {
+      let existing = pageContainer.querySelector('.watermark');
+      if (!existing) {
+        const watermarkEl = settings.watermark.element.cloneNode(true);
+        pageContainer.appendChild(watermarkEl);
       }
     }
 
-    function extractTableRows(mainContent) {
-      const rows = [];
-      const subreports = mainContent.querySelectorAll('.subreport-block, .subreport-container, .expanded-subreport');
+    // ✅ FIX: Use cloned page number element and update only the number
+    if (settings.pageNumberFormat && pageNumber !== null && settings.pageNumberPosition && settings.pageNumberPosition.element) {
+      const numberText = settings.pageNumberFormat.replace('{n}', pageNumber);
+      let pageNumEl = pageContainer.querySelector('.page-number, [data-page-number]');
   
-      if (subreports.length > 0) {
-        console.log("📦 [PREVIEW-PAGINATION] Found " + subreports.length + " subreports");
+      if (!pageNumEl) {
+        pageNumEl = settings.pageNumberPosition.element.cloneNode(true);
+        pageContainer.appendChild(pageNumEl);
+      }
+  
+      pageNumEl.textContent = numberText;
+      pageNumEl.setAttribute('data-page-number', pageNumber);
+    } else if (settings.pageNumberFormat && pageNumber === null) {
+      const pageNumEl = pageContainer.querySelector('.page-number, [data-page-number]');
+      if (pageNumEl) {
+        pageNumEl.remove();
+      }
+    }
+  }
+
+  function extractTableRows(mainContent) {
+    const rows = [];
+    const subreports = mainContent.querySelectorAll('.subreport-block, .subreport-container, .expanded-subreport');
+
+    if (subreports.length > 0) {
+      console.log("📦 [PREVIEW-PAGINATION] Found " + subreports.length + " subreports");
+  
+      subreports.forEach(function(subreport) {
+        const tables = subreport.querySelectorAll('table');
     
-        subreports.forEach(function(subreport) {
-          const tables = subreport.querySelectorAll('table');
-      
-          tables.forEach(function(table) {
-            const tbody = table.querySelector('tbody');
-            if (tbody) {
-              const tableRows = Array.from(tbody.querySelectorAll('tr'));
-              console.log("📊 [PREVIEW-PAGINATION] Found table with " + tableRows.length + " rows");
-          
-              const tableStructure = {
-                table: table.cloneNode(false),
-                thead: table.querySelector('thead') ? table.querySelector('thead').cloneNode(true) : null,
-                tfoot: table.querySelector('tfoot') ? table.querySelector('tfoot').cloneNode(true) : null,
-                rows: tableRows
-              };
-          
-              rows.push(tableStructure);
-            }
-          });
-        });
-      } else {
-        const tables = mainContent.querySelectorAll('table');
         tables.forEach(function(table) {
           const tbody = table.querySelector('tbody');
           if (tbody) {
             const tableRows = Array.from(tbody.querySelectorAll('tr'));
+            console.log("📊 [PREVIEW-PAGINATION] Found table with " + tableRows.length + " rows");
         
             const tableStructure = {
               table: table.cloneNode(false),
@@ -3794,108 +3775,66 @@ function applyPageSettings(pageContainer, settings, pageNumber) {
             rows.push(tableStructure);
           }
         });
-      }
-  
-      return rows;
+      });
+    } else {
+      const tables = mainContent.querySelectorAll('table');
+      tables.forEach(function(table) {
+        const tbody = table.querySelector('tbody');
+        if (tbody) {
+          const tableRows = Array.from(tbody.querySelectorAll('tr'));
+      
+          const tableStructure = {
+            table: table.cloneNode(false),
+            thead: table.querySelector('thead') ? table.querySelector('thead').cloneNode(true) : null,
+            tfoot: table.querySelector('tfoot') ? table.querySelector('tfoot').cloneNode(true) : null,
+            rows: tableRows
+          };
+      
+          rows.push(tableStructure);
+        }
+      });
     }
+
+    return rows;
+  }
 
 function splitTableIntoPages(templatePage, tableStructures, availableHeight, headerWrapper, footerWrapper, pageSettings, startPageNumber, skipPageNumber) {
-      const pages = [];
-      let currentPageNumber = startPageNumber;
-  
-      tableStructures.forEach(function(tableStructure) {
-        const rows = tableStructure.rows;
-        const tableTemplate = tableStructure.table;
-        const thead = tableStructure.thead;
-        const tfoot = tableStructure.tfoot;
-    
-        const theadHeight = thead ? thead.offsetHeight : 0;
-        const tfootHeight = tfoot ? tfoot.offsetHeight : 0;
-        const tableOverhead = theadHeight + tfootHeight;
-    
-        // ✅ Clone entire page to preserve all structure
-        let currentPage = templatePage.cloneNode(true);
-        let mainContent = currentPage.querySelector('.main-content-area');
-        
-        // ✅ Clear only main-content-area
-        mainContent.innerHTML = '';
-    
-        let currentTable = tableTemplate.cloneNode(false);
-        if (thead) currentTable.appendChild(thead.cloneNode(true));
-    
-        let currentTbody = document.createElement('tbody');
-        currentTable.appendChild(currentTbody);
-    
-        let currentHeight = tableOverhead;
-    
-        for (let i = 0; i < rows.length; i++) {
-          const row = rows[i];
-          const rowHeight = row.offsetHeight || 40;
-      
-          if (currentHeight + rowHeight > availableHeight && currentHeight > tableOverhead) {
-            if (tfoot) currentTable.appendChild(tfoot.cloneNode(true));
-            mainContent.appendChild(currentTable);
-        
-            if (!skipPageNumber) {
-              applyPageSettings(currentPage, pageSettings, currentPageNumber);
-              currentPageNumber++;
-            } else {
-              applyPageSettings(currentPage, pageSettings, null);
-            }
-            
-            pages.push(currentPage.outerHTML);
-        
-            // ✅ Create new page by cloning template again
-            currentPage = templatePage.cloneNode(true);
-            mainContent = currentPage.querySelector('.main-content-area');
-            mainContent.innerHTML = ''; // Clear only main-content
-        
-            currentTable = tableTemplate.cloneNode(false);
-            if (thead) currentTable.appendChild(thead.cloneNode(true));
-            currentTbody = document.createElement('tbody');
-            currentTable.appendChild(currentTbody);
-        
-            currentHeight = tableOverhead;
-          }
-      
-          currentTbody.appendChild(row.cloneNode(true));
-          currentHeight += rowHeight;
-        }
-    
-        if (tfoot) currentTable.appendChild(tfoot.cloneNode(true));
-        mainContent.appendChild(currentTable);
-    
-        if (!skipPageNumber) {
-          applyPageSettings(currentPage, pageSettings, currentPageNumber);
-          currentPageNumber++;
-        } else {
-          applyPageSettings(currentPage, pageSettings, null);
-        }
-        
-        pages.push(currentPage.outerHTML);
-      });
-  
-      return pages;
-    }
+    const pages = [];
+    let currentPageNumber = startPageNumber;
 
-    function splitIntoPages(templatePage, children, availableHeight, headerWrapper, footerWrapper, pageSettings, startPageNumber, skipPageNumber) {
-      const pages = [];
-      let currentPageNumber = startPageNumber;
+    tableStructures.forEach(function(tableStructure) {
+      const rows = tableStructure.rows;
+      const tableTemplate = tableStructure.table;
+      const thead = tableStructure.thead;
+      const tfoot = tableStructure.tfoot;
   
-      // ✅ Clone entire page to preserve structure
+      const theadHeight = thead ? thead.offsetHeight : 0;
+      const tfootHeight = tfoot ? tfoot.offsetHeight : 0;
+      const tableOverhead = theadHeight + tfootHeight;
+  
+      // ✅ Clone entire page to preserve all structure
       let currentPage = templatePage.cloneNode(true);
       let mainContent = currentPage.querySelector('.main-content-area');
       
       // ✅ Clear only main-content-area
       mainContent.innerHTML = '';
-      
-      let currentHeight = 0;
   
-      for (let i = 0; i < children.length; i++) {
-        const child = children[i];
-        const childHeight = child.offsetHeight || 50;
+      let currentTable = tableTemplate.cloneNode(false);
+      if (thead) currentTable.appendChild(thead.cloneNode(true));
+  
+      let currentTbody = document.createElement('tbody');
+      currentTable.appendChild(currentTbody);
+  
+      let currentHeight = tableOverhead;
+  
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowHeight = row.offsetHeight || 40;
     
-        if (currentHeight + childHeight > availableHeight && currentHeight > 0) {
+        if (currentHeight + rowHeight > availableHeight && currentHeight > tableOverhead) {
+          if (tfoot) currentTable.appendChild(tfoot.cloneNode(true));
+          mainContent.appendChild(currentTable);
+      
           if (!skipPageNumber) {
             applyPageSettings(currentPage, pageSettings, currentPageNumber);
             currentPageNumber++;
@@ -3909,90 +3848,206 @@ function splitTableIntoPages(templatePage, tableStructures, availableHeight, hea
           currentPage = templatePage.cloneNode(true);
           mainContent = currentPage.querySelector('.main-content-area');
           mainContent.innerHTML = ''; // Clear only main-content
-          
-          currentHeight = 0;
+      
+          currentTable = tableTemplate.cloneNode(false);
+          if (thead) currentTable.appendChild(thead.cloneNode(true));
+          currentTbody = document.createElement('tbody');
+          currentTable.appendChild(currentTbody);
+      
+          currentHeight = tableOverhead;
         }
     
-        mainContent.appendChild(child.cloneNode(true));
-        currentHeight += childHeight;
+        currentTbody.appendChild(row.cloneNode(true));
+        currentHeight += rowHeight;
       }
+  
+      if (tfoot) currentTable.appendChild(tfoot.cloneNode(true));
+      mainContent.appendChild(currentTable);
   
       if (!skipPageNumber) {
         applyPageSettings(currentPage, pageSettings, currentPageNumber);
+        currentPageNumber++;
       } else {
         applyPageSettings(currentPage, pageSettings, null);
       }
       
       pages.push(currentPage.outerHTML);
+    });
+
+    return pages;
+  }
+
+  function splitIntoPages(templatePage, children, availableHeight, headerWrapper, footerWrapper, pageSettings, startPageNumber, skipPageNumber) {
+    const pages = [];
+    let currentPageNumber = startPageNumber;
+
+    // ✅ Clone entire page to preserve structure
+    let currentPage = templatePage.cloneNode(true);
+    let mainContent = currentPage.querySelector('.main-content-area');
+    
+    // ✅ Clear only main-content-area
+    mainContent.innerHTML = '';
+    
+    let currentHeight = 0;
+
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const childHeight = child.offsetHeight || 50;
   
-      return pages;
+      if (currentHeight + childHeight > availableHeight && currentHeight > 0) {
+        if (!skipPageNumber) {
+          applyPageSettings(currentPage, pageSettings, currentPageNumber);
+          currentPageNumber++;
+        } else {
+          applyPageSettings(currentPage, pageSettings, null);
+        }
+        
+        pages.push(currentPage.outerHTML);
+    
+        // ✅ Create new page by cloning template again
+        currentPage = templatePage.cloneNode(true);
+        mainContent = currentPage.querySelector('.main-content-area');
+        mainContent.innerHTML = ''; // Clear only main-content
+        
+        currentHeight = 0;
+      }
+  
+      mainContent.appendChild(child.cloneNode(true));
+      currentHeight += childHeight;
     }
-      
+
+    if (!skipPageNumber) {
+      applyPageSettings(currentPage, pageSettings, currentPageNumber);
+    } else {
+      applyPageSettings(currentPage, pageSettings, null);
+    }
+    
+    pages.push(currentPage.outerHTML);
+
+    return pages;
+  }
+    
 function createNewPage(templatePage, headerWrapper, footerWrapper) {
-      // ✅ Simply clone the entire page with all its structure and decorations
-      const newPage = templatePage.cloneNode(true);
-      
-      // ✅ Find the main-content-area in the new page
-      const newMainContent = newPage.querySelector('.main-content-area');
-      
-      // ✅ Clear ONLY the main-content-area, preserving everything else
-      if (newMainContent) {
-        newMainContent.innerHTML = '';
-      }
-      
-      return newPage;
+    // ✅ Simply clone the entire page with all its structure and decorations
+    const newPage = templatePage.cloneNode(true);
+    
+    // ✅ Find the main-content-area in the new page
+    const newMainContent = newPage.querySelector('.main-content-area');
+    
+    // ✅ Clear ONLY the main-content-area, preserving everything else
+    if (newMainContent) {
+      newMainContent.innerHTML = '';
     }
+    
+    return newPage;
+  }
 
-    function clonePageDecoration(sourcePageContainer, targetPageContainer) {
-      // ✅ Clone watermark if exists
-      const watermark = sourcePageContainer.querySelector('.watermark, [data-watermark]');
-      if (watermark && !targetPageContainer.querySelector('.watermark, [data-watermark]')) {
-        const clonedWatermark = watermark.cloneNode(true);
-        targetPageContainer.appendChild(clonedWatermark);
-      }
-      
-      // ✅ Clone page number element structure (number will be updated by applyPageSettings)
-      const pageNum = sourcePageContainer.querySelector('.page-number, [data-page-number]');
-      if (pageNum && !targetPageContainer.querySelector('.page-number, [data-page-number]')) {
-        const clonedPageNum = pageNum.cloneNode(true);
-        targetPageContainer.appendChild(clonedPageNum);
-      }
-      
-      // ✅ Copy background and styling
-      targetPageContainer.style.backgroundColor = sourcePageContainer.style.backgroundColor;
-      targetPageContainer.style.margin = sourcePageContainer.style.margin;
-      targetPageContainer.style.padding = sourcePageContainer.style.padding;
+  function clonePageDecoration(sourcePageContainer, targetPageContainer) {
+    // ✅ Clone watermark if exists
+    const watermark = sourcePageContainer.querySelector('.watermark, [data-watermark]');
+    if (watermark && !targetPageContainer.querySelector('.watermark, [data-watermark]')) {
+      const clonedWatermark = watermark.cloneNode(true);
+      targetPageContainer.appendChild(clonedWatermark);
     }
-  </script>
-    `;
+    
+    // ✅ Clone page number element structure (number will be updated by applyPageSettings)
+    const pageNum = sourcePageContainer.querySelector('.page-number, [data-page-number]');
+    if (pageNum && !targetPageContainer.querySelector('.page-number, [data-page-number]')) {
+      const clonedPageNum = pageNum.cloneNode(true);
+      targetPageContainer.appendChild(clonedPageNum);
+    }
+    
+    // ✅ Copy background and styling
+    targetPageContainer.style.backgroundColor = sourcePageContainer.style.backgroundColor;
+    targetPageContainer.style.margin = sourcePageContainer.style.margin;
+    targetPageContainer.style.padding = sourcePageContainer.style.padding;
+  }
+</script>
+  `;
 
-    const fullHTML = `
+  const canvasStyles = [
+    "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
+    "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
+    "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+    "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
+    "https://fonts.googleapis.com/icon?family=Material+Icons",
+    "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
+    "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
+  ];
+
+  const canvasScripts = [
+    "https://code.jquery.com/jquery-3.3.1.slim.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
+    "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+    "https://code.jquery.com/jquery-2.1.1.min.js",
+    "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
+    "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
+    "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
+    "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
+    "https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js",
+    "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
+    "https://code.highcharts.com/stock/highstock.js",
+    "https://code.highcharts.com/highcharts-3d.js",
+    "https://code.highcharts.com/highcharts-more.js",
+    "https://code.highcharts.com/modules/data.js",
+    "https://code.highcharts.com/modules/exporting.js",
+    "https://code.highcharts.com/modules/accessibility.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
+    "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
+    "https://code.highcharts.com/modules/drilldown.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js",
+    "https://code.jquery.com/jquery-3.6.0.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+    "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
+    "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
+    "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
+    "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+    "https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+    "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+  ];
+
+  const styleLinks = canvasStyles.map(url => `<link rel="stylesheet" href="${url}">`).join('\n');
+  const scriptTags = canvasScripts.map(url => `<script src="${url}"></script>`).join('\n');
+
+  const fullHTML = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print Preview</title>
-    ${combinedStyles}
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: white; }
-        .page-container { background: white; margin: 20px auto; box-shadow: 0 0 10px rgba(0,0,0,0.3); position: relative; page-break-after: always; align:center; }
-        @media print {
-            body { background: white; }
-            .page-container { margin: 0; box-shadow: none; page-break-after: always; }
-        }
-    </style>
-    ${paginationScript}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Preview</title>
+  ${combinedStyles}
+  <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; background: white; }
+      .page-container { background: white; margin: 20px auto; box-shadow: 0 0 10px rgba(0,0,0,0.3); position: relative; page-break-after: always; align:center; }
+      @media print {
+          body { background: white; }
+          .page-container { margin: 0; box-shadow: none; page-break-after: always; }
+      }
+  </style>
+  ${styleLinks}
+  ${paginationScript}
+  ${scriptTags}
 </head>
 <body>
-    ${finalBodyHTML}
+  ${finalBodyHTML}
 </body>
 </html>
-    `;
+  `;
 
-    return fullHTML;
-  }
+  return fullHTML;
+}
   // Update preview with chart initialization
   async function updatePreview() {
     console.log("\n🖼️ [PREVIEW] Starting preview update...");

@@ -439,6 +439,8 @@ async function exportDOCX(editor) {
   // Enhanced RTF Export with proper image handling
   async function exportRTF(body) {
     const apiUrl = "http://192.168.0.188:8081/api/toRtf";
+    const html = editor.getHtml();
+    const css = editor.getCss();
 
     // --- Create and show loading overlay ---
     let overlay = document.createElement("div");
@@ -463,7 +465,7 @@ async function exportDOCX(editor) {
     try {
       // --- Prepare clean HTML for API ---
       const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = body.outerHTML;
+      tempDiv.innerHTML = html;
 
       // 🧹 Remove unwanted IDs from common page containers
       const classesToClean = [
@@ -488,7 +490,6 @@ async function exportDOCX(editor) {
           "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
           "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
           "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
-          "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css",
           "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
           "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
           "https://fonts.googleapis.com/icon?family=Material+Icons",
@@ -502,11 +503,21 @@ async function exportDOCX(editor) {
           "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
           "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
           "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
+          "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
+          "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
           "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
           "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
           "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
+          "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+          "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+          "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
+          "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
+          "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
           "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
-        ],
+        ]
       };
 
       const externalStyles = canvasResources.styles
@@ -524,12 +535,24 @@ async function exportDOCX(editor) {
         <head>
           <meta charset="utf-8" />
           ${externalStyles}
-          <style>body { margin: 0; padding: 0; }</style>
           ${externalScripts}
+          <style>${css}</style>
         </head>
         <body>${tempDiv.innerHTML}</body>
       </html>
     `;
+      // --- Debug: Log and download HTML sent to backend ---
+      try {
+        const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+        const debugLink = document.createElement("a");
+        debugLink.href = debugUrl;
+        debugLink.download = "sent_to_RTF_api.html";
+        debugLink.click();
+        URL.revokeObjectURL(debugUrl);
+        console.log("💾 Debug HTML downloaded for inspection");
+      } catch (err) {
+        console.warn("⚠️ Could not auto-download debug HTML:", err);
+      }
 
       // --- Send HTML to RTF API ---
       const formData = new FormData();
@@ -614,6 +637,7 @@ async function exportDOCX(editor) {
       // --- External CSS and JS ---
       const canvasResources = {
         styles: [
+          "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
           "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
           "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
           "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",

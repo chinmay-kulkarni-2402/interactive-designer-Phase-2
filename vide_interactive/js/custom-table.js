@@ -3353,7 +3353,7 @@ function customTable(editor) {
       },
       attributes: {
         id: `table${uniqueID}`,
-        class: 'table table-striped table-bordered',
+        class: 'table',
       },
       components: tableComponents
     };
