@@ -282,7 +282,7 @@ function drawingTool(editor) {
             events: {
                 click: 'openDrawingModal'
             },
-            
+
             openDrawingModal() {
                 const model = this.model;
                 showDrawingModal(model);
@@ -291,8 +291,8 @@ function drawingTool(editor) {
     });
 
     // Add block to block manager
-editor.BlockManager.add('drawing-canvas-block', {
-    label: `
+    editor.BlockManager.add('drawing-canvas-block', {
+        label: `
         <svg width="60" height="60" viewBox="0 0 60 60" fill="none" 
              xmlns="http://www.w3.org/2000/svg">
             
@@ -325,11 +325,11 @@ editor.BlockManager.add('drawing-canvas-block', {
         </svg>
         Drawing Canvas
     `,
-    category: 'Drawing Tools',
-    content: {
-        type: 'drawing-canvas'
-    }
-});
+        category: 'Drawing Tools',
+        content: {
+            type: 'drawing-canvas'
+        }
+    });
 
 
     // Initialize Konva stage and layer
@@ -358,41 +358,41 @@ editor.BlockManager.add('drawing-canvas-block', {
         const width = canvas.width();
         const height = canvas.height();
         const data = imageData.data;
-        
+
         const startPos = (startY * width + startX) * 4;
         const startR = data[startPos];
         const startG = data[startPos + 1];
         const startB = data[startPos + 2];
         const startA = data[startPos + 3];
-        
+
         const fillR = parseInt(fillColor.slice(1, 3), 16);
         const fillG = parseInt(fillColor.slice(3, 5), 16);
         const fillB = parseInt(fillColor.slice(5, 7), 16);
         const fillA = 255;
-        
+
         // Check if the start color is the same as fill color
         if (startR === fillR && startG === fillG && startB === fillB && startA === fillA) {
             return imageData;
         }
-        
-        const stack = [{x: startX, y: startY}];
+
+        const stack = [{ x: startX, y: startY }];
         const visited = new Set();
-        
+
         function colorMatch(x, y) {
             if (x < 0 || x >= width || y < 0 || y >= height) return false;
-            
+
             const pos = (y * width + x) * 4;
             const r = data[pos];
             const g = data[pos + 1];
             const b = data[pos + 2];
             const a = data[pos + 3];
-            
+
             return Math.abs(r - startR) <= tolerance &&
-                   Math.abs(g - startG) <= tolerance &&
-                   Math.abs(b - startB) <= tolerance &&
-                   Math.abs(a - startA) <= tolerance;
+                Math.abs(g - startG) <= tolerance &&
+                Math.abs(b - startB) <= tolerance &&
+                Math.abs(a - startA) <= tolerance;
         }
-        
+
         function setPixel(x, y) {
             const pos = (y * width + x) * 4;
             data[pos] = fillR;
@@ -400,186 +400,186 @@ editor.BlockManager.add('drawing-canvas-block', {
             data[pos + 2] = fillB;
             data[pos + 3] = fillA;
         }
-        
+
         while (stack.length > 0) {
-            const {x, y} = stack.pop();
+            const { x, y } = stack.pop();
             const key = `${x},${y}`;
-            
+
             if (visited.has(key) || !colorMatch(x, y)) continue;
-            
+
             visited.add(key);
             setPixel(x, y);
-            
+
             // Add neighboring pixels
-            stack.push({x: x + 1, y: y});
-            stack.push({x: x - 1, y: y});
-            stack.push({x: x, y: y + 1});
-            stack.push({x: x, y: y - 1});
+            stack.push({ x: x + 1, y: y });
+            stack.push({ x: x - 1, y: y });
+            stack.push({ x: x, y: y + 1 });
+            stack.push({ x: x, y: y - 1 });
         }
-        
+
         return imageData;
     }
 
     function initializeCanvas(width = 600, height = 300) {
-    const container = document.getElementById('konva-container');
-    container.innerHTML = '';
-    
-    stage = new Konva.Stage({
-        container: 'konva-container',
-        width: width,
-        height: height
-    });
+        const container = document.getElementById('konva-container');
+        container.innerHTML = '';
 
-    layer = new Konva.Layer();
-    stage.add(layer);
+        stage = new Konva.Stage({
+            container: 'konva-container',
+            width: width,
+            height: height
+        });
 
-    // Add transformer for selection with improved configuration
-    transformer = new Konva.Transformer({
-        rotateEnabled: true,
-        enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                       'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
-        boundBoxFunc: (oldBox, newBox) => {
-            // Prevent negative scaling
-            if (newBox.width < 5 || newBox.height < 5) {
-                return oldBox;
-            }
-            return newBox;
-        },
-        // Ensure transformer updates properly
-        shouldOverdrawWholeArea: true
-    });
-    layer.add(transformer);
+        layer = new Konva.Layer();
+        stage.add(layer);
 
-    setupEventListeners();
-    layer.draw();
-    saveState();
-}
-
-    function setupEventListeners() {
-    stage.on('mousedown touchstart', handleMouseDown);
-    stage.on('mousemove touchmove', handleMouseMove);
-    stage.on('mouseup touchend', handleMouseUp);
-    
-    // Click to select objects (only for select tool)
-    stage.on('click tap', handleClick);
-    
-    // Updated dragstart handler to allow dragging for move tool
-    stage.on('dragstart', (e) => {
-        if (currentTool !== 'select' && currentTool !== 'move') {
-            e.evt.preventDefault();
-        }
-    });
-    
-    // Add dragend handler to save state after moving objects
-    stage.on('dragend', (e) => {
-        if (currentTool === 'move' || currentTool === 'select') {
-            saveState();
-        }
-    });
-}
-
-    function handleClick(e) {
-    // Handle selection for both select and move tools
-    if (currentTool === 'select' || currentTool === 'move') {
-        if (e.target === stage) {
-            transformer.nodes([]);
-            layer.draw();
-            return;
-        }
-
-        const clickedOnEmpty = e.target === stage;
-        if (clickedOnEmpty) {
-            transformer.nodes([]);
-            layer.draw();
-            return;
-        }
-
-        // For move tool, enable dragging on the clicked object
-        if (currentTool === 'move') {
-            // Make sure the clicked object is draggable
-            e.target.draggable(true);
-            
-            // Select the object for visual feedback (optional)
-            transformer.nodes([e.target]);
-            transformer.forceUpdate();
-            layer.draw();
-            return;
-        }
-
-        // Handle multi-selection for select tool
-        const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
-        const isSelected = transformer.nodes().indexOf(e.target) >= 0;
-
-        if (!metaPressed && !isSelected) {
-            transformer.nodes([e.target]);
-        } else if (metaPressed && isSelected) {
-            const nodes = transformer.nodes().slice();
-            nodes.splice(nodes.indexOf(e.target), 1);
-            transformer.nodes(nodes);
-        } else if (metaPressed && !isSelected) {
-            const nodes = transformer.nodes().concat([e.target]);
-            transformer.nodes(nodes);
-        }
-        
-        // Force transformer to update its position and size
-        transformer.forceUpdate();
-        layer.draw();
-    } else if (currentTool === 'paint') {
-        // Paint bucket functionality - flood fill algorithm
-        const pos = stage.getPointerPosition();
-        
-        // Get current canvas as image data
-        const canvas = stage.toCanvas();
-        const ctx = canvas.getContext('2d');
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Apply flood fill
-        const filledImageData = floodFill(imageData, Math.floor(pos.x), Math.floor(pos.y), currentColor, 10);
-        
-        // Create new image from filled data
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.putImageData(filledImageData, 0, 0);
-        
-        // Clear current layer and add filled image
-        layer.destroyChildren();
-        
-        // Recreate transformer
+        // Add transformer for selection with improved configuration
         transformer = new Konva.Transformer({
             rotateEnabled: true,
-            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right',
+                'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
             boundBoxFunc: (oldBox, newBox) => {
                 // Prevent negative scaling
                 if (newBox.width < 5 || newBox.height < 5) {
                     return oldBox;
                 }
                 return newBox;
-            }
+            },
+            // Ensure transformer updates properly
+            shouldOverdrawWholeArea: true
         });
         layer.add(transformer);
-        
-        // Add the filled image to layer
-        const img = new Image();
-        img.onload = () => {
-            const konvaImg = new Konva.Image({
-                x: 0,
-                y: 0,
-                image: img,
-                width: canvas.width,
-                height: canvas.height
-            });
-            layer.add(konvaImg);
-            layer.draw();
-            saveState();
-        };
-        img.src = tempCanvas.toDataURL();
+
+        setupEventListeners();
+        layer.draw();
+        saveState();
     }
-    // For all other tools (pencil, eraser, line, etc.), do nothing on click
-    // This prevents unwanted selection/transformation behavior
-}
+
+    function setupEventListeners() {
+        stage.on('mousedown touchstart', handleMouseDown);
+        stage.on('mousemove touchmove', handleMouseMove);
+        stage.on('mouseup touchend', handleMouseUp);
+
+        // Click to select objects (only for select tool)
+        stage.on('click tap', handleClick);
+
+        // Updated dragstart handler to allow dragging for move tool
+        stage.on('dragstart', (e) => {
+            if (currentTool !== 'select' && currentTool !== 'move') {
+                e.evt.preventDefault();
+            }
+        });
+
+        // Add dragend handler to save state after moving objects
+        stage.on('dragend', (e) => {
+            if (currentTool === 'move' || currentTool === 'select') {
+                saveState();
+            }
+        });
+    }
+
+    function handleClick(e) {
+        // Handle selection for both select and move tools
+        if (currentTool === 'select' || currentTool === 'move') {
+            if (e.target === stage) {
+                transformer.nodes([]);
+                layer.draw();
+                return;
+            }
+
+            const clickedOnEmpty = e.target === stage;
+            if (clickedOnEmpty) {
+                transformer.nodes([]);
+                layer.draw();
+                return;
+            }
+
+            // For move tool, enable dragging on the clicked object
+            if (currentTool === 'move') {
+                // Make sure the clicked object is draggable
+                e.target.draggable(true);
+
+                // Select the object for visual feedback (optional)
+                transformer.nodes([e.target]);
+                transformer.forceUpdate();
+                layer.draw();
+                return;
+            }
+
+            // Handle multi-selection for select tool
+            const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+            const isSelected = transformer.nodes().indexOf(e.target) >= 0;
+
+            if (!metaPressed && !isSelected) {
+                transformer.nodes([e.target]);
+            } else if (metaPressed && isSelected) {
+                const nodes = transformer.nodes().slice();
+                nodes.splice(nodes.indexOf(e.target), 1);
+                transformer.nodes(nodes);
+            } else if (metaPressed && !isSelected) {
+                const nodes = transformer.nodes().concat([e.target]);
+                transformer.nodes(nodes);
+            }
+
+            // Force transformer to update its position and size
+            transformer.forceUpdate();
+            layer.draw();
+        } else if (currentTool === 'paint') {
+            // Paint bucket functionality - flood fill algorithm
+            const pos = stage.getPointerPosition();
+
+            // Get current canvas as image data
+            const canvas = stage.toCanvas();
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // Apply flood fill
+            const filledImageData = floodFill(imageData, Math.floor(pos.x), Math.floor(pos.y), currentColor, 10);
+
+            // Create new image from filled data
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.putImageData(filledImageData, 0, 0);
+
+            // Clear current layer and add filled image
+            layer.destroyChildren();
+
+            // Recreate transformer
+            transformer = new Konva.Transformer({
+                rotateEnabled: true,
+                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right',
+                    'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+                boundBoxFunc: (oldBox, newBox) => {
+                    // Prevent negative scaling
+                    if (newBox.width < 5 || newBox.height < 5) {
+                        return oldBox;
+                    }
+                    return newBox;
+                }
+            });
+            layer.add(transformer);
+
+            // Add the filled image to layer
+            const img = new Image();
+            img.onload = () => {
+                const konvaImg = new Konva.Image({
+                    x: 0,
+                    y: 0,
+                    image: img,
+                    width: canvas.width,
+                    height: canvas.height
+                });
+                layer.add(konvaImg);
+                layer.draw();
+                saveState();
+            };
+            img.src = tempCanvas.toDataURL();
+        }
+        // For all other tools (pencil, eraser, line, etc.), do nothing on click
+        // This prevents unwanted selection/transformation behavior
+    }
 
     function handleMouseDown(e) {
         if (currentTool === 'select' || currentTool === 'move') return;
@@ -649,10 +649,10 @@ editor.BlockManager.add('drawing-canvas-block', {
                 draggable: true
             });
             layer.add(text);
-            
+
             // Make text editable
             addTextEditingHandler(text);
-            
+
             layer.draw();
             saveState();
             return;
@@ -764,7 +764,7 @@ editor.BlockManager.add('drawing-canvas-block', {
         history = history.slice(0, historyIndex + 1);
         history.push(state);
         historyIndex++;
-        
+
         if (history.length > 50) {
             history.shift();
             historyIndex--;
@@ -789,172 +789,172 @@ editor.BlockManager.add('drawing-canvas-block', {
     const sizeIndicator = document.getElementById('size-indicator');
 
     // Set active tool
-function setActiveTool(tool) {
-    // Clear any selections when switching away from select tool
-    if (currentTool !== 'select' && tool !== 'select' && transformer) {
-        transformer.nodes([]);
-        layer.draw();
-    } else if (tool !== 'select' && tool !== 'move' && transformer) {
-        // Clear selections when switching to drawing tools (but keep for move tool)
-        transformer.nodes([]);
-        layer.draw();
-    }
-
-    // When switching to move tool, make all objects draggable
-    if (tool === 'move') {
-        layer.children.forEach(child => {
-            if (child !== transformer) {
-                child.draggable(true);
-            }
-        });
-    } else if (tool !== 'select') {
-        // When switching away from move tool to drawing tools, disable dragging
-        layer.children.forEach(child => {
-            if (child !== transformer) {
-                child.draggable(false);
-            }
-        });
-    } else if (tool === 'select') {
-        // For select tool, allow dragging only when selected
-        layer.children.forEach(child => {
-            if (child !== transformer) {
-                child.draggable(true);
-            }
-        });
-    }
-
-    // Remove active class from all tools
-    Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
-    
-    // Add active class to current tool
-    if (toolButtons[tool]) {
-        toolButtons[tool].classList.add('active');
-    }
-    
-    currentTool = tool;
-    
-    // Update cursor based on tool with custom icons and sizes
-    const container = stage ? stage.container() : null;
-    if (container) {
-        // Remove all cursor classes first
-        container.classList.remove('pencil-cursor', 'eraser-cursor', 'paint-cursor');
-        container.style.cursor = ''; // Clear any inline cursor styles
-        
-        switch(tool) {
-            case 'select':
-                container.style.cursor = 'default';
-                break;
-            case 'move':
-                container.style.cursor = 'move';
-                break;
-            case 'pencil':
-                container.style.cursor = createToolCursor('✏️', pencilSize);
-                break;
-            case 'eraser':
-                container.style.cursor = createToolCursor('🧽', eraserSize);
-                break;
-            case 'paint':
-                container.style.cursor = createToolCursor('🪣');
-                break;
-            default:
-                container.style.cursor = 'crosshair';
+    function setActiveTool(tool) {
+        // Clear any selections when switching away from select tool
+        if (currentTool !== 'select' && tool !== 'select' && transformer) {
+            transformer.nodes([]);
+            layer.draw();
+        } else if (tool !== 'select' && tool !== 'move' && transformer) {
+            // Clear selections when switching to drawing tools (but keep for move tool)
+            transformer.nodes([]);
+            layer.draw();
         }
-    }
 
-    // Update size input based on tool
-    if (tool === 'pencil') {
-        sizeInput.value = toolStates.pencil.size;
-        pencilSize = toolStates.pencil.size;
-    } else if (tool === 'eraser') {
-        sizeInput.value = toolStates.eraser.size;
-        eraserSize = toolStates.eraser.size;
-    }
-    
-    updateSizeIndicator();
-}
-
-
-function setActiveToolAlternative(tool) {
-    // Clear any selections when switching tools
-    if (transformer) {
-        transformer.nodes([]);
-        layer.draw();
-    }
-
-    // Remove active class from all tools
-    Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
-    
-    // Add active class to current tool
-    if (toolButtons[tool]) {
-        toolButtons[tool].classList.add('active');
-    }
-    
-    currentTool = tool;
-    
-    // Update cursor based on tool
-    const container = stage ? stage.container() : null;
-    if (container) {
-        switch(tool) {
-            case 'select':
-            case 'move':
-                container.style.cursor = 'default';
-                break;
-            case 'pencil':
-                // Create pencil cursor using canvas
-                container.style.cursor = createToolCursor('✏️');
-                break;
-            case 'eraser':
-                // Create eraser cursor using canvas
-                container.style.cursor = createToolCursor('🧽');
-                break;
-            case 'paint':
-                container.style.cursor = 'pointer';
-                break;
-            default:
-                container.style.cursor = 'crosshair';
+        // When switching to move tool, make all objects draggable
+        if (tool === 'move') {
+            layer.children.forEach(child => {
+                if (child !== transformer) {
+                    child.draggable(true);
+                }
+            });
+        } else if (tool !== 'select') {
+            // When switching away from move tool to drawing tools, disable dragging
+            layer.children.forEach(child => {
+                if (child !== transformer) {
+                    child.draggable(false);
+                }
+            });
+        } else if (tool === 'select') {
+            // For select tool, allow dragging only when selected
+            layer.children.forEach(child => {
+                if (child !== transformer) {
+                    child.draggable(true);
+                }
+            });
         }
+
+        // Remove active class from all tools
+        Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
+
+        // Add active class to current tool
+        if (toolButtons[tool]) {
+            toolButtons[tool].classList.add('active');
+        }
+
+        currentTool = tool;
+
+        // Update cursor based on tool with custom icons and sizes
+        const container = stage ? stage.container() : null;
+        if (container) {
+            // Remove all cursor classes first
+            container.classList.remove('pencil-cursor', 'eraser-cursor', 'paint-cursor');
+            container.style.cursor = ''; // Clear any inline cursor styles
+
+            switch (tool) {
+                case 'select':
+                    container.style.cursor = 'default';
+                    break;
+                case 'move':
+                    container.style.cursor = 'move';
+                    break;
+                case 'pencil':
+                    container.style.cursor = createToolCursor('✏️', pencilSize);
+                    break;
+                case 'eraser':
+                    container.style.cursor = createToolCursor('🧽', eraserSize);
+                    break;
+                case 'paint':
+                    container.style.cursor = createToolCursor('🪣');
+                    break;
+                default:
+                    container.style.cursor = 'crosshair';
+            }
+        }
+
+        // Update size input based on tool
+        if (tool === 'pencil') {
+            sizeInput.value = toolStates.pencil.size;
+            pencilSize = toolStates.pencil.size;
+        } else if (tool === 'eraser') {
+            sizeInput.value = toolStates.eraser.size;
+            eraserSize = toolStates.eraser.size;
+        }
+
+        updateSizeIndicator();
     }
 
-    // Update size input based on tool
-    if (tool === 'pencil') {
-        sizeInput.value = toolStates.pencil.size;
-        pencilSize = toolStates.pencil.size;
-    } else if (tool === 'eraser') {
-        sizeInput.value = toolStates.eraser.size;
-        eraserSize = toolStates.eraser.size;
-    }
-    
-    updateSizeIndicator();
-}
 
-function createToolCursor(emoji, size = 5) {
-    const canvas = document.createElement('canvas');
-    const canvasSize = Math.max(24, size + 8); // Minimum 24px, grows with brush size
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-    const ctx = canvas.getContext('2d');
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvasSize, canvasSize);
-    
-    // Draw outer circle to show brush size
-    if (emoji === '✏️' || emoji === '🧽') {
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(canvasSize/2, canvasSize/2, size/2, 0, 2 * Math.PI);
-        ctx.stroke();
+    function setActiveToolAlternative(tool) {
+        // Clear any selections when switching tools
+        if (transformer) {
+            transformer.nodes([]);
+            layer.draw();
+        }
+
+        // Remove active class from all tools
+        Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
+
+        // Add active class to current tool
+        if (toolButtons[tool]) {
+            toolButtons[tool].classList.add('active');
+        }
+
+        currentTool = tool;
+
+        // Update cursor based on tool
+        const container = stage ? stage.container() : null;
+        if (container) {
+            switch (tool) {
+                case 'select':
+                case 'move':
+                    container.style.cursor = 'default';
+                    break;
+                case 'pencil':
+                    // Create pencil cursor using canvas
+                    container.style.cursor = createToolCursor('✏️');
+                    break;
+                case 'eraser':
+                    // Create eraser cursor using canvas
+                    container.style.cursor = createToolCursor('🧽');
+                    break;
+                case 'paint':
+                    container.style.cursor = 'pointer';
+                    break;
+                default:
+                    container.style.cursor = 'crosshair';
+            }
+        }
+
+        // Update size input based on tool
+        if (tool === 'pencil') {
+            sizeInput.value = toolStates.pencil.size;
+            pencilSize = toolStates.pencil.size;
+        } else if (tool === 'eraser') {
+            sizeInput.value = toolStates.eraser.size;
+            eraserSize = toolStates.eraser.size;
+        }
+
+        updateSizeIndicator();
     }
-    
-    // Draw emoji in center
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, canvasSize/2, canvasSize/2);
-    
-    const dataURL = canvas.toDataURL();
-    return `url('${dataURL}') ${canvasSize/2} ${canvasSize/2}, crosshair`;
-}
+
+    function createToolCursor(emoji, size = 5) {
+        const canvas = document.createElement('canvas');
+        const canvasSize = Math.max(24, size + 8); // Minimum 24px, grows with brush size
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        const ctx = canvas.getContext('2d');
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+        // Draw outer circle to show brush size
+        if (emoji === '✏️' || emoji === '🧽') {
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(canvasSize / 2, canvasSize / 2, size / 2, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+
+        // Draw emoji in center
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, canvasSize / 2, canvasSize / 2);
+
+        const dataURL = canvas.toDataURL();
+        return `url('${dataURL}') ${canvasSize / 2} ${canvasSize / 2}, crosshair`;
+    }
 
     function updateSizeIndicator() {
         const currentSize = currentTool === 'eraser' ? eraserSize : pencilSize;
@@ -979,246 +979,246 @@ function createToolCursor(emoji, size = 5) {
 
     // Size change
     sizeInput.onchange = () => {
-    const newSize = parseInt(sizeInput.value, 10);
-    if (currentTool === 'pencil') {
-        pencilSize = newSize;
-        toolStates.pencil.size = newSize;
-        // Update cursor with new size
-        const container = stage ? stage.container() : null;
-        if (container) {
-            container.style.cursor = createToolCursor('✏️', pencilSize);
+        const newSize = parseInt(sizeInput.value, 10);
+        if (currentTool === 'pencil') {
+            pencilSize = newSize;
+            toolStates.pencil.size = newSize;
+            // Update cursor with new size
+            const container = stage ? stage.container() : null;
+            if (container) {
+                container.style.cursor = createToolCursor('✏️', pencilSize);
+            }
+        } else if (currentTool === 'eraser') {
+            eraserSize = newSize;
+            toolStates.eraser.size = newSize;
+            // Update cursor with new size
+            const container = stage ? stage.container() : null;
+            if (container) {
+                container.style.cursor = createToolCursor('🧽', eraserSize);
+            }
+        } else {
+            pencilSize = newSize;
         }
-    } else if (currentTool === 'eraser') {
-        eraserSize = newSize;
-        toolStates.eraser.size = newSize;
-        // Update cursor with new size
-        const container = stage ? stage.container() : null;
-        if (container) {
-            container.style.cursor = createToolCursor('🧽', eraserSize);
-        }
-    } else {
-        pencilSize = newSize;
-    }
-    updateSizeIndicator();
-};
+        updateSizeIndicator();
+    };
 
     // Keyboard shortcuts for resizing icons
     document.addEventListener('keydown', (e) => {
-    if (modal.style.display === 'flex') {
-        if (e.shiftKey && e.key === '+') {
-            e.preventDefault();
-            if (currentTool === 'pencil' || currentTool === 'eraser') {
-                const iconElement = toolButtons[currentTool === 'pencil' ? 'pencil' : 'eraser'].querySelector('.tool-icon');
-                iconElement.classList.add('resizable');
-                sizeIndicator.style.display = 'block';
-                
-                const currentSize = currentTool === 'pencil' ? toolStates.pencil.size : toolStates.eraser.size;
-                const newSize = Math.min(currentSize + 2, 100);
-                
-                if (currentTool === 'pencil') {
-                    pencilSize = newSize;
-                    toolStates.pencil.size = newSize;
-                    // Update cursor
-                    const container = stage ? stage.container() : null;
-                    if (container) {
-                        container.style.cursor = createToolCursor('✏️', pencilSize);
+        if (modal.style.display === 'flex') {
+            if (e.shiftKey && e.key === '+') {
+                e.preventDefault();
+                if (currentTool === 'pencil' || currentTool === 'eraser') {
+                    const iconElement = toolButtons[currentTool === 'pencil' ? 'pencil' : 'eraser'].querySelector('.tool-icon');
+                    iconElement.classList.add('resizable');
+                    sizeIndicator.style.display = 'block';
+
+                    const currentSize = currentTool === 'pencil' ? toolStates.pencil.size : toolStates.eraser.size;
+                    const newSize = Math.min(currentSize + 2, 100);
+
+                    if (currentTool === 'pencil') {
+                        pencilSize = newSize;
+                        toolStates.pencil.size = newSize;
+                        // Update cursor
+                        const container = stage ? stage.container() : null;
+                        if (container) {
+                            container.style.cursor = createToolCursor('✏️', pencilSize);
+                        }
+                    } else {
+                        eraserSize = newSize;
+                        toolStates.eraser.size = newSize;
+                        // Update cursor
+                        const container = stage ? stage.container() : null;
+                        if (container) {
+                            container.style.cursor = createToolCursor('🧽', eraserSize);
+                        }
                     }
-                } else {
-                    eraserSize = newSize;
-                    toolStates.eraser.size = newSize;
-                    // Update cursor
-                    const container = stage ? stage.container() : null;
-                    if (container) {
-                        container.style.cursor = createToolCursor('🧽', eraserSize);
-                    }
+
+                    sizeInput.value = newSize;
+                    updateSizeIndicator();
+
+                    setTimeout(() => {
+                        iconElement.classList.remove('resizable');
+                        sizeIndicator.style.display = 'none';
+                    }, 1000);
                 }
-                
-                sizeInput.value = newSize;
-                updateSizeIndicator();
-                
-                setTimeout(() => {
-                    iconElement.classList.remove('resizable');
-                    sizeIndicator.style.display = 'none';
-                }, 1000);
-            }
-        } else if (e.shiftKey && e.key === '_') {
-            e.preventDefault();
-            if (currentTool === 'pencil' || currentTool === 'eraser') {
-                const iconElement = toolButtons[currentTool === 'pencil' ? 'pencil' : 'eraser'].querySelector('.tool-icon');
-                iconElement.classList.add('resizable');
-                sizeIndicator.style.display = 'block';
-                
-                const currentSize = currentTool === 'pencil' ? toolStates.pencil.size : toolStates.eraser.size;
-                const newSize = Math.max(currentSize - 2, 1);
-                
-                if (currentTool === 'pencil') {
-                    pencilSize = newSize;
-                    toolStates.pencil.size = newSize;
-                    // Update cursor
-                    const container = stage ? stage.container() : null;
-                    if (container) {
-                        container.style.cursor = createToolCursor('✏️', pencilSize);
+            } else if (e.shiftKey && e.key === '_') {
+                e.preventDefault();
+                if (currentTool === 'pencil' || currentTool === 'eraser') {
+                    const iconElement = toolButtons[currentTool === 'pencil' ? 'pencil' : 'eraser'].querySelector('.tool-icon');
+                    iconElement.classList.add('resizable');
+                    sizeIndicator.style.display = 'block';
+
+                    const currentSize = currentTool === 'pencil' ? toolStates.pencil.size : toolStates.eraser.size;
+                    const newSize = Math.max(currentSize - 2, 1);
+
+                    if (currentTool === 'pencil') {
+                        pencilSize = newSize;
+                        toolStates.pencil.size = newSize;
+                        // Update cursor
+                        const container = stage ? stage.container() : null;
+                        if (container) {
+                            container.style.cursor = createToolCursor('✏️', pencilSize);
+                        }
+                    } else {
+                        eraserSize = newSize;
+                        toolStates.eraser.size = newSize;
+                        // Update cursor
+                        const container = stage ? stage.container() : null;
+                        if (container) {
+                            container.style.cursor = createToolCursor('🧽', eraserSize);
+                        }
                     }
-                } else {
-                    eraserSize = newSize;
-                    toolStates.eraser.size = newSize;
-                    // Update cursor
-                    const container = stage ? stage.container() : null;
-                    if (container) {
-                        container.style.cursor = createToolCursor('🧽', eraserSize);
-                    }
+
+                    sizeInput.value = newSize;
+                    updateSizeIndicator();
+
+                    setTimeout(() => {
+                        iconElement.classList.remove('resizable');
+                        sizeIndicator.style.display = 'none';
+                    }, 1000);
                 }
-                
-                sizeInput.value = newSize;
-                updateSizeIndicator();
-                
-                setTimeout(() => {
-                    iconElement.classList.remove('resizable');
-                    sizeIndicator.style.display = 'none';
-                }, 1000);
             }
         }
-    }
-});
+    });
 
     // Clear canvas
     document.getElementById('clear-btn').onclick = () => {
-    layer.destroyChildren();
-    transformer = new Konva.Transformer({
-        rotateEnabled: true,
-        enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                       'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
-        boundBoxFunc: (oldBox, newBox) => {
-            if (newBox.width < 5 || newBox.height < 5) {
-                return oldBox;
-            }
-            return newBox;
-        },
-        shouldOverdrawWholeArea: true
-    });
-    layer.add(transformer);
-    layer.draw();
-    saveState();
-};
+        layer.destroyChildren();
+        transformer = new Konva.Transformer({
+            rotateEnabled: true,
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right',
+                'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+            boundBoxFunc: (oldBox, newBox) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                    return oldBox;
+                }
+                return newBox;
+            },
+            shouldOverdrawWholeArea: true
+        });
+        layer.add(transformer);
+        layer.draw();
+        saveState();
+    };
 
     // Undo functionality
     document.getElementById('undo-btn').onclick = () => {
-    if (historyIndex > 0) {
-        historyIndex--;
-        layer.destroyChildren();
-        const objects = JSON.parse(history[historyIndex]);
-        objects.children.forEach(obj => {
-            if (obj.className !== 'Transformer') {
-                const shape = Konva.Node.create(obj);
-                layer.add(shape);
-                
-                // Re-add text editing handlers for text objects
-                if (shape.className === 'Text') {
-                    addTextEditingHandler(shape);
+        if (historyIndex > 0) {
+            historyIndex--;
+            layer.destroyChildren();
+            const objects = JSON.parse(history[historyIndex]);
+            objects.children.forEach(obj => {
+                if (obj.className !== 'Transformer') {
+                    const shape = Konva.Node.create(obj);
+                    layer.add(shape);
+
+                    // Re-add text editing handlers for text objects
+                    if (shape.className === 'Text') {
+                        addTextEditingHandler(shape);
+                    }
                 }
-            }
-        });
-        
-        transformer = new Konva.Transformer({
-            rotateEnabled: true,
-            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
-            boundBoxFunc: (oldBox, newBox) => {
-                if (newBox.width < 5 || newBox.height < 5) {
-                    return oldBox;
-                }
-                return newBox;
-            },
-            shouldOverdrawWholeArea: true
-        });
-        layer.add(transformer);
-        layer.draw();
-    }
-};
+            });
+
+            transformer = new Konva.Transformer({
+                rotateEnabled: true,
+                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right',
+                    'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+                boundBoxFunc: (oldBox, newBox) => {
+                    if (newBox.width < 5 || newBox.height < 5) {
+                        return oldBox;
+                    }
+                    return newBox;
+                },
+                shouldOverdrawWholeArea: true
+            });
+            layer.add(transformer);
+            layer.draw();
+        }
+    };
 
     // Redo functionality
     document.getElementById('redo-btn').onclick = () => {
-    if (historyIndex < history.length - 1) {
-        historyIndex++;
-        layer.destroyChildren();
-        const objects = JSON.parse(history[historyIndex]);
-        objects.children.forEach(obj => {
-            if (obj.className !== 'Transformer') {
-                const shape = Konva.Node.create(obj);
-                layer.add(shape);
-                
-                // Re-add text editing handlers for text objects
-                if (shape.className === 'Text') {
-                    addTextEditingHandler(shape);
+        if (historyIndex < history.length - 1) {
+            historyIndex++;
+            layer.destroyChildren();
+            const objects = JSON.parse(history[historyIndex]);
+            objects.children.forEach(obj => {
+                if (obj.className !== 'Transformer') {
+                    const shape = Konva.Node.create(obj);
+                    layer.add(shape);
+
+                    // Re-add text editing handlers for text objects
+                    if (shape.className === 'Text') {
+                        addTextEditingHandler(shape);
+                    }
                 }
-            }
-        });
-        
-        transformer = new Konva.Transformer({
-            rotateEnabled: true,
-            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 
-                           'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
-            boundBoxFunc: (oldBox, newBox) => {
-                if (newBox.width < 5 || newBox.height < 5) {
-                    return oldBox;
-                }
-                return newBox;
-            },
-            shouldOverdrawWholeArea: true
-        });
-        layer.add(transformer);
-        layer.draw();
-    }
-};
+            });
+
+            transformer = new Konva.Transformer({
+                rotateEnabled: true,
+                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right',
+                    'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
+                boundBoxFunc: (oldBox, newBox) => {
+                    if (newBox.width < 5 || newBox.height < 5) {
+                        return oldBox;
+                    }
+                    return newBox;
+                },
+                shouldOverdrawWholeArea: true
+            });
+            layer.add(transformer);
+            layer.draw();
+        }
+    };
 
     // Load image
     document.getElementById('load-image-btn').onclick = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const konvaImg = new Konva.Image({
-                        x: 50,
-                        y: 50,
-                        image: img,
-                        width: Math.min(img.width, 200),
-                        height: Math.min(img.height, 200),
-                        draggable: true
-                    });
-                    
-                    // Add event listeners for proper transformer updates
-                    konvaImg.on('dragend', () => {
-                        transformer.forceUpdate();
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const konvaImg = new Konva.Image({
+                            x: 50,
+                            y: 50,
+                            image: img,
+                            width: Math.min(img.width, 200),
+                            height: Math.min(img.height, 200),
+                            draggable: true
+                        });
+
+                        // Add event listeners for proper transformer updates
+                        konvaImg.on('dragend', () => {
+                            transformer.forceUpdate();
+                            layer.draw();
+                        });
+
+                        konvaImg.on('transformend', () => {
+                            saveState();
+                        });
+
+                        layer.add(konvaImg);
                         layer.draw();
-                    });
-                    
-                    konvaImg.on('transformend', () => {
                         saveState();
-                    });
-                    
-                    layer.add(konvaImg);
-                    layer.draw();
-                    saveState();
+                    };
+                    img.src = event.target.result;
                 };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
+                reader.readAsDataURL(file);
+            }
+        };
+        input.click();
     };
-    input.click();
-};
 
     // Canvas resize functionality
     document.getElementById('resize-canvas-btn').onclick = () => {
         const newWidth = parseInt(document.getElementById('canvas-width').value, 10);
         const newHeight = parseInt(document.getElementById('canvas-height').value, 10);
-        
+
         if (newWidth && newHeight && newWidth >= 200 && newHeight >= 200) {
             stage.width(newWidth);
             stage.height(newHeight);
@@ -1232,10 +1232,10 @@ function createToolCursor(emoji, size = 5) {
     // Modal functions
     function showDrawingModal(model) {
         modal.style.display = 'flex';
-        
+
         // Initialize canvas
         initializeCanvas();
-        
+
         // Reset tool states
         setActiveTool('select');
 
@@ -1247,7 +1247,7 @@ function createToolCursor(emoji, size = 5) {
 
             const imgElement = `<img src="${dataURL}" style="width: ${canvasWidth}px; height: ${canvasHeight}px; display: block;">`;
             model.replaceWith(imgElement);
-            
+
             modal.style.display = 'none';
         };
 

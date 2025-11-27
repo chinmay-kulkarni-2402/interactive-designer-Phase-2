@@ -1,13 +1,13 @@
 function customSeparator(editor) {
   // -------- local logger shim (uses DesignerLogger if present) --------
   const DL = (window && window.DesignerLogger) ? window.DesignerLogger : {
-    info:   (m,c)=>console.log(m,c||''),
-    warn:   (m,c)=>console.warn(m,c||''),
-    error:  (m,c)=>console.error(m,c||''),
-    success:(m,c)=>console.log(m,c||''),
-    debug:  (m,c)=>console.log(m,c||''),
-    event:  (m,c)=>console.log(m,c||''),
-    try(fn, ctx, onError){ try { return fn(); } catch(err){ console.error(err); if(onError) onError(err); } }
+    info: (m, c) => console.log(m, c || ''),
+    warn: (m, c) => console.warn(m, c || ''),
+    error: (m, c) => console.error(m, c || ''),
+    success: (m, c) => console.log(m, c || ''),
+    debug: (m, c) => console.log(m, c || ''),
+    event: (m, c) => console.log(m, c || ''),
+    try(fn, ctx, onError) { try { return fn(); } catch (err) { console.error(err); if (onError) onError(err); } }
   };
 
   // announce component type registration

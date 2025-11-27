@@ -1354,8 +1354,14 @@ function addFormattedRichTextComponent(editor) {
         this.rteTimeout = null;
       },
 
+      // In the view object, modify the handleSingleClick method as follows:
       handleSingleClick(e) {
-        // Check if the clicked element is a link or inside a link
+        if (this.rteActive) {
+          e.stopPropagation();
+          return;
+        }
+
+        // Original code for handling links when not in RTE mode
         const clickedElement = e.target;
         const linkElement = clickedElement.closest('a');
 
@@ -1572,28 +1578,60 @@ function addFormattedRichTextComponent(editor) {
         this.el.addEventListener('input', this.rteChangeHandler);
         this.el.addEventListener('paste', this.handleRTEPaste.bind(this));
 
-        // FIXED: Add global click handler to detect outside clicks
-        // In startRTE, replace the globalClickHandler assignment:
+        // In the view object, modify the startRTE() method's globalClickHandler as follows:
         this.globalClickHandler = (e) => {
-          if (!this.el.contains(e.target) && !e.target.closest('.gjs-rte-toolbar')) {
-            console.log('Clicked outside, stopping RTE');
-            this.handleRTEExit(); // Changed from handleRTEFocusOut
+          if (!this.rteActive) return;
+          if (!this.rteClickEnabled) return;
+
+          // Check if click is inside THIS specific element
+          const clickedInside = this.el.contains(e.target) || this.el === e.target;
+
+          // Check if clicked on toolbar
+          const clickedOnToolbar = e.target.closest('.gjs-rte-toolbar') ||
+            e.target.closest('.gjs-toolbar') ||
+            e.target.closest('.gjs-rte-actionbar');
+
+          // Only stop RTE if clicked outside THIS element AND not on toolbar
+          if (!clickedInside && !clickedOnToolbar) {
+            console.log('Clicked outside this element, stopping RTE');
+            this.handleRTEExit();
+          } else if (clickedInside) {
+            console.log('Clicked inside same element, continuing edit');
+            // Allow default behavior for cursor positioning
+            // Do NOT stop propagation or prevent default
+            e.stopPropagation();  // Add this to prevent GrapesJS selection handling
           }
         };
 
-        // And update escape handler:
         this.escapeHandler = (e) => {
           if (e.key === 'Escape') {
             console.log('Escape key pressed, closing RTE');
-            this.handleRTEExit(); // Changed from handleRTEFocusOut
+            this.handleRTEExit();
           }
         };
 
-        // FIXED: Add event listeners with proper timing
+        // Disable click handler initially
+        this.rteClickEnabled = false;
+
+        // FIXED: Attach to canvas frame and document
+        const canvas = em.get('Canvas');
+        const canvasBody = canvas?.getBody();
+        const canvasDocument = canvas?.getDocument();
+
+        // Add listeners to multiple targets to ensure capture
+        if (canvasBody) {
+          canvasBody.addEventListener('mousedown', this.globalClickHandler, true);
+        }
+        if (canvasDocument) {
+          canvasDocument.addEventListener('mousedown', this.globalClickHandler, true);
+        }
+        document.addEventListener('mousedown', this.globalClickHandler, true);
+        document.addEventListener('keydown', this.escapeHandler);
+
+        // Enable click detection after a short delay
         setTimeout(() => {
-          document.addEventListener('click', this.globalClickHandler);
-          document.addEventListener('keydown', this.escapeHandler);
-        }, 100);
+          this.rteClickEnabled = true;
+        }, 300);
 
         // FIXED: Focus the element with proper timing and cursor positioning
         setTimeout(() => {
@@ -1693,12 +1731,26 @@ function addFormattedRichTextComponent(editor) {
         }
 
         // FIXED: Remove global event handlers
+        // FIXED: Remove global event handlers
         if (this.globalClickHandler) {
           console.log('Removing global click handler');
-          document.removeEventListener('click', this.globalClickHandler);
+
+          this.rteClickEnabled = false; // Add this line
+
+          const canvas = em.get('Canvas');
+          const canvasBody = canvas?.getBody();
+          const canvasDocument = canvas?.getDocument();
+
+          if (canvasBody) {
+            canvasBody.removeEventListener('mousedown', this.globalClickHandler, true);
+          }
+          if (canvasDocument) {
+            canvasDocument.removeEventListener('mousedown', this.globalClickHandler, true);
+          }
+          document.removeEventListener('mousedown', this.globalClickHandler, true);
+
           this.globalClickHandler = null;
         }
-
         if (this.escapeHandler) {
           console.log('Removing escape key handler');
           document.removeEventListener('keydown', this.escapeHandler);
@@ -1884,8 +1936,6 @@ function addFormattedRichTextComponent(editor) {
         }
 
         // Ensure proper styling
-        this.el.style.minHeight = '40px';
-        this.el.style.padding = '12px';
         this.el.style.wordWrap = 'break-word';
         this.el.style.overflowWrap = 'break-word';
       },

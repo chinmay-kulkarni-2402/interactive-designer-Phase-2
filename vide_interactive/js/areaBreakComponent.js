@@ -1,492 +1,392 @@
 /**
- * GrapesJS Flow Layout (v16 - Full-Height FlowContent + Smart Drop)
- * ---------------------------------------------------
- * ✅ Partial overflow (only extra content moves)
- * ✅ Live typing (no ESC)
- * ✅ DOM + Editor sync
- * ✅ Flow-content full height
- * ✅ Droppable redirection into flow-content
- * ✅ Hidden overflow restore on resize
+ * FLOW LAYOUT — Combined fixes for:
+ * 1) Partial splitting (only overflow moved)
+ * 2) Immediate DOM update when changing content (model-first)
+ * 3) Reliable, debounced reflow on updates (no click needed)
  *
- * --- CRITICAL FIXES APPLIED ---
- * 1. Optimized Node Handling: The original node is used for the visible part, and only the overflow creates a new clone.
- * 2. Simplified Backflow: Backflow now only moves full, un-split nodes or attempts to merge the first node's content back.
+ * Usage: replace existing flowLayoutComponent implementation with this.
  */
-
 function flowLayoutComponent(editor) {
   const domc = editor.DomComponents;
   const bm = editor.BlockManager;
 
   const LAYOUT = "flow-layout";
   const COL = "flow-column";
+  const CUSTOM_TEXT_TYPE = "formatted-rich-text";
 
-  // --- Column Type ---
+  // Simple debounce for reflow calls
+  let reflowTimer = null;
+  const scheduleReflow = (view, delay = 80) => {
+    if (reflowTimer) clearTimeout(reflowTimer);
+    reflowTimer = setTimeout(() => {
+      try {
+        view.reflow();
+      } catch (e) {
+        // ignore
+      }
+      reflowTimer = null;
+    }, delay);
+  };
+
+  // Ensure DOM id & keep model attributes in-sync
+  const ensureIdSync = (itemEl, compModel) => {
+    if (!itemEl.id) itemEl.id = "flow-item-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 10000);
+    if (compModel && compModel.getAttributes) {
+      const attrs = Object.assign({}, compModel.getAttributes());
+      if (attrs.id !== itemEl.id) {
+        attrs.id = itemEl.id;
+        try { compModel.set({ attributes: attrs }, { silent: true }); } catch (e) { /* ignore */ }
+      }
+    }
+    return itemEl.id;
+  };
+
+  // Find model by DOM id via wrapper.find
+  const findModelByDOMId = (id) => {
+    if (!id) return null;
+    return editor.getWrapper().find("#" + id)[0] || null;
+  };
+
+  /* ---------------------------
+   * Column
+   * --------------------------- */
   domc.addType(COL, {
+    isComponent(el) {
+      return el?.classList?.contains("flow-col") ? { type: COL } : false;
+    },
     model: {
       defaults: {
         name: "Flow Column",
         tagName: "div",
-        droppable: true,
-        draggable: false,
-        removable: false,
+        attributes: { class: "flow-col" },
         style: {
           "flex-grow": "1",
           "flex-basis": "50%",
           padding: "10px",
           "box-sizing": "border-box",
-          "min-height": "100%",
           overflow: "hidden",
-          "word-break": "break-word",
         },
-      },
-    },
-    view: {
-      onRender() {
-        // Ensure .flow-content exists
-        if (!this.el.querySelector(".flow-content")) {
-          const flow = document.createElement("div");
-          flow.className = "flow-content";
-          flow.style.height = "100%";
-          flow.style.minHeight = "100%";
-          flow.style.boxSizing = "border-box";
-          flow.style.display = "block";
-          flow.style.position = "relative";
-          this.el.appendChild(flow);
-        }
-      },
-
-      // ✅ Redirect dropped components into .flow-content
-      appendChild(childEl) {
-        const flow = this.el.querySelector(".flow-content");
-        if (flow) flow.appendChild(childEl);
-        else this.el.appendChild(childEl);
+        droppable: ".flow-content",
+        removable: false,
+        copyable: false,
+        components: [
+          {
+            tagName: "div",
+            attributes: { class: "flow-content" },
+            style: {
+              position: "relative",
+              height: "100%",
+              overflow: "visible",
+            },
+          },
+        ],
       },
     },
   });
 
-  // --- Layout Type ---
+  /* ---------------------------
+   * Layout
+   * --------------------------- */
   domc.addType(LAYOUT, {
     isComponent(el) {
-      if (el?.classList?.contains("flow-layout")) return { type: LAYOUT };
-      if (el?.getAttribute?.("data-i_designer-type") === "flow-layout")
-        return { type: LAYOUT };
-      return false;
+      return el?.classList?.contains("flow-layout") ? { type: LAYOUT } : false;
     },
 
     model: {
       defaults: {
         name: "Flow Layout",
         tagName: "div",
-        droppable: false,
-        draggable: true,
-        removable: true,
-        components: [
-          { type: COL, attributes: { class: "flow-col" } },
-          { type: COL, attributes: { class: "flow-col" } },
-        ],
+        attributes: { class: "flow-layout" },
         style: {
           display: "flex",
           "flex-direction": "row",
-          height: "300px",
-          overflow: "hidden",
-          border: "1px solid #ccc",
           width: "100%",
-          "padding-top": "1px",
-          "padding-bottom": "1px",
+          height: "300px",
+          border: "1px solid #ccc",
+          overflow: "hidden",
         },
+        components: [{ type: COL }, { type: COL }],
         traits: [
-          {
-            type: "number",
-            label: "Columns",
-            name: "columns",
-            min: 2,
-            max: 10,
-            value: 2,
-            changeProp: 1,
-          },
-          {
-            type: "number",
-            label: "Height (px)",
-            name: "height",
-            min: 10,
-            value: 300,
-            changeProp: 1,
-          },
+          { type: "number", name: "columns", label: "Columns", min: 2, max: 12, value: 2, changeProp: 1 },
+          { type: "number", name: "height", label: "Height (px)", min: 100, value: 300, changeProp: 1 },
         ],
       },
 
       init() {
-        this.on("change:columns", this.updateColumns);
-        this.on("change:height", this.updateHeight);
-
+        this.listenTo(this, "change:columns", this.updateColumns);
+        this.listenTo(this, "change:height", this.updateHeight);
         if (!this.get("columns")) this.set("columns", 2);
-        if (!this.get("height")) this.set("height", "300");
-
+        if (!this.get("height")) this.set("height", 300);
         this.updateHeight();
       },
 
       updateHeight() {
-        let h = parseInt(this.get("height")) || 300;
-        if (h < 10) h = 10;
-        this.set("height", h);
-        this.addStyle({ height: `${h}px` });
+        const h = parseInt(this.get("height")) || 300;
+        this.addStyle({ height: h + "px" });
+        if (this.view?.el) this.view.el.style.height = h + "px";
       },
 
       updateColumns() {
-        let want = parseInt(this.get("columns")) || 2;
-        if (want < 2) want = 2;
-
+        const target = parseInt(this.get("columns")) || 2;
         const comps = this.components();
-        const cur = comps.length;
-
-        if (want > cur) {
-          for (let i = cur; i < want; i++) {
-            comps.add({ type: COL, attributes: { class: "flow-col" } });
-          }
-        } else if (want < cur) {
-          for (let i = cur - 1; i >= want; i--) comps.at(i).remove();
+        const current = comps.length;
+        if (target > current) {
+          for (let i = current; i < target; i++) comps.add({ type: COL });
+        } else if (target < current) {
+          for (let i = current - 1; i >= target; i--) comps.at(i).remove();
         }
-
-        this.set("columns", want);
-        this.view && this.view.scheduleLayout();
+        setTimeout(() => this.view?.render(), 20);
       },
     },
 
-    // --- View ---
     view: {
       init() {
-        this.isLayingOut = false;
-        this.debounceTimer = null;
+        // Listen a wide set of events and schedule a debounced reflow
+        const evs = [
+          "component:drop",
+          "component:add",
+          "component:remove",
+          "component:update",
+          "component:style:update",
+          "component:content:update",
+        ];
+        evs.forEach((ev) => editor.on(ev, () => scheduleReflow(this, 80)));
 
-        this.listenTo(this.model.components(), "add remove", () =>
-          this.scheduleLayout()
-        );
+        // Also listen model-level content changes (safer for some custom components)
+        editor.getWrapper().on("change:components", () => scheduleReflow(this, 100));
       },
 
       onRender() {
-        this.ensureStructure();
-        this.attachObservers();
-        this.scheduleLayout();
-        editor.trigger("component:toggled");
+        scheduleReflow(this, 60);
       },
 
-      // ✅ Ensure flow-content and hidden area exist, full height
-      ensureStructure() {
-        const cols = this.el.querySelectorAll(".flow-col");
+      /**
+       * Try to split content to fit remainPx (pixels).
+       * Returns { remainingHTML, overflowHTML } or null if can't split.
+       */
+      splitTextContent(itemEl, compModel, remainPx) {
+        if (!itemEl || remainPx <= 0) return null;
 
-        cols.forEach((col) => {
-          let flow = col.querySelector(".flow-content");
-          if (!flow) {
-            flow = document.createElement("div");
-            flow.className = "flow-content";
-            flow.style.height = "100%";
-            flow.style.minHeight = "100%";
-            flow.style.boxSizing = "border-box";
-            flow.style.display = "block";
-            flow.style.position = "relative";
-            col.insertBefore(flow, col.firstChild);
-          }
-
-          let hidden = col.querySelector(".overflow-hidden-content");
-          if (!hidden) {
-            hidden = document.createElement("div");
-            hidden.className = "overflow-hidden-content";
-            hidden.style.display = "none";
-            col.appendChild(hidden);
-          }
-
-          // ✅ Move extra direct children inside .flow-content
-          const extras = Array.from(col.children).filter(
-            (ch) =>
-              !ch.classList.contains("flow-content") &&
-              !ch.classList.contains("overflow-hidden-content")
-          );
-          extras.forEach((node) => flow.appendChild(node));
-        });
-      },
-
-      attachObservers() {
-        const el = this.el;
-        let typing = false;
-        let typingTimer;
-
-        el.addEventListener("focusin", (e) => {
-          if (e.target?.getAttribute("contenteditable") === "true") {
-            typing = true;
-            clearTimeout(typingTimer);
-          }
-        });
-
-        el.addEventListener("input", (e) => {
-          if (e.target?.getAttribute("contenteditable") === "true") {
-            typing = true;
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-              typing = false;
-              this.scheduleLayout();
-            }, 1200);
-          } else {
-            this.scheduleLayout();
-          }
-        });
-
-        el.addEventListener("focusout", () => {
-          typing = false;
-          clearTimeout(typingTimer);
-          this.scheduleLayout();
-        });
-
-        this.mutObs = new MutationObserver(() => {
-          if (typing) return;
-          this.scheduleLayout();
-        });
-
-        this.mutObs.observe(el, { childList: true, subtree: true, characterData: true });
-
-        this.resizeObs = new ResizeObserver(() => {
-          if (!typing) this.scheduleLayout();
-        });
-
-        this.resizeObs.observe(el);
-      },
-
-      scheduleLayout() {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => this.layoutFlow(), 200);
-      },
-
-      // --- HELPER: Splits HTML content by pixel height (Preserves HTML) ---
-      splitHTMLByHeight(html, availableHeight, colWidth) {
-        const temp = document.createElement("div");
-        temp.style.width = `${colWidth}px`;
-        temp.style.position = "absolute";
-        temp.style.visibility = "hidden";
-        temp.style.top = "0";
-        temp.style.left = "0";
-        temp.style.whiteSpace = "normal";
-        temp.style.wordBreak = "break-word";
-        document.body.appendChild(temp);
-
-        let visible = "";
-        let overflow = "";
-
-        // 1. Tokenize HTML
-        const parts = html
-          .replace(/<br\s*\/?>/gi, " [[BR]] ")
-          .replace(/&nbsp;/gi, " [[NBSP]] ")
-          .split(/(\s+|\[\[BR\]\]|\[\[NBSP\]\]|<[^>]+>)/)
-          .filter((t) => t !== "");
-
-        let triggered = false;
-
-        for (let i = 0; i < parts.length; i++) {
-          visible += parts[i];
-
-          temp.innerHTML = visible
-            .replace(/\[\[BR\]\]/g, "<br>")
-            .replace(/\[\[NBSP\]\]/g, "&nbsp;");
-
-          if (temp.scrollHeight > availableHeight) {
-            overflow = parts.slice(i).join("");
-            visible = parts.slice(0, i).join("");
-            triggered = true;
-            break;
-          }
-        }
-
-        document.body.removeChild(temp);
-
-        const restore = (s) =>
-          s.replace(/\[\[BR\]\]/g, "<br>").replace(/\[\[NBSP\]\]/g, "&nbsp;");
-
-        if (!triggered) return { visibleHTML: html, overflowHTML: "" };
-
-        return { visibleHTML: restore(visible), overflowHTML: restore(overflow) };
-      },
-
-      // --- Main layout + split ---
-      layoutFlow() {
-        const active = document.activeElement;
-        if (active?.getAttribute?.("contenteditable") === "true") return;
-        if (this.isLayingOut) return;
-
-        this.isLayingOut = true;
-        this.disableObservers();
-
+        // Prefer model-stored content; fallback to view DOM innerHTML
+        let originalHTML = "";
         try {
-          this.ensureStructure();
-
-          const layoutHeight =
-            this.el.querySelector(".flow-col")?.offsetHeight || this.el.offsetHeight;
-          const cols = Array.from(this.el.querySelectorAll(".flow-col"));
-          if (!cols.length) return;
-
-          // Gather all nodes
-          const all = [];
-          cols.forEach((col) => {
-            const flow = col.querySelector(".flow-content");
-            const hidden = col.querySelector(".overflow-hidden-content");
-            if (!flow) return;
-
-            const children = Array.from(flow.children);
-            children.forEach((ch) => all.push(ch));
-            flow.innerHTML = "";
-            if (hidden) hidden.innerHTML = "";
-          });
-
-          let curCol = 0;
-
-          // --- Forward pass: move overflow forward ---
-          all.forEach((node) => {
-            if (curCol >= cols.length) {
-              const lastCol = cols[cols.length - 1];
-              const hidden = lastCol.querySelector(".overflow-hidden-content");
-              if (hidden) hidden.appendChild(node);
-              return;
-            }
-
-            let flow = cols[curCol].querySelector(".flow-content");
-            const hidden = cols[curCol].querySelector(".overflow-hidden-content");
-            if (!flow) return;
-
-            flow.appendChild(node);
-
-            if (flow.scrollHeight > layoutHeight) {
-              flow.removeChild(node);
-
-              const tag = node.tagName.toLowerCase();
-              const isTextContainer =
-                ["div", "p", "span", "section", "h1", "h2", "h3"].includes(tag);
-              const hasRichContent =
-                node.innerHTML &&
-                (node.innerHTML.includes("<") || node.innerHTML.includes("&"));
-
-              if (isTextContainer && (node.textContent || hasRichContent)) {
-                const currentContentHeight = flow.scrollHeight;
-                const availableSpace = layoutHeight - currentContentHeight;
-
-                const { visibleHTML, overflowHTML } = this.splitHTMLByHeight(
-                  node.innerHTML,
-                  availableSpace,
-                  flow.clientWidth
-                );
-
-                if (visibleHTML) {
-                  node.innerHTML = visibleHTML;
-                  flow.appendChild(node);
-                }
-
-                if (overflowHTML) {
-                  const overflowNode = node.cloneNode(true);
-                  overflowNode.innerHTML = overflowHTML;
-
-                  if (cols[curCol + 1]) {
-                    cols[curCol + 1]
-                      .querySelector(".flow-content")
-                      .appendChild(overflowNode);
-                    curCol++;
-                  } else if (hidden) {
-                    hidden.appendChild(overflowNode);
-                  }
-                } else if (!visibleHTML) {
-                  if (cols[curCol + 1]) {
-                    cols[curCol + 1].querySelector(".flow-content").appendChild(node);
-                    curCol++;
-                  } else if (hidden) {
-                    hidden.appendChild(node);
-                  }
-                }
-              } else {
-                // Non-splittable content (e.g., image, complex block)
-                if (cols[curCol + 1]) {
-                  cols[curCol + 1].querySelector(".flow-content").appendChild(node);
-                  curCol++;
-                } else if (hidden) {
-                  hidden.appendChild(node);
-                }
-              }
-            }
-          });
-
-          // --- Backflow (merge available space backward) ---
-          for (let i = cols.length - 1; i > 0; i--) {
-            const curColEl = cols[i];
-            const prevColEl = cols[i - 1];
-            const flow = curColEl.querySelector(".flow-content");
-            const prevFlow = prevColEl.querySelector(".flow-content");
-            const hidden = curColEl.querySelector(".overflow-hidden-content");
-
-            // Move content from current flow to previous flow
-            if (prevFlow.scrollHeight < layoutHeight && flow.children.length > 0) {
-              const children = Array.from(flow.children);
-              for (let j = 0; j < children.length; j++) {
-                const child = children[j];
-                flow.removeChild(child);
-                prevFlow.appendChild(child);
-
-                if (prevFlow.scrollHeight > layoutHeight) {
-                  prevFlow.removeChild(child);
-                  flow.insertBefore(child, flow.firstChild);
-                  break;
-                }
-              }
-            }
-
-            // Move content from current hidden area to previous flow
-            if (
-              prevFlow.scrollHeight < layoutHeight &&
-              hidden &&
-              hidden.children.length > 0
-            ) {
-              const hiddenChildren = Array.from(hidden.children);
-              for (let j = 0; j < hiddenChildren.length; j++) {
-                const restoreNode = hiddenChildren[j];
-                hidden.removeChild(restoreNode);
-                prevFlow.appendChild(restoreNode);
-
-                if (prevFlow.scrollHeight > layoutHeight) {
-                  prevFlow.removeChild(restoreNode);
-                  hidden.insertBefore(restoreNode, hidden.firstChild);
-                  break;
-                }
-              }
-            }
+          if (compModel && compModel.get) {
+            const c = compModel.get("content");
+            if (c != null && c !== undefined && String(c).trim() !== "") originalHTML = String(c);
           }
-        } finally {
-          setTimeout(() => {
-            this.enableObservers();
-            this.isLayingOut = false;
-            editor.trigger("component:toggled");
-          }, 300);
+        } catch (e) { }
+        if (!originalHTML) originalHTML = itemEl.innerHTML || "";
+
+        // Tokenize: keep tags as tokens and words/spaces as tokens
+        const tokens = originalHTML.match(/(<[^>]+>|[^<\s]+[\s]*)/g) || [];
+
+        if (tokens.length <= 1) return null;
+
+        const flow = itemEl.closest(".flow-content") || this.el;
+
+        let left = 0;
+        let right = tokens.length;
+        let best = -1;
+
+        while (left <= right) {
+          const mid = Math.floor((left + right) / 2);
+          const testHTML = tokens.slice(0, mid).join("");
+
+          // Create a measuring node inside same flow container for identical wrapping
+          const temp = itemEl.cloneNode(false);
+          const cs = window.getComputedStyle(itemEl);
+          temp.style.cssText = cs.cssText || "";
+          // Force width to flow width to avoid %/inherit mismatch
+          temp.style.width = (flow.clientWidth) + "px";
+          temp.style.position = "absolute";
+          temp.style.visibility = "hidden";
+          temp.style.height = "auto";
+          temp.style.left = "0";
+          temp.style.top = "0";
+          temp.innerHTML = testHTML;
+
+          flow.appendChild(temp);
+          const h = temp.offsetHeight;
+          flow.removeChild(temp);
+
+          if (h <= remainPx) {
+            best = mid;
+            left = mid + 1;
+          } else {
+            right = mid - 1;
+          }
         }
+
+        if (best > 0 && best < tokens.length) {
+          return {
+            remainingHTML: tokens.slice(0, best).join(""),
+            overflowHTML: tokens.slice(best).join(""),
+          };
+        }
+        return null;
       },
 
-      disableObservers() {
-        this.mutObs?.disconnect();
-        this.resizeObs?.disconnect();
-      },
+      /**
+       * Reflow implementation
+       */
+      reflow() {
+        const layoutEl = this.el;
+        if (!layoutEl) return;
+        const layoutRect = layoutEl.getBoundingClientRect();
+        const layoutHeight = layoutRect.height;
+        if (!layoutHeight) return;
 
-      enableObservers() {
-        const el = this.el;
-        if (this.mutObs)
-          this.mutObs.observe(el, { childList: true, subtree: true, characterData: true });
-        if (this.resizeObs) this.resizeObs.observe(el);
-      },
+        const cols = Array.from(layoutEl.querySelectorAll(".flow-col"));
+        if (!cols.length) return;
+
+        for (let colIndex = 0; colIndex < cols.length; colIndex++) {
+          const col = cols[colIndex];
+          const flow = col.querySelector(".flow-content");
+          if (!flow) continue;
+
+          // Snapshot children since DOM may change during loop
+          const items = Array.from(flow.children);
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            // Ensure id + model sync
+            ensureIdSync(item, findModelByDOMId(item.id));
+
+            const itemRect = item.getBoundingClientRect();
+            const flowRect = flow.getBoundingClientRect();
+
+            // item top relative to flow (pixel)
+            const itemTopRel = itemRect.top - flowRect.top;
+            const itemHeight = itemRect.height;
+            const itemBottomRel = itemTopRel + itemHeight;
+
+            // remaining pixels inside layout from this item's top
+            const remainPx = Math.floor(layoutHeight - itemTopRel);
+
+            if (itemBottomRel > layoutHeight) {
+              const nextCol = cols[colIndex + 1];
+              if (!nextCol) continue;
+              const nextFlow = nextCol.querySelector(".flow-content");
+              if (!nextFlow) continue;
+
+              const compModel = findModelByDOMId(item.id);
+              const isTextLike = compModel && ((compModel.is && compModel.is("text")) || (compModel.get && compModel.get("type") === CUSTOM_TEXT_TYPE));
+
+              let handled = false;
+
+              // Attempt partial split for text-like items if some remainPx available
+              if (isTextLike && remainPx > 8) {
+                try {
+                  const splitRes = this.splitTextContent(item, compModel, remainPx);
+                  if (splitRes) {
+                    // 1) Update model FIRST (silent), then DOM immediately to avoid model overwriting
+                    try {
+                      // Some custom components store content differently; we attempt common methods:
+                      if (compModel && compModel.set) {
+                        compModel.set({ content: splitRes.remainingHTML }, { silent: true });
+                      }
+                    } catch (e) { /* ignore set error */ }
+
+                    // Force DOM sync immediately (model.view may be available)
+                    try {
+                      const viewEl = compModel && compModel.view && compModel.view.el;
+                      if (viewEl) {
+                        viewEl.innerHTML = splitRes.remainingHTML;
+                      } else {
+                        item.innerHTML = splitRes.remainingHTML;
+                      }
+                    } catch (e) {
+                      item.innerHTML = splitRes.remainingHTML;
+                    }
+
+                    // 2) Create new model for overflow and insert at top of next column's model
+                    let newModel = null;
+                    try {
+                      newModel = editor.Components.addComponent({
+                        type: compModel.get("type"),
+                        content: splitRes.overflowHTML,
+                        style: compModel.getStyle ? compModel.getStyle() : undefined,
+                        attributes: compModel.getAttributes ? compModel.getAttributes() : undefined,
+                      });
+                    } catch (e) {
+                      // fallback minimal
+                      newModel = editor.Components.addComponent({
+                        type: compModel.get("type") || "text",
+                        content: splitRes.overflowHTML,
+                      });
+                    }
+
+                    // Add to target model flow if possible
+                    try {
+                      const layoutModel = this.model;
+                      const colModels = layoutModel.components();
+                      const targetColModel = colModels.at(colIndex + 1);
+                      const targetFlowModel = targetColModel && targetColModel.components().at(0);
+
+                      if (targetFlowModel) {
+                        targetFlowModel.components().add(newModel, { at: 0 });
+                      } else {
+                        nextFlow.insertBefore(document.createRange().createContextualFragment(splitRes.overflowHTML), nextFlow.firstChild);
+                      }
+                    } catch (e) {
+                      // DOM fallback
+                      try { nextFlow.insertBefore(document.createRange().createContextualFragment(splitRes.overflowHTML), nextFlow.firstChild); } catch (err) { }
+                    }
+
+                    // Clear selection and select newly added overflow for UX
+                    editor.select(null);
+                    setTimeout(() => {
+                      try { editor.select(newModel); } catch (e) { }
+                    }, 10);
+
+                    handled = true;
+                    // After partial-split we must recompute layout
+                    scheduleReflow(this, 30);
+                    return;
+                  }
+                } catch (err) {
+                  console.warn("Flow: partial split error", err);
+                }
+              }
+
+              // Fallback: move the entire block (DOM + model if available)
+              try {
+                nextFlow.insertBefore(item, nextFlow.firstChild);
+
+                if (compModel) {
+                  // Move model objects between columns in GrapesJS model tree
+                  const layoutModel = this.model;
+                  const colModels = layoutModel.components();
+                  const sourceColModel = colModels.at(colIndex);
+                  const targetColModel = colModels.at(colIndex + 1);
+                  const sourceFlowModel = sourceColModel && sourceColModel.components().at(0);
+                  const targetFlowModel = targetColModel && targetColModel.components().at(0);
+
+                  if (sourceFlowModel && targetFlowModel) {
+                    sourceFlowModel.components().remove(compModel);
+                    targetFlowModel.components().add(compModel, { at: 0 });
+                  }
+                }
+
+                handled = true;
+                scheduleReflow(this, 30);
+                return;
+              } catch (err) {
+                console.warn("Flow: move fallback failed", err);
+              }
+
+              if (!handled) continue;
+            } // if overflow
+          } // for items
+        } // for cols
+      }, // reflow
     },
   });
 
-  // --- Block ---
+  // add block to block manager
   bm.add("flow-layout", {
     label: "Flow Layout",
     category: "Layout",
     attributes: { class: "fa fa-columns" },
     content: { type: LAYOUT },
   });
-
-  editor.on("component:selected", (cmp) => {
-    if (cmp?.get("type") === "flow-layout") {
-      editor.TraitManager.render(cmp);
-    }
-  });
 }
- 

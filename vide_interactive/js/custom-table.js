@@ -1447,146 +1447,146 @@ function customTable(editor) {
   window.crosstabSelectedCells = [];
 
   // Function to enable crosstab cell selection
-// Function to enable crosstab cell selection
-function enableCrosstabSelection(tableId, enabled) {
-  try {
-    const canvasBody = editor.Canvas.getBody();
-    const table = canvasBody.querySelector(`#${tableId}`);
-    if (!table) return;
+  // Function to enable crosstab cell selection
+  function enableCrosstabSelection(tableId, enabled) {
+    try {
+      const canvasBody = editor.Canvas.getBody();
+      const table = canvasBody.querySelector(`#${tableId}`);
+      if (!table) return;
 
-    const allCells = table.querySelectorAll('td, th');
-    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+      const allCells = table.querySelectorAll('td, th');
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
 
-    if (enabled) {
-      // Store original GrapesJS properties
-      table._originalGjsProps = new Map();
-      table._originalRowGjsProps = new Map();
+      if (enabled) {
+        // Store original GrapesJS properties
+        table._originalGjsProps = new Map();
+        table._originalRowGjsProps = new Map();
 
-      allCells.forEach(cell => {
-        const comp = getComponentFromDom(cell);
-        if (comp) {
-          table._originalGjsProps.set(cell, {
-            selectable: comp.get('selectable'),
-            hoverable: comp.get('hoverable'),
-            editable: comp.get('editable')
-          });
-          comp.set({ selectable: false, hoverable: false, editable: false });
-        }
-
-        cell.contentEditable = "false";
-        cell.style.cursor = 'pointer';
-        cell.addEventListener('click', (e) => {
-          e.stopPropagation(); // Prevent row selection
-          handleCrosstabCellClick(cell, tableId);
-        });
-      });
-
-      // Disable row selection
-      const allRows = table.querySelectorAll('tr');
-      allRows.forEach(row => {
-        const comp = getComponentFromDom(row);
-        if (comp) {
-          table._originalRowGjsProps.set(row, {
-            selectable: comp.get('selectable'),
-            hoverable: comp.get('hoverable')
-          });
-          comp.set({ selectable: false, hoverable: false });
-        }
-      });
-
-      showToast('Crosstab mode enabled - Click cells to select for merging', 'success');
-    } else {
-      window.crosstabSelectedCells = [];
-
-      // ✅ First: Restore cell properties BEFORE clearing visual styles
-      if (table._originalGjsProps) {
         allCells.forEach(cell => {
-          const original = table._originalGjsProps.get(cell);
           const comp = getComponentFromDom(cell);
-          if (comp && original) {
-            comp.set({
-              selectable: true, // ✅ Force cells to be selectable
-              hoverable: true,
-              editable: true
+          if (comp) {
+            table._originalGjsProps.set(cell, {
+              selectable: comp.get('selectable'),
+              hoverable: comp.get('hoverable'),
+              editable: comp.get('editable')
             });
+            comp.set({ selectable: false, hoverable: false, editable: false });
           }
-        });
-        delete table._originalGjsProps;
-      }
 
-      // ✅ Second: Ensure rows remain NON-selectable
-      if (table._originalRowGjsProps) {
+          cell.contentEditable = "false";
+          cell.style.cursor = 'pointer';
+          cell.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent row selection
+            handleCrosstabCellClick(cell, tableId);
+          });
+        });
+
+        // Disable row selection
         const allRows = table.querySelectorAll('tr');
         allRows.forEach(row => {
           const comp = getComponentFromDom(row);
           if (comp) {
-            comp.set({
-              selectable: false, // ✅ Keep rows non-selectable
-              hoverable: false
+            table._originalRowGjsProps.set(row, {
+              selectable: comp.get('selectable'),
+              hoverable: comp.get('hoverable')
             });
+            comp.set({ selectable: false, hoverable: false });
           }
         });
-        delete table._originalRowGjsProps;
-      }
 
-      // ✅ Third: Clean up visual styles
-      allCells.forEach(cell => {
-        cell.classList.remove('crosstab-selected');
-        cell.style.outline = '';
-        cell.contentEditable = "true";
-        cell.style.cursor = 'text';
-      });
+        showToast('Crosstab mode enabled - Click cells to select for merging', 'success');
+      } else {
+        window.crosstabSelectedCells = [];
 
-      // ✅ Fourth: Remove event listeners by cloning cells
-      allCells.forEach(cell => {
-        const newCell = cell.cloneNode(true);
-        cell.parentNode.replaceChild(newCell, cell);
-      });
-
-      // ✅ Fifth: Force GrapesJS to refresh the component structure
-      if (tableComponent) {
-        // Deselect any currently selected component
-        editor.select(null);
-        
-        // Update the table component
-        editor.trigger('component:update', tableComponent);
-
-        // Refresh all cell components to ensure proper selectability
-        setTimeout(() => {
-          const allCellComponents = tableComponent.find('td, th');
-          allCellComponents.forEach(cellComp => {
-            cellComp.set({
-              selectable: true,
-              hoverable: true,
-              editable: true
-            });
-            editor.trigger('component:update', cellComp);
+        // ✅ First: Restore cell properties BEFORE clearing visual styles
+        if (table._originalGjsProps) {
+          allCells.forEach(cell => {
+            const original = table._originalGjsProps.get(cell);
+            const comp = getComponentFromDom(cell);
+            if (comp && original) {
+              comp.set({
+                selectable: true, // ✅ Force cells to be selectable
+                hoverable: true,
+                editable: true
+              });
+            }
           });
+          delete table._originalGjsProps;
+        }
 
-          // Ensure rows stay non-selectable
-          const allRowComponents = tableComponent.find('tr');
-          allRowComponents.forEach(rowComp => {
-            rowComp.set({
-              selectable: false,
-              hoverable: false
-            });
-            editor.trigger('component:update', rowComp);
+        // ✅ Second: Ensure rows remain NON-selectable
+        if (table._originalRowGjsProps) {
+          const allRows = table.querySelectorAll('tr');
+          allRows.forEach(row => {
+            const comp = getComponentFromDom(row);
+            if (comp) {
+              comp.set({
+                selectable: false, // ✅ Keep rows non-selectable
+                hoverable: false
+              });
+            }
           });
+          delete table._originalRowGjsProps;
+        }
 
-          // Force layer manager refresh
-          editor.trigger('layer:refresh');
-          
-          // Re-enable formula editing
-          enableFormulaEditing(tableId);
-        }, 200);
+        // ✅ Third: Clean up visual styles
+        allCells.forEach(cell => {
+          cell.classList.remove('crosstab-selected');
+          cell.style.outline = '';
+          cell.contentEditable = "true";
+          cell.style.cursor = 'text';
+        });
+
+        // ✅ Fourth: Remove event listeners by cloning cells
+        allCells.forEach(cell => {
+          const newCell = cell.cloneNode(true);
+          cell.parentNode.replaceChild(newCell, cell);
+        });
+
+        // ✅ Fifth: Force GrapesJS to refresh the component structure
+        if (tableComponent) {
+          // Deselect any currently selected component
+          editor.select(null);
+
+          // Update the table component
+          editor.trigger('component:update', tableComponent);
+
+          // Refresh all cell components to ensure proper selectability
+          setTimeout(() => {
+            const allCellComponents = tableComponent.find('td, th');
+            allCellComponents.forEach(cellComp => {
+              cellComp.set({
+                selectable: true,
+                hoverable: true,
+                editable: true
+              });
+              editor.trigger('component:update', cellComp);
+            });
+
+            // Ensure rows stay non-selectable
+            const allRowComponents = tableComponent.find('tr');
+            allRowComponents.forEach(rowComp => {
+              rowComp.set({
+                selectable: false,
+                hoverable: false
+              });
+              editor.trigger('component:update', rowComp);
+            });
+
+            // Force layer manager refresh
+            editor.trigger('layer:refresh');
+
+            // Re-enable formula editing
+            enableFormulaEditing(tableId);
+          }, 200);
+        }
+
+        showToast('Crosstab mode disabled - Normal cell editing restored', 'success');
       }
-
-      showToast('Crosstab mode disabled - Normal cell editing restored', 'success');
+    } catch (error) {
+      console.error('Error toggling crosstab mode:', error);
     }
-  } catch (error) {
-    console.error('Error toggling crosstab mode:', error);
   }
-}
 
   // Handle cell click in crosstab mode
   // Helper: build a grid map of the table accounting for rowspan/colspan
@@ -1759,208 +1759,208 @@ function enableCrosstabSelection(tableId, enabled) {
   }
 
   // Function to merge selected cells
-// Function to merge selected cells
-function mergeCrosstabCells() {
-  try {
-    if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 2) {
-      showToast('Select at least 2 cells to merge', 'warning');
-      return;
-    }
-
-    const anyCell = window.crosstabSelectedCells[0].element;
-    const table = anyCell.closest('table');
-    const tableId = table.id;
-
-    // Build grid considering existing rowspan/colspan
-    const { grid, cellMap } = buildTableGrid(table);
-
-    const selectedPhysicalCells = new Set(window.crosstabSelectedCells.map(s => s.element));
-
-    const selectedPositions = new Set();
-    selectedPhysicalCells.forEach(cell => {
-      const meta = cellMap.get(cell);
-      if (meta) {
-        meta.positions.forEach(pos => {
-          selectedPositions.add(`${pos.r},${pos.c}`);
-        });
+  // Function to merge selected cells
+  function mergeCrosstabCells() {
+    try {
+      if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 2) {
+        showToast('Select at least 2 cells to merge', 'warning');
+        return;
       }
-    });
 
-    if (selectedPositions.size < 2) {
-      showToast('Select at least 2 cells to merge', 'warning');
-      return;
-    }
+      const anyCell = window.crosstabSelectedCells[0].element;
+      const table = anyCell.closest('table');
+      const tableId = table.id;
 
-    // Determine bounding box
-    let minRow = Infinity, maxRow = -Infinity;
-    let minCol = Infinity, maxCol = -Infinity;
-    selectedPositions.forEach(key => {
-      const [r, c] = key.split(',').map(Number);
-      minRow = Math.min(minRow, r);
-      maxRow = Math.max(maxRow, r);
-      minCol = Math.min(minCol, c);
-      maxCol = Math.max(maxCol, c);
-    });
+      // Build grid considering existing rowspan/colspan
+      const { grid, cellMap } = buildTableGrid(table);
 
-    // Validate full contiguous rectangle
-    const expectedSize = (maxRow - minRow + 1) * (maxCol - minCol + 1);
-    if (selectedPositions.size !== expectedSize) {
-      showToast('Selected cells must form a complete rectangle without gaps', 'warning');
-      return;
-    }
+      const selectedPhysicalCells = new Set(window.crosstabSelectedCells.map(s => s.element));
 
-    // Find the physical top-left cell
-    let topLeftCell = null;
-    cellMap.forEach((meta, cell) => {
-      if (meta.firstRow === minRow && meta.firstCol === minCol) {
-        topLeftCell = cell;
-      }
-    });
-
-    if (!topLeftCell) {
-      showToast('Unable to find top-left cell', 'error');
-      return;
-    }
-
-    // Calculate new spans
-    const newRowspan = maxRow - minRow + 1;
-    const newColspan = maxCol - minCol + 1;
-
-    // Collect content from all selected cells
-    let mergedContent = [];
-    selectedPhysicalCells.forEach(cell => {
-      const div = cell.querySelector('div');
-      const content = div ? div.textContent : cell.textContent;
-      const trimmed = content.trim();
-      if (trimmed && trimmed !== 'Text' && trimmed !== 'Header' && !mergedContent.includes(trimmed)) {
-        mergedContent.push(trimmed);
-      }
-    });
-
-    const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : (topLeftCell.tagName === 'TH' ? 'Header' : 'Text');
-
-    // ✅ CRITICAL: Get GrapesJS table component FIRST
-    const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
-    if (!tableComponent) {
-      showToast('Table component not found', 'error');
-      return;
-    }
-
-    // ✅ Find the top-left cell component in GrapesJS
-    const topLeftCellId = topLeftCell.id;
-    let topLeftComponent = null;
-    
-    if (topLeftCellId) {
-      topLeftComponent = tableComponent.find(`#${topLeftCellId}`)[0];
-    }
-    
-    if (!topLeftComponent) {
-      // Try to find by matching DOM element
-      topLeftComponent = getComponentFromDom(topLeftCell);
-    }
-
-    if (topLeftComponent) {
-      // ✅ UPDATE: Set attributes in GrapesJS component using setAttributes
-      topLeftComponent.setAttributes({
-        rowspan: newRowspan.toString(),
-        colspan: newColspan.toString()
+      const selectedPositions = new Set();
+      selectedPhysicalCells.forEach(cell => {
+        const meta = cellMap.get(cell);
+        if (meta) {
+          meta.positions.forEach(pos => {
+            selectedPositions.add(`${pos.r},${pos.c}`);
+          });
+        }
       });
 
-      // ✅ UPDATE: Update content in GrapesJS component
-      topLeftComponent.components(`<div>${finalContent}</div>`);
+      if (selectedPositions.size < 2) {
+        showToast('Select at least 2 cells to merge', 'warning');
+        return;
+      }
 
-      // ✅ Collect cells to remove from GrapesJS
-      const toRemoveComponents = [];
+      // Determine bounding box
+      let minRow = Infinity, maxRow = -Infinity;
+      let minCol = Infinity, maxCol = -Infinity;
+      selectedPositions.forEach(key => {
+        const [r, c] = key.split(',').map(Number);
+        minRow = Math.min(minRow, r);
+        maxRow = Math.max(maxRow, r);
+        minCol = Math.min(minCol, c);
+        maxCol = Math.max(maxCol, c);
+      });
+
+      // Validate full contiguous rectangle
+      const expectedSize = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+      if (selectedPositions.size !== expectedSize) {
+        showToast('Selected cells must form a complete rectangle without gaps', 'warning');
+        return;
+      }
+
+      // Find the physical top-left cell
+      let topLeftCell = null;
+      cellMap.forEach((meta, cell) => {
+        if (meta.firstRow === minRow && meta.firstCol === minCol) {
+          topLeftCell = cell;
+        }
+      });
+
+      if (!topLeftCell) {
+        showToast('Unable to find top-left cell', 'error');
+        return;
+      }
+
+      // Calculate new spans
+      const newRowspan = maxRow - minRow + 1;
+      const newColspan = maxCol - minCol + 1;
+
+      // Collect content from all selected cells
+      let mergedContent = [];
+      selectedPhysicalCells.forEach(cell => {
+        const div = cell.querySelector('div');
+        const content = div ? div.textContent : cell.textContent;
+        const trimmed = content.trim();
+        if (trimmed && trimmed !== 'Text' && trimmed !== 'Header' && !mergedContent.includes(trimmed)) {
+          mergedContent.push(trimmed);
+        }
+      });
+
+      const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : (topLeftCell.tagName === 'TH' ? 'Header' : 'Text');
+
+      // ✅ CRITICAL: Get GrapesJS table component FIRST
+      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
+      if (!tableComponent) {
+        showToast('Table component not found', 'error');
+        return;
+      }
+
+      // ✅ Find the top-left cell component in GrapesJS
+      const topLeftCellId = topLeftCell.id;
+      let topLeftComponent = null;
+
+      if (topLeftCellId) {
+        topLeftComponent = tableComponent.find(`#${topLeftCellId}`)[0];
+      }
+
+      if (!topLeftComponent) {
+        // Try to find by matching DOM element
+        topLeftComponent = getComponentFromDom(topLeftCell);
+      }
+
+      if (topLeftComponent) {
+        // ✅ UPDATE: Set attributes in GrapesJS component using setAttributes
+        topLeftComponent.setAttributes({
+          rowspan: newRowspan.toString(),
+          colspan: newColspan.toString()
+        });
+
+        // ✅ UPDATE: Update content in GrapesJS component
+        topLeftComponent.components(`<div>${finalContent}</div>`);
+
+        // ✅ Collect cells to remove from GrapesJS
+        const toRemoveComponents = [];
+        cellMap.forEach((meta, cell) => {
+          if (cell === topLeftCell) return;
+          const overlaps = meta.positions.some(pos =>
+            pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
+          );
+          if (overlaps) {
+            const cellId = cell.id;
+            let cellComponent = null;
+
+            if (cellId) {
+              cellComponent = tableComponent.find(`#${cellId}`)[0];
+            }
+
+            if (!cellComponent) {
+              cellComponent = getComponentFromDom(cell);
+            }
+
+            if (cellComponent) {
+              toRemoveComponents.push(cellComponent);
+            }
+          }
+        });
+
+        // ✅ Remove components from GrapesJS structure
+        toRemoveComponents.forEach(comp => {
+          const parent = comp.parent();
+          if (parent) {
+            parent.components().remove(comp);
+          }
+        });
+
+        // ✅ Force GrapesJS to update
+        editor.trigger('component:update', topLeftComponent);
+        editor.trigger('component:update', tableComponent);
+      }
+
+      // ✅ Update DOM (for immediate visual feedback)
+      topLeftCell.setAttribute('rowspan', newRowspan.toString());
+      topLeftCell.setAttribute('colspan', newColspan.toString());
+      topLeftCell.innerHTML = `<div>${finalContent}</div>`;
+
+      // Remove cells from DOM
+      const toRemove = new Set();
       cellMap.forEach((meta, cell) => {
         if (cell === topLeftCell) return;
         const overlaps = meta.positions.some(pos =>
           pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
         );
         if (overlaps) {
-          const cellId = cell.id;
-          let cellComponent = null;
-          
-          if (cellId) {
-            cellComponent = tableComponent.find(`#${cellId}`)[0];
-          }
-          
-          if (!cellComponent) {
-            cellComponent = getComponentFromDom(cell);
-          }
-          
-          if (cellComponent) {
-            toRemoveComponents.push(cellComponent);
-          }
+          toRemove.add(cell);
         }
       });
 
-      // ✅ Remove components from GrapesJS structure
-      toRemoveComponents.forEach(comp => {
-        const parent = comp.parent();
-        if (parent) {
-          parent.components().remove(comp);
-        }
+      toRemove.forEach(cell => {
+        if (cell.parentNode) cell.parentNode.removeChild(cell);
       });
 
-      // ✅ Force GrapesJS to update
-      editor.trigger('component:update', topLeftComponent);
-      editor.trigger('component:update', tableComponent);
+      // ✅ Clear selection state
+      window.crosstabSelectedCells.forEach(s => {
+        if (s.element && s.element.classList) {
+          s.element.classList.remove('crosstab-selected');
+          if (s.element.style) s.element.style.outline = '';
+        }
+      });
+      window.crosstabSelectedCells = [];
+
+      // ✅ Force complete refresh cycle
+      setTimeout(() => {
+        // Update all rows in the table
+        const allRows = tableComponent.find('tr');
+        allRows.forEach(row => {
+          editor.trigger('component:update', row);
+        });
+
+        // Update table component
+        editor.trigger('component:update', tableComponent);
+
+        // Force layer manager refresh
+        editor.trigger('layer:refresh');
+
+        // Update DataTable structure
+        updateDataTableStructure(tableId);
+      }, 100);
+
+      showToast('Cells merged successfully', 'success');
+    } catch (error) {
+      console.error('Error merging cells:', error);
+      showToast('Error merging cells: ' + error.message, 'error');
     }
-
-    // ✅ Update DOM (for immediate visual feedback)
-    topLeftCell.setAttribute('rowspan', newRowspan.toString());
-    topLeftCell.setAttribute('colspan', newColspan.toString());
-    topLeftCell.innerHTML = `<div>${finalContent}</div>`;
-
-    // Remove cells from DOM
-    const toRemove = new Set();
-    cellMap.forEach((meta, cell) => {
-      if (cell === topLeftCell) return;
-      const overlaps = meta.positions.some(pos =>
-        pos.r >= minRow && pos.r <= maxRow && pos.c >= minCol && pos.c <= maxCol
-      );
-      if (overlaps) {
-        toRemove.add(cell);
-      }
-    });
-
-    toRemove.forEach(cell => {
-      if (cell.parentNode) cell.parentNode.removeChild(cell);
-    });
-
-    // ✅ Clear selection state
-    window.crosstabSelectedCells.forEach(s => {
-      if (s.element && s.element.classList) {
-        s.element.classList.remove('crosstab-selected');
-        if (s.element.style) s.element.style.outline = '';
-      }
-    });
-    window.crosstabSelectedCells = [];
-
-    // ✅ Force complete refresh cycle
-    setTimeout(() => {
-      // Update all rows in the table
-      const allRows = tableComponent.find('tr');
-      allRows.forEach(row => {
-        editor.trigger('component:update', row);
-      });
-      
-      // Update table component
-      editor.trigger('component:update', tableComponent);
-      
-      // Force layer manager refresh
-      editor.trigger('layer:refresh');
-      
-      // Update DataTable structure
-      updateDataTableStructure(tableId);
-    }, 100);
-
-    showToast('Cells merged successfully', 'success');
-  } catch (error) {
-    console.error('Error merging cells:', error);
-    showToast('Error merging cells: ' + error.message, 'error');
   }
-}
 
 
   // Override the default HTML export to include running total data
@@ -2835,7 +2835,6 @@ function mergeCrosstabCells() {
                         <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
                         <div id="column-reorder-section">
                             <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
-                                <!-- Will be populated -->
                             </div>
                             <div style="margin-top: 10px; display: flex; justify-content: space-between;">
                                 <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
@@ -2944,10 +2943,10 @@ function mergeCrosstabCells() {
                   <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
                   <span style="font-weight: bold;">Summarize Group</span>
               </label>
-              <label style="display: flex; align-items: center; margin-bottom: 10px;">
+             <!-- <label style="display: flex; align-items: center; margin-bottom: 10px;">
                   <input type="checkbox" id="page-break" style="margin-right: 8px;">
                   <span style="font-weight: bold;">Page Break After Group</span>
-              </label>
+              </label> -->
               <label style="display: flex; align-items: center;">
                   <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
                   <span style="font-weight: bold;">Merge Group Header Cells</span>
@@ -3173,216 +3172,216 @@ function mergeCrosstabCells() {
     createBtn.addEventListener("click", () => createTable(targetContainer), true);
   }
 
-function createTable(container) {
-  let uniqueID = Math.floor(100 + Math.random() * 900);
-  let tblFileDownload = document.getElementById("tbl_file_download").checked;
-  let tblPagination = document.getElementById("tbl_pagination").checked;
-  let tblSearch = document.getElementById("tbl_Search").checked;
-  let tblFooter = document.getElementById("tbl_footer").checked;
-  let tblCaption = document.getElementById("tbl_caption").checked;
-  let downloadBtn = '[]';
+  function createTable(container) {
+    let uniqueID = Math.floor(100 + Math.random() * 900);
+    let tblFileDownload = document.getElementById("tbl_file_download").checked;
+    let tblPagination = document.getElementById("tbl_pagination").checked;
+    let tblSearch = document.getElementById("tbl_Search").checked;
+    let tblFooter = document.getElementById("tbl_footer").checked;
+    let tblCaption = document.getElementById("tbl_caption").checked;
+    let downloadBtn = '[]';
 
-  if (tblFileDownload) {
-    downloadBtn = '["copy", "csv", "excel", "pdf", "print"]';
-  }
-
-  const headerRows = parseInt(document.getElementById('nHeaderRows').value) || 0;
-  const headerCols = parseInt(document.getElementById('nHeaderColumns').value) || 0;
-  const bodyCols = parseInt(document.getElementById('nColumns').value);
-  const bodyRows = parseInt(document.getElementById('nRows').value);
-  const totalCols = Math.max(headerCols + bodyCols, 1);
-  const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
-
-  const isInPageSystem = container.closest('.page-container') ||
-    container.find('.page-container').length > 0 ||
-    container.getEl()?.closest('.page-container');
-
-  // ✅ Helper function to generate unique cell IDs
-  let cellIdCounter = 0;
-  function generateCellId() {
-    return `cell-${uniqueID}-${cellIdCounter++}`;
-  }
-
-  // Build caption component if needed
-  const captionComponent = tblCaption ? {
-    tagName: 'caption',
-    type: 'text',
-    content: 'Caption Text',
-    style: {
-      'caption-side': 'top'
-    }
-  } : null;
-
-  // Build thead components
-  const theadRows = [];
-  for (let i = 0; i < headerRows; i++) {
-    const headerCells = [];
-    for (let j = 0; j < totalCols; j++) {
-      headerCells.push({
-        tagName: 'th',
-        type: 'enhanced-table-cell',
-        attributes: {
-          'data-gjs-type': 'enhanced-table-cell',
-          'id': generateCellId() // ✅ Add unique ID
-        },
-        components: [{
-          tagName: 'div',
-          type: 'text',
-          content: 'Header'
-        }],
-        style: {
-          padding: '8px',
-          border: '1px solid #000',
-          'background-color': '#f5f5f5',
-          'font-weight': 'bold'
-        }
-      });
-    }
-    
-    theadRows.push({
-      tagName: 'tr',
-      components: headerCells
-    });
-  }
-
-  const theadComponent = headerRows > 0 ? {
-    tagName: 'thead',
-    components: theadRows
-  } : null;
-
-  // Build tbody components
-  const tbodyRows = [];
-  for (let i = 0; i < bodyRows; i++) {
-    const rowCells = [];
-
-    // Header columns in body
-    for (let j = 0; j < headerCols; j++) {
-      rowCells.push({
-        tagName: 'th',
-        type: 'enhanced-table-cell',
-        attributes: {
-          'data-gjs-type': 'enhanced-table-cell',
-          'id': generateCellId() // ✅ Add unique ID
-        },
-        components: [{
-          tagName: 'div',
-          type: 'text',
-          content: 'Header'
-        }],
-        style: {
-          padding: '8px',
-          border: '1px solid #000',
-          'background-color': '#f5f5f5',
-          'font-weight': 'bold'
-        }
-      });
+    if (tblFileDownload) {
+      downloadBtn = '["copy", "csv", "excel", "pdf", "print"]';
     }
 
-    // Body columns
-    for (let j = 0; j < bodyCols; j++) {
-      rowCells.push({
-        tagName: 'td',
-        type: 'cell',
-        attributes: {
-          'data-gjs-type': 'cell',
-          'id': generateCellId() // ✅ Add unique ID
-        },
-        components: [{
-          tagName: 'div',
-          type: 'text',
-          content: 'Text'
-        }],
-        style: {
-          padding: '8px',
-          border: '1px solid #000'
-        }
-      });
+    const headerRows = parseInt(document.getElementById('nHeaderRows').value) || 0;
+    const headerCols = parseInt(document.getElementById('nHeaderColumns').value) || 0;
+    const bodyCols = parseInt(document.getElementById('nColumns').value);
+    const bodyRows = parseInt(document.getElementById('nRows').value);
+    const totalCols = Math.max(headerCols + bodyCols, 1);
+    const colsScroll = parseInt(document.getElementById('nColumnsScroll').value);
+
+    const isInPageSystem = container.closest('.page-container') ||
+      container.find('.page-container').length > 0 ||
+      container.getEl()?.closest('.page-container');
+
+    // ✅ Helper function to generate unique cell IDs
+    let cellIdCounter = 0;
+    function generateCellId() {
+      return `cell-${uniqueID}-${cellIdCounter++}`;
     }
 
-    tbodyRows.push({
-      tagName: 'tr',
-      components: rowCells
-    });
-  }
-
-  // Add footer row if needed
-  if (tblFooter) {
-    const footerCells = [];
-    for (let j = 0; j < totalCols; j++) {
-      footerCells.push({
-        tagName: 'th',
-        type: 'enhanced-table-cell',
-        attributes: {
-          'data-gjs-type': 'enhanced-table-cell',
-          'id': generateCellId() // ✅ Add unique ID
-        },
-        components: [{
-          tagName: 'div',
-          type: 'text',
-          content: 'Text'
-        }],
-        style: {
-          padding: '8px',
-          border: '1px solid #000',
-          'font-weight': '800'
-        }
-      });
-    }
-    
-    tbodyRows.push({
-      tagName: 'tr',
-      components: footerCells
-    });
-  }
-
-  const tbodyComponent = {
-    tagName: 'tbody',
-    components: tbodyRows
-  };
-
-  // Build complete table component structure
-  const tableComponents = [];
-  if (captionComponent) tableComponents.push(captionComponent);
-  if (theadComponent) tableComponents.push(theadComponent);
-  tableComponents.push(tbodyComponent);
-
-  const tableComponentDef = {
-    tagName: 'table',
-    type: 'enhanced-table',
-     style: {
-          "padding": "5px 0 10px 0",
-        },
-    attributes: {
-      id: `table${uniqueID}`,
-      class: 'table table-striped table-bordered',
-    },
-    components: tableComponents
-  };
-
-  // Wrap table if in page system
-  let finalComponent;
-  if (isInPageSystem) {
-    finalComponent = {
-      tagName: 'div',
-      attributes: {
-        class: `table-wrapper-${uniqueID}`
-      },
+    // Build caption component if needed
+    const captionComponent = tblCaption ? {
+      tagName: 'caption',
+      type: 'text',
+      content: 'Caption Text',
       style: {
-        padding: '10px 0px',
-        position: 'relative',
-        width: '100%',
-        'max-width': '100%',
-        overflow: 'hidden',
-        'box-sizing': 'border-box'
-      },
-      components: [tableComponentDef]
-    };
-  } else {
-    finalComponent = tableComponentDef;
-  }
+        'caption-side': 'top'
+      }
+    } : null;
 
-  // DataTables initialization script (same as before)
-  let tableScript = `
+    // Build thead components
+    const theadRows = [];
+    for (let i = 0; i < headerRows; i++) {
+      const headerCells = [];
+      for (let j = 0; j < totalCols; j++) {
+        headerCells.push({
+          tagName: 'th',
+          type: 'enhanced-table-cell',
+          attributes: {
+            'data-gjs-type': 'enhanced-table-cell',
+            'id': generateCellId() // ✅ Add unique ID
+          },
+          components: [{
+            tagName: 'div',
+            type: 'text',
+            content: 'Header'
+          }],
+          style: {
+            padding: '8px',
+            border: '1px solid #000',
+            'background-color': '#f5f5f5',
+            'font-weight': 'bold'
+          }
+        });
+      }
+
+      theadRows.push({
+        tagName: 'tr',
+        components: headerCells
+      });
+    }
+
+    const theadComponent = headerRows > 0 ? {
+      tagName: 'thead',
+      components: theadRows
+    } : null;
+
+    // Build tbody components
+    const tbodyRows = [];
+    for (let i = 0; i < bodyRows; i++) {
+      const rowCells = [];
+
+      // Header columns in body
+      for (let j = 0; j < headerCols; j++) {
+        rowCells.push({
+          tagName: 'th',
+          type: 'enhanced-table-cell',
+          attributes: {
+            'data-gjs-type': 'enhanced-table-cell',
+            'id': generateCellId() // ✅ Add unique ID
+          },
+          components: [{
+            tagName: 'div',
+            type: 'text',
+            content: 'Header'
+          }],
+          style: {
+            padding: '8px',
+            border: '1px solid #000',
+            'background-color': '#f5f5f5',
+            'font-weight': 'bold'
+          }
+        });
+      }
+
+      // Body columns
+      for (let j = 0; j < bodyCols; j++) {
+        rowCells.push({
+          tagName: 'td',
+          type: 'cell',
+          attributes: {
+            'data-gjs-type': 'cell',
+            'id': generateCellId() // ✅ Add unique ID
+          },
+          components: [{
+            tagName: 'div',
+            type: 'text',
+            content: 'Text'
+          }],
+          style: {
+            padding: '8px',
+            border: '1px solid #000'
+          }
+        });
+      }
+
+      tbodyRows.push({
+        tagName: 'tr',
+        components: rowCells
+      });
+    }
+
+    // Add footer row if needed
+    if (tblFooter) {
+      const footerCells = [];
+      for (let j = 0; j < totalCols; j++) {
+        footerCells.push({
+          tagName: 'th',
+          type: 'enhanced-table-cell',
+          attributes: {
+            'data-gjs-type': 'enhanced-table-cell',
+            'id': generateCellId() // ✅ Add unique ID
+          },
+          components: [{
+            tagName: 'div',
+            type: 'text',
+            content: 'Text'
+          }],
+          style: {
+            padding: '8px',
+            border: '1px solid #000',
+            'font-weight': '800'
+          }
+        });
+      }
+
+      tbodyRows.push({
+        tagName: 'tr',
+        components: footerCells
+      });
+    }
+
+    const tbodyComponent = {
+      tagName: 'tbody',
+      components: tbodyRows
+    };
+
+    // Build complete table component structure
+    const tableComponents = [];
+    if (captionComponent) tableComponents.push(captionComponent);
+    if (theadComponent) tableComponents.push(theadComponent);
+    tableComponents.push(tbodyComponent);
+
+    const tableComponentDef = {
+      tagName: 'table',
+      type: 'enhanced-table',
+      style: {
+        "padding": "5px 0 10px 0",
+      },
+      attributes: {
+        id: `table${uniqueID}`,
+        class: 'table table-striped table-bordered',
+      },
+      components: tableComponents
+    };
+
+    // Wrap table if in page system
+    let finalComponent;
+    if (isInPageSystem) {
+      finalComponent = {
+        tagName: 'div',
+        attributes: {
+          class: `table-wrapper-${uniqueID}`
+        },
+        style: {
+          padding: '10px 0px',
+          position: 'relative',
+          width: '100%',
+          'max-width': '100%',
+          overflow: 'hidden',
+          'box-sizing': 'border-box'
+        },
+        components: [tableComponentDef]
+      };
+    } else {
+      finalComponent = tableComponentDef;
+    }
+
+    // DataTables initialization script (same as before)
+    let tableScript = `
   <script>
     (function() {
       window.enableFormulaEditing = function(tableId) {
@@ -3602,36 +3601,36 @@ function createTable(container) {
   </script>
 `;
 
-  try {
-    // Add the component to GrapesJS
-    const addedComponent = container.append(finalComponent)[0];
+    try {
+      // Add the component to GrapesJS
+      const addedComponent = container.append(finalComponent)[0];
 
-    // Add the script separately
-    container.append(tableScript);
+      // Add the script separately
+      container.append(tableScript);
 
-    editor.Modal.close();
+      editor.Modal.close();
 
-    // ✅ Store base table data after the table is fully initialized
-    setTimeout(() => {
-      const tableComponent = editor.getWrapper().find(`#table${uniqueID}`)[0];
-      if (tableComponent) {
-        tableComponent.storeBaseTableData();
-      }
-      
-      // Initialize formulas
-      const iframe = editor.getContainer().querySelector('iframe');
-      if (iframe && iframe.contentWindow && iframe.contentWindow.enableFormulaEditing) {
-        iframe.contentWindow.enableFormulaEditing(`table${uniqueID}`);
-      }
-    }, 1500);
+      // ✅ Store base table data after the table is fully initialized
+      setTimeout(() => {
+        const tableComponent = editor.getWrapper().find(`#table${uniqueID}`)[0];
+        if (tableComponent) {
+          tableComponent.storeBaseTableData();
+        }
 
-    showToast(`Enhanced table created successfully!`, 'success');
+        // Initialize formulas
+        const iframe = editor.getContainer().querySelector('iframe');
+        if (iframe && iframe.contentWindow && iframe.contentWindow.enableFormulaEditing) {
+          iframe.contentWindow.enableFormulaEditing(`table${uniqueID}`);
+        }
+      }, 1500);
 
-  } catch (error) {
-    console.error('Error creating table:', error);
-    showToast('Error creating table. Please try again.', 'error');
+      showToast(`Enhanced table created successfully!`, 'success');
+
+    } catch (error) {
+      console.error('Error creating table:', error);
+      showToast('Error creating table. Please try again.', 'error');
+    }
   }
-}
 
   function updateDataTableStructure(tableId) {
     try {

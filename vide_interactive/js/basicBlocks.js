@@ -57,7 +57,7 @@
                 for (var a, e = 1, t = arguments.length; e < t; e++)
                   for (var l in (a = arguments[e]))
                     Object.prototype.hasOwnProperty.call(a, l) && (n[l] = a[l]);
-                  console.log("abc",arguments)
+                console.log("abc", arguments)
                 return n;
               }),
             t.apply(this, arguments)
@@ -159,63 +159,64 @@
               return a.length ? " ".concat(a.join(" ")) : "";
             },
               w = function (n) {
-                
+
                 return o.indexOf(n) >= 0;
               },
-              
+
               M = { category: l, select: !0 };
-            w("column1") &&
-              t.add(
-                "column1",
-                e(e({}, M), {
-                  label: a.labelColumn1,
-                  media:
-                    '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h20V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h20a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z"/>\n      </svg>',
-                  content: `<div class="row" style="width:100%;padding: 10px 0px;margin-left:0px">
-                    <div class="col-lg-12" style="min-height:45px;"></div> 
+w("column1") &&
+  t.add(
+    "column1",
+    e(e({}, M), {
+      label: a.labelColumn1,
+      media:
+        '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h20V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h20a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1Z"/>\n      </svg>',
+      content: `<div class="row no-gutters">
+                  <div class="col-lg-12 col-sm-12 col-md-12" style="min-height:45px;"></div> 
+                </div>`,
+    })
+  ),
+  w("column2") &&
+  t.add(
+    "column2",
+    e(e({}, M), {
+      label: a.labelColumn2,
+      media:
+        '<svg viewBox="0 0 23 24">\n        <path fill="currentColor" d="M2 20h8V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM13 20h8V4h-8v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1Z"/>\n      </svg>',
+      content: `<div class="row no-gutters">
+                    <div class="col-lg-6 col-sm-6 col-md-6" style="min-height:45px;"></div>
+                    <div class="col-lg-6 col-sm-6 col-md-6" style="min-height:45px;"></div>
                   </div>`,
-                })
-              ),
-              w("column2") &&
-              t.add(
-                "column2",
-                e(e({}, M), {
-                  label: a.labelColumn2,
-                  media:
-                    '<svg viewBox="0 0 23 24">\n        <path fill="currentColor" d="M2 20h8V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM13 20h8V4h-8v16Zm-1 0V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1Z"/>\n      </svg>',
-                  content: `<div class="row" style="width:100%;padding:10px 0px;margin-left:0px">
-                      <div class="col-lg-6 col-sm-6 col-md-6 " style="min-height:45px;"></div>
-                      <div class="col-lg-6 col-sm-6 col-md-6 " style="min-height:45px;"></div>
-                    </div>`,
-                })
-              ),
-              w("column3") &&
-              t.add(
-                "column3",
-                e(e({}, M), {
-                  label: a.labelColumn3,
-                  media:
-                    '<svg viewBox="0 0 23 24">\n        <path fill="currentColor" d="M2 20h4V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM17 20h4V4h-4v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1ZM9.5 20h4V4h-4v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1Z"/>\n      </svg>',
-                  content: `<div class="row" style="width:100%;padding:10px 0px;margin-left:0px">
-                      <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
-                      <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
-                      <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
-                    </div>`,
-                })
-              ),
-              w("column3-7") &&
-              t.add(
-                "column3-7",
-                e(e({}, M), {
-                  label: a.labelColumn39,
-                  media:
-                    '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h5V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM10 20h12V4H10v16Zm-1 0V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1Z"/>\n      </svg>',
-                  content: `<div class="row" style="width:100%;padding: 10px 0px;margin-left:0px">
-                      <div class="col-lg-3 col-sm-3" col-md-3 style="min-height:45px;"></div>
-                      <div class="col-lg-9 col-sm-9 col-md-9" style="min-height:45px;"></div>
-                    </div>`,
-                })
-              ),
+    })
+  ),
+  w("column3") &&
+  t.add(
+    "column3",
+    e(e({}, M), {
+      label: a.labelColumn3,
+      media:
+        '<svg viewBox="0 0 23 24">\n        <path fill="currentColor" d="M2 20h4V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM17 20h4V4h-4v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1ZM9.5 20h4V4h-4v16Zm-1 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1Z"/>\n      </svg>',
+      content: `<div class="row no-gutters">
+                    <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
+                    <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
+                    <div class="col-lg-4 col-sm-4 col-md-4" style="min-height:45px;"></div>
+                  </div>`,
+    })
+  ),
+  w("column3-7") &&
+  t.add(
+    "column3-7",
+    e(e({}, M), {
+      label: a.labelColumn39,
+      media:
+        '<svg viewBox="0 0 24 24">\n        <path fill="currentColor" d="M2 20h5V4H2v16Zm-1 0V4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1ZM10 20h12V4H10v16Zm-1 0V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1Z"/>\n      </svg>',
+      content: `<div class="row no-gutters">
+                    <div class="col-lg-3 col-sm-3 col-md-3" style="min-height:45px;"></div>
+                    <div class="col-lg-9 col-sm-9 col-md-9" style="min-height:45px;"></div>
+                  </div>`,
+    })
+  ),
+
               w("text") &&
               t.add(
                 "text",
@@ -236,7 +237,7 @@
                 "separator",
                 e(e({}, M), {
                   label: a.labelSeparator,
-                  media:`
+                  media: `
                     <svg width="60" height="55" viewBox="0 0 60 55" xmlns="http://www.w3.org/2000/svg">
                       <line x1="5" y1="29" x2="55" y2="29" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
                       <line x1="5" y1="42" x2="55" y2="42" stroke="currentColor" stroke-width="4" stroke-dasharray="6,4"/>
@@ -244,38 +245,38 @@
                     </svg>`,
                   content: {
                     type: "separator",
-                    content: "", 
-                    
+                    content: "",
+
                   },
                 })
               );
 
-                // w("sections") &&
-                // t.add(
-                //   "sections",
-                //   e(e({}, M), {
-                //     label: a.labelSection,
-                //     media:`
-                //       <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
-                //       <rect x="2" y="3" width="20" height="4" rx="1" fill="#6c757d"/>
-                //       <rect x="2" y="10" width="20" height="8" rx="1" fill="#f8f9fa" stroke="#6c757d"/>
-                //       <rect x="2" y="21" width="20" height="3" rx="1" fill="#343a40"/>
-                //       </svg>`,
-                //     content: {
-                //       type: "sections",
-                //       content: "", 
-                      
-                //     },
-                //   })
-                // );
+            // w("sections") &&
+            // t.add(
+            //   "sections",
+            //   e(e({}, M), {
+            //     label: a.labelSection,
+            //     media:`
+            //       <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+            //       <rect x="2" y="3" width="20" height="4" rx="1" fill="#6c757d"/>
+            //       <rect x="2" y="10" width="20" height="8" rx="1" fill="#f8f9fa" stroke="#6c757d"/>
+            //       <rect x="2" y="21" width="20" height="3" rx="1" fill="#343a40"/>
+            //       </svg>`,
+            //     content: {
+            //       type: "sections",
+            //       content: "", 
+
+            //     },
+            //   })
+            // );
 
 
-              w("Sections") &&
+            w("Sections") &&
               t.add(
                 "Sections",
                 e(e({}, M), {
                   label: "Sections",
-                  media:`
+                  media: `
                     <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
                     <rect x="2" y="3" width="20" height="4" rx="1" fill="#6c757d"/>
                     <rect x="2" y="10" width="20" height="8" rx="1" fill="#f8f9fa" stroke="#6c757d"/>
@@ -283,13 +284,13 @@
                     </svg>`,
                   content: {
                     type: "Sections",
-                    content: "", 
-                    
+                    content: "",
+
                   },
                 })
               );
 
-              w("link") &&
+            w("link") &&
               t.add(
                 "link",
                 e(e({}, M), {
@@ -355,16 +356,16 @@
                     "</svg>",
                   content: {
                     type: "videoIn",
-                  
+
                     script: function () {
-                        
+
                     }
                   },
                 })
               );
 
-              
-              w("map") &&
+
+            w("map") &&
               t.add(
                 "map",
                 e(e({}, M), {
@@ -399,7 +400,7 @@
             labelColumn39: "2 Columns 3/9",
             labelText: "Text",
             labelSeparator: "Separator",
-            labelSection:"Sections",
+            labelSection: "Sections",
             labelLink: "Link",
             labelImage: "Image",
             labelVideo: "Video",

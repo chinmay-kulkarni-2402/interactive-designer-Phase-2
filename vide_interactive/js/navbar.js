@@ -2,10 +2,10 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = e())
     : "function" == typeof define && define.amd
-    ? define([], e)
-    : "object" == typeof exports
-    ? (exports["navbar-component"] = e())
-    : (t["navbar-component"] = e());
+      ? define([], e)
+      : "object" == typeof exports
+        ? (exports["navbar-component"] = e())
+        : (t["navbar-component"] = e());
 })(window, function () {
   return (function (t) {
     var e = {};
@@ -32,8 +32,8 @@
         var r = Object.create(null);
         if (
           (n.r(r),
-          Object.defineProperty(r, "default", { enumerable: !0, value: t }),
-          2 & e && "string" != typeof t)
+            Object.defineProperty(r, "default", { enumerable: !0, value: t }),
+            2 & e && "string" != typeof t)
         )
           for (var o in t)
             n.d(
@@ -49,11 +49,11 @@
         var e =
           t && t.__esModule
             ? function () {
-                return t.default;
-              }
+              return t.default;
+            }
             : function () {
-                return t;
-              };
+              return t;
+            };
         return n.d(e, "a", e), e;
       }),
       (n.o = function (t, e) {
@@ -68,11 +68,11 @@
         return (
           e in t
             ? Object.defineProperty(t, e, {
-                value: n,
-                enumerable: !0,
-                configurable: !0,
-                writable: !0,
-              })
+              value: n,
+              enumerable: !0,
+              configurable: !0,
+              writable: !0,
+            })
             : (t[e] = n),
           t
         );
@@ -90,8 +90,8 @@
           for (o = 0; o < c.length; o++)
             (n = c[o]),
               e.indexOf(n) >= 0 ||
-                (Object.prototype.propertyIsEnumerable.call(t, n) &&
-                  (a[n] = t[n]));
+              (Object.prototype.propertyIsEnumerable.call(t, n) &&
+                (a[n] = t[n]));
         }
         return a;
       };
@@ -132,11 +132,11 @@
           var n = null != arguments[e] ? arguments[e] : {};
           e % 2
             ? i(Object(n), !0).forEach(function (e) {
-                o()(t, e, n[e]);
-              })
+              o()(t, e, n[e]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
-            : i(Object(n)).forEach(function (e) {
+              ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
+              : i(Object(n)).forEach(function (e) {
                 Object.defineProperty(
                   t,
                   e,
@@ -152,7 +152,7 @@
           a = e.selectorTab,
           i =
             (e.editor,
-            c()(e, ["defaultModel", "typeTabs", "selectorTab", "editor"])),
+              c()(e, ["defaultModel", "typeTabs", "selectorTab", "editor"])),
           b = [
             {
               full: 1,
@@ -243,11 +243,11 @@
           var n = null != arguments[e] ? arguments[e] : {};
           e % 2
             ? p(Object(n), !0).forEach(function (e) {
-                o()(t, e, n[e]);
-              })
+              o()(t, e, n[e]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
-            : p(Object(n)).forEach(function (e) {
+              ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
+              : p(Object(n)).forEach(function (e) {
                 Object.defineProperty(
                   t,
                   e,
@@ -282,85 +282,85 @@
                 classactive: s.classTabActive,
                 selectortab: s.selectorTab,
                 "script-props": ["classactive", "selectortab"],
-script: function (t) {
-  var e,
-    n,
-    r = this,
-    o = t.classactive,
-    a = t.selectortab,
-    c = window,
-    i = c.history,
-    s = c._isEditor,
-    b = "[role=tab]",
-    p = document,
-    l = p.body,
-    u = p.location,
-    f = l.matchesSelector || l.webkitMatchesSelector || l.mozMatchesSelector || l.msMatchesSelector,
-    y = function (t, e) {
-      for (var n = t || [], r = 0; r < n.length; r++) e(n[r], r);
-    },
-    d = function (t) {
-      return t.getAttribute(a);
-    },
-    O = function (sel) {
-      return r.querySelector(sel);
-    },
-    tabCont = O('.tab-container'),
-    tabConts = O('.tab-contents'),
-    g = function () {
-      return tabCont.querySelectorAll(':scope > ' + b);
-    },
-    j = function (t, e) {
-      return !s && (t.tabIndex = e);
-    },
-    h = function (t) {
-      y(g(), function (t) {
-        (t.className = t.className.replace(o, "").trim()),
-          (t.ariaSelected = "false"),
-          j(t, "-1");
-      }),
-        y(tabConts.querySelectorAll(':scope > [role=tabpanel]'), function (t) {
-          return (t.hidden = !0);
-        }),
-        (t.className += " " + o),
-        (t.ariaSelected = "true"),
-        j(t, "0");
-      var e = d(t),
-        n = e && tabConts.querySelector('#' + e);
-      n && (n.hidden = !1);
-    },
-    v = tabCont.querySelector(':scope > .' + o + b) ||
-      ((n = (u.hash || "").replace("#", "")) &&
-        tabCont.querySelector(':scope > ' + b + '[' + a + '="' + n + '"]')) ||
-      tabCont.querySelector(':scope > ' + b);
-  v && h(v),
-    r.addEventListener("click", function (t) {
-      var e = t.target,
-        n = f.call(e, b);
-      if (!n) {
-        e = (function (t) {
-          var e;
-          y(g(), function (n) {
-            e || (n.contains(t) && (e = n));
-          });
-          return e;
-        })(e);
-        n = !!e;
-      }
-      if (n && Array.from(g()).includes(e) && !t.__trg && e.className.indexOf(o) < 0) {
-        t.preventDefault(), (t.__trg = 1), h(e);
-        var r = d(e);
-        try {
-          i && i.pushState(null, null, "#" + r);
-        } catch (t) {}
-      }
-    });
-},
+                script: function (t) {
+                  var e,
+                    n,
+                    r = this,
+                    o = t.classactive,
+                    a = t.selectortab,
+                    c = window,
+                    i = c.history,
+                    s = c._isEditor,
+                    b = "[role=tab]",
+                    p = document,
+                    l = p.body,
+                    u = p.location,
+                    f = l.matchesSelector || l.webkitMatchesSelector || l.mozMatchesSelector || l.msMatchesSelector,
+                    y = function (t, e) {
+                      for (var n = t || [], r = 0; r < n.length; r++) e(n[r], r);
+                    },
+                    d = function (t) {
+                      return t.getAttribute(a);
+                    },
+                    O = function (sel) {
+                      return r.querySelector(sel);
+                    },
+                    tabCont = O('.tab-container'),
+                    tabConts = O('.tab-contents'),
+                    g = function () {
+                      return tabCont.querySelectorAll(':scope > ' + b);
+                    },
+                    j = function (t, e) {
+                      return !s && (t.tabIndex = e);
+                    },
+                    h = function (t) {
+                      y(g(), function (t) {
+                        (t.className = t.className.replace(o, "").trim()),
+                          (t.ariaSelected = "false"),
+                          j(t, "-1");
+                      }),
+                        y(tabConts.querySelectorAll(':scope > [role=tabpanel]'), function (t) {
+                          return (t.hidden = !0);
+                        }),
+                        (t.className += " " + o),
+                        (t.ariaSelected = "true"),
+                        j(t, "0");
+                      var e = d(t),
+                        n = e && tabConts.querySelector('#' + e);
+                      n && (n.hidden = !1);
+                    },
+                    v = tabCont.querySelector(':scope > .' + o + b) ||
+                      ((n = (u.hash || "").replace("#", "")) &&
+                        tabCont.querySelector(':scope > ' + b + '[' + a + '="' + n + '"]')) ||
+                      tabCont.querySelector(':scope > ' + b);
+                  v && h(v),
+                    r.addEventListener("click", function (t) {
+                      var e = t.target,
+                        n = f.call(e, b);
+                      if (!n) {
+                        e = (function (t) {
+                          var e;
+                          y(g(), function (n) {
+                            e || (n.contains(t) && (e = n));
+                          });
+                          return e;
+                        })(e);
+                        n = !!e;
+                      }
+                      if (n && Array.from(g()).includes(e) && !t.__trg && e.className.indexOf(o) < 0) {
+                        t.preventDefault(), (t.__trg = 1), h(e);
+                        var r = d(e);
+                        try {
+                          i && i.pushState(null, null, "#" + r);
+                        } catch (t) { }
+                      }
+                    });
+                },
                 traits: [
                   {
                     full: 1,
                     type: "button",
-                    category:'Extra',
+                    category: 'Extra',
                     label: !1,
                     text: "Add Tab",
                     command: function (t) {
@@ -427,11 +427,11 @@ script: function (t) {
           var n = null != arguments[e] ? arguments[e] : {};
           e % 2
             ? f(Object(n), !0).forEach(function (e) {
-                o()(t, e, n[e]);
-              })
+              o()(t, e, n[e]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
-            : f(Object(n)).forEach(function (e) {
+              ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
+              : f(Object(n)).forEach(function (e) {
                 Object.defineProperty(
                   t,
                   e,
@@ -477,11 +477,11 @@ script: function (t) {
           var n = null != arguments[e] ? arguments[e] : {};
           e % 2
             ? O(Object(n), !0).forEach(function (e) {
-                o()(t, e, n[e]);
-              })
+              o()(t, e, n[e]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
-            : O(Object(n)).forEach(function (e) {
+              ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
+              : O(Object(n)).forEach(function (e) {
                 Object.defineProperty(
                   t,
                   e,
@@ -525,11 +525,11 @@ script: function (t) {
           var n = null != arguments[e] ? arguments[e] : {};
           e % 2
             ? h(Object(n), !0).forEach(function (e) {
-                o()(t, e, n[e]);
-              })
+              o()(t, e, n[e]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
-            : h(Object(n)).forEach(function (e) {
+              ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
+              : h(Object(n)).forEach(function (e) {
                 Object.defineProperty(
                   t,
                   e,
@@ -575,11 +575,11 @@ script: function (t) {
           var n = null != arguments[e] ? arguments[e] : {};
           e % 2
             ? m(Object(n), !0).forEach(function (e) {
-                o()(t, e, n[e]);
-              })
+              o()(t, e, n[e]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
-            : m(Object(n)).forEach(function (e) {
+              ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
+              : m(Object(n)).forEach(function (e) {
                 Object.defineProperty(
                   t,
                   e,
@@ -591,7 +591,7 @@ script: function (t) {
       }
       var w = function (t) {
         var e =
-            arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
+          arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
           n = t.DomComponents,
           r = P(
             P({}, e),
@@ -615,59 +615,59 @@ script: function (t) {
         return n;
       }
       var S = function (t, e) {
-          var n = e.tabsBlock,
-            r = e.typeTabs,
-            a = t.BlockManager;
-          n &&
-            a.add(
-              r,
-              (function (t) {
-                for (var e = 1; e < arguments.length; e++) {
-                  var n = null != arguments[e] ? arguments[e] : {};
-                  e % 2
-                    ? C(Object(n), !0).forEach(function (e) {
-                        o()(t, e, n[e]);
-                      })
-                    : Object.getOwnPropertyDescriptors
+        var n = e.tabsBlock,
+          r = e.typeTabs,
+          a = t.BlockManager;
+        n &&
+          a.add(
+            r,
+            (function (t) {
+              for (var e = 1; e < arguments.length; e++) {
+                var n = null != arguments[e] ? arguments[e] : {};
+                e % 2
+                  ? C(Object(n), !0).forEach(function (e) {
+                    o()(t, e, n[e]);
+                  })
+                  : Object.getOwnPropertyDescriptors
                     ? Object.defineProperties(
-                        t,
-                        Object.getOwnPropertyDescriptors(n)
-                      )
+                      t,
+                      Object.getOwnPropertyDescriptors(n)
+                    )
                     : C(Object(n)).forEach(function (e) {
-                        Object.defineProperty(
-                          t,
-                          e,
-                          Object.getOwnPropertyDescriptor(n, e)
-                        );
-                      });
-                }
-                return t;
-              })(
-                { 
-                  media:'<svg viewBox="0 0 24 24">\n        <path d="M22 9c0-.6-.5-1-1.25-1H3.25C2.5 8 2 8.4 2 9v6c0 .6.5 1 1.25 1h17.5c.75 0 1.25-.4 1.25-1V9Zm-1 6H3V9h18v6Z"/><path d="M15 10h5v1h-5zM15 13h5v1h-5zM15 11.5h5v1h-5z"/>\n      </svg>',
-                  label: "Navbar",
-                  category:"Extra",
-                  content:  { 
-                    type: "nav-tabs",
-                    attributes: { 
-                      class: "navbar-div",
-                      id:"main-nav-div"
-                    },
-                    components: [{ 
-                      type: "i",
-                      attributes: {
-                        class: "fa fa-bars hamburger-menu",
-                          id: "hamburgerMenu",
-                        },  
-                    },
-                      { type: r }
-                    ]
+                      Object.defineProperty(
+                        t,
+                        e,
+                        Object.getOwnPropertyDescriptor(n, e)
+                      );
+                    });
+              }
+              return t;
+            })(
+              {
+                media: '<svg viewBox="0 0 24 24">\n        <path d="M22 9c0-.6-.5-1-1.25-1H3.25C2.5 8 2 8.4 2 9v6c0 .6.5 1 1.25 1h17.5c.75 0 1.25-.4 1.25-1V9Zm-1 6H3V9h18v6Z"/><path d="M15 10h5v1h-5zM15 13h5v1h-5zM15 11.5h5v1h-5z"/>\n      </svg>',
+                label: "Navbar",
+                category: "Extra",
+                content: {
+                  type: "nav-tabs",
+                  attributes: {
+                    class: "navbar-div",
+                    id: "main-nav-div"
                   },
+                  components: [{
+                    type: "i",
+                    attributes: {
+                      class: "fa fa-bars hamburger-menu",
+                      id: "hamburgerMenu",
+                    },
+                  },
+                  { type: r }
+                  ]
                 },
-                n
-              )
-            );
-        },
+              },
+              n
+            )
+          );
+      },
         D = {
           tabsBlock: {},
           tabsProps: {},
@@ -738,11 +738,11 @@ script: function (t) {
           var n = null != arguments[e] ? arguments[e] : {};
           e % 2
             ? x(Object(n), !0).forEach(function (e) {
-                o()(t, e, n[e]);
-              })
+              o()(t, e, n[e]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
-            : x(Object(n)).forEach(function (e) {
+              ? Object.defineProperties(t, Object.getOwnPropertyDescriptors(n))
+              : x(Object(n)).forEach(function (e) {
                 Object.defineProperty(
                   t,
                   e,
@@ -754,7 +754,7 @@ script: function (t) {
       }
       e.default = function (t) {
         var e =
-            arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
+          arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
           n = _(_({}, D), e);
         w(t, n), S(t, n);
       };

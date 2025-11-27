@@ -653,7 +653,7 @@ ${totalPages > 1 ? `
                 editor.Notifications.add({ type: level, message: (typeof message === 'string' ? message : JSON.stringify(message, null, 2)), context: merged, timeout: level === 'error' ? 0 : notificationConfig.timeout });
             } catch (e) {
                 // fallback to console if notifications system not available
-                try { console.log(`[DesignerLogger:${level}]`, message, merged); } catch (err) {}
+                try { console.log(`[DesignerLogger:${level}]`, message, merged); } catch (err) { }
             }
         };
 
@@ -684,11 +684,11 @@ ${totalPages > 1 ? `
         try {
             if (!window.__designerLogger_consoleHooked) {
                 window.__designerLogger_consoleHooked = true;
-                const origError = console.error && console.error.bind(console) || function () {};
-                const origWarn = console.warn && console.warn.bind(console) || function () {};
+                const origError = console.error && console.error.bind(console) || function () { };
+                const origWarn = console.warn && console.warn.bind(console) || function () { };
 
                 console.error = function (...args) {
-                    try { origError.apply(console, args); } catch (e) {}
+                    try { origError.apply(console, args); } catch (e) { }
                     try {
                         const combined = args.map(a => {
                             if (a instanceof Error) return `${a.message}\n${a.stack || ''}`;
@@ -700,7 +700,7 @@ ${totalPages > 1 ? `
                 };
 
                 console.warn = function (...args) {
-                    try { origWarn.apply(console, args); } catch (e) {}
+                    try { origWarn.apply(console, args); } catch (e) { }
                     try {
                         const combined = args.map(a => {
                             if (a instanceof Error) return `${a.message}\n${a.stack || ''}`;

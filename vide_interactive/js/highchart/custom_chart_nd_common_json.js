@@ -10,6 +10,8 @@ function customChartCommonJson(editor) {
             "https://code.highcharts.com/modules/exporting.js",
             "https://code.highcharts.com/modules/accessibility.js",
             "https://code.highcharts.com/modules/drilldown.js",
+            "https://code.highcharts.com/modules/export-data.js",
+            "https://code.highcharts.com/modules/offline-exporting.js"
         ];
 
         libs.forEach(src => {
@@ -100,7 +102,7 @@ function customChartCommonJson(editor) {
         changeProp: 1,
         type: "select",
         label: "Select DataSource File",
-        options: getJsonFileOptions(), 
+        options: [],
         name,
     }));
 
@@ -2155,6 +2157,51 @@ function customChartCommonJson(editor) {
 
             }),
             init() {
+                const refreshJsonFileTrait = () => {
+                    const trait = this.getTrait('jsonFileIndex');
+                    if (!trait) return;
+
+                    const opts = getJsonFileOptions(); // reads fresh from localStorage
+                    trait.set('options', opts);
+
+                    if (!opts.length) {
+                        this.set({ 'jsonFileIndex': '', 'jsonpath': '' });
+                        const jsonPathTrait = this.getTrait('jsonpath');
+                        if (jsonPathTrait) {
+                            jsonPathTrait.set('options', []);
+                            jsonPathTrait.set('value', '');
+                            if (jsonPathTrait.view && jsonPathTrait.view.render) jsonPathTrait.view.render();
+                        }
+                        if (trait.view && trait.view.render) trait.view.render();
+                        return;
+                    }
+
+                    const current = String(this.get('jsonFileIndex') ?? '');
+                    const stillExists = opts.some(o => String(o.id) === current);
+                    const nextVal = stillExists ? current : String(opts[0].id);
+
+                    trait.set('value', nextVal);
+                    this.set('jsonFileIndex', nextVal);
+
+                    if (trait.view && trait.view.render) trait.view.render();
+
+                    if (nextVal !== current) {
+                        this.trigger('change:jsonFileIndex');
+                    }
+                };
+
+                // 1) immediately populate for this instance
+                refreshJsonFileTrait();
+
+                // 2) listen for add/delete updates for THIS instance
+                const onFilesUpdated = () => refreshJsonFileTrait();
+                window.addEventListener('common-json-files-updated', onFilesUpdated);
+
+                // 3) clean up when this component is removed
+                this.once('remove', () => {
+                    window.removeEventListener('common-json-files-updated', onFilesUpdated);
+                });
+
                 this.on('change:SelectChart', () => {
                     const chartType = this.get('SelectChart');
                     const newTraits = getTraitsForChartType(chartType);

@@ -37,12 +37,12 @@ function subreportPlugin(editor) {
             name: 'mergeHeaderFooter',
             label: 'Merge Header/Footer'
           },
-  {
-    type: 'checkbox',
-    name: 'sharePageNumber',
-    label: 'Share Page Number',
-    default: true  // ✅ Default checked
-  }
+          {
+            type: 'checkbox',
+            name: 'sharePageNumber',
+            label: 'Share Page Number',
+            default: true  // ✅ Default checked
+          }
         ]
       },
 
@@ -237,46 +237,46 @@ function subreportPlugin(editor) {
             });
 
             document.querySelectorAll(".add-subreport-btn").forEach(btn => {
-// Around line 130 in subreportPlugin
-btn.addEventListener("click", async (e) => {
-    const name = e.target.dataset.name;
-    const templateId = e.target.dataset.id;
+              // Around line 130 in subreportPlugin
+              btn.addEventListener("click", async (e) => {
+                const name = e.target.dataset.name;
+                const templateId = e.target.dataset.id;
 
-    if (currentFile && currentFile === templateId) {
-        alert(`"${name}" is already added.`);
-        return;
-    }
+                if (currentFile && currentFile === templateId) {
+                  alert(`"${name}" is already added.`);
+                  return;
+                }
 
-    if (currentFile && currentFile !== templateId) {
-        const proceed = confirm(`Template already added. Replace it with "${name}"?`);
-        if (!proceed) return;
-    }
+                if (currentFile && currentFile !== templateId) {
+                  const proceed = confirm(`Template already added. Replace it with "${name}"?`);
+                  if (!proceed) return;
+                }
 
-    modal.close();
-    console.log("📡 Fetching selected template:", name, templateId);
+                modal.close();
+                console.log("📡 Fetching selected template:", name, templateId);
 
-    try {
-        const templateRes = await fetch(`${apiUrl}/${templateId}`, { cache: "no-store" });
-        if (!templateRes.ok) throw new Error(`HTTP ${templateRes.status}`);
-        const templateData = await templateRes.json();
-        const htmlContent = templateData.EditableHtml;
-        if (!htmlContent) throw new Error("No EditableHtml found");
+                try {
+                  const templateRes = await fetch(`${apiUrl}/${templateId}`, { cache: "no-store" });
+                  if (!templateRes.ok) throw new Error(`HTTP ${templateRes.status}`);
+                  const templateData = await templateRes.json();
+                  const htmlContent = templateData.EditableHtml;
+                  if (!htmlContent) throw new Error("No EditableHtml found");
 
-        await this.loadSubreportFromHTML(htmlContent, name);
+                  await this.loadSubreportFromHTML(htmlContent, name);
 
-        model.silentUpdate = true;
-        model.addAttributes({
-            filePath: templateId,
-            templateName: name,
-            showData: false,
-            sharePageNumber: true  // ✅ ADD: Set default value
-        });
+                  model.silentUpdate = true;
+                  model.addAttributes({
+                    filePath: templateId,
+                    templateName: name,
+                    showData: false,
+                    sharePageNumber: true  // ✅ ADD: Set default value
+                  });
 
-    } catch (err) {
-        console.error("❌ Failed to fetch subreport template:", err);
-        alert(`Failed to fetch template: ${err.message}`);
-    }
-});
+                } catch (err) {
+                  console.error("❌ Failed to fetch subreport template:", err);
+                  alert(`Failed to fetch template: ${err.message}`);
+                }
+              });
             });
           };
 

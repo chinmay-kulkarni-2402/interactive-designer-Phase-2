@@ -7204,7 +7204,7 @@
                   root: {
                     "index.html": function (e) {
                       var iframe = document.querySelector('#editor iframe');
-var iframeContent = e.getHtml();
+                      var iframeContent = e.getHtml();
                       // Step 1: Merge all localStorage JSONs starting with "common_json" (excluding "common_json_files")
                       let mergedCommonJson = {};
 

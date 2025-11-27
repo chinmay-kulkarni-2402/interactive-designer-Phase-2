@@ -580,204 +580,204 @@ class PageSetupManager {
     }
   }
 
-handleAutoPagination(pageIndex) {
-  console.log(pageIndex, 'handleAutoPagination ====');
+  handleAutoPagination(pageIndex) {
+    console.log(pageIndex, 'handleAutoPagination ====');
 
-  // ======================================================
-  // PRECHECK: Locate the page + content
-  // ======================================================
-  const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
-  if (!pageComponent) return;
+    // ======================================================
+    // PRECHECK: Locate the page + content
+    // ======================================================
+    const pageComponent = this.editor.getWrapper().find(`[data-page-index="${pageIndex}"]`)[0];
+    if (!pageComponent) return;
 
-  const contentArea = pageComponent.find('.main-content-area')[0];
-  if (!contentArea) return;
+    const contentArea = pageComponent.find('.main-content-area')[0];
+    if (!contentArea) return;
 
-  const contentEl = contentArea.getEl();
-  if (!contentEl) return;
+    const contentEl = contentArea.getEl();
+    if (!contentEl) return;
 
-  // ======================================================
-  // NEW LOGIC: Detect if page has REAL content
-  // ======================================================
-  const hasActualContent =
-    contentEl.children.length > 0 &&
-    Array.from(contentEl.children).some(child =>
-      !child.classList.contains('page-break') &&
-      (child.textContent.trim() !== '' || child.querySelector('img, table, video'))
-    );
+    // ======================================================
+    // NEW LOGIC: Detect if page has REAL content
+    // ======================================================
+    const hasActualContent =
+      contentEl.children.length > 0 &&
+      Array.from(contentEl.children).some(child =>
+        !child.classList.contains('page-break') &&
+        (child.textContent.trim() !== '' || child.querySelector('img, table, video'))
+      );
 
-  const shouldCheckPageBreak =
-    pageIndex > 0 ||
-    (pageIndex === 0 && hasActualContent && contentEl.scrollHeight > contentEl.clientHeight);
+    const shouldCheckPageBreak =
+      pageIndex > 0 ||
+      (pageIndex === 0 && hasActualContent && contentEl.scrollHeight > contentEl.clientHeight);
 
-  if (shouldCheckPageBreak) {
-    this.handlePageBreak(pageIndex);
-  }
-
-  // ======================================================
-  // Prevent concurrent pagination
-  // ======================================================
-  if (this.paginationInProgress) return;
-  this.paginationInProgress = true;
-
-  const resetFlag = () => (this.paginationInProgress = false);
-  setTimeout(resetFlag, 15000);
-
-  try {
-    // --------------------------------------------------
-    // IDENTIFY TARGET AREA
-    // --------------------------------------------------
-    let targetArea = contentArea;
-    let availableHeight = contentEl.clientHeight;
-
-    const sectionsContainer = contentArea.find('.sections-container')[0];
-    const manualSectionContent = contentArea.find('.section-content')[0];
-
-    if (manualSectionContent) {
-      targetArea = manualSectionContent;
-    } else if (sectionsContainer) {
-      const sectionContent = sectionsContainer
-        .components()
-        .find(c => c.get('name') === 'Content');
-      if (sectionContent) targetArea = sectionContent;
+    if (shouldCheckPageBreak) {
+      this.handlePageBreak(pageIndex);
     }
 
-    // --------------------------------------------------
-    // CONDITIONAL PAGE BREAKS
-    // --------------------------------------------------
-    const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
-    let conditionalBreakPosition = null;
+    // ======================================================
+    // Prevent concurrent pagination
+    // ======================================================
+    if (this.paginationInProgress) return;
+    this.paginationInProgress = true;
 
-    if (conditionalBreakSettings?.enabled) {
-      const pageNumber = pageIndex + 1;
-      const overrides = conditionalBreakSettings.pageOverrides || {};
+    const resetFlag = () => (this.paginationInProgress = false);
+    setTimeout(resetFlag, 15000);
 
-      let distanceInMm;
+    try {
+      // --------------------------------------------------
+      // IDENTIFY TARGET AREA
+      // --------------------------------------------------
+      let targetArea = contentArea;
+      let availableHeight = contentEl.clientHeight;
 
-      if (overrides[pageNumber]) {
-        distanceInMm = this.convertToMm(
-          overrides[pageNumber].distance,
-          overrides[pageNumber].unit
-        );
-      } else {
-        distanceInMm = this.convertToMm(
-          conditionalBreakSettings.defaultDistance || 50,
-          conditionalBreakSettings.defaultUnit || 'mm'
-        );
+      const sectionsContainer = contentArea.find('.sections-container')[0];
+      const manualSectionContent = contentArea.find('.section-content')[0];
+
+      if (manualSectionContent) {
+        targetArea = manualSectionContent;
+      } else if (sectionsContainer) {
+        const sectionContent = sectionsContainer
+          .components()
+          .find(c => c.get('name') === 'Content');
+        if (sectionContent) targetArea = sectionContent;
       }
 
-      const mmToPx = 96 / 25.4;
-      const distanceInPx = Math.round(distanceInMm * mmToPx);
+      // --------------------------------------------------
+      // CONDITIONAL PAGE BREAKS
+      // --------------------------------------------------
+      const conditionalBreakSettings = this.pageSettings.conditionalPageBreak;
+      let conditionalBreakPosition = null;
 
-      conditionalBreakPosition = availableHeight - distanceInPx;
-    }
+      if (conditionalBreakSettings?.enabled) {
+        const pageNumber = pageIndex + 1;
+        const overrides = conditionalBreakSettings.pageOverrides || {};
 
-    // --------------------------------------------------
-    // CALCULATE AVAILABLE HEIGHT WITH SECTIONS
-    // --------------------------------------------------
-    if (sectionsContainer && targetArea !== contentArea) {
-      const mainContentHeight = contentEl.clientHeight;
+        let distanceInMm;
 
-      const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
-      const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
+        if (overrides[pageNumber]) {
+          distanceInMm = this.convertToMm(
+            overrides[pageNumber].distance,
+            overrides[pageNumber].unit
+          );
+        } else {
+          distanceInMm = this.convertToMm(
+            conditionalBreakSettings.defaultDistance || 50,
+            conditionalBreakSettings.defaultUnit || 'mm'
+          );
+        }
 
-      const headerHeight = headerComp?.getEl()
-        ? this.getAccurateComponentHeight(headerComp.getEl())
-        : 0;
+        const mmToPx = 96 / 25.4;
+        const distanceInPx = Math.round(distanceInMm * mmToPx);
 
-      const footerHeight = footerComp?.getEl()
-        ? this.getAccurateComponentHeight(footerComp.getEl())
-        : 0;
+        conditionalBreakPosition = availableHeight - distanceInPx;
+      }
 
-      const bufferSpace = 20;
+      // --------------------------------------------------
+      // CALCULATE AVAILABLE HEIGHT WITH SECTIONS
+      // --------------------------------------------------
+      if (sectionsContainer && targetArea !== contentArea) {
+        const mainContentHeight = contentEl.clientHeight;
 
-      availableHeight = mainContentHeight - headerHeight - footerHeight - bufferSpace;
+        const headerComp = sectionsContainer.components().find(c => c.get('name') === 'Header');
+        const footerComp = sectionsContainer.components().find(c => c.get('name') === 'Footer');
 
-      if (conditionalBreakPosition !== null) {
+        const headerHeight = headerComp?.getEl()
+          ? this.getAccurateComponentHeight(headerComp.getEl())
+          : 0;
+
+        const footerHeight = footerComp?.getEl()
+          ? this.getAccurateComponentHeight(footerComp.getEl())
+          : 0;
+
+        const bufferSpace = 20;
+
+        availableHeight = mainContentHeight - headerHeight - footerHeight - bufferSpace;
+
+        if (conditionalBreakPosition !== null) {
+          availableHeight = Math.min(availableHeight, conditionalBreakPosition);
+        }
+      } else if (conditionalBreakPosition !== null) {
         availableHeight = Math.min(availableHeight, conditionalBreakPosition);
       }
-    } else if (conditionalBreakPosition !== null) {
-      availableHeight = Math.min(availableHeight, conditionalBreakPosition);
-    }
 
-    // --------------------------------------------------
-    // CHECK OVERFLOW
-    // --------------------------------------------------
-    const targetEl = targetArea.getEl();
-    if (!targetEl) return resetFlag();
+      // --------------------------------------------------
+      // CHECK OVERFLOW
+      // --------------------------------------------------
+      const targetEl = targetArea.getEl();
+      if (!targetEl) return resetFlag();
 
-    targetEl.offsetHeight;
-    const actualHeight = targetEl.scrollHeight;
+      targetEl.offsetHeight;
+      const actualHeight = targetEl.scrollHeight;
 
-    const isOverflowing = actualHeight > availableHeight + 10;
-    if (!isOverflowing) return resetFlag();
+      const isOverflowing = actualHeight > availableHeight + 10;
+      if (!isOverflowing) return resetFlag();
 
-    // --------------------------------------------------
-    // SPLIT CONTENT
-    // --------------------------------------------------
-    const components = targetArea.components();
-    if (components.length === 0) return resetFlag();
+      // --------------------------------------------------
+      // SPLIT CONTENT
+      // --------------------------------------------------
+      const components = targetArea.components();
+      if (components.length === 0) return resetFlag();
 
-    const splitSuccess = this.splitContentByHeight(
-      targetArea,
-      components,
-      pageIndex,
-      availableHeight
-    );
+      const splitSuccess = this.splitContentByHeight(
+        targetArea,
+        components,
+        pageIndex,
+        availableHeight
+      );
 
-    if (!splitSuccess) return resetFlag();
+      if (!splitSuccess) return resetFlag();
 
-    // --------------------------------------------------
-    // CONTINUE PAGINATION
-    // --------------------------------------------------
-    setTimeout(() => {
-      // ================================================
-      // 🔥 NEW BLOCK: SUBREPORT PAGE MARKING
-      // ================================================
-      const nextPageIndex = pageIndex + 1;
+      // --------------------------------------------------
+      // CONTINUE PAGINATION
+      // --------------------------------------------------
+      setTimeout(() => {
+        // ================================================
+        // 🔥 NEW BLOCK: SUBREPORT PAGE MARKING
+        // ================================================
+        const nextPageIndex = pageIndex + 1;
 
-      const nextPageExists =
-        nextPageIndex < this.pageSettings.pages.length &&
-        this.pageSettings.pages[nextPageIndex];
+        const nextPageExists =
+          nextPageIndex < this.pageSettings.pages.length &&
+          this.pageSettings.pages[nextPageIndex];
 
-      if (nextPageExists) {
-        const hasSubreport = components.some(comp => comp.get('type') === 'subreport');
+        if (nextPageExists) {
+          const hasSubreport = components.some(comp => comp.get('type') === 'subreport');
 
-        if (hasSubreport) {
-          const subreportComp = components.find(comp => comp.get('type') === 'subreport');
-          const sharePageNumber = subreportComp?.getAttributes()?.sharePageNumber;
+          if (hasSubreport) {
+            const subreportComp = components.find(comp => comp.get('type') === 'subreport');
+            const sharePageNumber = subreportComp?.getAttributes()?.sharePageNumber;
 
-          if (sharePageNumber === false || sharePageNumber === 'false') {
-            const newPageSettings = this.pageSettings.pages[nextPageIndex];
-            newPageSettings.isSubreportPage = true;
-            newPageSettings.skipPageNumber = true;
+            if (sharePageNumber === false || sharePageNumber === 'false') {
+              const newPageSettings = this.pageSettings.pages[nextPageIndex];
+              newPageSettings.isSubreportPage = true;
+              newPageSettings.skipPageNumber = true;
 
-            console.log(
-              `🏷️ Autopaginated page ${nextPageIndex + 1} marked as SUBREPORT PAGE (no page number)`
-            );
+              console.log(
+                `🏷️ Autopaginated page ${nextPageIndex + 1} marked as SUBREPORT PAGE (no page number)`
+              );
+            }
           }
         }
-      }
-      // ================================================
+        // ================================================
 
+        resetFlag();
+
+        setTimeout(() => {
+          if (nextPageIndex < this.pageSettings.numberOfPages) {
+            this.checkPageForOverflow(nextPageIndex);
+          }
+        }, 800);
+
+      }, 500);
+
+    } catch (err) {
+      console.error(`❌ Error in handleAutoPagination(Page ${pageIndex})`, err);
       resetFlag();
-
-      setTimeout(() => {
-        if (nextPageIndex < this.pageSettings.numberOfPages) {
-          this.checkPageForOverflow(nextPageIndex);
-        }
-      }, 800);
-
-    }, 500);
-
-  } catch (err) {
-    console.error(`❌ Error in handleAutoPagination(Page ${pageIndex})`, err);
-    resetFlag();
+    }
   }
-}
 
 
 
-splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
+  splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
 
     console.log('splitContentByHeight ====');
     const contentEl = contentArea.getEl();
@@ -827,9 +827,9 @@ splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
 
       if (!compEl) continue;
 
-        const isSubreport = component.get('type') === 'subreport' || 
-                      compEl.classList.contains('subreport-block') ||
-                      compEl.classList.contains('subreport-container');
+      const isSubreport = component.get('type') === 'subreport' ||
+        compEl.classList.contains('subreport-block') ||
+        compEl.classList.contains('subreport-container');
       const compHeight = this.getAccurateComponentHeight(compEl);
       const effectiveMaxHeight = conditionalBreakActive ? conditionalBreakHeight : maxHeight;
       const remainingSpace = effectiveMaxHeight - accumulatedHeight;
@@ -849,59 +849,59 @@ splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
       if (accumulatedHeight + compHeight > effectiveMaxHeight) {
         splitPointFound = true;
 
-            if (isSubreport) {
-      const subreportChildren = component.components();
-      
-      if (subreportChildren.length > 0) {
-        console.log(`📦 Subreport with ${subreportChildren.length} children detected`);
-        
-        // Try to split subreport's children instead of moving entire subreport
-        let childrenToMove = [];
-        let childAccHeight = accumulatedHeight;
-        
-        for (let j = 0; j < subreportChildren.length; j++) {
-          const childComp = subreportChildren.at(j);
-          const childEl = childComp.getEl();
-          if (!childEl) continue;
-          
-          const childHeight = this.getAccurateComponentHeight(childEl);
-          
-          if (childAccHeight + childHeight > effectiveMaxHeight) {
-            // This child and all following need to move
-            for (let k = j; k < subreportChildren.length; k++) {
-              childrenToMove.push(subreportChildren.at(k));
+        if (isSubreport) {
+          const subreportChildren = component.components();
+
+          if (subreportChildren.length > 0) {
+            console.log(`📦 Subreport with ${subreportChildren.length} children detected`);
+
+            // Try to split subreport's children instead of moving entire subreport
+            let childrenToMove = [];
+            let childAccHeight = accumulatedHeight;
+
+            for (let j = 0; j < subreportChildren.length; j++) {
+              const childComp = subreportChildren.at(j);
+              const childEl = childComp.getEl();
+              if (!childEl) continue;
+
+              const childHeight = this.getAccurateComponentHeight(childEl);
+
+              if (childAccHeight + childHeight > effectiveMaxHeight) {
+                // This child and all following need to move
+                for (let k = j; k < subreportChildren.length; k++) {
+                  childrenToMove.push(subreportChildren.at(k));
+                }
+                break;
+              }
+
+              childAccHeight += childHeight;
             }
-            break;
+
+            if (childrenToMove.length > 0 && childrenToMove.length < subreportChildren.length) {
+              console.log(`✂️ Splitting subreport: keeping ${subreportChildren.length - childrenToMove.length}, moving ${childrenToMove.length} children`);
+
+              // Move overflow children to componentsToMove array
+              componentsToMove.push(...childrenToMove);
+
+              // Keep the subreport component on current page
+              componentsToKeep.push(component);
+              accumulatedHeight = childAccHeight;
+
+              // Move all remaining components after subreport
+              for (let j = i + 1; j < components.length; j++) {
+                componentsToMove.push(components.at(j));
+              }
+              break;
+            }
           }
-          
-          childAccHeight += childHeight;
-        }
-        
-        if (childrenToMove.length > 0 && childrenToMove.length < subreportChildren.length) {
-          console.log(`✂️ Splitting subreport: keeping ${subreportChildren.length - childrenToMove.length}, moving ${childrenToMove.length} children`);
-          
-          // Move overflow children to componentsToMove array
-          componentsToMove.push(...childrenToMove);
-          
-          // Keep the subreport component on current page
-          componentsToKeep.push(component);
-          accumulatedHeight = childAccHeight;
-          
-          // Move all remaining components after subreport
+
+          // If we can't split children, move entire subreport
+          componentsToMove.push(component);
           for (let j = i + 1; j < components.length; j++) {
             componentsToMove.push(components.at(j));
           }
           break;
         }
-      }
-      
-      // If we can't split children, move entire subreport
-      componentsToMove.push(component);
-      for (let j = i + 1; j < components.length; j++) {
-        componentsToMove.push(components.at(j));
-      }
-      break;
-    }
 
         // ✅ Handle tables specially - try to split by rows if possible
         // ✅ Handle tables specially - NEVER split mid-cell
@@ -1031,15 +1031,12 @@ splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
       console.log(`📦 Source section count: ${sourceSectionCount}`);
     }
 
-    // ✅ Step 1 – Ensure new page exists & is registered
+    // Around line 1055 - where you create sections during autopagination
     if (!newPage) {
       console.log(`📄 Creating missing page ${nextPageIndex}...`);
       newPage = this.addNewPage();
-      this.pageSettings.numberOfPages = nextPageIndex + 1; // immediate register
+      this.pageSettings.numberOfPages = nextPageIndex + 1;
     }
-
-    // ✅ Step 2 – Wait until GrapesJS adds it to DOM
-    // Around line where you create new sections, replace this section:
 
     setTimeout(() => {
       try {
@@ -1049,20 +1046,17 @@ splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
         if (currentPage && newPageRef) {
           const newMainContent = newPageRef.find('.main-content-area')[0];
 
+          // ✅ ONLY add section if source page has sections AND content is overflowing
           if (newMainContent && sourceSectionCount) {
             let existingSection = newMainContent.find('.sections-container')[0];
 
             if (!existingSection) {
-              console.log(`🏗️ Creating section container with count=${sourceSectionCount} BEFORE moving content...`);
+              console.log(`🏗️ Autopagination: Creating section with SAME count ${sourceSectionCount} on page ${nextPageIndex}...`);
 
-              existingSection = newMainContent.append({
-                type: 'Sections',
-                attributes: {
-                  'data-section-count': sourceSectionCount
-                }
-              })[0];
+              // ✅ Pass sourceSectionCount to preserve the count during autopagination
+              existingSection = this.addSectionsContainerToSpecificPage(nextPageIndex, sourceSectionCount);
 
-              console.log(`✅ Section container created on page ${nextPageIndex} with count: ${sourceSectionCount}`);
+              console.log(`✅ Autopagination: Section created on page ${nextPageIndex} with count: ${sourceSectionCount}`);
             }
           }
 
@@ -1089,19 +1083,19 @@ splitContentByHeight(contentArea, components, pageIndex, maxHeight) {
       } catch (err) {
         console.warn("⚠️ Header copy skipped:", err);
       }
-if (!this._headerPreferenceCache) {
-  this._headerPreferenceCache = new Map();
-}
+      if (!this._headerPreferenceCache) {
+        this._headerPreferenceCache = new Map();
+      }
 
-// Check if any components being moved are tables with the copy-header attribute
-componentsToMove.forEach(comp => {
-  const copyHeaderAttr = comp.getAttributes?.()['data-copy-header'];
-  if (copyHeaderAttr !== undefined) {
-    const tableId = comp.getAttributes?.()['data-original-table-id'] || comp.getId();
-    this._headerPreferenceCache.set(tableId, copyHeaderAttr === 'true');
-    console.log(`📝 Cached header preference for table ${tableId}: ${copyHeaderAttr}`);
-  }
-});
+      // Check if any components being moved are tables with the copy-header attribute
+      componentsToMove.forEach(comp => {
+        const copyHeaderAttr = comp.getAttributes?.()['data-copy-header'];
+        if (copyHeaderAttr !== undefined) {
+          const tableId = comp.getAttributes?.()['data-original-table-id'] || comp.getId();
+          this._headerPreferenceCache.set(tableId, copyHeaderAttr === 'true');
+          console.log(`📝 Cached header preference for table ${tableId}: ${copyHeaderAttr}`);
+        }
+      });
       // ✅ STEP 4: NOW safely move overflow components WITH DELAY
       setTimeout(() => {
         this.moveComponentsToPage(componentsToMove, nextPageIndex);
@@ -1118,12 +1112,12 @@ componentsToMove.forEach(comp => {
 
   // Add this NEW function after splitContentByHeight (around line 1100)
 
-removeDuplicateRowsFromPreviousPage(currentPageIndex, movedComponents) {
+  removeDuplicateRowsFromPreviousPage(currentPageIndex, movedComponents) {
     console.log('🔍 Checking for duplicate rows on previous page...');
-    
+
     if (!movedComponents || movedComponents.length === 0) {
-        console.log('⚪ No components moved, skipping duplicate check');
-        return;
+      console.log('⚪ No components moved, skipping duplicate check');
+      return;
     }
 
     const wrapper = this.editor.getWrapper();
@@ -1135,472 +1129,472 @@ removeDuplicateRowsFromPreviousPage(currentPageIndex, movedComponents) {
 
     // Find all table components on current page
     const currentTables = currentContentArea.find('[data-gjs-type="json-table"]');
-    
+
     currentTables.forEach(tableComp => {
-        const tableEl = tableComp.getEl();
-        if (!tableEl) return;
+      const tableEl = tableComp.getEl();
+      if (!tableEl) return;
 
-        const tbody = tableEl.querySelector('tbody');
-        if (!tbody || !tbody.rows) return;
+      const tbody = tableEl.querySelector('tbody');
+      if (!tbody || !tbody.rows) return;
 
-        const rows = Array.from(tbody.rows);
-        if (rows.length === 0) return;
+      const rows = Array.from(tbody.rows);
+      if (rows.length === 0) return;
 
-        console.log(`📊 Checking table with ${rows.length} rows for duplicates`);
+      console.log(`📊 Checking table with ${rows.length} rows for duplicates`);
 
-        // Get data from moved components to compare
-        const movedTableData = [];
-        movedComponents.forEach(comp => {
-            const compEl = comp.getEl();
-            if (compEl && (compEl.tagName === 'TABLE' || compEl.querySelector('table'))) {
-                const movedTbody = compEl.querySelector('tbody') || compEl.querySelector('table tbody');
-                if (movedTbody && movedTbody.rows) {
-                    Array.from(movedTbody.rows).forEach(row => {
-                        const cellData = Array.from(row.cells).map(cell => cell.textContent.trim());
-                        movedTableData.push(cellData);
-                    });
-                }
-            }
+      // Get data from moved components to compare
+      const movedTableData = [];
+      movedComponents.forEach(comp => {
+        const compEl = comp.getEl();
+        if (compEl && (compEl.tagName === 'TABLE' || compEl.querySelector('table'))) {
+          const movedTbody = compEl.querySelector('tbody') || compEl.querySelector('table tbody');
+          if (movedTbody && movedTbody.rows) {
+            Array.from(movedTbody.rows).forEach(row => {
+              const cellData = Array.from(row.cells).map(cell => cell.textContent.trim());
+              movedTableData.push(cellData);
+            });
+          }
+        }
+      });
+
+      if (movedTableData.length === 0) return;
+
+      console.log(`📋 Found ${movedTableData.length} rows in moved components`);
+
+      // Compare from bottom up and find duplicates
+      const rowsToRemove = [];
+      for (let i = rows.length - 1; i >= 0; i--) {
+        const currentRowData = Array.from(rows[i].cells).map(cell => cell.textContent.trim());
+
+        // Check if this row matches any moved row
+        const isDuplicate = movedTableData.some(movedRow => {
+          if (movedRow.length !== currentRowData.length) return false;
+          return movedRow.every((cell, idx) => cell === currentRowData[idx]);
         });
 
-        if (movedTableData.length === 0) return;
-
-        console.log(`📋 Found ${movedTableData.length} rows in moved components`);
-
-        // Compare from bottom up and find duplicates
-        const rowsToRemove = [];
-        for (let i = rows.length - 1; i >= 0; i--) {
-            const currentRowData = Array.from(rows[i].cells).map(cell => cell.textContent.trim());
-            
-            // Check if this row matches any moved row
-            const isDuplicate = movedTableData.some(movedRow => {
-                if (movedRow.length !== currentRowData.length) return false;
-                return movedRow.every((cell, idx) => cell === currentRowData[idx]);
-            });
-
-            if (isDuplicate) {
-                rowsToRemove.push(i);
-                console.log(`🗑️ Found duplicate row at index ${i}`);
-            } else {
-                // Stop checking once we find a non-duplicate
-                break;
-            }
-        }
-
-        // Remove duplicate rows from DOM and GrapesJS
-        if (rowsToRemove.length > 0) {
-            console.log(`✂️ Removing ${rowsToRemove.length} duplicate rows from previous page`);
-            
-            // Remove from GrapesJS component tree
-            const tbodyComp = tableComp.find('tbody')[0];
-            if (tbodyComp) {
-                const rowComps = tbodyComp.components();
-                rowsToRemove.forEach(rowIndex => {
-                    const rowComp = rowComps.at(rowIndex);
-                    if (rowComp) {
-                        rowComp.remove();
-                    }
-                });
-            }
-
-            // Remove from DOM
-            rowsToRemove.forEach(rowIndex => {
-                if (tbody.rows[rowIndex]) {
-                    tbody.deleteRow(rowIndex);
-                }
-            });
-
-            console.log(`✅ Removed ${rowsToRemove.length} duplicate rows successfully`);
-        }
-    });
-}
-
-// UPDATED handleTableSplit (replace the old implementation)
-handleTableSplit(component, compEl, remainingSpace, maxHeight) {
-  console.log('🔧 handleTableSplit called (UPDATED)');
-
-  try {
-    // Find the actual table element (support wrapped/table element)
-    let tableEl = compEl && compEl.tagName === 'TABLE' ? compEl : compEl?.querySelector?.('table');
-
-    if (!tableEl) {
-      console.warn('⚠️ No table element found, moving entire component');
-      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
-    }
-
-    // Prefer GrapesJS component tree tbody if available
-    const tbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
-    const tbody = tableEl.querySelector('tbody') || (tbodyComp && tbodyComp.getEl && tbodyComp.getEl());
-
-    // If no tbody or no rows, move whole component
-    const domTbodyRows = tableEl.querySelectorAll ? Array.from(tableEl.querySelectorAll('tbody > tr')) : [];
-    if (!tbody || domTbodyRows.length === 0) {
-      console.warn('⚠️ No tbody or rows found, moving entire component');
-      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
-    }
-
-    // Account for DataTables wrapper and controls (if present)
-    const dtWrapper = compEl.querySelector('.dataTables_wrapper');
-    const dtInfo = dtWrapper?.querySelector('.dataTables_info');
-    const dtPaginate = dtWrapper?.querySelector('.dataTables_paginate');
-    const dtButtons = dtWrapper?.querySelector('.dt-buttons');
-
-    let controlsHeight = 0;
-    if (dtInfo) controlsHeight += dtInfo.offsetHeight + 10;
-    if (dtPaginate) controlsHeight += dtPaginate.offsetHeight + 10;
-    if (dtButtons) controlsHeight += dtButtons.offsetHeight + 10;
-
-    // Prepare rows array from DOM to measure heights reliably
-    const rows = domTbodyRows;
-    const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
-    const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
-
-    // Safety margin included (-50)
-    const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 10;
-
-    if (availableHeight < 100) {
-      console.log('⚠️ Not enough space for table rows, moving entire table');
-      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
-    }
-
-    // Determine how many COMPLETE rows will fit
-    let accumulatedRowHeight = 0;
-    let rowsToKeep = 0;
-    for (let i = 0; i < rows.length; i++) {
-      const rowHeight = rows[i].offsetHeight || 0;
-      if (accumulatedRowHeight + rowHeight <= availableHeight) {
-        accumulatedRowHeight += rowHeight;
-        rowsToKeep++;
-      } else {
-        break;
-      }
-    }
-
-    const MIN_ROWS_TO_SPLIT = 3;
-    if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
-      console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
-      return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
-    }
-
-    if (rowsToKeep === rows.length) {
-      console.log('✅ All table rows fit on current page');
-      return { keepComponent: component, moveComponent: null, keptRowCount: rowsToKeep, movedRowCount: 0 };
-    }
-
-    console.log(`📊 Splitting table: ${rowsToKeep} rows on current page, ${rows.length - rowsToKeep} rows to next page`);
-
-    // -------------------------
-    // Preserve DataTable settings (if applicable)
-    // -------------------------
-    let dtSettings = null;
-    const tableId = tableEl.id;
-    try {
-      if (tableId && typeof $ !== 'undefined' && $.fn && $.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
-        const dt = $(`#${tableId}`).DataTable();
-        const info = dt.page ? dt.page.info() : {};
-        dtSettings = {
-          paging: !!info.length,
-          pageLength: info.length || dt.page.len?.() || null,
-          searching: dt.settings && dt.settings()[0]?.oFeatures?.bFilter,
-          ordering: dt.settings && dt.settings()[0]?.aaSorting,
-          buttons: (dt.buttons && dt.buttons().container && dt.buttons().context?.[0]?.inst?.s?.buttons) || []
-        };
-        // Destroy DataTable to manipulate DOM safely
-        try { dt.destroy(); } catch (e) { /* ignore destroy errors */ }
-      }
-    } catch (err) {
-      console.warn('⚠️ Error while extracting/destroying DataTable:', err);
-    }
-
-    // -------------------------
-    // STEP 1: Extract rows to move as HTML to avoid DOM/component references
-    // -------------------------
-    const rowsToMoveHTML = [];
-    for (let i = rowsToKeep; i < rows.length; i++) {
-      rowsToMoveHTML.push(rows[i].outerHTML);
-    }
-
-    // -------------------------
-    // STEP 2: Remove moving rows from original GrapesJS component tree (if present) AND DOM
-    // -------------------------
-    // Remove from GrapesJS component tree first (safer)
-    if (tbodyComp && typeof tbodyComp.components === 'function') {
-      const rowComponents = tbodyComp.components();
-      const totalRows = rowComponents.length;
-      for (let i = totalRows - 1; i >= rowsToKeep; i--) {
-        const rowComp = rowComponents.at(i);
-        if (rowComp) {
-          try {
-            console.log(`🗑️ Removing GrapesJS row component at index ${i}`);
-            rowComp.remove();
-          } catch (err) {
-            console.warn('⚠️ Failed to remove GrapesJS row component:', err);
-          }
-        }
-      }
-    }
-
-    // Remove from DOM as a fallback / double-safety
-    for (let i = rows.length - 1; i >= rowsToKeep; i--) {
-      if (rows[i] && rows[i].parentNode) {
-        try {
-          console.log(`🗑️ Removing DOM row at index ${i}`);
-          rows[i].parentNode.removeChild(rows[i]);
-        } catch (err) {
-          console.warn('⚠️ Failed to remove DOM row:', err);
-        }
-      }
-    }
-
-    // Force update original component view to reflect removals
-    setTimeout(() => {
-      try {
-        const currentTbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
-        if (currentTbodyComp && typeof currentTbodyComp.components === 'function') {
-          const remainingRows = currentTbodyComp.components().length;
-          console.log(`✅ Original table now has ${remainingRows} rows (kept ${rowsToKeep})`);
-        }
-        if (component.view && typeof component.view.render === 'function') component.view.render();
-      } catch (e) {
-        console.warn('⚠️ Error updating original component view:', e);
-      }
-    }, 120);
-
-    console.log(`✂️ Removed ${rowsToMoveHTML.length} rows from original table`);
-
-    // NEW: Set contenteditable and reattach handlers on kept table
-    setTimeout(() => {
-      const keptEl = component.getEl();
-      if (!keptEl) {
-        console.warn("⚠️ keptComponent element not available");
-        return;
-      }
-
-      const keptTableEl = keptEl.querySelector('table') || keptEl;
-      if (!keptTableEl) {
-        console.warn("⚠️ No <table> element found in kept component!");
-        return;
-      }
-
-      console.log("✅ Found kept table element:", keptTableEl.id);
-
-      // ✅ Reattach DOM cell editability
-      const tdCells = keptTableEl.querySelectorAll('td, th');
-      tdCells.forEach((cell, i) => {
-        cell.setAttribute('contenteditable', 'true');
-        console.log(`🟩 DOM editable set for kept cell [${i}] → id: ${cell.id || '(no id)'}`);
-      });
-
-      // ✅ Reattach GrapesJS model editability for cell components
-      const cellComponents = component.find('td, th');
-      console.log(`🔍 Found ${cellComponents.length} GrapesJS kept cell components`);
-      cellComponents.forEach((cellComp, i) => {
-        cellComp.addAttributes({ contenteditable: 'true' });
-        cellComp.set({ editable: true });
-        console.log(`🟦 GrapesJS editable set for kept cell component [${i}] → id: ${cellComp.getId()}`);
-      });
-
-      console.log(`✅ Kept table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
-
-      // ✅ CALL THE REATTACH HANDLER FUNCTION (PageSetupManager)
-      const pageSetupManager = this.editor.get('PageSetupManager');
-      if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
-        const keptTableId = keptTableEl.id;
-        if (keptTableId) {
-          pageSetupManager.reattachAllCellHandlers(keptTableId);
-          console.log(`✅ Reattached all cell handlers for kept table: ${keptTableId}`);
+        if (isDuplicate) {
+          rowsToRemove.push(i);
+          console.log(`🗑️ Found duplicate row at index ${i}`);
         } else {
-          console.warn('⚠️ Kept table has no id — cannot reattach by id.');
+          // Stop checking once we find a non-duplicate
+          break;
         }
       }
-    }, 400);
 
-    // -------------------------
-    // STEP 3: Build continuation table (structure only, then insert moved rows)
-    // -------------------------
-    // NEW: Ask user if they want header on next page
-// NEW: Ask user if they want header on next page
-let copyHeader = false;
-const hasThead = !!tableEl.querySelector('thead');
-if (hasThead && rowsToKeep > 0 && rowsToMoveHTML.length > 0) {
-  // Use confirm with OK/Cancel - OK returns true, Cancel returns false
-  copyHeader = confirm("Do you want to repeat the table header on the next page?\n\nClick OK to include header\nClick Cancel to skip header");
-}
+      // Remove duplicate rows from DOM and GrapesJS
+      if (rowsToRemove.length > 0) {
+        console.log(`✂️ Removing ${rowsToRemove.length} duplicate rows from previous page`);
 
-const continuationTableEl = tableEl.cloneNode(false); // shallow clone (no children)
-const continuationThead = copyHeader ? tableEl.querySelector('thead')?.cloneNode(true) : null;
-const continuationTbody = document.createElement('tbody');
-const continuationTfoot = tableEl.querySelector('tfoot')?.cloneNode(true);
+        // Remove from GrapesJS component tree
+        const tbodyComp = tableComp.find('tbody')[0];
+        if (tbodyComp) {
+          const rowComps = tbodyComp.components();
+          rowsToRemove.forEach(rowIndex => {
+            const rowComp = rowComps.at(rowIndex);
+            if (rowComp) {
+              rowComp.remove();
+            }
+          });
+        }
 
-// Only add thead if user confirmed
-if (copyHeader && continuationThead) {
-  continuationTableEl.appendChild(continuationThead);
-  console.log('✅ Header will be included on next page');
-} else {
-  console.log('⏭️ Header will NOT be included on next page (user choice)');
-}
+        // Remove from DOM
+        rowsToRemove.forEach(rowIndex => {
+          if (tbody.rows[rowIndex]) {
+            tbody.deleteRow(rowIndex);
+          }
+        });
 
-continuationTableEl.appendChild(continuationTbody);
-if (continuationTfoot) continuationTableEl.appendChild(continuationTfoot);
+        console.log(`✅ Removed ${rowsToRemove.length} duplicate rows successfully`);
+      }
+    });
+  }
 
-    // Insert moved rows HTML
-    continuationTbody.innerHTML = rowsToMoveHTML.join('');
-    console.log(`✅ Created continuation table with ${continuationTbody.rows.length} rows`);
+  // UPDATED handleTableSplit (replace the old implementation)
+  handleTableSplit(component, compEl, remainingSpace, maxHeight) {
+    console.log('🔧 handleTableSplit called (UPDATED)');
 
-    // Wrap continuation table in a container matching original component structure
-    const continuationWrapper = compEl.cloneNode(false);
-    continuationWrapper.innerHTML = '';
-    const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    continuationTableEl.id = newTableId;
-    continuationWrapper.appendChild(continuationTableEl);
+    try {
+      // Find the actual table element (support wrapped/table element)
+      let tableEl = compEl && compEl.tagName === 'TABLE' ? compEl : compEl?.querySelector?.('table');
 
-    // -------------------------
-    // STEP 4: Modify JSON/state attribute for continuation component if present
-    // -------------------------
-    let modifiedState = null;
-    const originalStateAttr = component.getAttributes && component.getAttributes()['data-json-state'];
-    if (originalStateAttr) {
+      if (!tableEl) {
+        console.warn('⚠️ No table element found, moving entire component');
+        return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
+      }
+
+      // Prefer GrapesJS component tree tbody if available
+      const tbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
+      const tbody = tableEl.querySelector('tbody') || (tbodyComp && tbodyComp.getEl && tbodyComp.getEl());
+
+      // If no tbody or no rows, move whole component
+      const domTbodyRows = tableEl.querySelectorAll ? Array.from(tableEl.querySelectorAll('tbody > tr')) : [];
+      if (!tbody || domTbodyRows.length === 0) {
+        console.warn('⚠️ No tbody or rows found, moving entire component');
+        return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
+      }
+
+      // Account for DataTables wrapper and controls (if present)
+      const dtWrapper = compEl.querySelector('.dataTables_wrapper');
+      const dtInfo = dtWrapper?.querySelector('.dataTables_info');
+      const dtPaginate = dtWrapper?.querySelector('.dataTables_paginate');
+      const dtButtons = dtWrapper?.querySelector('.dt-buttons');
+
+      let controlsHeight = 0;
+      if (dtInfo) controlsHeight += dtInfo.offsetHeight + 10;
+      if (dtPaginate) controlsHeight += dtPaginate.offsetHeight + 10;
+      if (dtButtons) controlsHeight += dtButtons.offsetHeight + 10;
+
+      // Prepare rows array from DOM to measure heights reliably
+      const rows = domTbodyRows;
+      const headerHeight = tableEl.querySelector('thead')?.offsetHeight || 0;
+      const footerHeight = tableEl.querySelector('tfoot')?.offsetHeight || 0;
+
+      // Safety margin included (-50)
+      const availableHeight = remainingSpace - headerHeight - footerHeight - controlsHeight - 10;
+
+      if (availableHeight < 100) {
+        console.log('⚠️ Not enough space for table rows, moving entire table');
+        return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
+      }
+
+      // Determine how many COMPLETE rows will fit
+      let accumulatedRowHeight = 0;
+      let rowsToKeep = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const rowHeight = rows[i].offsetHeight || 0;
+        if (accumulatedRowHeight + rowHeight <= availableHeight) {
+          accumulatedRowHeight += rowHeight;
+          rowsToKeep++;
+        } else {
+          break;
+        }
+      }
+
+      const MIN_ROWS_TO_SPLIT = 3;
+      if (rowsToKeep < MIN_ROWS_TO_SPLIT) {
+        console.log(`⚠️ Only ${rowsToKeep} rows fit (minimum ${MIN_ROWS_TO_SPLIT} required), moving entire table`);
+        return { keepComponent: null, moveComponent: component, keptRowCount: 0, movedRowCount: 0 };
+      }
+
+      if (rowsToKeep === rows.length) {
+        console.log('✅ All table rows fit on current page');
+        return { keepComponent: component, moveComponent: null, keptRowCount: rowsToKeep, movedRowCount: 0 };
+      }
+
+      console.log(`📊 Splitting table: ${rowsToKeep} rows on current page, ${rows.length - rowsToKeep} rows to next page`);
+
+      // -------------------------
+      // Preserve DataTable settings (if applicable)
+      // -------------------------
+      let dtSettings = null;
+      const tableId = tableEl.id;
       try {
-        const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
-        if (stateData && Array.isArray(stateData.data)) {
-          // Keep only the rows that moved
-          stateData.data = stateData.data.slice(rowsToKeep);
-          stateData.dataRows = stateData.data.length;
-          modifiedState = encodeURIComponent(JSON.stringify(stateData));
-          console.log(`🔧 Modified state for continuation: ${stateData.data.length} data rows`);
+        if (tableId && typeof $ !== 'undefined' && $.fn && $.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable(`#${tableId}`)) {
+          const dt = $(`#${tableId}`).DataTable();
+          const info = dt.page ? dt.page.info() : {};
+          dtSettings = {
+            paging: !!info.length,
+            pageLength: info.length || dt.page.len?.() || null,
+            searching: dt.settings && dt.settings()[0]?.oFeatures?.bFilter,
+            ordering: dt.settings && dt.settings()[0]?.aaSorting,
+            buttons: (dt.buttons && dt.buttons().container && dt.buttons().context?.[0]?.inst?.s?.buttons) || []
+          };
+          // Destroy DataTable to manipulate DOM safely
+          try { dt.destroy(); } catch (e) { /* ignore destroy errors */ }
         }
       } catch (err) {
-        console.warn('⚠️ Error parsing/modifying state attribute:', err);
+        console.warn('⚠️ Error while extracting/destroying DataTable:', err);
       }
-    }
 
-    // -------------------------
-    // STEP 5: Create NEW GrapesJS component for continuation (fresh component)
-    // -------------------------
-// Around line 1480 in handleTableSplit, replace the newComponentConfig section:
+      // -------------------------
+      // STEP 1: Extract rows to move as HTML to avoid DOM/component references
+      // -------------------------
+      const rowsToMoveHTML = [];
+      for (let i = rowsToKeep; i < rows.length; i++) {
+        rowsToMoveHTML.push(rows[i].outerHTML);
+      }
 
-// -------------------------
-// STEP 5: Create NEW GrapesJS component for continuation (fresh component)
-// -------------------------
-const newComponentConfig = {
-  type: component.get && component.get('type') || 'default',
-  tagName: component.get && component.get('tagName') || 'div',
-  content: continuationWrapper.outerHTML,
-  attributes: {
-    ...component.getAttributes(),
-    'data-continuation-table': 'true',
-    'data-original-table-id': tableId || '',
-    'data-rows-kept': rowsToKeep,
-    'data-split-table': 'continuation',
-    'data-copy-header': copyHeader ? 'true' : 'false'
-  },
-  classes: [...(component.getClasses ? component.getClasses() : [])],
-  style: { ...(component.getStyle ? component.getStyle() : {}) }
-};
-
-if (modifiedState) {
-  newComponentConfig.attributes['data-json-state'] = modifiedState;
-}
-
-// Add new component to GrapesJS
-const newComponent = this.editor.Components.addComponent(newComponentConfig);
-
-// ✅ IMMEDIATELY remove thead from GrapesJS component if user chose not to copy
-if (!copyHeader && newComponent) {
-  setTimeout(() => {
-    const theadComp = newComponent.find('thead')[0];
-    if (theadComp) {
-      console.log('🗑️ Removing thead component from GrapesJS tree immediately');
-      theadComp.remove();
-      
-      // Also remove from DOM to ensure sync
-      const newTableEl = newComponent.getEl()?.querySelector('table');
-      if (newTableEl) {
-        const theadEl = newTableEl.querySelector('thead');
-        if (theadEl) {
-          theadEl.remove();
-          console.log('🗑️ Removed thead from DOM as well');
+      // -------------------------
+      // STEP 2: Remove moving rows from original GrapesJS component tree (if present) AND DOM
+      // -------------------------
+      // Remove from GrapesJS component tree first (safer)
+      if (tbodyComp && typeof tbodyComp.components === 'function') {
+        const rowComponents = tbodyComp.components();
+        const totalRows = rowComponents.length;
+        for (let i = totalRows - 1; i >= rowsToKeep; i--) {
+          const rowComp = rowComponents.at(i);
+          if (rowComp) {
+            try {
+              console.log(`🗑️ Removing GrapesJS row component at index ${i}`);
+              rowComp.remove();
+            } catch (err) {
+              console.warn('⚠️ Failed to remove GrapesJS row component:', err);
+            }
+          }
         }
       }
-      
-      // Force view update
-      if (newComponent.view && newComponent.view.render) {
-        newComponent.view.render();
+
+      // Remove from DOM as a fallback / double-safety
+      for (let i = rows.length - 1; i >= rowsToKeep; i--) {
+        if (rows[i] && rows[i].parentNode) {
+          try {
+            console.log(`🗑️ Removing DOM row at index ${i}`);
+            rows[i].parentNode.removeChild(rows[i]);
+          } catch (err) {
+            console.warn('⚠️ Failed to remove DOM row:', err);
+          }
+        }
       }
-    }
-  }, 100);
-}
-    // -------------------------
-    // STEP 6: Reinitialize DataTable on kept portion ONLY (if settings captured)
-    // -------------------------
-    if (dtSettings && tableId) {
+
+      // Force update original component view to reflect removals
       setTimeout(() => {
         try {
-          const keptTableEl = component.getEl()?.querySelector('table');
-          if (keptTableEl && typeof $ !== 'undefined' && $.fn && $.fn.DataTable) {
-            if ($.fn.DataTable.isDataTable(keptTableEl)) {
-              try { $(keptTableEl).DataTable().destroy(); } catch (e) { /* ignore */ }
-            }
-            // Reinitialize with minimal features for static view
-            $(keptTableEl).DataTable({
-              paging: false,
-              searching: false,
-              ordering: false,
-              info: false
-            });
+          const currentTbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
+          if (currentTbodyComp && typeof currentTbodyComp.components === 'function') {
+            const remainingRows = currentTbodyComp.components().length;
+            console.log(`✅ Original table now has ${remainingRows} rows (kept ${rowsToKeep})`);
+          }
+          if (component.view && typeof component.view.render === 'function') component.view.render();
+        } catch (e) {
+          console.warn('⚠️ Error updating original component view:', e);
+        }
+      }, 120);
+
+      console.log(`✂️ Removed ${rowsToMoveHTML.length} rows from original table`);
+
+      // NEW: Set contenteditable and reattach handlers on kept table
+      setTimeout(() => {
+        const keptEl = component.getEl();
+        if (!keptEl) {
+          console.warn("⚠️ keptComponent element not available");
+          return;
+        }
+
+        const keptTableEl = keptEl.querySelector('table') || keptEl;
+        if (!keptTableEl) {
+          console.warn("⚠️ No <table> element found in kept component!");
+          return;
+        }
+
+        console.log("✅ Found kept table element:", keptTableEl.id);
+
+        // ✅ Reattach DOM cell editability
+        const tdCells = keptTableEl.querySelectorAll('td, th');
+        tdCells.forEach((cell, i) => {
+          cell.setAttribute('contenteditable', 'true');
+          console.log(`🟩 DOM editable set for kept cell [${i}] → id: ${cell.id || '(no id)'}`);
+        });
+
+        // ✅ Reattach GrapesJS model editability for cell components
+        const cellComponents = component.find('td, th');
+        console.log(`🔍 Found ${cellComponents.length} GrapesJS kept cell components`);
+        cellComponents.forEach((cellComp, i) => {
+          cellComp.addAttributes({ contenteditable: 'true' });
+          cellComp.set({ editable: true });
+          console.log(`🟦 GrapesJS editable set for kept cell component [${i}] → id: ${cellComp.getId()}`);
+        });
+
+        console.log(`✅ Kept table editable setup complete — ${tdCells.length} DOM cells, ${cellComponents.length} model cells.`);
+
+        // ✅ CALL THE REATTACH HANDLER FUNCTION (PageSetupManager)
+        const pageSetupManager = this.editor.get('PageSetupManager');
+        if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
+          const keptTableId = keptTableEl.id;
+          if (keptTableId) {
+            pageSetupManager.reattachAllCellHandlers(keptTableId);
+            console.log(`✅ Reattached all cell handlers for kept table: ${keptTableId}`);
+          } else {
+            console.warn('⚠️ Kept table has no id — cannot reattach by id.');
+          }
+        }
+      }, 400);
+
+      // -------------------------
+      // STEP 3: Build continuation table (structure only, then insert moved rows)
+      // -------------------------
+      // NEW: Ask user if they want header on next page
+      // NEW: Ask user if they want header on next page
+      let copyHeader = false;
+      const hasThead = !!tableEl.querySelector('thead');
+      if (hasThead && rowsToKeep > 0 && rowsToMoveHTML.length > 0) {
+        // Use confirm with OK/Cancel - OK returns true, Cancel returns false
+        copyHeader = confirm("Do you want to repeat the table header on the next page?\n\nClick OK to include header\nClick Cancel to skip header");
+      }
+
+      const continuationTableEl = tableEl.cloneNode(false); // shallow clone (no children)
+      const continuationThead = copyHeader ? tableEl.querySelector('thead')?.cloneNode(true) : null;
+      const continuationTbody = document.createElement('tbody');
+      const continuationTfoot = tableEl.querySelector('tfoot')?.cloneNode(true);
+
+      // Only add thead if user confirmed
+      if (copyHeader && continuationThead) {
+        continuationTableEl.appendChild(continuationThead);
+        console.log('✅ Header will be included on next page');
+      } else {
+        console.log('⏭️ Header will NOT be included on next page (user choice)');
+      }
+
+      continuationTableEl.appendChild(continuationTbody);
+      if (continuationTfoot) continuationTableEl.appendChild(continuationTfoot);
+
+      // Insert moved rows HTML
+      continuationTbody.innerHTML = rowsToMoveHTML.join('');
+      console.log(`✅ Created continuation table with ${continuationTbody.rows.length} rows`);
+
+      // Wrap continuation table in a container matching original component structure
+      const continuationWrapper = compEl.cloneNode(false);
+      continuationWrapper.innerHTML = '';
+      const newTableId = `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      continuationTableEl.id = newTableId;
+      continuationWrapper.appendChild(continuationTableEl);
+
+      // -------------------------
+      // STEP 4: Modify JSON/state attribute for continuation component if present
+      // -------------------------
+      let modifiedState = null;
+      const originalStateAttr = component.getAttributes && component.getAttributes()['data-json-state'];
+      if (originalStateAttr) {
+        try {
+          const stateData = JSON.parse(decodeURIComponent(originalStateAttr));
+          if (stateData && Array.isArray(stateData.data)) {
+            // Keep only the rows that moved
+            stateData.data = stateData.data.slice(rowsToKeep);
+            stateData.dataRows = stateData.data.length;
+            modifiedState = encodeURIComponent(JSON.stringify(stateData));
+            console.log(`🔧 Modified state for continuation: ${stateData.data.length} data rows`);
           }
         } catch (err) {
-          console.warn('⚠️ Error reinitializing DataTable on kept portion:', err);
+          console.warn('⚠️ Error parsing/modifying state attribute:', err);
         }
-      }, 300);
-    }
+      }
 
-    // -------------------------
-    // STEP 7: Extra verification/fix (best-effort) to ensure GrapesJS tree matches expected kept rows
-    // -------------------------
-    setTimeout(() => {
-      try {
-        const originalTbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
-        if (originalTbodyComp && typeof originalTbodyComp.components === 'function') {
-          const rowsLeft = originalTbodyComp.components().length;
-          console.log(`🔎 Verification: Original table has ${rowsLeft} rows (should be ${rowsToKeep})`);
-          if (rowsLeft !== rowsToKeep) {
-            console.error(`❌ Row count mismatch! Expected ${rowsToKeep}, got ${rowsLeft} — attempting correction.`);
-            const allRows = originalTbodyComp.components();
-            for (let i = allRows.length - 1; i >= rowsToKeep; i--) {
-              try {
-                allRows.at(i).remove();
-              } catch (err) {
-                console.warn('⚠️ Failed to remove extra row component during correction:', err);
+      // -------------------------
+      // STEP 5: Create NEW GrapesJS component for continuation (fresh component)
+      // -------------------------
+      // Around line 1480 in handleTableSplit, replace the newComponentConfig section:
+
+      // -------------------------
+      // STEP 5: Create NEW GrapesJS component for continuation (fresh component)
+      // -------------------------
+      const newComponentConfig = {
+        type: component.get && component.get('type') || 'default',
+        tagName: component.get && component.get('tagName') || 'div',
+        content: continuationWrapper.outerHTML,
+        attributes: {
+          ...component.getAttributes(),
+          'data-continuation-table': 'true',
+          'data-original-table-id': tableId || '',
+          'data-rows-kept': rowsToKeep,
+          'data-split-table': 'continuation',
+          'data-copy-header': copyHeader ? 'true' : 'false'
+        },
+        classes: [...(component.getClasses ? component.getClasses() : [])],
+        style: { ...(component.getStyle ? component.getStyle() : {}) }
+      };
+
+      if (modifiedState) {
+        newComponentConfig.attributes['data-json-state'] = modifiedState;
+      }
+
+      // Add new component to GrapesJS
+      const newComponent = this.editor.Components.addComponent(newComponentConfig);
+
+      // ✅ IMMEDIATELY remove thead from GrapesJS component if user chose not to copy
+      if (!copyHeader && newComponent) {
+        setTimeout(() => {
+          const theadComp = newComponent.find('thead')[0];
+          if (theadComp) {
+            console.log('🗑️ Removing thead component from GrapesJS tree immediately');
+            theadComp.remove();
+
+            // Also remove from DOM to ensure sync
+            const newTableEl = newComponent.getEl()?.querySelector('table');
+            if (newTableEl) {
+              const theadEl = newTableEl.querySelector('thead');
+              if (theadEl) {
+                theadEl.remove();
+                console.log('🗑️ Removed thead from DOM as well');
+              }
+            }
+
+            // Force view update
+            if (newComponent.view && newComponent.view.render) {
+              newComponent.view.render();
+            }
+          }
+        }, 100);
+      }
+      // -------------------------
+      // STEP 6: Reinitialize DataTable on kept portion ONLY (if settings captured)
+      // -------------------------
+      if (dtSettings && tableId) {
+        setTimeout(() => {
+          try {
+            const keptTableEl = component.getEl()?.querySelector('table');
+            if (keptTableEl && typeof $ !== 'undefined' && $.fn && $.fn.DataTable) {
+              if ($.fn.DataTable.isDataTable(keptTableEl)) {
+                try { $(keptTableEl).DataTable().destroy(); } catch (e) { /* ignore */ }
+              }
+              // Reinitialize with minimal features for static view
+              $(keptTableEl).DataTable({
+                paging: false,
+                searching: false,
+                ordering: false,
+                info: false
+              });
+            }
+          } catch (err) {
+            console.warn('⚠️ Error reinitializing DataTable on kept portion:', err);
+          }
+        }, 300);
+      }
+
+      // -------------------------
+      // STEP 7: Extra verification/fix (best-effort) to ensure GrapesJS tree matches expected kept rows
+      // -------------------------
+      setTimeout(() => {
+        try {
+          const originalTbodyComp = component.find && component.find('tbody') ? component.find('tbody')[0] : null;
+          if (originalTbodyComp && typeof originalTbodyComp.components === 'function') {
+            const rowsLeft = originalTbodyComp.components().length;
+            console.log(`🔎 Verification: Original table has ${rowsLeft} rows (should be ${rowsToKeep})`);
+            if (rowsLeft !== rowsToKeep) {
+              console.error(`❌ Row count mismatch! Expected ${rowsToKeep}, got ${rowsLeft} — attempting correction.`);
+              const allRows = originalTbodyComp.components();
+              for (let i = allRows.length - 1; i >= rowsToKeep; i--) {
+                try {
+                  allRows.at(i).remove();
+                } catch (err) {
+                  console.warn('⚠️ Failed to remove extra row component during correction:', err);
+                }
               }
             }
           }
+        } catch (err) {
+          console.warn('⚠️ Verification step failed:', err);
         }
-      } catch (err) {
-        console.warn('⚠️ Verification step failed:', err);
-      }
-    }, 200);
+      }, 200);
 
-    console.log(`✅ Table split complete - original: ${rowsToKeep} rows, continuation: ${rowsToMoveHTML.length} rows`);
+      console.log(`✅ Table split complete - original: ${rowsToKeep} rows, continuation: ${rowsToMoveHTML.length} rows`);
 
-    return {
-      keepComponent: component,
-      moveComponent: newComponent,
-      keptRowCount: rowsToKeep,
-      movedRowCount: rowsToMoveHTML.length
-    };
-  } catch (error) {
-    console.error('❌ Error splitting table (catch):', error);
-    return {
-      keepComponent: null,
-      moveComponent: component,
-      keptRowCount: 0,
-      movedRowCount: 0
-    };
+      return {
+        keepComponent: component,
+        moveComponent: newComponent,
+        keptRowCount: rowsToKeep,
+        movedRowCount: rowsToMoveHTML.length
+      };
+    } catch (error) {
+      console.error('❌ Error splitting table (catch):', error);
+      return {
+        keepComponent: null,
+        moveComponent: component,
+        keptRowCount: 0,
+        movedRowCount: 0
+      };
+    }
   }
-}
 
-splitLargeComponent(component, availableSpace) {
+  splitLargeComponent(component, availableSpace) {
     console.log('splitLargeComponent ====');
     const compEl = component.getEl();
 
@@ -1610,7 +1604,7 @@ splitLargeComponent(component, availableSpace) {
 
     // ✅ CRITICAL FIX: Check if content actually fits before splitting
     const currentHeight = compEl.scrollHeight;
-    
+
     // If content fits within available space (with small buffer), don't split
     if (currentHeight <= availableSpace + 50) {
       console.log(`✅ Content fits (${currentHeight}px <= ${availableSpace}px), no split needed`);
@@ -1637,7 +1631,7 @@ splitLargeComponent(component, availableSpace) {
     // ✅ Get original content BEFORE clearing
     const originalHTML = compEl.innerHTML;
     const originalNodes = Array.from(compEl.childNodes);
-    
+
     // Safety check - if no nodes, don't split
     if (originalNodes.length === 0) {
       console.log('⚠️ No nodes to split');
@@ -1709,14 +1703,14 @@ splitLargeComponent(component, availableSpace) {
 
     // 1. Original Component (Current Page) Sync
     const contentThatFits = compEl.innerHTML;
-    
+
     // Safety check - ensure we're not setting empty content
     if (!contentThatFits || contentThatFits.trim() === '') {
       console.log('⚠️ Content that fits is empty - restoring original');
       compEl.innerHTML = originalHTML;
       return { keepComponent: component, moveComponent: null };
     }
-    
+
     component.set('content', contentThatFits);
 
     // ✅ Reapply styles to original component
@@ -1824,462 +1818,462 @@ splitLargeComponent(component, availableSpace) {
     return targetPosition;
   }
 
-async moveComponentsToPage(components, targetPageIndex) {
-  console.log('🟦 moveComponentsToPage called for page:', targetPageIndex);
+  async moveComponentsToPage(components, targetPageIndex) {
+    console.log('🟦 moveComponentsToPage called for page:', targetPageIndex);
 
-  try {
-    // === START: CRITICAL FIX - extract subreport children ===
-    const originalFirstComponent = components && components[0];
+    try {
+      // === START: CRITICAL FIX - extract subreport children ===
+      const originalFirstComponent = components && components[0];
 
-    const actualComponentsToMove = [];
+      const actualComponentsToMove = [];
 
-    for (const component of components) {
-      const isSubreport =
-        (typeof component.get === 'function' && component.get('type') === 'subreport') ||
-        (component.getEl && component.getEl()?.classList?.contains('subreport-block'));
+      for (const component of components) {
+        const isSubreport =
+          (typeof component.get === 'function' && component.get('type') === 'subreport') ||
+          (component.getEl && component.getEl()?.classList?.contains('subreport-block'));
 
-      if (isSubreport) {
-        console.log('📦 Subreport detected, extracting children...');
-        const children = component.components && component.components();
+        if (isSubreport) {
+          console.log('📦 Subreport detected, extracting children...');
+          const children = component.components && component.components();
 
-        if (children && children.length > 0) {
-          console.log(`✂️ Extracting ${children.length} children from subreport`);
+          if (children && children.length > 0) {
+            console.log(`✂️ Extracting ${children.length} children from subreport`);
 
-          children.forEach((child) => {
-            // Mark extracted child so we can identify it later
-            try {
-              if (typeof child.addAttributes === 'function') {
-                child.addAttributes({ 'data-subreport-content': 'true' });
-              } else if (child.getAttributes && child.getAttributes()) {
-                // fallback: mutate attributes object
-                const attrs = child.getAttributes() || {};
-                attrs['data-subreport-content'] = 'true';
-                if (typeof child.addAttributes === 'function') child.addAttributes(attrs);
+            children.forEach((child) => {
+              // Mark extracted child so we can identify it later
+              try {
+                if (typeof child.addAttributes === 'function') {
+                  child.addAttributes({ 'data-subreport-content': 'true' });
+                } else if (child.getAttributes && child.getAttributes()) {
+                  // fallback: mutate attributes object
+                  const attrs = child.getAttributes() || {};
+                  attrs['data-subreport-content'] = 'true';
+                  if (typeof child.addAttributes === 'function') child.addAttributes(attrs);
+                }
+              } catch (e) {
+                // non-fatal
               }
+
+              actualComponentsToMove.push(child);
+            });
+
+            // Remove children from subreport (they will be moved independently)
+            try {
+              component.components().reset();
             } catch (e) {
-              // non-fatal
+              // ignore if reset unavailable
             }
 
-            actualComponentsToMove.push(child);
-          });
-
-          // Remove children from subreport (they will be moved independently)
-          try {
-            component.components().reset();
-          } catch (e) {
-            // ignore if reset unavailable
+            console.log(`✅ Extracted ${children.length} components from subreport`);
+          } else {
+            // Empty subreport, move the subreport itself
+            actualComponentsToMove.push(component);
           }
-
-          console.log(`✅ Extracted ${children.length} components from subreport`);
         } else {
-          // Empty subreport, move the subreport itself
+          // Regular component
           actualComponentsToMove.push(component);
         }
-      } else {
-        // Regular component
-        actualComponentsToMove.push(component);
       }
-    }
 
-    console.log(`📊 Total components to move: ${actualComponentsToMove.length}`);
-    // === END: extraction ===
+      console.log(`📊 Total components to move: ${actualComponentsToMove.length}`);
+      // === END: extraction ===
 
-    const wrapper = this.editor.getWrapper();
-    const targetPageComponent = wrapper.find(`[data-page-index="${targetPageIndex}"]`)[0];
-    if (!targetPageComponent) {
-      console.error(`❌ Target page ${targetPageIndex} not found`);
-      return false;
-    }
-
-    let targetContentArea = targetPageComponent.find('.main-content-area')[0];
-    if (!targetContentArea) {
-      console.error(`❌ Target content area not found`);
-      return false;
-    }
-
-    // ✅ STEP 1: Get the source section's count BEFORE any operations
-    let sourceSectionCount = null;
-    const firstComponent = originalFirstComponent;
-    if (firstComponent) {
-      const sourceSection = firstComponent.closest && firstComponent.closest('.sections-container');
-      if (sourceSection) {
-        sourceSectionCount = sourceSection.getAttributes && sourceSection.getAttributes()['data-section-count'];
-        console.log(`📦 Source section count: ${sourceSectionCount}`);
+      const wrapper = this.editor.getWrapper();
+      const targetPageComponent = wrapper.find(`[data-page-index="${targetPageIndex}"]`)[0];
+      if (!targetPageComponent) {
+        console.error(`❌ Target page ${targetPageIndex} not found`);
+        return false;
       }
-    }
 
-    // Wait for DOM to stabilize
-    await new Promise((resolve) => setTimeout(resolve, 150));
+      let targetContentArea = targetPageComponent.find('.main-content-area')[0];
+      if (!targetContentArea) {
+        console.error(`❌ Target content area not found`);
+        return false;
+      }
 
-    // ✅ STEP 2: Check if target page needs sections container
-    let targetSection = targetContentArea.find('.sections-container')[0];
-
-    if (!targetSection && sourceSectionCount) {
-      console.log(`🏗️ Creating section container BEFORE moving content...`);
-
-      // Create section container with SAME count (autopagination)
-      targetSection = targetContentArea.append({
-        type: 'Sections',
-        attributes: {
-          'data-section-count': sourceSectionCount // ✅ Use same count
-        }
-      })[0];
-
-      const allPages = wrapper.find('.page-container');
-      for (let page of allPages) {
-        const existingSection = page.find('.sections-container')[0];
-        if (existingSection) {
-          const existingCount = existingSection.getAttributes && existingSection.getAttributes()['data-section-count'];
-          if (existingCount === sourceSectionCount && existingSection !== targetSection) {
-            // Found source section - copy header
-            const sourceHeader = existingSection.find('.section-header')[0];
-            const targetHeader = targetSection.find('.section-header')[0];
-
-            if (sourceHeader && targetHeader) {
-              targetHeader.components().reset();
-              sourceHeader.components().forEach((comp) => {
-                targetHeader.append(comp.clone());
-              });
-              console.log(`✅ Copied header content to new section on page ${targetPageIndex}`);
-            }
-            break;
-          }
+      // ✅ STEP 1: Get the source section's count BEFORE any operations
+      let sourceSectionCount = null;
+      const firstComponent = originalFirstComponent;
+      if (firstComponent) {
+        const sourceSection = firstComponent.closest && firstComponent.closest('.sections-container');
+        if (sourceSection) {
+          sourceSectionCount = sourceSection.getAttributes && sourceSection.getAttributes()['data-section-count'];
+          console.log(`📦 Source section count: ${sourceSectionCount}`);
         }
       }
 
-      console.log(`✅ Created section on page ${targetPageIndex} with preserved count: ${sourceSectionCount}`);
-      // Wait for section to be created in DOM
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    } else if (targetSection) {
-      // ✅ Verify existing section has correct count
-      const existingCount = targetSection.getAttributes && targetSection.getAttributes()['data-section-count'];
-      console.log(`✅ Section already exists with count: ${existingCount}`);
+      // Wait for DOM to stabilize
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
-      // If count doesn't match and we have source count, update it
-      if (sourceSectionCount && existingCount !== sourceSectionCount) {
-        console.log(`🔄 Updating section count from ${existingCount} to ${sourceSectionCount}`);
-        targetSection.addAttributes({
-          'data-section-count': sourceSectionCount
-        });
-      }
-    }
+      // ✅ STEP 2: Check if target page needs sections container
+      let targetSection = targetContentArea.find('.sections-container')[0];
 
-    // ✅ STEP 3: Determine final target (section-content or main-content-area)
-    let finalTarget = targetContentArea;
+      if (!targetSection && sourceSectionCount) {
+        console.log(`🏗️ Creating section container BEFORE moving content...`);
 
-    if (targetSection) {
-      const sectionContent = targetSection.find('.section-content')[0];
-      if (sectionContent) {
-        finalTarget = sectionContent;
-        console.log(`✅ Using '.section-content' as target on page ${targetPageIndex}`);
-      } else {
-        const namedContent = targetSection.components()
-          .find((c) => c.get('name') === 'Content' || c.get('name') === 'section Content');
-        if (namedContent) {
-          finalTarget = namedContent;
-          console.log(`✅ Using named 'Content' section as target on page ${targetPageIndex}`);
-        }
-      }
-    }
-
-    targetContentArea = finalTarget;
-
-    // ✅ STEP 4: Now move components to the prepared target
-    // Temporarily disconnect observer
-    const observer = this.pageObservers.get(targetPageIndex);
-    if (observer) observer.disconnect();
-
-    let moved = 0;
-
-    // === START: MAIN LOOP - iterate over extracted components ===
-    for (const [index, component] of actualComponentsToMove.entries()) {
-      if (!component) continue;
-
-      try {
-        const compEl = component.getEl && component.getEl();
-        const isTable =
-          compEl &&
-          (compEl.tagName === 'TABLE' || compEl.querySelector('table') !== null || compEl.classList.contains('json-table-container') || compEl.classList.contains('json-data-table'));
-
-        // ✅ ADD: Special handling flag for subreport-extracted content
-        const isFromSubreport = (component.getAttributes && component.getAttributes()['data-subreport-content'] === 'true') || false;
-        if (isFromSubreport) {
-          console.log(`📄 Moving subreport content: ${component.get('tagName') || 'unknown'}`);
-        }
-
-        // ------------------ Handle table components ------------------
-        if (isTable) {
-          console.log(`📊 Handling table component ${index}`);
-
-          const attrs = component.getAttributes && component.getAttributes();
-          const isSplitTable = attrs && (attrs['data-split-table'] === 'continuation' || attrs['data-continuation-table'] === 'true');
-
-          const copyHeaderAttr = attrs && attrs['data-copy-header'];
-          const shouldRemoveHeader = copyHeaderAttr === 'false';
-
-          let dtData = null;
-          const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
-
-          if (!isSplitTable && tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
-            const dt = $(tableEl).DataTable();
-            dtData = {
-              data: dt.rows().data().toArray(),
-              columns: dt.settings()[0].aoColumns,
-              order: dt.order()
-            };
-            dt.destroy();
-            console.log('📦 Preserved DataTable state');
+        // Create section container with SAME count (autopagination)
+        targetSection = targetContentArea.append({
+          type: 'Sections',
+          attributes: {
+            'data-section-count': sourceSectionCount // ✅ Use same count
           }
+        })[0];
 
-          // ✅ Remove thead from component BEFORE getting HTML if user chose not to copy
-          if (shouldRemoveHeader) {
-            console.log('🗑️ Removing header from component before moving...');
-            const theadComp = component.find && component.find('thead') && component.find('thead')[0];
-            if (theadComp) {
-              theadComp.remove();
-              console.log('✅ Removed thead from GrapesJS component tree');
-            }
+        const allPages = wrapper.find('.page-container');
+        for (let page of allPages) {
+          const existingSection = page.find('.sections-container')[0];
+          if (existingSection) {
+            const existingCount = existingSection.getAttributes && existingSection.getAttributes()['data-section-count'];
+            if (existingCount === sourceSectionCount && existingSection !== targetSection) {
+              // Found source section - copy header
+              const sourceHeader = existingSection.find('.section-header')[0];
+              const targetHeader = targetSection.find('.section-header')[0];
 
-            // Also remove from DOM
-            if (tableEl) {
-              const theadEl = tableEl.querySelector('thead');
-              if (theadEl) {
-                theadEl.remove();
-                console.log('✅ Removed thead from DOM');
-              }
-            }
-          }
-
-          const fullHTML = component.toHTML();
-          component.remove();
-
-          const newComponent = targetContentArea.append(fullHTML)[0];
-          const componentType = component.get && component.get('type');
-          const isSubreport = componentType === 'subreport';
-          const sharePageNumber = component.getAttributes && component.getAttributes().sharePageNumber;
-
-          if (isSubreport && sharePageNumber === false) {
-            // Mark this page as subreport page that should skip numbering
-            const targetPageSettings = this.pageSettings.pages[targetPageIndex];
-            if (targetPageSettings) {
-              targetPageSettings.isSubreportPage = true;
-              targetPageSettings.skipPageNumber = true;
-              console.log(`🏷️ Page ${targetPageIndex + 1} marked as subreport page (skip numbering)`);
-            }
-          }
-
-          console.log('🧩 New table component added:', newComponent?.getId?.() || '(unknown)');
-
-          // Primary setup for table cells
-          setTimeout(() => {
-            const newEl = newComponent.getEl && newComponent.getEl();
-            if (!newEl) {
-              console.warn('⚠️ newComponent element not yet available');
-              return;
-            }
-
-            const tableEl = newEl.querySelector('table') || newEl;
-            if (!tableEl) {
-              console.warn('⚠️ No <table> element found inside new component!');
-              return;
-            }
-
-            console.log('✅ Found table element:', tableEl.id);
-
-            // ✅ CRITICAL: Double-check header removal in new component
-            if (shouldRemoveHeader) {
-              const theadComp = newComponent.find && newComponent.find('thead') && newComponent.find('thead')[0];
-              if (theadComp) {
-                console.log('🗑️ Removing thead from new component (double-check)');
-                theadComp.remove();
-              }
-
-              const theadEl = tableEl.querySelector('thead');
-              if (theadEl) {
-                console.log('🗑️ Removing thead from new DOM (double-check)');
-                theadEl.remove();
-              }
-
-              // Force component update
-              if (newComponent.view && newComponent.view.render) {
-                newComponent.view.render();
-              }
-            }
-
-            // ✅ Reattach DOM cell editability
-            const tdCells = tableEl.querySelectorAll('td, th');
-            tdCells.forEach((cell) => {
-              cell.setAttribute('contenteditable', 'true');
-            });
-
-            // ✅ Reattach GrapesJS model editability for cell components
-            const cellComponents = newComponent.find && newComponent.find('td, th');
-            (cellComponents || []).forEach((cellComp) => {
-              try {
-                cellComp.addAttributes({ contenteditable: 'true' });
-                cellComp.set({ editable: true });
-              } catch (e) {
-                // ignore
-              }
-            });
-
-            console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${(cellComponents || []).length} model cells.`);
-
-            // ✅ Reattach cell handlers
-            const pageSetupManager = this.editor.get('PageSetupManager');
-            if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
-              const tableId = tableEl.id;
-              if (tableId) {
-                pageSetupManager.reattachAllCellHandlers(tableId);
-                console.log(`✅ Reattached all cell handlers for table: ${tableId}`);
-              }
-            }
-
-            // DataTable reinitialization
-            if (dtData) {
-              const newTableEl = newEl.querySelector('table') || newEl;
-              if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
-                $(newTableEl).DataTable({
-                  data: dtData.data,
-                  columns: dtData.columns,
-                  order: dtData.order,
-                  paging: false,
-                  searching: false,
-                  info: false
+              if (sourceHeader && targetHeader) {
+                targetHeader.components().reset();
+                sourceHeader.components().forEach((comp) => {
+                  targetHeader.append(comp.clone());
                 });
-                console.log('🔁 Reinitialized DataTable');
+                console.log(`✅ Copied header content to new section on page ${targetPageIndex}`);
               }
-            } else {
-              const newTableEl = newEl.querySelector('table') || newEl;
-              if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
-                if ($.fn.DataTable.isDataTable(newTableEl)) {
-                  $(newTableEl).DataTable().destroy();
-                }
-                $(newTableEl).DataTable({
-                  paging: false,
-                  searching: false,
-                  ordering: false,
-                  info: false
-                });
-                console.log('🔁 Initialized new DataTable on moved/continuation table');
-              }
+              break;
             }
-          }, 400);
-
-          // Copy data-* attributes
-          if (newComponent) {
-            setTimeout(() => {
-              const newTableEl = newComponent.getEl && newComponent.getEl();
-              if (newTableEl) {
-                const allCells = newTableEl.querySelectorAll('td, th');
-                allCells.forEach((cell) => {
-                  if (!cell.hasAttribute('contenteditable')) {
-                    cell.setAttribute('contenteditable', 'true');
-                  }
-
-                  const originalCell = compEl.querySelector && compEl.querySelector(`#${cell.id}`);
-                  if (originalCell) {
-                    Array.from(originalCell.attributes).forEach((attr) => {
-                      if (attr.name.startsWith('data-')) {
-                        cell.setAttribute(attr.name, attr.value);
-                      }
-                    });
-                  }
-                });
-              }
-            }, 300);
-
-            moved++;
-            console.log(`✅ Moved table component ${index} with editability preserved`);
           }
-
-          continue;
         }
-        // ------------------ End table handling ------------------
 
-        // ✅ Regular component logic
-        const clonedComponent = component.clone && component.clone();
-        const fullHTML = component.toHTML && component.toHTML();
+        console.log(`✅ Created section on page ${targetPageIndex} with preserved count: ${sourceSectionCount}`);
+        // Wait for section to be created in DOM
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      } else if (targetSection) {
+        // ✅ Verify existing section has correct count
+        const existingCount = targetSection.getAttributes && targetSection.getAttributes()['data-section-count'];
+        console.log(`✅ Section already exists with count: ${existingCount}`);
 
-        const sourceEl = component.getEl && component.getEl();
-        let computedStyles = {};
-        if (sourceEl) {
-          const computed = window.getComputedStyle(sourceEl);
-          const stylesToCapture = [
-            'display', 'position', 'width', 'height', 'margin', 'padding',
-            'border', 'background', 'color', 'font-family', 'font-size',
-            'font-weight', 'text-align', 'line-height', 'vertical-align',
-            'flex', 'flex-direction', 'justify-content', 'align-items',
-            'grid', 'grid-template-columns', 'grid-gap',
-            'overflow', 'white-space', 'word-wrap', 'text-overflow',
-            'box-sizing', 'z-index', 'opacity', 'transform'
-          ];
-          stylesToCapture.forEach((prop) => {
-            const value = computed.getPropertyValue(prop);
-            if (value && value !== 'none' && value !== 'normal') {
-              computedStyles[prop] = value;
-            }
+        // If count doesn't match and we have source count, update it
+        if (sourceSectionCount && existingCount !== sourceSectionCount) {
+          console.log(`🔄 Updating section count from ${existingCount} to ${sourceSectionCount}`);
+          targetSection.addAttributes({
+            'data-section-count': sourceSectionCount
           });
         }
-
-        const preservedData = {
-          html: fullHTML,
-          attributes: JSON.parse(JSON.stringify(component.getAttributes && component.getAttributes() || {})),
-          classes: [...(component.getClasses && component.getClasses() || [])],
-          style: JSON.parse(JSON.stringify(component.getStyle && component.getStyle() || {})),
-          computedStyles,
-          name: component.get('name'),
-          editable: component.get('editable')
-        };
-
-        const parent = component.parent && component.parent();
-        component.remove && component.remove();
-        if (parent && parent.components && parent.components().length === 0 && parent.getEl && parent.getEl() && parent.getEl().innerHTML.trim() === '') {
-          console.log('🗑️ Removing empty parent container');
-          parent.remove && parent.remove();
-        }
-
-        try {
-          targetContentArea.components().add(clonedComponent, { at: 0 });
-          moved++;
-          console.log(`✅ Moved cloned component ${index}`);
-          continue;
-        } catch (cloneError) {
-          console.warn('⚠️ Clone failed, using HTML reconstruction:', cloneError);
-        }
-
-        try {
-          const newComponent = targetContentArea.append(preservedData.html)[0];
-          if (newComponent) {
-            const combinedStyles = { ...preservedData.computedStyles, ...preservedData.style };
-            newComponent.setStyle && newComponent.setStyle(combinedStyles);
-            newComponent.addAttributes && newComponent.addAttributes(preservedData.attributes);
-            newComponent.setClass && newComponent.setClass(preservedData.classes);
-            newComponent.set && newComponent.set({ editable: preservedData.editable });
-            moved++;
-            console.log(`✅ Moved reconstructed component ${index} with styles`);
-          }
-        } catch (reconstructError) {
-          console.error(`❌ Failed to reconstruct component ${index}:`, reconstructError);
-        }
-
-      } catch (err) {
-        console.error(`❌ Error moving component ${index}:`, err);
       }
+
+      // ✅ STEP 3: Determine final target (section-content or main-content-area)
+      let finalTarget = targetContentArea;
+
+      if (targetSection) {
+        const sectionContent = targetSection.find('.section-content')[0];
+        if (sectionContent) {
+          finalTarget = sectionContent;
+          console.log(`✅ Using '.section-content' as target on page ${targetPageIndex}`);
+        } else {
+          const namedContent = targetSection.components()
+            .find((c) => c.get('name') === 'Content' || c.get('name') === 'section Content');
+          if (namedContent) {
+            finalTarget = namedContent;
+            console.log(`✅ Using named 'Content' section as target on page ${targetPageIndex}`);
+          }
+        }
+      }
+
+      targetContentArea = finalTarget;
+
+      // ✅ STEP 4: Now move components to the prepared target
+      // Temporarily disconnect observer
+      const observer = this.pageObservers.get(targetPageIndex);
+      if (observer) observer.disconnect();
+
+      let moved = 0;
+
+      // === START: MAIN LOOP - iterate over extracted components ===
+      for (const [index, component] of actualComponentsToMove.entries()) {
+        if (!component) continue;
+
+        try {
+          const compEl = component.getEl && component.getEl();
+          const isTable =
+            compEl &&
+            (compEl.tagName === 'TABLE' || compEl.querySelector('table') !== null || compEl.classList.contains('json-table-container') || compEl.classList.contains('json-data-table'));
+
+          // ✅ ADD: Special handling flag for subreport-extracted content
+          const isFromSubreport = (component.getAttributes && component.getAttributes()['data-subreport-content'] === 'true') || false;
+          if (isFromSubreport) {
+            console.log(`📄 Moving subreport content: ${component.get('tagName') || 'unknown'}`);
+          }
+
+          // ------------------ Handle table components ------------------
+          if (isTable) {
+            console.log(`📊 Handling table component ${index}`);
+
+            const attrs = component.getAttributes && component.getAttributes();
+            const isSplitTable = attrs && (attrs['data-split-table'] === 'continuation' || attrs['data-continuation-table'] === 'true');
+
+            const copyHeaderAttr = attrs && attrs['data-copy-header'];
+            const shouldRemoveHeader = copyHeaderAttr === 'false';
+
+            let dtData = null;
+            const tableEl = compEl.tagName === 'TABLE' ? compEl : compEl.querySelector('table');
+
+            if (!isSplitTable && tableEl && typeof $ !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable(tableEl)) {
+              const dt = $(tableEl).DataTable();
+              dtData = {
+                data: dt.rows().data().toArray(),
+                columns: dt.settings()[0].aoColumns,
+                order: dt.order()
+              };
+              dt.destroy();
+              console.log('📦 Preserved DataTable state');
+            }
+
+            // ✅ Remove thead from component BEFORE getting HTML if user chose not to copy
+            if (shouldRemoveHeader) {
+              console.log('🗑️ Removing header from component before moving...');
+              const theadComp = component.find && component.find('thead') && component.find('thead')[0];
+              if (theadComp) {
+                theadComp.remove();
+                console.log('✅ Removed thead from GrapesJS component tree');
+              }
+
+              // Also remove from DOM
+              if (tableEl) {
+                const theadEl = tableEl.querySelector('thead');
+                if (theadEl) {
+                  theadEl.remove();
+                  console.log('✅ Removed thead from DOM');
+                }
+              }
+            }
+
+            const fullHTML = component.toHTML();
+            component.remove();
+
+            const newComponent = targetContentArea.append(fullHTML)[0];
+            const componentType = component.get && component.get('type');
+            const isSubreport = componentType === 'subreport';
+            const sharePageNumber = component.getAttributes && component.getAttributes().sharePageNumber;
+
+            if (isSubreport && sharePageNumber === false) {
+              // Mark this page as subreport page that should skip numbering
+              const targetPageSettings = this.pageSettings.pages[targetPageIndex];
+              if (targetPageSettings) {
+                targetPageSettings.isSubreportPage = true;
+                targetPageSettings.skipPageNumber = true;
+                console.log(`🏷️ Page ${targetPageIndex + 1} marked as subreport page (skip numbering)`);
+              }
+            }
+
+            console.log('🧩 New table component added:', newComponent?.getId?.() || '(unknown)');
+
+            // Primary setup for table cells
+            setTimeout(() => {
+              const newEl = newComponent.getEl && newComponent.getEl();
+              if (!newEl) {
+                console.warn('⚠️ newComponent element not yet available');
+                return;
+              }
+
+              const tableEl = newEl.querySelector('table') || newEl;
+              if (!tableEl) {
+                console.warn('⚠️ No <table> element found inside new component!');
+                return;
+              }
+
+              console.log('✅ Found table element:', tableEl.id);
+
+              // ✅ CRITICAL: Double-check header removal in new component
+              if (shouldRemoveHeader) {
+                const theadComp = newComponent.find && newComponent.find('thead') && newComponent.find('thead')[0];
+                if (theadComp) {
+                  console.log('🗑️ Removing thead from new component (double-check)');
+                  theadComp.remove();
+                }
+
+                const theadEl = tableEl.querySelector('thead');
+                if (theadEl) {
+                  console.log('🗑️ Removing thead from new DOM (double-check)');
+                  theadEl.remove();
+                }
+
+                // Force component update
+                if (newComponent.view && newComponent.view.render) {
+                  newComponent.view.render();
+                }
+              }
+
+              // ✅ Reattach DOM cell editability
+              const tdCells = tableEl.querySelectorAll('td, th');
+              tdCells.forEach((cell) => {
+                cell.setAttribute('contenteditable', 'true');
+              });
+
+              // ✅ Reattach GrapesJS model editability for cell components
+              const cellComponents = newComponent.find && newComponent.find('td, th');
+              (cellComponents || []).forEach((cellComp) => {
+                try {
+                  cellComp.addAttributes({ contenteditable: 'true' });
+                  cellComp.set({ editable: true });
+                } catch (e) {
+                  // ignore
+                }
+              });
+
+              console.log(`✅ Table editable setup complete — ${tdCells.length} DOM cells, ${(cellComponents || []).length} model cells.`);
+
+              // ✅ Reattach cell handlers
+              const pageSetupManager = this.editor.get('PageSetupManager');
+              if (pageSetupManager && typeof pageSetupManager.reattachAllCellHandlers === 'function') {
+                const tableId = tableEl.id;
+                if (tableId) {
+                  pageSetupManager.reattachAllCellHandlers(tableId);
+                  console.log(`✅ Reattached all cell handlers for table: ${tableId}`);
+                }
+              }
+
+              // DataTable reinitialization
+              if (dtData) {
+                const newTableEl = newEl.querySelector('table') || newEl;
+                if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+                  $(newTableEl).DataTable({
+                    data: dtData.data,
+                    columns: dtData.columns,
+                    order: dtData.order,
+                    paging: false,
+                    searching: false,
+                    info: false
+                  });
+                  console.log('🔁 Reinitialized DataTable');
+                }
+              } else {
+                const newTableEl = newEl.querySelector('table') || newEl;
+                if (newTableEl && typeof $ !== 'undefined' && $.fn.DataTable) {
+                  if ($.fn.DataTable.isDataTable(newTableEl)) {
+                    $(newTableEl).DataTable().destroy();
+                  }
+                  $(newTableEl).DataTable({
+                    paging: false,
+                    searching: false,
+                    ordering: false,
+                    info: false
+                  });
+                  console.log('🔁 Initialized new DataTable on moved/continuation table');
+                }
+              }
+            }, 400);
+
+            // Copy data-* attributes
+            if (newComponent) {
+              setTimeout(() => {
+                const newTableEl = newComponent.getEl && newComponent.getEl();
+                if (newTableEl) {
+                  const allCells = newTableEl.querySelectorAll('td, th');
+                  allCells.forEach((cell) => {
+                    if (!cell.hasAttribute('contenteditable')) {
+                      cell.setAttribute('contenteditable', 'true');
+                    }
+
+                    const originalCell = compEl.querySelector && compEl.querySelector(`#${cell.id}`);
+                    if (originalCell) {
+                      Array.from(originalCell.attributes).forEach((attr) => {
+                        if (attr.name.startsWith('data-')) {
+                          cell.setAttribute(attr.name, attr.value);
+                        }
+                      });
+                    }
+                  });
+                }
+              }, 300);
+
+              moved++;
+              console.log(`✅ Moved table component ${index} with editability preserved`);
+            }
+
+            continue;
+          }
+          // ------------------ End table handling ------------------
+
+          // ✅ Regular component logic
+          const clonedComponent = component.clone && component.clone();
+          const fullHTML = component.toHTML && component.toHTML();
+
+          const sourceEl = component.getEl && component.getEl();
+          let computedStyles = {};
+          if (sourceEl) {
+            const computed = window.getComputedStyle(sourceEl);
+            const stylesToCapture = [
+              'display', 'position', 'width', 'height', 'margin', 'padding',
+              'border', 'background', 'color', 'font-family', 'font-size',
+              'font-weight', 'text-align', 'line-height', 'vertical-align',
+              'flex', 'flex-direction', 'justify-content', 'align-items',
+              'grid', 'grid-template-columns', 'grid-gap',
+              'overflow', 'white-space', 'word-wrap', 'text-overflow',
+              'box-sizing', 'z-index', 'opacity', 'transform'
+            ];
+            stylesToCapture.forEach((prop) => {
+              const value = computed.getPropertyValue(prop);
+              if (value && value !== 'none' && value !== 'normal') {
+                computedStyles[prop] = value;
+              }
+            });
+          }
+
+          const preservedData = {
+            html: fullHTML,
+            attributes: JSON.parse(JSON.stringify(component.getAttributes && component.getAttributes() || {})),
+            classes: [...(component.getClasses && component.getClasses() || [])],
+            style: JSON.parse(JSON.stringify(component.getStyle && component.getStyle() || {})),
+            computedStyles,
+            name: component.get('name'),
+            editable: component.get('editable')
+          };
+
+          const parent = component.parent && component.parent();
+          component.remove && component.remove();
+          if (parent && parent.components && parent.components().length === 0 && parent.getEl && parent.getEl() && parent.getEl().innerHTML.trim() === '') {
+            console.log('🗑️ Removing empty parent container');
+            parent.remove && parent.remove();
+          }
+
+          try {
+            targetContentArea.components().add(clonedComponent, { at: 0 });
+            moved++;
+            console.log(`✅ Moved cloned component ${index}`);
+            continue;
+          } catch (cloneError) {
+            console.warn('⚠️ Clone failed, using HTML reconstruction:', cloneError);
+          }
+
+          try {
+            const newComponent = targetContentArea.append(preservedData.html)[0];
+            if (newComponent) {
+              const combinedStyles = { ...preservedData.computedStyles, ...preservedData.style };
+              newComponent.setStyle && newComponent.setStyle(combinedStyles);
+              newComponent.addAttributes && newComponent.addAttributes(preservedData.attributes);
+              newComponent.setClass && newComponent.setClass(preservedData.classes);
+              newComponent.set && newComponent.set({ editable: preservedData.editable });
+              moved++;
+              console.log(`✅ Moved reconstructed component ${index} with styles`);
+            }
+          } catch (reconstructError) {
+            console.error(`❌ Failed to reconstruct component ${index}:`, reconstructError);
+          }
+
+        } catch (err) {
+          console.error(`❌ Error moving component ${index}:`, err);
+        }
+      }
+      // === END: MAIN LOOP ===
+
+      // Reconnect observer
+      setTimeout(() => {
+        this.setupPageObserver(targetPageIndex);
+      }, 300);
+
+      return moved > 0;
+    } catch (error) {
+      console.error('❌ Error in moveComponentsToPage:', error);
+      return false;
     }
-    // === END: MAIN LOOP ===
-
-    // Reconnect observer
-    setTimeout(() => {
-      this.setupPageObserver(targetPageIndex);
-    }, 300);
-
-    return moved > 0;
-  } catch (error) {
-    console.error('❌ Error in moveComponentsToPage:', error);
-    return false;
   }
-}
 
 
 
@@ -2576,7 +2570,15 @@ async moveComponentsToPage(components, targetPageIndex) {
         }
 
         // Subtract header/footer and padding
-        maxHeight = mainContentHeight - headerHeight - footerHeight - 40;
+        console.log("📐 MAIN CONTENT DIMENSIONS (before maxHeight calc)");
+        console.log("   mainContentHeight:", mainContentHeight);
+        console.log("   headerHeight:", headerHeight);
+        console.log("   footerHeight:", footerHeight);
+
+        maxHeight = mainContentHeight - headerHeight - footerHeight - 35;
+
+        console.log("📏 Calculated maxHeight:", maxHeight);
+
 
         // ✅ Apply conditional break to section content
         if (conditionalBreakPosition !== null) {
@@ -2601,14 +2603,28 @@ async moveComponentsToPage(components, targetPageIndex) {
 
     // 🔹 Step 5: Check overflow conditions
     const hasScrollOverflow = contentHeight > maxHeight;
+    console.log("📏 contentHeight:", contentHeight, " maxHeight:", maxHeight, " => hasScrollOverflow:", hasScrollOverflow);
+
     const hasVisualOverflow = this.checkDeepVisualOverflow(contentEl, maxHeight);
+    console.log("👁️ hasVisualOverflow:", hasVisualOverflow, " element:", contentEl);
+
     const hasTextOverflow = this.checkTextOverflow(contentEl);
+    console.log("🔤 hasTextOverflow:", hasTextOverflow, " element:", contentEl);
 
     const needsPagination =
       contentHeight > maxHeight ||
       hasScrollOverflow ||
       hasVisualOverflow ||
       hasTextOverflow;
+
+    console.log("🧩 needsPagination:", needsPagination, {
+      contentHeight,
+      maxHeight,
+      hasScrollOverflow,
+      hasVisualOverflow,
+      hasTextOverflow
+    });
+
 
     // 🔹 Step 6: Trigger pagination if needed
     if (needsPagination) {
@@ -3490,11 +3506,13 @@ async moveComponentsToPage(components, targetPageIndex) {
 
   setupStrictBoundaryEnforcement() {
     const editor = this.editor;
-    const domc = editor.DomComponents;
-    const canvasBody = editor.Canvas.getBody();
 
-    // 1️⃣ Prevent components from being created outside main-content-area
+    /* ---------------------------------------------
+     * 1️⃣ Prevent component creation outside page
+     * --------------------------------------------- */
     editor.on('component:create', (component) => {
+      if (!component || !component.getEl) return;   // <-- prevents undefined crash
+
       const el = component.getEl();
       if (!el) return;
 
@@ -3502,44 +3520,64 @@ async moveComponentsToPage(components, targetPageIndex) {
       const insidePage = el.closest('.page-container');
 
       if (!insideMain || !insidePage) {
-        console.warn('🚫 Blocked component creation outside page boundaries');
-        component.remove(); // instantly remove
+        console.warn("🚫 Blocked component creation outside page boundaries");
+        component.remove();
       }
     });
 
-    // 2️⃣ Reject drag drops before they happen
+    /* ---------------------------------------------
+     * 2️⃣ STOP drag over invalid zones (prevents drop)
+     * --------------------------------------------- */
     editor.on('drag:drag', (dragData) => {
       const target = dragData?.target;
-      const validTarget = target?.closest?.('.main-content-area');
-      if (!validTarget) {
-        dragData.abort = true; // stops GrapesJS drag logic
-        console.warn('🚫 Drop prevented outside main-content-area');
+      if (!target) return;
+
+      const insideMain = target.closest?.('.main-content-area');
+
+      if (!insideMain) {
+        dragData.abort = true;
+        console.warn("🚫 Drop prevented during drag (not a valid area)");
       }
     });
 
-    // 3️⃣ Re-check on drop event (fallback)
+    /* ---------------------------------------------
+     * 3️⃣ Final validation INSIDE IFRAME on drop 
+     * (this was causing your issue)
+     * --------------------------------------------- */
     editor.on('canvas:drop', (data) => {
-      const droppedEl = data?.target?.closest?.('.main-content-area');
-      if (!droppedEl) {
-        console.warn('🚫 Drop rejected — outside any page');
-        if (data?.component) data.component.remove();
+      const iframeDoc = editor.Canvas.getDocument();
+      const targetEl = data?.target;
+
+      if (!targetEl) return;
+
+      const insideMain = targetEl.closest('.main-content-area');
+      const insidePage = targetEl.closest('.page-container');
+
+      if (!insideMain || !insidePage) {
+        console.warn("🚫 Drop rejected — outside any valid page area");
+        if (data.component) data.component.remove();
       }
     });
 
-    // 4️⃣ Mark main-content-area as the only droppable area
-    const allMainAreas = canvasBody.querySelectorAll('.page-container .main-content-area');
-    allMainAreas.forEach((el) => {
-      el.setAttribute('data-droppable', 'true');
-      el.style.position = 'relative';
-    });
+    /* ---------------------------------------------
+     * 4️⃣ Mark ONLY main-content-area as droppable
+     * --------------------------------------------- */
+    editor.on('load', () => {
+      const iframeBody = editor.Canvas.getBody();
 
-    // 5️⃣ Disable drops anywhere else
-    const allCanvasChildren = [...canvasBody.children];
-    allCanvasChildren.forEach((child) => {
-      if (!child.classList.contains('page-container')) {
-        child.removeAttribute('data-droppable');
-        child.setAttribute('data-droppable', 'false');
-      }
+      const allMainAreas = iframeBody.querySelectorAll('.page-container .main-content-area');
+      allMainAreas.forEach((el) => {
+        el.setAttribute('data-droppable', 'true');
+        el.style.position = 'relative';
+      });
+
+      /* Disable droppable for everything else */
+      const allElems = iframeBody.querySelectorAll('body *');
+      allElems.forEach((elem) => {
+        if (!elem.classList.contains('main-content-area')) {
+          elem.setAttribute('data-droppable', 'false');
+        }
+      });
     });
   }
 
@@ -6809,322 +6847,322 @@ padding: 8px;
     console.groupEnd();
   }
 
-applyPageElementsSettings() {
-  try {
-    const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled")?.checked || false;
-    const conditionalBreakDefaultDistance = parseFloat(document.getElementById("conditionalBreakDefaultDistance")?.value) || 50;
-    const conditionalBreakDefaultUnit = document.getElementById("conditionalBreakDefaultUnit")?.value || "mm";
+  applyPageElementsSettings() {
+    try {
+      const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled")?.checked || false;
+      const conditionalBreakDefaultDistance = parseFloat(document.getElementById("conditionalBreakDefaultDistance")?.value) || 50;
+      const conditionalBreakDefaultUnit = document.getElementById("conditionalBreakDefaultUnit")?.value || "mm";
 
-    // Collect all overrides from the form
-    const pageOverrides = {};
-    document.querySelectorAll('.page-break-override-item').forEach(item => {
-      const pageNum = item.getAttribute('data-page-num');
-      const distanceInput = item.querySelector('.override-distance');
-      const unitSelect = item.querySelector('.override-unit');
+      // Collect all overrides from the form
+      const pageOverrides = {};
+      document.querySelectorAll('.page-break-override-item').forEach(item => {
+        const pageNum = item.getAttribute('data-page-num');
+        const distanceInput = item.querySelector('.override-distance');
+        const unitSelect = item.querySelector('.override-unit');
 
-      if (distanceInput && unitSelect) {
-        pageOverrides[pageNum] = {
-          distance: parseFloat(distanceInput.value),
-          unit: unitSelect.value
-        };
-      }
-    });
+        if (distanceInput && unitSelect) {
+          pageOverrides[pageNum] = {
+            distance: parseFloat(distanceInput.value),
+            unit: unitSelect.value
+          };
+        }
+      });
 
-    // Store settings
-    // Store settings
-    this.pageSettings.conditionalPageBreak = {
-      enabled: conditionalBreakEnabled,
-      defaultDistance: conditionalBreakDefaultDistance,
-      defaultUnit: conditionalBreakDefaultUnit,
-      pageOverrides: pageOverrides
-    };
-    // 1️⃣ Preserve current page content
-    this.preserveAllContent();
-
-    // 2️⃣ Get all form values
-    const marginTop = Math.max(0, parseFloat(document.getElementById("settingsMarginTop")?.value) || 0);
-    const marginBottom = Math.max(0, parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0);
-    const marginLeft = Math.max(0, parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0);
-    const marginRight = Math.max(0, parseFloat(document.getElementById("settingsMarginRight")?.value) || 0);
-    const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff";
-
-    // ✅ Clear old background color reference
-    delete this._lastAppliedBackgroundColor;
-
-    // Force update background in pageSettings
-    this.pageSettings.backgroundColor = newBackgroundColor;
-    this.pageSettings.pages.forEach(page => {
-      page.backgroundColor = newBackgroundColor;
-    });
-
-    console.log(`✅ Background color set to: ${newBackgroundColor}`);
-
-    // --- Header settings ---
-    const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked !== false;
-    const headerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7));
-    const headerApplyMode = document.getElementById("headerApplyMode")?.value || "all";
-    const headerCustomPageList = document.getElementById("headerCustomPageList")?.value || "";
-    const headerText = document.getElementById("settingsHeaderText")?.value || "";
-
-    // --- Footer settings ---
-    const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked !== false;
-    const footerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7));
-    const footerApplyMode = document.getElementById("footerApplyMode")?.value || "all";
-    const footerCustomPageList = document.getElementById("footerCustomPageList")?.value || "";
-    const footerText = document.getElementById("settingsFooterText")?.value || "";
-
-    // --- Page Number settings ---
-    const pageNumberEnabled = document.getElementById("pageNumberEnabled")?.checked || false;
-    const pageNumberStartFrom = parseInt(document.getElementById("pageNumberStartFrom")?.value || "1", 10);
-    const pageNumberFormat = document.getElementById("pageNumberFormat")?.value || "Page {n}";
-    const pageNumberPosition = document.querySelector(".position-option.selected")?.dataset?.position || "bottom-center";
-    const storedPageNumber = this.pageSettings.pageNumber || {};
-    const pageNumberFontSize = storedPageNumber.fontSize || parseInt(document.getElementById("pageNumberFontSize")?.value || "8", 8);
-    const pageNumberColor = storedPageNumber.color || document.getElementById("pageNumberColor")?.value || "#333333";
-    const pageNumberBackgroundColor = storedPageNumber.backgroundColor || document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff";
-    const pageNumberShowBorder = storedPageNumber.showBorder !== undefined ? storedPageNumber.showBorder : (document.getElementById("pageNumberShowBorder")?.checked || false);
-
-    // --- Watermark settings ---
-    const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false;
-    const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset?.type || "text";
-    const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checked || false;
-
-    // Text watermark settings
-    const watermarkTextContent = document.getElementById("settingsWatermarkText")?.value || "CONFIDENTIAL";
-    const watermarkFontSize = parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
-    const watermarkColor = document.getElementById("settingsWatermarkColor")?.value || "#000000";
-    const watermarkOpacity = parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.4;
-    const watermarkRotation = parseInt(document.getElementById("settingsWatermarkRotation")?.value) || 0;
-    const watermarkTextPosition = document.querySelector(".watermark-text-position-option.selected")?.dataset?.position || "center";
-
-    // Image watermark settings
-    const watermarkImageUrl = document.getElementById("settingsWatermarkImageUrl")?.value || "";
-    const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
-    const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
-    const watermarkImageOpacity = parseInt(document.getElementById("settingsWatermarkImageOpacity")?.value) / 100 || 0.4;
-    const watermarkImageRotation = parseInt(document.getElementById("settingsWatermarkImageRotation")?.value) || 0;
-    const watermarkImagePosition = document.querySelector(".watermark-image-position-option.selected")?.dataset?.position || "center";
-
-    // --- Parse custom page lists ---
-    const headerCustomPages = this.parsePageList(headerCustomPageList);
-    const footerCustomPages = this.parsePageList(footerCustomPageList);
-
-    const pageNumberRotation = parseInt(document.getElementById("pageNumberRotation")?.value || "0", 10);
-
-    // --- Store settings for persistence ---
-    this._lastHeaderApplyMode = headerApplyMode;
-    this._lastFooterApplyMode = footerApplyMode;
-    this._lastHeaderCustomPageList = headerCustomPageList;
-    this._lastFooterCustomPageList = footerCustomPageList;
-    this._lastHeaderCustomPages = headerCustomPages;
-    this._lastFooterCustomPages = footerCustomPages;
-
-    // --- Update global page settings ---
-    this.pageSettings.headerFooter = {
-      headerEnabled,
-      footerEnabled,
-      headerHeight,
-      footerHeight,
-      headerText,
-      footerText,
-      headerApplyMode,
-      footerApplyMode,
-      headerCustomPages,
-      footerCustomPages
-    };
-
-    this.pageSettings.margins = {
-      top: marginTop,
-      bottom: marginBottom,
-      left: marginLeft,
-      right: marginRight
-    };
-
-    this.pageSettings.backgroundColor = newBackgroundColor;
-    this.updatePageRule();
-
-
-    this.pageSettings.pageNumber = {
-      enabled: pageNumberEnabled,
-      startFrom: pageNumberStartFrom,
-      format: pageNumberFormat,
-      position: pageNumberPosition,
-      fontSize: pageNumberFontSize,
-      fontFamily: storedPageNumber.fontFamily || "Arial",
-      color: pageNumberColor,
-      backgroundColor: pageNumberBackgroundColor,
-      showBorder: pageNumberShowBorder,
-      rotation: pageNumberRotation,
-      visibility: storedPageNumber.visibility || "all",
-    };
-
-    // Store watermark settings with separate positions for text and image
-    this.pageSettings.watermark = {
-      enabled: watermarkEnabled,
-      type: watermarkType,
-      tiled: watermarkTiled,
-      textPosition: watermarkTextPosition,    // Separate position for text
-      imagePosition: watermarkImagePosition,  // Separate position for image
-      text: {
-        content: watermarkTextContent,
-        fontSize: watermarkFontSize,
-        color: watermarkColor,
-        opacity: watermarkOpacity,
-        rotation: watermarkRotation
-      },
-      image: {
-        url: watermarkImageUrl,
-        width: watermarkImageWidth,
-        height: watermarkImageHeight,
-        opacity: watermarkImageOpacity,
-        rotation: watermarkImageRotation
-      }
-    };
-
-    // Apply conditional page breaks to existing pages immediately
-    if (conditionalBreakEnabled) {
-      console.log('🔄 Applying conditional breaks to existing pages...');
-
-      // ✅ FIX: Use the correct property path
-      const settingsToLog = {
-        enabled: this.pageSettings.conditionalPageBreak.enabled,
-        defaultDistance: this.pageSettings.conditionalPageBreak.defaultDistance,
-        defaultUnit: this.pageSettings.conditionalPageBreak.defaultUnit,
-        pageOverrides: this.pageSettings.conditionalPageBreak.pageOverrides
+      // Store settings
+      // Store settings
+      this.pageSettings.conditionalPageBreak = {
+        enabled: conditionalBreakEnabled,
+        defaultDistance: conditionalBreakDefaultDistance,
+        defaultUnit: conditionalBreakDefaultUnit,
+        pageOverrides: pageOverrides
       };
-      console.log('Settings:', JSON.stringify(settingsToLog, null, 2));
+      // 1️⃣ Preserve current page content
+      this.preserveAllContent();
 
-      setTimeout(() => {
-        this.removeAllConditionalPageBreaks();
+      // 2️⃣ Get all form values
+      const marginTop = Math.max(0, parseFloat(document.getElementById("settingsMarginTop")?.value) || 0);
+      const marginBottom = Math.max(0, parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0);
+      const marginLeft = Math.max(0, parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0);
+      const marginRight = Math.max(0, parseFloat(document.getElementById("settingsMarginRight")?.value) || 0);
+      const newBackgroundColor = document.getElementById("settingsPageBackgroundColor")?.value || "#ffffff";
+
+      // ✅ Clear old background color reference
+      delete this._lastAppliedBackgroundColor;
+
+      // Force update background in pageSettings
+      this.pageSettings.backgroundColor = newBackgroundColor;
+      this.pageSettings.pages.forEach(page => {
+        page.backgroundColor = newBackgroundColor;
+      });
+
+      console.log(`✅ Background color set to: ${newBackgroundColor}`);
+
+      // --- Header settings ---
+      const headerEnabled = document.getElementById("settingsHeaderEnabled")?.checked !== false;
+      const headerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7));
+      const headerApplyMode = document.getElementById("headerApplyMode")?.value || "all";
+      const headerCustomPageList = document.getElementById("headerCustomPageList")?.value || "";
+      const headerText = document.getElementById("settingsHeaderText")?.value || "";
+
+      // --- Footer settings ---
+      const footerEnabled = document.getElementById("settingsFooterEnabled")?.checked !== false;
+      const footerHeight = Math.max(5, Math.min(50, parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7));
+      const footerApplyMode = document.getElementById("footerApplyMode")?.value || "all";
+      const footerCustomPageList = document.getElementById("footerCustomPageList")?.value || "";
+      const footerText = document.getElementById("settingsFooterText")?.value || "";
+
+      // --- Page Number settings ---
+      const pageNumberEnabled = document.getElementById("pageNumberEnabled")?.checked || false;
+      const pageNumberStartFrom = parseInt(document.getElementById("pageNumberStartFrom")?.value || "1", 10);
+      const pageNumberFormat = document.getElementById("pageNumberFormat")?.value || "Page {n}";
+      const pageNumberPosition = document.querySelector(".position-option.selected")?.dataset?.position || "bottom-center";
+      const storedPageNumber = this.pageSettings.pageNumber || {};
+      const pageNumberFontSize = storedPageNumber.fontSize || parseInt(document.getElementById("pageNumberFontSize")?.value || "8", 8);
+      const pageNumberColor = storedPageNumber.color || document.getElementById("pageNumberColor")?.value || "#333333";
+      const pageNumberBackgroundColor = storedPageNumber.backgroundColor || document.getElementById("pageNumberBackgroundColor")?.value || "#ffffff";
+      const pageNumberShowBorder = storedPageNumber.showBorder !== undefined ? storedPageNumber.showBorder : (document.getElementById("pageNumberShowBorder")?.checked || false);
+
+      // --- Watermark settings ---
+      const watermarkEnabled = document.getElementById("settingsWatermarkEnabled")?.checked || false;
+      const watermarkType = document.querySelector(".watermark-type-btn.active")?.dataset?.type || "text";
+      const watermarkTiled = document.getElementById("settingsWatermarkTiled")?.checked || false;
+
+      // Text watermark settings
+      const watermarkTextContent = document.getElementById("settingsWatermarkText")?.value || "CONFIDENTIAL";
+      const watermarkFontSize = parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
+      const watermarkColor = document.getElementById("settingsWatermarkColor")?.value || "#000000";
+      const watermarkOpacity = parseInt(document.getElementById("settingsWatermarkOpacity")?.value) / 100 || 0.4;
+      const watermarkRotation = parseInt(document.getElementById("settingsWatermarkRotation")?.value) || 0;
+      const watermarkTextPosition = document.querySelector(".watermark-text-position-option.selected")?.dataset?.position || "center";
+
+      // Image watermark settings
+      const watermarkImageUrl = document.getElementById("settingsWatermarkImageUrl")?.value || "";
+      const watermarkImageWidth = parseInt(document.getElementById("settingsWatermarkImageWidth")?.value) || 200;
+      const watermarkImageHeight = parseInt(document.getElementById("settingsWatermarkImageHeight")?.value) || 200;
+      const watermarkImageOpacity = parseInt(document.getElementById("settingsWatermarkImageOpacity")?.value) / 100 || 0.4;
+      const watermarkImageRotation = parseInt(document.getElementById("settingsWatermarkImageRotation")?.value) || 0;
+      const watermarkImagePosition = document.querySelector(".watermark-image-position-option.selected")?.dataset?.position || "center";
+
+      // --- Parse custom page lists ---
+      const headerCustomPages = this.parsePageList(headerCustomPageList);
+      const footerCustomPages = this.parsePageList(footerCustomPageList);
+
+      const pageNumberRotation = parseInt(document.getElementById("pageNumberRotation")?.value || "0", 10);
+
+      // --- Store settings for persistence ---
+      this._lastHeaderApplyMode = headerApplyMode;
+      this._lastFooterApplyMode = footerApplyMode;
+      this._lastHeaderCustomPageList = headerCustomPageList;
+      this._lastFooterCustomPageList = footerCustomPageList;
+      this._lastHeaderCustomPages = headerCustomPages;
+      this._lastFooterCustomPages = footerCustomPages;
+
+      // --- Update global page settings ---
+      this.pageSettings.headerFooter = {
+        headerEnabled,
+        footerEnabled,
+        headerHeight,
+        footerHeight,
+        headerText,
+        footerText,
+        headerApplyMode,
+        footerApplyMode,
+        headerCustomPages,
+        footerCustomPages
+      };
+
+      this.pageSettings.margins = {
+        top: marginTop,
+        bottom: marginBottom,
+        left: marginLeft,
+        right: marginRight
+      };
+
+      this.pageSettings.backgroundColor = newBackgroundColor;
+      this.updatePageRule();
+
+
+      this.pageSettings.pageNumber = {
+        enabled: pageNumberEnabled,
+        startFrom: pageNumberStartFrom,
+        format: pageNumberFormat,
+        position: pageNumberPosition,
+        fontSize: pageNumberFontSize,
+        fontFamily: storedPageNumber.fontFamily || "Arial",
+        color: pageNumberColor,
+        backgroundColor: pageNumberBackgroundColor,
+        showBorder: pageNumberShowBorder,
+        rotation: pageNumberRotation,
+        visibility: storedPageNumber.visibility || "all",
+      };
+
+      // Store watermark settings with separate positions for text and image
+      this.pageSettings.watermark = {
+        enabled: watermarkEnabled,
+        type: watermarkType,
+        tiled: watermarkTiled,
+        textPosition: watermarkTextPosition,    // Separate position for text
+        imagePosition: watermarkImagePosition,  // Separate position for image
+        text: {
+          content: watermarkTextContent,
+          fontSize: watermarkFontSize,
+          color: watermarkColor,
+          opacity: watermarkOpacity,
+          rotation: watermarkRotation
+        },
+        image: {
+          url: watermarkImageUrl,
+          width: watermarkImageWidth,
+          height: watermarkImageHeight,
+          opacity: watermarkImageOpacity,
+          rotation: watermarkImageRotation
+        }
+      };
+
+      // Apply conditional page breaks to existing pages immediately
+      if (conditionalBreakEnabled) {
+        console.log('🔄 Applying conditional breaks to existing pages...');
+
+        // ✅ FIX: Use the correct property path
+        const settingsToLog = {
+          enabled: this.pageSettings.conditionalPageBreak.enabled,
+          defaultDistance: this.pageSettings.conditionalPageBreak.defaultDistance,
+          defaultUnit: this.pageSettings.conditionalPageBreak.defaultUnit,
+          pageOverrides: this.pageSettings.conditionalPageBreak.pageOverrides
+        };
+        console.log('Settings:', JSON.stringify(settingsToLog, null, 2));
 
         setTimeout(() => {
-          this.insertConditionalPageBreaksToAllPages();
+          this.removeAllConditionalPageBreaks();
 
-          // Verify application
           setTimeout(() => {
-            const allPages = this.editor.getWrapper().find('.page-container');
-            allPages.forEach((page, idx) => {
-              const indicator = page.find('.conditional-break-indicator[data-conditional="true"]')[0];
-              if (indicator) {
-                const pageNum = idx + 1;
-                const override = this.pageSettings.conditionalPageBreak.pageOverrides?.[pageNum];
-                console.log(`✅ Page ${pageNum} has break indicator. Override:`, override || 'using default');
-              }
-            });
-          }, 500);
-        }, 200);
-      }, 500);
-    } else {
-      this.removeAllConditionalPageBreaks();
-    }
+            this.insertConditionalPageBreaksToAllPages();
 
-    this.logConditionalBreakSettings();
-    // --- Update individual page settings before setup ---
-    this.updateIndividualPageSettings();
-
-    // --- Apply background color immediately for live preview ---
-    this.applyBackgroundColorToPages(newBackgroundColor);
-
-    // --- Preserve content for mode switch ---
-// âœ… CRITICAL: Preserve ALL content BEFORE any changes
-this.preserveAllContent();
-this.preserveContentForModeSwitch();
-
-// âœ… Store main content separately to ensure it's not lost
-const mainContentBackup = new Map();
-const allPages = this.editor.getWrapper().find('.page-container');
-allPages.forEach((page, index) => {
-  const mainContent = page.find('.main-content-area')[0];
-  if (mainContent && mainContent.components().length > 0) {
-    mainContentBackup.set(index, {
-      components: mainContent.components().map(comp => ({
-        html: comp.toHTML(),
-        styles: comp.getStyle(),
-        attributes: comp.getAttributes(),
-        type: comp.get('type')
-      }))
-    });
-  }
-});
-
-// --- Setup pages ---
-this.setupEditorPages();
-
-// --- Restore content with extended timeout ---
-setTimeout(() => {
-  // âœ… First restore from main backup
-  this.restoreAllContent();
-  
-  // âœ… Then restore main content specifically
-  setTimeout(() => {
-    const newPages = this.editor.getWrapper().find('.page-container');
-    newPages.forEach((page, index) => {
-      const backup = mainContentBackup.get(index);
-      if (backup && backup.components) {
-        const mainContent = page.find('.main-content-area')[0];
-        if (mainContent) {
-          // Clear only if we have backup to restore
-          mainContent.components().reset();
-          
-          backup.components.forEach(compData => {
-            try {
-              const newComp = mainContent.append(compData.html)[0];
-              if (newComp) {
-                newComp.setStyle(compData.styles || {});
-                newComp.addAttributes(compData.attributes || {});
-              }
-            } catch (err) {
-              console.warn('Failed to restore component:', err);
-            }
-          });
-        }
+            // Verify application
+            setTimeout(() => {
+              const allPages = this.editor.getWrapper().find('.page-container');
+              allPages.forEach((page, idx) => {
+                const indicator = page.find('.conditional-break-indicator[data-conditional="true"]')[0];
+                if (indicator) {
+                  const pageNum = idx + 1;
+                  const override = this.pageSettings.conditionalPageBreak.pageOverrides?.[pageNum];
+                  console.log(`✅ Page ${pageNum} has break indicator. Override:`, override || 'using default');
+                }
+              });
+            }, 500);
+          }, 200);
+        }, 500);
+      } else {
+        this.removeAllConditionalPageBreaks();
       }
-    });
-    
-    // âœ… Restore mode-switch content
-    this.restoreContentAfterModeSwitch();
-    
-    // âœ… Update visuals
-    this.updateAllPageVisuals();
-    
-  }, 200);
-  
-}, 300);
 
-    // --- Re-apply background color after all visuals are rendered ---
-    setTimeout(() => {
+      this.logConditionalBreakSettings();
+      // --- Update individual page settings before setup ---
+      this.updateIndividualPageSettings();
+
+      // --- Apply background color immediately for live preview ---
       this.applyBackgroundColorToPages(newBackgroundColor);
 
-      // --- Apply conditional header/footer content ---
+      // --- Preserve content for mode switch ---
+      // âœ… CRITICAL: Preserve ALL content BEFORE any changes
+      this.preserveAllContent();
+      this.preserveContentForModeSwitch();
+
+      // âœ… Store main content separately to ensure it's not lost
+      const mainContentBackup = new Map();
+      const allPages = this.editor.getWrapper().find('.page-container');
+      allPages.forEach((page, index) => {
+        const mainContent = page.find('.main-content-area')[0];
+        if (mainContent && mainContent.components().length > 0) {
+          mainContentBackup.set(index, {
+            components: mainContent.components().map(comp => ({
+              html: comp.toHTML(),
+              styles: comp.getStyle(),
+              attributes: comp.getAttributes(),
+              type: comp.get('type')
+            }))
+          });
+        }
+      });
+
+      // --- Setup pages ---
+      this.setupEditorPages();
+
+      // --- Restore content with extended timeout ---
       setTimeout(() => {
-        this.applyConditionalHeaderFooterContent();
-        this.resetTextChangeFlags();
+        // âœ… First restore from main backup
+        this.restoreAllContent();
+
+        // âœ… Then restore main content specifically
+        setTimeout(() => {
+          const newPages = this.editor.getWrapper().find('.page-container');
+          newPages.forEach((page, index) => {
+            const backup = mainContentBackup.get(index);
+            if (backup && backup.components) {
+              const mainContent = page.find('.main-content-area')[0];
+              if (mainContent) {
+                // Clear only if we have backup to restore
+                mainContent.components().reset();
+
+                backup.components.forEach(compData => {
+                  try {
+                    const newComp = mainContent.append(compData.html)[0];
+                    if (newComp) {
+                      newComp.setStyle(compData.styles || {});
+                      newComp.addAttributes(compData.attributes || {});
+                    }
+                  } catch (err) {
+                    console.warn('Failed to restore component:', err);
+                  }
+                });
+              }
+            }
+          });
+
+          // âœ… Restore mode-switch content
+          this.restoreContentAfterModeSwitch();
+
+          // âœ… Update visuals
+          this.updateAllPageVisuals();
+
+        }, 200);
+
       }, 300);
 
-    }, 250);
-    // ✅ ADD: Force update section header/footer visibility after applying settings
-    setTimeout(() => {
-      this.updateAllSectionHeadersFooters();
+      // --- Re-apply background color after all visuals are rendered ---
+      setTimeout(() => {
+        this.applyBackgroundColorToPages(newBackgroundColor);
 
-      // Force re-render of all sections
-      const allPages = this.editor.getWrapper().find('.page-container');
-      allPages.forEach((pageComponent, i) => {
-        const sectionContainer = pageComponent.find('.sections-container')[0];
-        if (!sectionContainer) return;
+        // --- Apply conditional header/footer content ---
+        setTimeout(() => {
+          this.applyConditionalHeaderFooterContent();
+          this.resetTextChangeFlags();
+        }, 300);
 
-        // Update both header and footer for this page
-        this.updateSectionHeader(pageComponent, i);
-        this.updateSectionFooter(pageComponent, i);
-      });
-    }, 300);
-    // --- Close modal ---
-    this.editor.Modal.close();
+      }, 250);
+      // ✅ ADD: Force update section header/footer visibility after applying settings
+      setTimeout(() => {
+        this.updateAllSectionHeadersFooters();
 
-  } catch (err) {
-    console.error("❌ Error in applyPageElementsSettings:", err);
-    alert("Failed to apply settings.");
+        // Force re-render of all sections
+        const allPages = this.editor.getWrapper().find('.page-container');
+        allPages.forEach((pageComponent, i) => {
+          const sectionContainer = pageComponent.find('.sections-container')[0];
+          if (!sectionContainer) return;
+
+          // Update both header and footer for this page
+          this.updateSectionHeader(pageComponent, i);
+          this.updateSectionFooter(pageComponent, i);
+        });
+      }, 300);
+      // --- Close modal ---
+      this.editor.Modal.close();
+
+    } catch (err) {
+      console.error("❌ Error in applyPageElementsSettings:", err);
+      alert("Failed to apply settings.");
+    }
   }
-}
 
 
   convertToMm(value, unit) {
@@ -7151,7 +7189,7 @@ setTimeout(() => {
 
     console.log('✂️ Conditional page breaks inserted to all pages');
   }
-insertConditionalPageBreakToPage(pageComponent, pageIndex) {
+  insertConditionalPageBreakToPage(pageComponent, pageIndex) {
     if (!this.pageSettings.conditionalPageBreak?.enabled) return;
 
     const mainContentArea = pageComponent.find('.main-content-area')[0];
@@ -7628,27 +7666,27 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
   setupEditorPages() {
     try {
 
-          const wrapper = this.editor.getWrapper();
-    
-    // Clear ALL components including cached ones
-    wrapper.components().reset();
-    
-    // Force clear the canvas DOM
-    const canvasBody = this.editor.Canvas.getBody();
-    if (canvasBody) {
-      // Remove all page containers from DOM
-      const existingPages = canvasBody.querySelectorAll('.page-container');
-      existingPages.forEach(page => page.remove());
-    }
-    
-    // Clear page contents cache
-    this.pageContents.clear();
-    this.sharedContent = { header: null, footer: null };
-    
-    // Reset background color flags
-    delete this._lastAppliedBackgroundColor;
-    
-    console.log('✅ Canvas completely cleared');
+      const wrapper = this.editor.getWrapper();
+
+      // Clear ALL components including cached ones
+      wrapper.components().reset();
+
+      // Force clear the canvas DOM
+      const canvasBody = this.editor.Canvas.getBody();
+      if (canvasBody) {
+        // Remove all page containers from DOM
+        const existingPages = canvasBody.querySelectorAll('.page-container');
+        existingPages.forEach(page => page.remove());
+      }
+
+      // Clear page contents cache
+      this.pageContents.clear();
+      this.sharedContent = { header: null, footer: null };
+
+      // Reset background color flags
+      delete this._lastAppliedBackgroundColor;
+
+      console.log('✅ Canvas completely cleared');
       // Clear any existing observers before creating new pages
       this.clearAllObservers();
 
@@ -7669,16 +7707,16 @@ insertConditionalPageBreakToPage(pageComponent, pageIndex) {
       const mainContentAreaHeight = contentHeight - defaultHeaderHeight - defaultFooterHeight;
 
       // Clear existing pages
-// âœ… ONLY clear if no content needs preserving
-const hasExistingContent = this.pageContents.size > 0;
-if (!hasExistingContent) {
-  this.editor.getWrapper().components().reset();
-} else {
-  // Clear only page containers, preserve other content
-  const wrapper = this.editor.getWrapper();
-  const pageContainers = wrapper.find('.page-container');
-  pageContainers.forEach(page => page.remove());
-}
+      // âœ… ONLY clear if no content needs preserving
+      const hasExistingContent = this.pageContents.size > 0;
+      if (!hasExistingContent) {
+        this.editor.getWrapper().components().reset();
+      } else {
+        // Clear only page containers, preserve other content
+        const wrapper = this.editor.getWrapper();
+        const pageContainers = wrapper.find('.page-container');
+        pageContainers.forEach(page => page.remove());
+      }
 
       for (let i = 0; i < this.pageSettings.numberOfPages; i++) {
         const pageData = this.pageSettings.pages[i];
@@ -7925,131 +7963,84 @@ if (!hasExistingContent) {
 
   /////////////////////////////////////// daynamic section added from here //////////////////////////////////////////////////////////////////////
   setupSectionsContainerListener() {
-    // ONLY the "Sections" block should trigger sections-container
-    const sectionsRequiredBlocks = [
-      "Sections"
-    ];
+    console.log("🔧 setup section listener started");
 
-    // These are regular content blocks that should NOT trigger sections
-    const regularContentBlocks = [
-      "column1",
-      "column2",
-      "column3",
-      "column3-7",
-      "text",
-      "separator",
-      "link",
-      "image",
-      "video",
-      "videoIn",
-      "map"
-    ];
+    // Clear any existing listeners
+    this.editor.off('component:add');
+    this.editor.off('block:drag:stop');
 
-    // Clear any existing listeners to prevent duplicates
-    this.editor.off('component:add.sections');
-    this.editor.off('component:create.sections');
-    this.editor.off('block:drag:start.sections');
-    this.editor.off('block:drag:stop.sections');
-
-    // Method to check if a component or block needs sections (ONLY Sections)
-    const requiresSections = (component) => {
-      if (!component) return false;
-
-      // Check various properties that might contain the block identifier
-      const blockType = component.get ? component.get('type') : component.type;
-      const customName = component.get ? component.get('custom-name') : component['custom-name'];
-      const tagName = component.get ? component.get('tagName') : component.tagName;
-      const className = component.get ? component.get('attributes')?.class : component.attributes?.class;
-      const blockId = component.getId ? component.getId() : component.id;
-
-      // ONLY check for "Sections" - ignore all other blocks
-      const matches = sectionsRequiredBlocks.some(block => {
-        return (
-          blockType === block ||
-          customName === block ||
-          tagName === block ||
-          (className && className.includes(block)) ||
-          (blockId && blockId.includes(block)) ||
-          // Check for partial matches (case insensitive)
-          (blockType && blockType.toLowerCase().includes(block.toLowerCase())) ||
-          (customName && customName.toLowerCase().includes(block.toLowerCase()))
-        );
+    // ✅ Listen to ALL component additions
+    this.editor.on('component:add', (component) => {
+      console.log("🎯 component:add triggered", {
+        type: component.get('type'),
+        name: component.get('name'),
+        hasCount: component.getAttributes()['data-section-count']
       });
 
-      return matches;
-    };
+      // Check if this is a Sections component
+      const isSectionsComponent =
+        component.get('name') === 'Sections' ||
+        component.get('type') === 'Sections' ||
+        component.getClasses().includes('sections-container');
 
-    // Listen to BlockManager events (when blocks are dragged from the panel)
-    this.editor.BlockManager.getAll().models.forEach(block => {
-      const blockId = block.get('id');
-      if (sectionsRequiredBlocks.includes(blockId)) {
-      } else if (regularContentBlocks.includes(blockId)) {
+      if (isSectionsComponent) {
+        console.log("✅ Sections component detected!");
+
+        // ✅ CRITICAL: Check if it already has a count OR if it's undefined/empty
+        const currentCount = component.getAttributes()['data-section-count'];
+        const needsCount = !currentCount || currentCount === '' || currentCount === 'undefined';
+
+        console.log("Current section count:", currentCount, "Needs count:", needsCount);
+
+        if (needsCount) {
+          console.log("⚠️ No valid section count, will assign...");
+
+          setTimeout(() => {
+            const wrapper = this.editor.getWrapper();
+            const allPages = wrapper.find('.page-container');
+
+            let targetPageIndex = 0;
+            let foundPage = false;
+
+            // Find which page this belongs to
+            let parent = component.parent();
+            while (parent && !foundPage) {
+              if (parent.getClasses && parent.getClasses().includes('page-container')) {
+                const pageId = parent.getAttributes()['data-page-index'];
+                if (pageId !== undefined) {
+                  targetPageIndex = parseInt(pageId);
+                  foundPage = true;
+                  console.log("✅ Found page via parent:", targetPageIndex);
+                }
+              }
+              parent = parent.parent();
+            }
+
+            if (!foundPage) {
+              allPages.forEach((page, idx) => {
+                const sections = page.find('.sections-container');
+                sections.forEach(sec => {
+                  if (sec === component || sec.getId() === component.getId()) {
+                    targetPageIndex = idx;
+                    foundPage = true;
+                    console.log("✅ Found page via search:", targetPageIndex);
+                  }
+                });
+              });
+            }
+
+            console.log(`🎯 Assigning count to section on page ${targetPageIndex}`);
+            this.addSectionsContainerToSpecificPage(targetPageIndex, null);
+
+          }, 200);
+        } else {
+          console.log("ℹ️ Section already has valid count:", currentCount);
+        }
       }
     });
 
-    // Listen for block drag start
-    this.editor.on('block:drag:start.sections', (block) => {
-      const blockId = block.get('id');
-
-      if (sectionsRequiredBlocks.includes(blockId)) {
-        // Set a flag that we're dragging a required block
-        this._isDraggingRequiredBlock = true;
-        this._draggedBlockId = blockId;
-      } else {
-        this._isDraggingRequiredBlock = false;
-      }
-    });
-
-    // Listen for block drag stop
-    this.editor.on('block:drag:stop.sections', (block) => {
-      const blockId = block.get('id');
-
-      if (this._isDraggingRequiredBlock && sectionsRequiredBlocks.includes(blockId)) {
-        setTimeout(() => {
-          this.addSectionsContainerToAllPages();
-          this._isDraggingRequiredBlock = false;
-          this._draggedBlockId = null;
-        }, 300);
-      } else {
-        this._isDraggingRequiredBlock = false;
-        this._draggedBlockId = null;
-      }
-    });
-
-    // Listen for component additions (backup detection)
-    this.editor.on('component:add.sections', (component) => {
-
-      // Additional check for components that might be created from blocks
-      const parent = component.parent();
-      const isInMainContent = parent && (
-        parent.getEl().classList.contains('main-content-area') ||
-        parent.find('.main-content-area').length > 0
-      );
-
-      if (isInMainContent && requiresSections(component)) {
-        setTimeout(() => {
-          this.addSectionsContainerToAllPages();
-        }, 200);
-      }
-    });
-
-    // Listen for canvas changes (alternative detection method)
-    this.editor.on('canvas:drop.sections', (dataTransfer, component) => {
-
-      if (requiresSections(component)) {
-        setTimeout(() => {
-          this.addSectionsContainerToAllPages();
-        }, 200);
-      }
-    });
-
-    // Periodically check for required blocks (fallback method)
-    this._sectionsCheckInterval = setInterval(() => {
-      this.checkForRequiredBlocks();
-    }, 3000);
-
+    console.log("✅ Section listeners attached");
   }
-
   checkAndAddSections() {
     const sectionsRequiredBlocks = [
       "column1", "column2", "column3", "column3-7", "text",
@@ -8080,99 +8071,127 @@ if (!hasExistingContent) {
     });
 
     if (foundRequiredBlock) {
-      this.addSectionsContainerToAllPages();
+      this.addSectionsContainerToSpecificPage();
     }
   }
 
-  addSectionsContainerToAllPages() {
+  addSectionsContainerToSpecificPage(pageIndex, sourceSectionCount = null) {
+    console.log("=".repeat(50));
+    console.log("🔧 addSectionsContainerToSpecificPage called");
+    console.log("   pageIndex:", pageIndex);
+    console.log("   sourceSectionCount:", sourceSectionCount);
+    console.log("=".repeat(50));
+
     try {
       const wrapper = this.editor.getWrapper();
-      const allPageComponents = wrapper.find('.page-container');
+      const allPages = wrapper.find('.page-container');
 
-      // ✅ ADD: Track the highest count before adding
-      let highestCount = 0;
-      allPageComponents.forEach((pageComponent) => {
-        const existingSections = pageComponent.find('.sections-container');
-        existingSections.forEach((section) => {
-          const count = parseInt(section.getAttributes()['data-section-count'] || '0');
-          if (count > highestCount) highestCount = count;
+      if (pageIndex < 0 || pageIndex >= allPages.length) {
+        console.warn(`❌ Invalid page index: ${pageIndex}`);
+        pageIndex = 0;
+      }
+
+      const pageComponent = allPages[pageIndex];
+      if (!pageComponent) {
+        console.warn(`❌ Page component not found for index ${pageIndex}`);
+        return;
+      }
+
+      const mainContentArea = pageComponent.find('.main-content-area')[0];
+      if (!mainContentArea) {
+        console.warn(`❌ Main content area not found on page ${pageIndex}`);
+        return;
+      }
+
+      const existingSections = mainContentArea.find('.sections-container');
+      console.log(`📊 Found ${existingSections.length} existing sections on page ${pageIndex}`);
+
+      // ✅ CRITICAL FIX: For manual drag, check if section already has a valid count
+      if (sourceSectionCount === null) {
+        // Manual drag scenario
+        const unassignedSections = existingSections.filter(sec => {
+          const count = sec.getAttributes()['data-section-count'];
+          return !count || count === '' || count === 'undefined';
         });
-      });
 
-      for (let i = 0; i < allPageComponents.length; i++) {
-        const pageComponent = allPageComponents[i];
-        const mainContentArea = pageComponent.find('.main-content-area')[0];
+        console.log(`Found ${unassignedSections.length} unassigned sections (manual drag)`);
 
-        if (!mainContentArea) continue;
-
-        const existingSections = mainContentArea.find('.sections-container');
-
-        if (existingSections && existingSections.length > 0) {
-          continue;
+        // If all sections have valid counts, don't add another
+        if (unassignedSections.length === 0 && existingSections.length > 0) {
+          console.log(`✅ Section already exists with valid count on page ${pageIndex}`);
+          return existingSections[0];
         }
 
-        // ✅ MODIFY: Add with incremented count for drag & drop
+        // Track highest count BEFORE adding
+        let highestCount = 0;
+        allPages.forEach((page) => {
+          const sections = page.find('.sections-container');
+          sections.forEach((section) => {
+            const count = parseInt(section.getAttributes()['data-section-count'] || '0');
+            if (count > highestCount) highestCount = count;
+          });
+        });
+
+        console.log("Highest section count found:", highestCount);
+
+        // Increment for new section group
+        const newSectionCount = String(highestCount + 1);
+        console.log(`➕ Manual drag: Assigning NEW count ${newSectionCount}`);
+
+        // If there's an unassigned section, assign it the count
+        if (unassignedSections.length > 0) {
+          const sectionToUpdate = unassignedSections[0];
+          sectionToUpdate.addAttributes({
+            'data-section-count': newSectionCount
+          });
+          console.log(`✅ Assigned count ${newSectionCount} to existing section on page ${pageIndex}`);
+          return sectionToUpdate;
+        }
+
+        // Otherwise create new section with incremented count
         const newSection = mainContentArea.append({
           type: 'Sections',
           attributes: {
-            'data-section-count': String(highestCount + 1) // ✅ Increment for manual add
+            'data-section-count': newSectionCount
           }
         })[0];
 
-        console.log(`✅ Added section with count: ${highestCount + 1}`);
-      }
+        console.log(`✅ Created NEW section with count ${newSectionCount} on page ${pageIndex}`);
+        this.editor.trigger('change:canvasOffset');
+        return newSection;
 
-      this.editor.trigger('change:canvasOffset');
-    } catch (error) {
-      console.error("Error adding sections:", error);
-    }
-  }
+      } else {
+        // Autopagination scenario - use provided count
+        console.log(`🔄 Autopagination: Using source count ${sourceSectionCount}`);
 
-  checkForRequiredBlocks() {
-    const sectionsRequiredBlocks = [
-      "Sections"
-    ];
+        // Check if section with this count already exists
+        const matchingSections = existingSections.filter(sec =>
+          sec.getAttributes()['data-section-count'] === sourceSectionCount
+        );
 
-    const wrapper = this.editor.getWrapper();
-    const allComponents = wrapper.find('*');
-
-    let foundRequiredBlock = false;
-    let hasAllPagesWithSections = true;
-
-    // Check if we have "Sections" blocks ONLY
-    allComponents.forEach(component => {
-      const blockType = component.get('type') || '';
-      const customName = component.get('custom-name') || '';
-      const tagName = component.get('tagName') || '';
-
-      if (sectionsRequiredBlocks.some(block =>
-        blockType === block ||
-        customName === block ||
-        tagName === block ||
-        blockType.toLowerCase().includes(block.toLowerCase()) ||
-        customName.toLowerCase().includes(block.toLowerCase())
-      )) {
-        foundRequiredBlock = true;
-      }
-    });
-
-    // Check if all pages have sections-container
-    const allPages = wrapper.find('.page-container');
-    allPages.forEach(pageComponent => {
-      const mainContentArea = pageComponent.find('.main-content-area')[0];
-      if (mainContentArea) {
-        const existingSections = mainContentArea.find('.sections-container');
-        if (!existingSections || existingSections.length === 0) {
-          hasAllPagesWithSections = false;
+        if (matchingSections.length > 0) {
+          console.log(`✅ Section with count ${sourceSectionCount} already exists on page ${pageIndex}`);
+          return matchingSections[0];
         }
-      }
-    });
 
-    // If we have "Sections" blocks but not all pages have sections, add them
-    if (foundRequiredBlock && !hasAllPagesWithSections) {
-      this.addSectionsContainerToAllPages();
+        // Create new section with autopagination count
+        const newSection = mainContentArea.append({
+          type: 'Sections',
+          attributes: {
+            'data-section-count': sourceSectionCount
+          }
+        })[0];
+
+        console.log(`✅ Created autopaginated section with count ${sourceSectionCount} on page ${pageIndex}`);
+        this.editor.trigger('change:canvasOffset');
+        return newSection;
+      }
+
+    } catch (error) {
+      console.error("Error adding section to specific page:", error);
     }
   }
+
 
   cleanupSectionsListener() {
     if (this._sectionsCheckInterval) {
@@ -8188,7 +8207,7 @@ if (!hasExistingContent) {
   }
 
   forceSectionsToAllPages() {
-    this.addSectionsContainerToAllPages();
+    this.addSectionsContainerToSpecificPage();
   }
 
   shouldHaveSectionsContainer() {
@@ -8529,30 +8548,30 @@ if (!hasExistingContent) {
       // Page Numbers - ADD AS GRAPESJS COMPONENT
       // ======================================================
 
-if (this.pageSettings.pageNumber?.enabled) {
-  const settings = this.pageSettings.pageNumber;
-  const format = settings.format || "Page {n}";
-  const position = settings.position || "bottom-center";
-  const rotation = settings.rotation || 0;
+      if (this.pageSettings.pageNumber?.enabled) {
+        const settings = this.pageSettings.pageNumber;
+        const format = settings.format || "Page {n}";
+        const position = settings.position || "bottom-center";
+        const rotation = settings.rotation || 0;
 
-  const startFrom = settings.startFrom || 1;
-  const shouldShowNumber = this.shouldShowPageNumberForPage(pageIndex, startFrom);
-  
-  if (shouldShowNumber.show) {
-    const pageContent = pageComponent.find('.page-content')[0];
-    if (pageContent) {
-      // ✅ CHECK if page number already exists
-      const existingPageNumber = pageContent.find('.page-number-element')[0];
-      
-      if (!existingPageNumber) {
-        // Only add if doesn't exist
-        const displayNumber = format
-          .replace('{n}', shouldShowNumber.displayNumber)
-          .replace('{total}', shouldShowNumber.totalPages.toString());
+        const startFrom = settings.startFrom || 1;
+        const shouldShowNumber = this.shouldShowPageNumberForPage(pageIndex, startFrom);
 
-        const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
-        
-        const pageNumberHTML = `
+        if (shouldShowNumber.show) {
+          const pageContent = pageComponent.find('.page-content')[0];
+          if (pageContent) {
+            // ✅ CHECK if page number already exists
+            const existingPageNumber = pageContent.find('.page-number-element')[0];
+
+            if (!existingPageNumber) {
+              // Only add if doesn't exist
+              const displayNumber = format
+                .replace('{n}', shouldShowNumber.displayNumber)
+                .replace('{total}', shouldShowNumber.totalPages.toString());
+
+              const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
+
+              const pageNumberHTML = `
           <div class="page-number-element" style="
             position: absolute;
             font-family: ${settings.fontFamily || 'Arial'};
@@ -8569,18 +8588,18 @@ if (this.pageSettings.pageNumber?.enabled) {
           ">${displayNumber}</div>
         `;
 
-        pageContent.append(pageNumberHTML);
-      } else {
-        // Update existing page number
-        const displayNumber = format
-          .replace('{n}', shouldShowNumber.displayNumber)
-          .replace('{total}', shouldShowNumber.totalPages.toString());
-        
-        existingPageNumber.components(displayNumber);
+              pageContent.append(pageNumberHTML);
+            } else {
+              // Update existing page number
+              const displayNumber = format
+                .replace('{n}', shouldShowNumber.displayNumber)
+                .replace('{total}', shouldShowNumber.totalPages.toString());
+
+              existingPageNumber.components(displayNumber);
+            }
+          }
+        }
       }
-    }
-  }
-}
     }, 200);
 
     // ===============================
@@ -8970,43 +8989,43 @@ if (this.pageSettings.pageNumber?.enabled) {
 
   // In PageSetupManager class, add this new method after getPageNumberPositionStylesWithRotation:
 
-shouldShowPageNumberForPage(pageIndex, startFrom) {
-  const pageSettings = this.pageSettings.pages[pageIndex];
-  
-  // Check if this page should be skipped
-  if (pageSettings?.skipPageNumber === true) {
-    console.log(`⏭️ Skipping page number for page ${pageIndex + 1} (subreport page)`);
-    return { show: false, displayNumber: 0, totalPages: 0 };
-  }
+  shouldShowPageNumberForPage(pageIndex, startFrom) {
+    const pageSettings = this.pageSettings.pages[pageIndex];
 
-  // Calculate actual page number by counting only non-skipped pages
-  let displayNumber = 0;
-  let totalPages = 0;
+    // Check if this page should be skipped
+    if (pageSettings?.skipPageNumber === true) {
+      console.log(`⏭️ Skipping page number for page ${pageIndex + 1} (subreport page)`);
+      return { show: false, displayNumber: 0, totalPages: 0 };
+    }
 
-  // Count pages that should show numbers (from startFrom onwards, excluding skipped)
-  for (let i = startFrom - 1; i < this.pageSettings.pages.length; i++) {
-    const ps = this.pageSettings.pages[i];
-    if (ps?.skipPageNumber !== true) {
-      totalPages++;
-      if (i < pageIndex) {
-        displayNumber++;
-      } else if (i === pageIndex) {
-        displayNumber++;
+    // Calculate actual page number by counting only non-skipped pages
+    let displayNumber = 0;
+    let totalPages = 0;
+
+    // Count pages that should show numbers (from startFrom onwards, excluding skipped)
+    for (let i = startFrom - 1; i < this.pageSettings.pages.length; i++) {
+      const ps = this.pageSettings.pages[i];
+      if (ps?.skipPageNumber !== true) {
+        totalPages++;
+        if (i < pageIndex) {
+          displayNumber++;
+        } else if (i === pageIndex) {
+          displayNumber++;
+        }
       }
     }
-  }
 
-  // Check if current page is before startFrom
-  if (pageIndex < startFrom - 1) {
-    return { show: false, displayNumber: 0, totalPages };
-  }
+    // Check if current page is before startFrom
+    if (pageIndex < startFrom - 1) {
+      return { show: false, displayNumber: 0, totalPages };
+    }
 
-  return { 
-    show: true, 
-    displayNumber, 
-    totalPages 
-  };
-}
+    return {
+      show: true,
+      displayNumber,
+      totalPages
+    };
+  }
 
   removeAllPageNumbers() {
     const pages = this.editor.getWrapper().find('.page-container');
@@ -9350,8 +9369,8 @@ shouldShowPageNumberForPage(pageIndex, startFrom) {
           text: this.pageSettings.headerFooter?.footerText || "",
           shouldShowContent: true
         },
-          isSubreportPage: false,  
-  skipPageNumber: false
+        isSubreportPage: false,
+        skipPageNumber: false
       };
       this.pageSettings.pages.push(newPageSettings);
       // Convert dimensions from mm → px
@@ -9514,26 +9533,26 @@ shouldShowPageNumberForPage(pageIndex, startFrom) {
         this.addWatermarkToPage(pageContentComponent, newPageIndex);
       }
       // Add page number only for this page
-// Add page number with rotation support
-if (this.pageSettings.pageNumber?.enabled) {
-  const settings = this.pageSettings.pageNumber;
-  const format = settings.format || "Page {n}";
-  const position = settings.position || "bottom-center";
-  const rotation = settings.rotation || 0; // ✅ Get rotation
+      // Add page number with rotation support
+      if (this.pageSettings.pageNumber?.enabled) {
+        const settings = this.pageSettings.pageNumber;
+        const format = settings.format || "Page {n}";
+        const position = settings.position || "bottom-center";
+        const rotation = settings.rotation || 0; // ✅ Get rotation
 
-  const pageNumber = newPageIndex + 1;
-  const startFrom = settings.startFrom || 1;
+        const pageNumber = newPageIndex + 1;
+        const startFrom = settings.startFrom || 1;
 
-  // Check if this page should show page number
-  if (pageNumber >= startFrom) {
-    const displayNumber = format
-      .replace('{n}', pageNumber - startFrom + 1)
-      .replace('{total}', this.pageSettings.numberOfPages.toString());
+        // Check if this page should show page number
+        if (pageNumber >= startFrom) {
+          const displayNumber = format
+            .replace('{n}', pageNumber - startFrom + 1)
+            .replace('{total}', this.pageSettings.numberOfPages.toString());
 
-    // ✅ Use method WITH rotation
-    const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
-    
-    const pageNumberHTML = `
+          // ✅ Use method WITH rotation
+          const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
+
+          const pageNumberHTML = `
       <div class="page-number-element" style="
         position: absolute;
         font-family: ${settings.fontFamily || 'Arial'};
@@ -9550,10 +9569,10 @@ if (this.pageSettings.pageNumber?.enabled) {
       ">${displayNumber}</div>
     `;
 
-    const pageContent = pageComponent.find('.page-content')[0];
-    if (pageContent) pageContent.append(pageNumberHTML);
-  }
-}
+          const pageContent = pageComponent.find('.page-content')[0];
+          if (pageContent) pageContent.append(pageNumberHTML);
+        }
+      }
       // Setup observer AFTER page is fully created
       setTimeout(() => {
         this.paginationInProgress = originalPaginationState;
@@ -9585,14 +9604,14 @@ if (this.pageSettings.pageNumber?.enabled) {
     const settings = this.pageSettings.pageNumber;
     const format = settings.format || "Page {n}";
     const position = settings.position || "bottom-center";
-      const rotation = settings.rotation || 0;
+    const rotation = settings.rotation || 0;
 
     const pageNumber = pageIndex + 1;
     const displayNumber = format
       .replace('{n}', pageNumber)
       .replace('{total}', this.pageSettings.numberOfPages.toString());
 
-  const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
+    const positionStyles = this.getPageNumberPositionStylesWithRotation(position, rotation);
     const pageNumberHTML = `
         <div class="page-number-element" style="
             position: absolute;
@@ -9750,142 +9769,189 @@ if (this.pageSettings.pageNumber?.enabled) {
           name: "Sections",
           attributes: {
             class: "sections-container",
-            'data-section-count': '1'
           },
           selectable: true,
           highlightable: true,
           stylable: true,
+
+          traits: [
+            // ---------------- HEADER APPLY MODE ----------------
+            {
+              type: "select",
+              label: "Apply To Header",
+              name: "headerApplyMode",
+              options: [
+                { id: "all", label: "All" },
+                { id: "even", label: "Even" },
+                { id: "odd", label: "Odd" },
+                { id: "allhide", label: "Hide" },
+                { id: "custom", label: "Custom" },
+              ],
+              default: "all",
+              changeProp: 1,
+            },
+
+            // ---------------- HEADER CUSTOM RANGE (HIDDEN INITIALLY) ----------------
+            {
+              type: "text",
+              label: "Header Custom Range",
+              name: "headerCustomRange",
+              placeholder: "e.g. 2,4-6",
+              changeProp: 1,
+              visible: false,
+            },
+
+            // ---------------- FOOTER APPLY MODE ----------------
+            {
+              type: "select",
+              label: "Apply To Footer",
+              name: "footerApplyMode",
+              options: [
+                { id: "all", label: "All" },
+                { id: "even", label: "Even" },
+                { id: "odd", label: "Odd" },
+                { id: "allhide", label: "Hide" },
+                { id: "custom", label: "Custom" },
+              ],
+              default: "all",
+              changeProp: 1,
+            },
+
+            // ---------------- FOOTER CUSTOM RANGE (HIDDEN INITIALLY) ----------------
+            {
+              type: "text",
+              label: "Footer Custom Range",
+              name: "footerCustomRange",
+              placeholder: "e.g. 1,3-5",
+              changeProp: 1,
+              visible: false,
+            },
+          ],
+
           components: [
             {
               tagName: "div",
               name: "Header",
-              attributes: { class: "section-header gjs-editor-header", 'data-gjs-name': 'Header' },
-              style: { padding: "10px", "min-height": "80px", position: "relative" },
-              traits: [
-                {
-                  type: "select",
-                  label: "Apply To",
-                  name: "headerApplyMode",
-                  options: [
-                    { id: "all", label: "All" },
-                    { id: "even", label: "Even" },
-                    { id: "odd", label: "Odd" },
-                    { id: "custom", label: "Custom" }
-                  ],
-                  default: "all",
-                  changeProp: 1
-                },
-                {
-                  type: "text",
-                  label: "Custom Range",
-                  name: "headerCustomRange",
-                  placeholder: "e.g. 2,4-6",
-                  changeProp: 1
-                }
-              ]
+              attributes: {
+                class: "section-header gjs-editor-header",
+                "data-gjs-name": "Header",
+              },
+              style: {
+                padding: "10px",
+                "min-height": "80px",
+                position: "relative",
+                top: '0px !important',
+                left: '0px !important',
+              },
             },
             {
               tagName: "div",
               name: "section Content",
-              attributes: { class: "section-content gjs-editor-content", 'data-gjs-name': 'Content' },
-              style: { flex: "1", padding: "10px", position: "relative", "min-height": "845px" }
+              attributes: {
+                class: "section-content gjs-editor-content",
+                "data-gjs-name": "Content",
+              },
+              style: {
+                flex: "1",
+                padding: "10px",
+                position: "relative",
+                "min-height": "845px",
+              },
             },
             {
               tagName: "div",
               name: "Footer",
-              attributes: { class: "section-footer gjs-editor-footer", 'data-gjs-name': 'Footer' },
-              style: { padding: "10px", "min-height": "60px", position: "relative" },
-              traits: [
-                {
-                  type: "select",
-                  label: "Apply To",
-                  name: "footerApplyMode",
-                  options: [
-                    { id: "all", label: "All" },
-                    { id: "even", label: "Even" },
-                    { id: "odd", label: "Odd" },
-                    { id: "custom", label: "Custom" }
-                  ],
-                  default: "all",
-                  changeProp: 1
-                },
-                {
-                  type: "text",
-                  label: "Custom Range",
-                  name: "footerCustomRange",
-                  placeholder: "e.g. 1,3-5",
-                  changeProp: 1
-                }
-              ]
-            }
+              attributes: {
+                class: "section-footer gjs-editor-footer",
+                "data-gjs-name": "Footer",
+              },
+              style: {
+                padding: "10px",
+                "min-height": "60px",
+                position: "relative",
+                top: '0px !important',
+                left: '0px !important',
+              },
+            },
           ],
+
           style: {
             display: "flex",
             "flex-direction": "column",
             width: "100%",
-            // "min-height": "50vh",
-            // height: "100px",
             margin: "10px 0",
-            padding: "5px"
-          }
-        }
-      }
+            padding: "5px",
+          },
+        },
+      },
     });
 
-    // Listen for content changes to capture header/footer text
-    this.editor.on('component:update', (component) => {
+    // ---------------- CONTENT CAPTURE EVENTS ----------------
+    this.editor.on("component:update", (component) => {
       const parent = component.parent();
       if (!parent) return;
 
-      const parentName = parent.get('name');
+      const parentName = parent.get("name");
 
-      // Capture header content
-      if (parentName === 'Header') {
-        const content = component.get('content');
+      if (parentName === "Header") {
+        const content = component.get("content");
         if (content && content.trim()) {
           this._originalHeaderContent = content;
         }
       }
 
-      // Capture footer content
-      if (parentName === 'Footer') {
-        const content = component.get('content');
+      if (parentName === "Footer") {
+        const content = component.get("content");
         if (content && content.trim()) {
           this._originalFooterContent = content;
         }
       }
     });
 
-    // Event binding for trait changes
-    this.editor.on('trait:update', (eventData) => {
-      const { trait, component } = eventData;
-
-      // 🔒 Prevent recursion: skip if a global silent sync is in progress
+    // ---------------- TRAIT UPDATE EVENTS ----------------
+    this.editor.on("trait:update", ({ trait, component }) => {
       if (this._silentSync) return;
 
-      const traitName = trait.get('name');
-      const componentName = component.get('name');
+      const componentName = component.get("name");
+      const traitName = trait.get("name");
 
-      if (componentName === 'Header' && (traitName === 'headerApplyMode' || traitName === 'headerCustomRange')) {
-        // ✅ Capture current header content before applying settings
+      // ------------------------------------------------------------------------------------------
+      // 🚀 SHOW/HIDE TRAITS LOGIC (MAIN FIX — Custom Range Visible Only on Custom Mode)
+      // ------------------------------------------------------------------------------------------
+      if (componentName === "Sections") {
+        if (traitName === "headerApplyMode") {
+          const mode = trait.getValue();
+          component.getTrait("headerCustomRange").set("visible", mode === "custom");
+        }
+
+        if (traitName === "footerApplyMode") {
+          const mode = trait.getValue();
+          component.getTrait("footerCustomRange").set("visible", mode === "custom");
+        }
+      }
+
+      // ------------------------------------------------------------------------------------------
+      // 🔽 ORIGINAL SYNC HEADER LOGIC
+      // ------------------------------------------------------------------------------------------
+      if (
+        componentName === "Sections" &&
+        (traitName === "headerApplyMode" || traitName === "headerCustomRange")
+      ) {
         const rteComp = component.find('[data-gjs-type="formatted-rich-text"]')[0];
         if (rteComp) {
-          const content = rteComp.get('content');
+          const content = rteComp.get("content");
           if (content && content.trim()) {
-            const sectionContainer = component.closest('.sections-container');
+            const sectionContainer = component.closest(".sections-container");
             if (sectionContainer) {
-              const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-              const headerContentKey = `_originalHeaderContent_${sectionCount}`;
-              this[headerContentKey] = content;
-              console.log(`📝 Captured header content for section count: ${sectionCount}`);
+              const sectionCount = sectionContainer.getAttributes()["data-section-count"];
+              this[`_originalHeaderContent_${sectionCount}`] = content;
             }
           }
         }
 
-        const mode = component.getTrait('headerApplyMode').getValue();
-        const range = component.getTrait('headerCustomRange')?.getValue() || '';
+        const mode = component.getTrait("headerApplyMode").getValue();
+        const range = component.getTrait("headerCustomRange")?.getValue() || "";
 
-        // ⚡️ Wrap the sync in silent mode to prevent recursion
         this._silentSync = true;
         try {
           this.syncHeaderTraitsAcrossPages(component, mode, range);
@@ -9893,31 +9959,31 @@ if (this.pageSettings.pageNumber?.enabled) {
           this._silentSync = false;
         }
 
-        // ✅ Apply settings immediately with small delay
-        setTimeout(() => {
-          this.updateAllSectionHeadersFooters();
-        }, 100);
+        setTimeout(() => this.updateAllSectionHeadersFooters(), 100);
+      }
 
-      } else if (componentName === 'Footer' && (traitName === 'footerApplyMode' || traitName === 'footerCustomRange')) {
-        // ✅ Capture current footer content before applying settings
+      // ------------------------------------------------------------------------------------------
+      // 🔽 ORIGINAL SYNC FOOTER LOGIC
+      // ------------------------------------------------------------------------------------------
+      if (
+        componentName === "Sections" &&
+        (traitName === "footerApplyMode" || traitName === "footerCustomRange")
+      ) {
         const rteComp = component.components().at(0);
         if (rteComp) {
-          const content = rteComp.get('content');
+          const content = rteComp.get("content");
           if (content && content.trim()) {
-            const sectionContainer = component.closest('.sections-container');
+            const sectionContainer = component.closest(".sections-container");
             if (sectionContainer) {
-              const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-              const footerContentKey = `_originalFooterContent_${sectionCount}`;
-              this[footerContentKey] = content;
-              console.log(`📝 Captured footer content for section count: ${sectionCount}`);
+              const sectionCount = sectionContainer.getAttributes()["data-section-count"];
+              this[`_originalFooterContent_${sectionCount}`] = content;
             }
           }
         }
 
-        const mode = component.getTrait('footerApplyMode').getValue();
-        const range = component.getTrait('footerCustomRange')?.getValue() || '';
+        const mode = component.getTrait("footerApplyMode").getValue();
+        const range = component.getTrait("footerCustomRange")?.getValue() || "";
 
-        // ⚡️ Wrap the sync in silent mode to prevent recursion
         this._silentSync = true;
         try {
           this.syncFooterTraitsAcrossPages(component, mode, range);
@@ -9925,14 +9991,9 @@ if (this.pageSettings.pageNumber?.enabled) {
           this._silentSync = false;
         }
 
-        // ✅ Apply settings immediately with small delay
-        setTimeout(() => {
-          this.updateAllSectionHeadersFooters();
-        }, 100);
+        setTimeout(() => this.updateAllSectionHeadersFooters(), 100);
       }
     });
-
-
   }
 
   // 🔹 Sync header traits across all pages
@@ -10044,55 +10105,113 @@ if (this.pageSettings.pageNumber?.enabled) {
   }
 
   // 🔹 Check if a page should show a section - UPDATED FOR SECTION GROUPS
-  checkSectionApplyMode(mode, range, pageIndex) {
-    const allPages = this.editor.getWrapper().find('.page-container');
-    const currentPage = allPages[pageIndex];
-    if (!currentPage) return true;
+  /**
+* Checks if the header/footer should be applied (shown) on the current page number 
+* based on the apply mode (all, even, odd, custom, allhide).
+* @param {number} pageNumber - The 1-based index of the page (e.g., 1, 2, 3...).
+* @param {string} mode - The trait value ('all', 'even', 'odd', 'custom', 'allhide').
+* @param {string} customRange - The custom range string (e.g., '2,4-6').
+* @returns {boolean} - True if the element should be SHOWN, False if it should be HIDDEN.
+*/
 
-    const sectionContainer = currentPage.find('.sections-container')[0];
-    if (!sectionContainer) return true;
-
-    const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-
-    // ✅ Calculate relative page number within this section group
-    let relativePageNum = 1;
-    for (let i = 0; i <= pageIndex; i++) {
-      const page = allPages[i];
-      const section = page.find('.sections-container')[0];
-      if (section) {
-        const count = section.getAttributes()['data-section-count'];
-        if (count === sectionCount) {
-          if (i === pageIndex) break;
-          relativePageNum++;
-        }
-      }
+  checkSectionApplyMode(pageNumber, mode, customRange) {
+    if (mode === 'all') {
+      return true; // Show on all pages
+    }
+    if (mode === 'allhide') {
+      return false; // Hide on all pages
     }
 
-    console.log(`📍 Page ${pageIndex + 1} (absolute) = Page ${relativePageNum} (relative in group ${sectionCount})`);
+    // 1. Even/Odd Logic
+    if (mode === 'even') {
+      // Even numbers: 2, 4, 6...
+      return pageNumber % 2 === 0;
+    }
+    if (mode === 'odd') {
+      // Odd numbers: 1, 3, 5...
+      return pageNumber % 2 !== 0;
+    }
 
-    if (mode === "all") return true;
-    if (mode === "even") return relativePageNum % 2 === 0;
-    if (mode === "odd") return relativePageNum % 2 !== 0;
-    if (mode === "custom") {
-      if (!range || range.trim() === '') {
-        return false;
-      }
+    // 2. Custom Range Logic
+    if (mode === 'custom' && customRange) {
+      // Custom range parsing logic
+      const ranges = customRange.split(',').map(s => s.trim()).filter(s => s.length > 0);
 
-      const shouldShow = range.split(',').some(part => {
-        const trimmedPart = part.trim();
-        if (trimmedPart.includes('-')) {
-          const [start, end] = trimmedPart.split('-').map(n => parseInt(n.trim(), 10));
-          return relativePageNum >= start && relativePageNum <= end;
+      for (const range of ranges) {
+        if (range.includes('-')) {
+          // Handle range like '4-6'
+          const [startStr, endStr] = range.split('-');
+          const start = parseInt(startStr, 10);
+          const end = parseInt(endStr, 10);
+
+          if (!isNaN(start) && !isNaN(end) && pageNumber >= start && pageNumber <= end) {
+            return true;
+          }
         } else {
-          const targetPage = parseInt(trimmedPart, 10);
-          return targetPage === relativePageNum;
+          // Handle single number like '2'
+          const singlePage = parseInt(range, 10);
+          if (!isNaN(singlePage) && pageNumber === singlePage) {
+            return true;
+          }
         }
-      });
-
-      return shouldShow;
+      }
+      // If the page number is not found in any custom range, hide it
+      return false;
     }
+
+    // Default to show if mode is not recognized or customRange is empty for custom mode
     return true;
   }
+
+  // checkSectionApplyMode(mode, range, pageIndex) {
+  //   const allPages = this.editor.getWrapper().find('.page-container');
+  //   const currentPage = allPages[pageIndex];
+  //   if (!currentPage) return true;
+
+  //   const sectionContainer = currentPage.find('.sections-container')[0];
+  //   if (!sectionContainer) return true;
+
+  //   const sectionCount = sectionContainer.getAttributes()['data-section-count'];
+
+  //   // ✅ Calculate relative page number within this section group
+  //   let relativePageNum = 1;
+  //   for (let i = 0; i <= pageIndex; i++) {
+  //     const page = allPages[i];
+  //     const section = page.find('.sections-container')[0];
+  //     if (section) {
+  //       const count = section.getAttributes()['data-section-count'];
+  //       if (count === sectionCount) {
+  //         if (i === pageIndex) break;
+  //         relativePageNum++;
+  //       }
+  //     }
+  //   }
+
+  //   console.log(`📍 Page ${pageIndex + 1} (absolute) = Page ${relativePageNum} (relative in group ${sectionCount})`);
+
+  //   if (mode === "all") return true;
+  //   if (mode === "even") return relativePageNum % 2 === 0;
+  //   if (mode === "odd") return relativePageNum % 2 !== 0;
+  //   if (mode === "custom") {
+  //     if (!range || range.trim() === '') {
+  //       return false;
+  //     }
+
+  //     const shouldShow = range.split(',').some(part => {
+  //       const trimmedPart = part.trim();
+  //       if (trimmedPart.includes('-')) {
+  //         const [start, end] = trimmedPart.split('-').map(n => parseInt(n.trim(), 10));
+  //         return relativePageNum >= start && relativePageNum <= end;
+  //       } else {
+  //         const targetPage = parseInt(trimmedPart, 10);
+  //         return targetPage === relativePageNum;
+  //       }
+  //     });
+
+  //     return shouldShow;
+  //   }
+  //   return true;
+  // }
 
 
   // 🔹 Update header per page
@@ -10171,88 +10290,205 @@ if (this.pageSettings.pageNumber?.enabled) {
     }
   }
 
-  // 🔹 Update all pages
-  // 🔹 Update all pages - RESPECTING SECTION COUNT GROUPS
+  getPxValue(style, key, defaultVal) {
+    const val = style[key];
+    if (val && typeof val === 'string' && val.endsWith('px')) {
+      return parseFloat(val);
+    }
+    return defaultVal;
+  }
+
   updateAllSectionHeadersFooters() {
-    const allPages = this.editor.getWrapper().find('.page-container');
+    // Default/base heights used when components do not have explicit min-height values
+    const HEADER_DEFAULT_MIN_HEIGHT = 80;
+    const FOOTER_DEFAULT_MIN_HEIGHT = 60;
+    const CONTENT_DEFAULT_MIN_HEIGHT = 845;
 
-    allPages.forEach((pageComponent, i) => {
-      const sectionContainer = pageComponent.find('.sections-container')[0];
-      if (!sectionContainer) return;
+    const wrapper = this.editor.getWrapper();
 
-      const sectionCount = sectionContainer.getAttributes()['data-section-count'];
-      console.log(`🔍 Processing page ${i + 1} with section count: ${sectionCount}`);
+    // 1. Identify the currently selected "Sections" component 
+    const selectedComponent = this.editor.getSelected();
+    if (!selectedComponent || selectedComponent.get('name') !== 'Sections') {
+      return;
+    }
 
-      const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+    // Retrieve trait values from the selected Sections component
+    const sectionCountToTarget = selectedComponent.getAttributes()['data-section-count'];
+    const headerMode = selectedComponent.getTrait('headerApplyMode').getValue();
+    const headerRange = selectedComponent.getTrait('headerCustomRange')?.getValue() || '';
+    const footerMode = selectedComponent.getTrait('footerApplyMode').getValue();
+    const footerRange = selectedComponent.getTrait('footerCustomRange')?.getValue() || '';
 
-      if (headerComp) {
-        const mode = headerComp.get('headerApplyMode') || 'all';
-        const range = headerComp.get('headerCustomRange') || '';
-        const show = this.checkSectionApplyMode(mode, range, i);
+    // 2. Find all Sections components that have the same data-section-count
+    const allMatchingSections = wrapper.find(`.sections-container[data-section-count="${sectionCountToTarget}"]`);
 
-        // Find or create rich text component
-        let rteComp = headerComp.find('[data-gjs-type="formatted-rich-text"]')[0];
+    allMatchingSections.forEach((sectionComponent, index) => {
+      const pageNumber = index + 1;
+      const headerComponent = sectionComponent.find('.section-header')[0];
+      const footerComponent = sectionComponent.find('.section-footer')[0];
 
-        if (!rteComp) {
-          rteComp = headerComp.append({
-            tagName: 'div',
-            attributes: { 'data-gjs-type': 'formatted-rich-text' },
-            content: ''
-          })[0];
+      // The content area of the section (where compensation will be applied)
+      const contentComponent = sectionComponent.find('.section-content')[0];
+      if (!contentComponent) return;
+
+      // This variable tracks how much height should be added to the content
+      let contentCompensationHeight = 0;
+
+      // ---------------- HEADER LOGIC ----------------
+      if (headerComponent) {
+        const isHeaderVisible = this.checkSectionApplyMode(pageNumber, headerMode, headerRange);
+
+        // Read the header’s min-height (or use default if missing)
+        const headerHeightPx = this.getPxValue(
+          headerComponent.getStyle(),
+          'min-height',
+          HEADER_DEFAULT_MIN_HEIGHT
+        );
+
+        if (isHeaderVisible) {
+          // Header should be shown → remove any forced hidden display settings
+          headerComponent.set({
+            'style': {
+              ...headerComponent.getStyle(),
+              'display': ''
+            }
+          });
+        } else {
+          // Header should be hidden → record the header height for compensation
+          contentCompensationHeight += headerHeightPx;
+
+          // Hide header
+          headerComponent.set({
+            'style': { 'display': 'none' }
+          });
         }
+      }
 
-        if (rteComp) {
-          // ✅ Use section-count-specific stored content
-          const headerContentKey = `_originalHeaderContent_${sectionCount}`;
-          const storedContent = this[headerContentKey];
+      // ---------------- FOOTER LOGIC ----------------
+      if (footerComponent) {
+        const isFooterVisible = this.checkSectionApplyMode(pageNumber, footerMode, footerRange);
 
-          if (show && storedContent) {
-            rteComp.set('content', storedContent);
-            console.log(`✅ Applied header content for page ${i + 1} (count: ${sectionCount})`);
-          } else {
-            rteComp.set('content', '');
-            console.log(`🚫 Cleared header content for page ${i + 1} (show: ${show})`);
-          }
+        // Read the footer’s min-height (or use default if missing)
+        const footerHeightPx = this.getPxValue(
+          footerComponent.getStyle(),
+          'min-height',
+          FOOTER_DEFAULT_MIN_HEIGHT
+        );
 
-          if (rteComp.view) rteComp.view.render();
+        if (isFooterVisible) {
+          // Footer should be shown → remove any forced hidden display settings
+          footerComponent.set({
+            'style': {
+              ...footerComponent.getStyle(),
+              'display': ''
+            }
+          });
+        } else {
+          // Footer should be hidden → add its height to compensation
+          contentCompensationHeight += footerHeightPx;
+
+          // Hide footer
+          footerComponent.set({
+            'style': { 'display': 'none' }
+          });
         }
       }
 
-      // Same for footer
-      const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
-      if (footerComp) {
-        const mode = footerComp.get('footerApplyMode') || 'all';
-        const range = footerComp.get('footerCustomRange') || '';
-        const show = this.checkSectionApplyMode(mode, range, i);
+      // ---------------- CONTENT HEIGHT COMPENSATION ----------------
+      // Calculate the new content min-height after adding compensations
+      const newMinHeight = CONTENT_DEFAULT_MIN_HEIGHT + contentCompensationHeight;
 
-        let rteComp = footerComp.components().at(0);
-
-        if (!rteComp) {
-          rteComp = footerComp.append({
-            tagName: 'div',
-            attributes: { 'data-gjs-type': 'formatted-rich-text' },
-            content: ''
-          })[0];
-        }
-
-        if (rteComp) {
-          // ✅ Use section-count-specific stored content
-          const footerContentKey = `_originalFooterContent_${sectionCount}`;
-          const storedContent = this[footerContentKey];
-
-          if (show && storedContent) {
-            rteComp.set('content', storedContent);
-            console.log(`✅ Applied footer content for page ${i + 1} (count: ${sectionCount})`);
-          } else {
-            rteComp.set('content', '');
-            console.log(`🚫 Cleared footer content for page ${i + 1} (show: ${show})`);
-          }
-
-          if (rteComp.view) rteComp.view.render();
-        }
-      }
+      // Apply the final compensated height to the content section
+      const currentContentStyles = contentComponent.getStyle();
+      contentComponent.set('style', {
+        ...currentContentStyles,
+        'min-height': `${newMinHeight}px`
+      });
     });
   }
+
+  // 🔹 Update all pages
+  // 🔹 Update all pages - RESPECTING SECTION COUNT GROUPS
+  // updateAllSectionHeadersFooters() {
+  //   const allPages = this.editor.getWrapper().find('.page-container');
+
+  //   allPages.forEach((pageComponent, i) => {
+  //     const sectionContainer = pageComponent.find('.sections-container')[0];
+  //     if (!sectionContainer) return;
+
+  //     const sectionCount = sectionContainer.getAttributes()['data-section-count'];
+  //     console.log(`🔍 Processing page ${i + 1} with section count: ${sectionCount}`);
+
+  //     const headerComp = sectionContainer.components().find(c => c.get('name') === 'Header');
+
+  //     if (headerComp) {
+  //       const mode = headerComp.get('headerApplyMode') || 'all';
+  //       const range = headerComp.get('headerCustomRange') || '';
+  //       const show = this.checkSectionApplyMode(mode, range, i);
+
+  //       // Find or create rich text component
+  //       let rteComp = headerComp.find('[data-gjs-type="formatted-rich-text"]')[0];
+
+  //       if (!rteComp) {
+  //         rteComp = headerComp.append({
+  //           tagName: 'div',
+  //           attributes: { 'data-gjs-type': 'formatted-rich-text' },
+  //           content: ''
+  //         })[0];
+  //       }
+
+  //       if (rteComp) {
+  //         // ✅ Use section-count-specific stored content
+  //         const headerContentKey = `_originalHeaderContent_${sectionCount}`;
+  //         const storedContent = this[headerContentKey];
+
+  //         if (show && storedContent) {
+  //           rteComp.set('content', storedContent);
+  //           console.log(`✅ Applied header content for page ${i + 1} (count: ${sectionCount})`);
+  //         } else {
+  //           rteComp.set('content', '');
+  //           console.log(`🚫 Cleared header content for page ${i + 1} (show: ${show})`);
+  //         }
+
+  //         if (rteComp.view) rteComp.view.render();
+  //       }
+  //     }
+
+  //     // Same for footer
+  //     const footerComp = sectionContainer.components().find(c => c.get('name') === 'Footer');
+  //     if (footerComp) {
+  //       const mode = footerComp.get('footerApplyMode') || 'all';
+  //       const range = footerComp.get('footerCustomRange') || '';
+  //       const show = this.checkSectionApplyMode(mode, range, i);
+
+  //       let rteComp = footerComp.components().at(0);
+
+  //       if (!rteComp) {
+  //         rteComp = footerComp.append({
+  //           tagName: 'div',
+  //           attributes: { 'data-gjs-type': 'formatted-rich-text' },
+  //           content: ''
+  //         })[0];
+  //       }
+
+  //       if (rteComp) {
+  //         // ✅ Use section-count-specific stored content
+  //         const footerContentKey = `_originalFooterContent_${sectionCount}`;
+  //         const storedContent = this[footerContentKey];
+
+  //         if (show && storedContent) {
+  //           rteComp.set('content', storedContent);
+  //           console.log(`✅ Applied footer content for page ${i + 1} (count: ${sectionCount})`);
+  //         } else {
+  //           rteComp.set('content', '');
+  //           console.log(`🚫 Cleared footer content for page ${i + 1} (show: ${show})`);
+  //         }
+
+  //         if (rteComp.view) rteComp.view.render();
+  //       }
+  //     }
+  //   });
+  // }
 
   /////////////////////////////////////////section header footer code end here////////////////////////////////////////////
 

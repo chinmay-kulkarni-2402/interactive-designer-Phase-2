@@ -78,11 +78,11 @@ function addLiveLineChartComponent(editor) {
                   load: function () {
                     const series = this.series[0];
                     const chartInstance = this;
-                    
+
                     if (pollingEnabled) {
                       chartInstance._pollingInterval = setInterval(function () {
-                        const x = (new Date()).getTime(); 
-                        const y = Math.random(); 
+                        const x = (new Date()).getTime();
+                        const y = Math.random();
                         series.addPoint([x, y], true, true);
                       }, pollingInterval * 1000);
                     }
@@ -136,7 +136,7 @@ function addLiveLineChartComponent(editor) {
                   });
                 });
               });
-              
+
               if (container.parentElement) {
                 observer.observe(container.parentElement, { childList: true });
               }

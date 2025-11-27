@@ -1,100 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Interactive Designer</title>
-    <link rel="stylesheet" href="./css/home.css" />
-    <link rel="stylesheet" href="./css/codeEditor.css" />
-    <link rel="stylesheet" href="./css/main.css" />
-    <link rel="stylesheet" href="./css/custom.css" />
-    <link rel="stylesheet" href="./css/styleBg.css" />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/icon?family=Material+Icons"
-    />
-    <script src="https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hyperformula@2.7.0/dist/hyperformula.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js"></script>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Interactive Designer</title>
+  <link rel="stylesheet" href="./css/home.css" />
+  <link rel="stylesheet" href="./css/codeEditor.css" />
+  <link rel="stylesheet" href="./css/main.css" />
+  <link rel="stylesheet" href="./css/custom.css" />
+  <link rel="stylesheet" href="./css/styleBg.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <script src="https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hyperformula@2.7.0/dist/hyperformula.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js"></script>
   <script src="https://unpkg.com/@silexlabs/grapesjs-notifications"></script>
-    <!-- SheetJS for XLS/XLSX -->
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <!-- SheetJS for XLS/XLSX -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
-<!-- html-docx-js for DOCX -->
-<script src="https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js"></script>
+  <!-- html-docx-js for DOCX -->
+  <script src="https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js"></script>
 
-<!-- RTF export helper -->
-<script src="https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"></script>
+  <!-- RTF export helper -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"></script>
 
-<!-- html2canvas for screenshots -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- html2canvas for screenshots -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-<!-- jsPDF for PDF/PS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="./js/custom_errorlogger.js"></script>
-    <script src="./js/home.js"></script>
-    <script src="./js/codeEditor.js"></script>
-    <script src="./js/postCssParser.js"></script>
-    <script src="./js/webPage.js"></script>
-    <script src="./js/basicBlocks.js"></script>
-    <script src="./js/navbar.js"></script>
-    <script src="./js/countdown.js"></script>
-    <script src="./js/forms.js"></script>
-    <script src="./js/imageEditor.js"></script>
-    <script src="./js/zipExport.js"></script>
-    <script src="./js/customCode.js"></script>
-    <script src="./js/toolbox.js"></script>
-    <script src="./js/tooltip.js"></script>
-    <script src="./js/styleBg.js"></script>
-    <script src="./js/tabs.js"></script>
-    <script src="./js/new_components.js"></script>
-    <script src="./js/source.js"></script>
-    <script src="./js/highchart/custom_chart_nd_common_json.js"></script>
-    <script src="./js/custom-table.js"></script>
-    <script src="./js/custom-carousel.js"></script>
-    <script src="./js/custom-add-new-font-url.js"></script>
-    <script src="./js/custom-loading-page.js"></script>
-    <script src="./js/custom-tab-with-nav.js"></script>
-    <script src="./js/object.js"></script>
-    <script src="./js/custom-video-in.js"></script>
-    <script src="./js/custom_separator.js"></script>
-    <script src="./js/page-setup-manager.js"></script>
-    <script src="./js/hide-on-print.js"></script>
-    <script src="./js/custom_section.js"></script>
-    <script src="./js/marqee-tag.js"></script>
-    <script src="./js/format_text.js"></script>
-    <script src="./js/customJsonTable.js"></script>
-    <script src="./js/background-audio.js"></script>
-    <script src="./js/custom_imagesize.js"></script>
-    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
-    <script src="./js/drawingTool.js"></script>
-    <script src="./js/qr-barcode.js"></script>
-    <script src="./js/custom-shapes.js"></script>
-        <script src="./js/areaBreakComponent.js"></script>
-<script src="./js/exportMultipleFormats.js"></script>
-        <script src="./js/tableOfContents.js"></script>
-        <script src="./js/linkTrackerPlugin.js"></script>
-    <script src="./js/liveLineChartComponent.js"></script>
-        <script src="./js/subreport.js"></script>
-    <script src="https://code.highcharts.com/stock/highstock.js"></script>
-<script src="https://code.highcharts.com/highcharts-3d.js"></script>
-<script src="https://code.highcharts.com/highcharts-more.js"></script>
-<script src="https://code.highcharts.com/modules/data.js"></script>
-<script src="https://code.highcharts.com/modules/exporting.js"></script>
-<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+  <!-- jsPDF for PDF/PS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="./js/custom_errorlogger.js"></script>
+  <script src="./js/home.js"></script>
+  <script src="./js/codeEditor.js"></script>
+  <script src="./js/postCssParser.js"></script>
+  <script src="./js/webPage.js"></script>
+  <script src="./js/basicBlocks.js"></script>
+  <script src="./js/navbar.js"></script>
+  <script src="./js/countdown.js"></script>
+  <script src="./js/forms.js"></script>
+  <script src="./js/imageEditor.js"></script>
+  <script src="./js/zipExport.js"></script>
+  <script src="./js/customCode.js"></script>
+  <script src="./js/toolbox.js"></script>
+  <script src="./js/tooltip.js"></script>
+  <script src="./js/styleBg.js"></script>
+  <script src="./js/tabs.js"></script>
+  <script src="./js/new_components.js"></script>
+  <script src="./js/source.js"></script>
+  <script src="./js/highchart/custom_chart_nd_common_json.js"></script>
+  <script src="./js/custom-table.js"></script>
+  <script src="./js/custom-carousel.js"></script>
+  <script src="./js/custom-add-new-font-url.js"></script>
+  <script src="./js/custom-loading-page.js"></script>
+  <script src="./js/custom-tab-with-nav.js"></script>
+  <script src="./js/object.js"></script>
+  <script src="./js/custom-video-in.js"></script>
+  <script src="./js/custom_separator.js"></script>
+  <script src="./js/page-setup-manager.js"></script>
+  <script src="./js/hide-on-print.js"></script>
+  <script src="./js/custom_section.js"></script>
+  <script src="./js/marqee-tag.js"></script>
+  <script src="./js/format_text.js"></script>
+  <script src="./js/customJsonTable.js"></script>
+  <script src="./js/background-audio.js"></script>
+  <script src="./js/custom_imagesize.js"></script>
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+  <script src="./js/drawingTool.js"></script>
+  <script src="./js/qr-barcode.js"></script>
+  <script src="./js/custom-shapes.js"></script>
+  <script src="./js/areaBreakComponent.js"></script>
+  <script src="./js/exportMultipleFormats.js"></script>
+  <script src="./js/tableOfContents.js"></script>
+  <script src="./js/linkTrackerPlugin.js"></script>
+  <script src="./js/liveLineChartComponent.js"></script>
+  <script src="./js/subreport.js"></script>
+  <script src="https://code.highcharts.com/stock/highstock.js"></script>
+  <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <script src="https://code.highcharts.com/modules/data.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
 
 
-  </head>
-  <body>
-    <div id="editor">
-    </div>
-    <script src="./js/html2pdf.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js"></script>
-    <script src="./js/main.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  </body>
+</head>
+
+<body>
+  <div id="editor">
+  </div>
+  <script src="./js/html2pdf.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js"></script>
+  <script src="./js/main.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+
 </html>

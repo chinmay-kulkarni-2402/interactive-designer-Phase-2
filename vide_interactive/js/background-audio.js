@@ -70,7 +70,7 @@ function backgroundMusic(editor) {
             const resizeObserver = new ResizeObserver(entries => {
               for (let entry of entries) {
                 const { width, height } = entry.contentRect;
-                const newSize = Math.min(width, height); 
+                const newSize = Math.min(width, height);
                 styleTag.textContent = `
                   .background-music .music-icon::before {
                     font-size: ${newSize}px !important;

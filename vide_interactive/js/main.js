@@ -19,7 +19,7 @@ window.editor = InteractiveDesigner.init({
     "webpage-component",
     drawingTool,
     customChartCommonJson,
-  flowLayoutComponent,
+    flowLayoutComponent,
     customTable,
     source,
     customCarousel,
@@ -243,7 +243,7 @@ editor.Panels.addPanel({ id: "devices-c" })
     },
     {
       id: "jsonFileUpload",
-      attributes: { title: "Upload json file", id: "jsonFileUpload" },
+      attributes: { title: "Upload DataSource file", id: "jsonFileUpload" },
       className: "fa fa-file",
     },
     {
@@ -394,7 +394,7 @@ editor.Commands.add("open-modal", {
   <button id="payload-preview-btn" style="margin-bottom:10px; display: none;">View Payload Mappings</button>
   <div id="payload-preview-container"></div>
   
-  <h5>Upload JSON Files</h5>
+  <h5>Upload DataDource Files</h5>
   <input type="file" 
          class="form-control popupinput2"
          accept="application/json,.xml,.json"
@@ -2824,21 +2824,21 @@ async function generatePrintDialog() {
     </div>
   `;
   document.body.appendChild(modal);
-// ✅ ADD: Listen for page count updates from iframe
-  let pageCountListener = function(event) {
+  // ✅ ADD: Listen for page count updates from iframe
+  let pageCountListener = function (event) {
     if (event.data && event.data.type === 'pageCountUpdate') {
       const totalPages = event.data.totalPages;
       console.log("📊 [PREVIEW] Received page count update: " + totalPages);
-      
+
       // Update the modal title
       const modal = document.getElementById('pdf-preview-modal');
-            console.log("📊 modallllll" + modal);
+      console.log("📊 modallllll" + modal);
       if (modal) {
         const titleElement = document.getElementById('pdf-total-pages');
-              console.log("📊 h3 smalllll " + titleElement);
+        console.log("📊 h3 smalllll " + titleElement);
         if (titleElement) {
           titleElement.textContent = 'Total Pages: ' + totalPages;
-          console.log("modal updated with latest page count", titleElement.textContent,"rfgefe", totalPages)
+          console.log("modal updated with latest page count", titleElement.textContent, "rfgefe", totalPages)
         }
       }
     }
@@ -2848,7 +2848,7 @@ async function generatePrintDialog() {
 
   // Clean up listener when modal closes
   const originalRemove = modal.remove;
-  modal.remove = function() {
+  modal.remove = function () {
     window.removeEventListener('message', pageCountListener);
     originalRemove.call(this);
   };
@@ -2861,7 +2861,7 @@ async function generatePrintDialog() {
   const cancelBtn = modal.querySelector("#pdf-cancel-btn");
 
   // ✅ NEW: Expand subreports in filtered HTML
-async function expandSubreports(htmlString) {
+  async function expandSubreports(htmlString) {
     console.log("🔍 [EXPAND] Starting subreport expansion...");
     console.log("🔍 [EXPAND] HTML length:", htmlString.length);
 
@@ -2869,551 +2869,557 @@ async function expandSubreports(htmlString) {
     const doc = parser.parseFromString(htmlString, 'text/html');
 
     const subreportSelectors = [
-        '.subreport-container',
-        '[data-gjs-type="subreport"]',
-        '.subreport-block'
+      '.subreport-container',
+      '[data-gjs-type="subreport"]',
+      '.subreport-block'
     ];
 
     const subreports = [];
     subreportSelectors.forEach(selector => {
-        const elements = doc.querySelectorAll(selector);
-        console.log(`🔍 [EXPAND] Selector "${selector}" found ${elements.length} elements`);
-        elements.forEach(el => subreports.push(el));
+      const elements = doc.querySelectorAll(selector);
+      console.log(`🔍 [EXPAND] Selector "${selector}" found ${elements.length} elements`);
+      elements.forEach(el => subreports.push(el));
     });
 
     console.log("🔍 [EXPAND] Total subreports found:", subreports.length);
 
     if (subreports.length === 0) {
-        console.log("✅ [EXPAND] No subreports to expand");
-        return { html: htmlString, styles: [] };
+      console.log("✅ [EXPAND] No subreports to expand");
+      return { html: htmlString, styles: [] };
     }
 
     const allSubreportStyles = [];
 
     for (let i = 0; i < subreports.length; i++) {
-        const subreportElement = subreports[i];
-        console.log(`\n📦 [EXPAND] Processing subreport ${i + 1}/${subreports.length}`);
+      const subreportElement = subreports[i];
+      console.log(`\n📦 [EXPAND] Processing subreport ${i + 1}/${subreports.length}`);
 
-        const getAttr = (name) => {
-            const variations = [name, name.toLowerCase(), name.replace(/([A-Z])/g, '-$1').toLowerCase()];
-            for (const variant of variations) {
-                const val = subreportElement.getAttribute(variant);
-                if (val !== null && val !== undefined && val !== '') {
-                    return val;
-                }
-            }
-            return null;
-        };
+      const getAttr = (name) => {
+        const variations = [name, name.toLowerCase(), name.replace(/([A-Z])/g, '-$1').toLowerCase()];
+        for (const variant of variations) {
+          const val = subreportElement.getAttribute(variant);
+          if (val !== null && val !== undefined && val !== '') {
+            return val;
+          }
+        }
+        return null;
+      };
 
-        const filePath = getAttr('filePath') || getAttr('filepath');
-        console.log("✅ [EXPAND] Found filepath:", filePath);
+      const filePath = getAttr('filePath') || getAttr('filepath');
+      console.log("✅ [EXPAND] Found filepath:", filePath);
 
-        if (!filePath) {
-            console.warn("⚠️ [EXPAND] No filePath found, skipping");
-            continue;
+      if (!filePath) {
+        console.warn("⚠️ [EXPAND] No filePath found, skipping");
+        continue;
+      }
+
+      const filterColumn = getAttr('filterColumn') || getAttr('filtercolumn');
+      const filterValue = getAttr('filterValue') || getAttr('filtervalue');
+      const sharePageNumber = getAttr('sharePageNumber') !== 'false';
+
+      console.log("🔍 [EXPAND] Extracted attributes:", { filePath, filterColumn, filterValue, sharePageNumber });
+
+      try {
+        const apiUrl = `http://192.168.0.188:8081/api/getTemplate/${filePath}`;
+        console.log("🌐 [EXPAND] Fetching template from:", apiUrl);
+
+        const response = await fetch(apiUrl, { cache: 'no-store' });
+        console.log("🌐 [EXPAND] Response status:", response.status);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
 
-        const filterColumn = getAttr('filterColumn') || getAttr('filtercolumn');
-        const filterValue = getAttr('filterValue') || getAttr('filtervalue');
-        const sharePageNumber = getAttr('sharePageNumber') !== 'false';
+        const templateData = await response.json();
+        console.log("🌐 [EXPAND] Template data received:", Object.keys(templateData));
 
-        console.log("🔍 [EXPAND] Extracted attributes:", { filePath, filterColumn, filterValue, sharePageNumber });
+        let htmlContent = templateData.EditableHtml;
 
-        try {
-            const apiUrl = `http://192.168.0.188:8081/api/getTemplate/${filePath}`;
-            console.log("🌐 [EXPAND] Fetching template from:", apiUrl);
+        if (!htmlContent) {
+          throw new Error("No EditableHtml in template");
+        }
 
-            const response = await fetch(apiUrl, { cache: 'no-store' });
-            console.log("🌐 [EXPAND] Response status:", response.status);
+        console.log("✅ [EXPAND] HTML content length:", htmlContent.length);
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+        const tempDoc = parser.parseFromString(htmlContent, 'text/html');
+        const styleElements = tempDoc.querySelectorAll('style, link[rel="stylesheet"]');
+        console.log("🎨 [EXPAND] Found", styleElements.length, "style elements");
 
-            const templateData = await response.json();
-            console.log("🌐 [EXPAND] Template data received:", Object.keys(templateData));
+        styleElements.forEach((styleEl, idx) => {
+          const styleContent = styleEl.outerHTML;
+          allSubreportStyles.push(styleContent);
+        });
 
-            let htmlContent = templateData.EditableHtml;
+        const hasPageContainers = tempDoc.querySelectorAll('.page-container').length > 0;
+        console.log("📄 [EXPAND] Subreport has page-container:", hasPageContainers);
 
-            if (!htmlContent) {
-                throw new Error("No EditableHtml in template");
-            }
+        const bodyContent = tempDoc.querySelector('body');
+        let contentToInsert = bodyContent ? bodyContent.innerHTML : htmlContent;
 
-            console.log("✅ [EXPAND] HTML content length:", htmlContent.length);
+        console.log("📄 [EXPAND] Initial content length:", contentToInsert.length);
 
-            const tempDoc = parser.parseFromString(htmlContent, 'text/html');
-            const styleElements = tempDoc.querySelectorAll('style, link[rel="stylesheet"]');
-            console.log("🎨 [EXPAND] Found", styleElements.length, "style elements");
+        if (filterColumn && filterValue) {
+          console.log(`🔍 [EXPAND] Applying filter: ${filterColumn} contains "${filterValue}"`);
+          contentToInsert = applyTableFilter(contentToInsert, filterColumn, filterValue);
+        }
 
-            styleElements.forEach((styleEl, idx) => {
-                const styleContent = styleEl.outerHTML;
-                allSubreportStyles.push(styleContent);
-            });
+        // ✅ NEW LOGIC: If subreport has page-containers, ALWAYS insert as separate pages after current page
+        if (hasPageContainers) {
+          console.log("📄 [EXPAND] Page-based subreport detected - will insert after current page");
 
-            const hasPageContainers = tempDoc.querySelectorAll('.page-container').length > 0;
-            console.log("📄 [EXPAND] Subreport has page-container:", hasPageContainers);
+          const subreportDoc = parser.parseFromString(contentToInsert, 'text/html');
+          const pageContainers = subreportDoc.querySelectorAll('.page-container');
 
-            const bodyContent = tempDoc.querySelector('body');
-            let contentToInsert = bodyContent ? bodyContent.innerHTML : htmlContent;
+          pageContainers.forEach((page, idx) => {
+            page.setAttribute('data-subreport-page', 'true');
+            page.setAttribute('data-subreport-id', filePath);
+            page.setAttribute('data-share-page-number', sharePageNumber);
+            page.setAttribute('data-subreport-page-index', idx);
+            console.log(`📄 [EXPAND] Marked page ${idx} with subreport attributes`);
+          });
 
-            console.log("📄 [EXPAND] Initial content length:", contentToInsert.length);
+          contentToInsert = subreportDoc.body.innerHTML;
 
-            if (filterColumn && filterValue) {
-                console.log(`🔍 [EXPAND] Applying filter: ${filterColumn} contains "${filterValue}"`);
-                contentToInsert = applyTableFilter(contentToInsert, filterColumn, filterValue);
-            }
+          // Find parent page container
+          let currentPage = subreportElement.closest('.page-container');
 
-            // ✅ NEW LOGIC: If subreport has page-containers, ALWAYS insert as separate pages after current page
-            if (hasPageContainers) {
-                console.log("📄 [EXPAND] Page-based subreport detected - will insert after current page");
-                
-                const subreportDoc = parser.parseFromString(contentToInsert, 'text/html');
-                const pageContainers = subreportDoc.querySelectorAll('.page-container');
-                
-                pageContainers.forEach((page, idx) => {
-                    page.setAttribute('data-subreport-page', 'true');
-                    page.setAttribute('data-subreport-id', filePath);
-                    page.setAttribute('data-share-page-number', sharePageNumber);
-                    page.setAttribute('data-subreport-page-index', idx);
-                    console.log(`📄 [EXPAND] Marked page ${idx} with subreport attributes`);
-                });
-                
-                contentToInsert = subreportDoc.body.innerHTML;
-                
-                // Find parent page container
-                let currentPage = subreportElement.closest('.page-container');
-                
-                if (currentPage) {
-                    // Replace subreport div with marker
-                    const replacementHTML = `
+          if (currentPage) {
+            // Replace subreport div with marker
+            const replacementHTML = `
                         <div class="subreport-page-marker" 
                              data-subreport-id="${filePath}"
                              data-share-page-number="${sharePageNumber}"
                              style="display:none;">
                         </div>
                     `;
-                    subreportElement.outerHTML = replacementHTML;
-                    
-                    // Insert subreport pages after current page
-                    const tempContainer = doc.createElement('div');
-                    tempContainer.innerHTML = contentToInsert;
-                    
-                    let insertAfter = currentPage;
-                    Array.from(tempContainer.querySelectorAll('.page-container')).forEach(subPage => {
-                        insertAfter.insertAdjacentElement('afterend', subPage);
-                        insertAfter = subPage;
-                    });
-                    
-                    console.log(`✅ [EXPAND] Inserted ${pageContainers.length} subreport pages after current page`);
-                } else {
-                    console.warn("⚠️ [EXPAND] Could not find parent page container");
-                    subreportElement.outerHTML = `<div class="expanded-subreport" data-subreport-id="${filePath}">${contentToInsert}</div>`;
-                }
-            } else {
-                // Inline subreport (no page-container)
-                console.log("🔄 [EXPAND] Inline subreport - replacing content in place");
-                const replacementHTML = `<div class="expanded-subreport" data-subreport-id="${filePath}" data-share-page-number="${sharePageNumber}">${contentToInsert}</div>`;
-                subreportElement.outerHTML = replacementHTML;
-            }
+            subreportElement.outerHTML = replacementHTML;
 
-            console.log("✅ [EXPAND] Successfully expanded subreport", i + 1, ":", filePath);
+            // Insert subreport pages after current page
+            const tempContainer = doc.createElement('div');
+            tempContainer.innerHTML = contentToInsert;
 
-        } catch (error) {
-            console.error(`❌ [EXPAND] Failed to fetch subreport ${filePath}:`, error);
-            subreportElement.outerHTML = `<div class="subreport-error" style="color:red;padding:10px;border:1px solid red;">⚠️ Failed to load subreport: ${error.message}</div>`;
+            let insertAfter = currentPage;
+            Array.from(tempContainer.querySelectorAll('.page-container')).forEach(subPage => {
+              insertAfter.insertAdjacentElement('afterend', subPage);
+              insertAfter = subPage;
+            });
+
+            console.log(`✅ [EXPAND] Inserted ${pageContainers.length} subreport pages after current page`);
+          } else {
+            console.warn("⚠️ [EXPAND] Could not find parent page container");
+            subreportElement.outerHTML = `<div class="expanded-subreport" data-subreport-id="${filePath}">${contentToInsert}</div>`;
+          }
+        } else {
+          // Inline subreport (no page-container)
+          console.log("🔄 [EXPAND] Inline subreport - replacing content in place");
+          const replacementHTML = `<div class="expanded-subreport" data-subreport-id="${filePath}" data-share-page-number="${sharePageNumber}">${contentToInsert}</div>`;
+          subreportElement.outerHTML = replacementHTML;
         }
+
+        console.log("✅ [EXPAND] Successfully expanded subreport", i + 1, ":", filePath);
+
+      } catch (error) {
+        console.error(`❌ [EXPAND] Failed to fetch subreport ${filePath}:`, error);
+        subreportElement.outerHTML = `<div class="subreport-error" style="color:red;padding:10px;border:1px solid red;">⚠️ Failed to load subreport: ${error.message}</div>`;
+      }
     }
 
     console.log("✅ [EXPAND] Expansion complete. Final HTML length:", doc.body.innerHTML.length);
     console.log("🎨 [EXPAND] Total styles extracted:", allSubreportStyles.length);
 
     return { html: doc.body.innerHTML, styles: allSubreportStyles };
-}
+  }
 
-// ✅ NEW: Apply pagination logic to preview HTML
-async function applyPreviewPagination(htmlString) {
-  console.log("📄 [PAGINATION] Starting preview pagination...");
-  
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlString, "text/html");
-  const pageContainers = doc.querySelectorAll('.page-container');
-  
-  if (pageContainers.length === 0) {
-    console.warn("⚠️ [PAGINATION] No page containers found");
-    return htmlString;
-  }
-  
-  // Get page dimensions from first page
-  const firstPage = pageContainers[0];
-  const pageContent = firstPage.querySelector('.page-content');
-  if (!pageContent) return htmlString;
-  
-  const pageHeight = parseInt(window.getComputedStyle(pageContent).height) || 1027;
-  
-  console.log(`📏 [PAGINATION] Page height: ${pageHeight}px`);
-  
-  const newPages = [];
-  
-  for (let pageIndex = 0; pageIndex < pageContainers.length; pageIndex++) {
-    const pageContainer = pageContainers[pageIndex];
-    const mainContent = pageContainer.querySelector('.main-content-area');
-    
-    if (!mainContent) {
-      newPages.push(pageContainer.outerHTML);
-      continue;
-    }
-    
-    const children = Array.from(mainContent.children);
-    
-    if (children.length === 0) {
-      newPages.push(pageContainer.outerHTML);
-      continue;
-    }
-    
-    // Calculate available height (accounting for header/footer)
-    const headerWrapper = pageContainer.querySelector('.header-wrapper');
-    const footerWrapper = pageContainer.querySelector('.footer-wrapper');
-    
-    const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 0;
-    const footerHeight = footerWrapper ? footerWrapper.offsetHeight : 0;
-    const availableHeight = pageHeight - headerHeight - footerHeight - 40; // 40px buffer
-    
-    console.log(`📐 [PAGINATION] Page ${pageIndex}: available height = ${availableHeight}px`);
-    
-    // Check if content overflows
-    const contentHeight = mainContent.scrollHeight;
-    
-    if (contentHeight <= availableHeight) {
-      // No overflow, keep as is
-      newPages.push(pageContainer.outerHTML);
-      console.log(`✅ [PAGINATION] Page ${pageIndex}: no overflow (${contentHeight}px <= ${availableHeight}px)`);
-      continue;
-    }
-    
-    console.log(`⚠️ [PAGINATION] Page ${pageIndex}: overflow detected (${contentHeight}px > ${availableHeight}px)`);
-    
-    // Split content across multiple pages
-    const splitPages = splitContentIntoPages(
-      pageContainer,
-      children,
-      availableHeight,
-      headerWrapper,
-      footerWrapper
-    );
-    
-    newPages.push(...splitPages);
-    console.log(`✂️ [PAGINATION] Split page ${pageIndex} into ${splitPages.length} pages`);
-  }
-  
-  // Reconstruct HTML with new pages
-  const body = doc.body;
-  body.innerHTML = '';
-  newPages.forEach(pageHtml => {
-    body.insertAdjacentHTML('beforeend', pageHtml);
-  });
-  
-  console.log(`✅ [PAGINATION] Pagination complete: ${pageContainers.length} → ${newPages.length} pages`);
-  
-  return doc.documentElement.outerHTML;
-}
+  // ✅ NEW: Apply pagination logic to preview HTML
+  async function applyPreviewPagination(htmlString) {
+    console.log("📄 [PAGINATION] Starting preview pagination...");
 
-// ✅ NEW: Split content into multiple pages
-function splitContentIntoPages(pageContainer, children, availableHeight, headerWrapper, footerWrapper) {
-  const pages = [];
-  const pageTemplate = pageContainer.cloneNode(false);
-  
-  let currentPage = pageTemplate.cloneNode(true);
-  let currentPageContent = document.createElement('div');
-  currentPageContent.className = 'page-content';
-  currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
-  
-  // Add header
-  if (headerWrapper) {
-    currentPageContent.appendChild(headerWrapper.cloneNode(true));
-  }
-  
-  // Add content wrapper
-  const contentWrapper = document.createElement('div');
-  contentWrapper.className = 'content-wrapper';
-  contentWrapper.style.cssText = pageContainer.querySelector('.content-wrapper').style.cssText;
-  
-  const mainContent = document.createElement('div');
-  mainContent.className = 'main-content-area';
-  mainContent.style.cssText = pageContainer.querySelector('.main-content-area').style.cssText;
-  
-  contentWrapper.appendChild(mainContent);
-  currentPageContent.appendChild(contentWrapper);
-  
-  let currentHeight = 0;
-  
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
-    const childHeight = getElementHeight(child);
-    
-    console.log(`📦 [PAGINATION] Element ${i}: ${childHeight}px`);
-    
-    // Check if adding this element would overflow
-    if (currentHeight + childHeight > availableHeight && currentHeight > 0) {
-      // Finish current page
-      if (footerWrapper) {
-        currentPageContent.appendChild(footerWrapper.cloneNode(true));
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, "text/html");
+    const pageContainers = doc.querySelectorAll('.page-container');
+
+    if (pageContainers.length === 0) {
+      console.warn("⚠️ [PAGINATION] No page containers found");
+      return htmlString;
+    }
+
+    // Get page dimensions from first page
+    const firstPage = pageContainers[0];
+    const pageContent = firstPage.querySelector('.page-content');
+    if (!pageContent) return htmlString;
+
+    const pageHeight = parseInt(window.getComputedStyle(pageContent).height) || 1027;
+
+    console.log(`📏 [PAGINATION] Page height: ${pageHeight}px`);
+
+    const newPages = [];
+
+    for (let pageIndex = 0; pageIndex < pageContainers.length; pageIndex++) {
+      const pageContainer = pageContainers[pageIndex];
+      const mainContent = pageContainer.querySelector('.main-content-area');
+
+      if (!mainContent) {
+        newPages.push(pageContainer.outerHTML);
+        continue;
       }
-      currentPage.appendChild(currentPageContent);
-      pages.push(currentPage.outerHTML);
-      
-      console.log(`📄 [PAGINATION] Created page with ${currentHeight}px of content`);
-      
-      // Start new page
-      currentPage = pageTemplate.cloneNode(true);
-      currentPageContent = document.createElement('div');
-      currentPageContent.className = 'page-content';
-      currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
-      
-      if (headerWrapper) {
-        currentPageContent.appendChild(headerWrapper.cloneNode(true));
+
+      const children = Array.from(mainContent.children);
+
+      if (children.length === 0) {
+        newPages.push(pageContainer.outerHTML);
+        continue;
       }
-      
-      const newContentWrapper = document.createElement('div');
-      newContentWrapper.className = 'content-wrapper';
-      newContentWrapper.style.cssText = contentWrapper.style.cssText;
-      
-      const newMainContent = document.createElement('div');
-      newMainContent.className = 'main-content-area';
-      newMainContent.style.cssText = mainContent.style.cssText;
-      
-      newContentWrapper.appendChild(newMainContent);
-      currentPageContent.appendChild(newContentWrapper);
-      
-      mainContent = newMainContent;
-      currentHeight = 0;
+
+      // Calculate available height (accounting for header/footer)
+      const headerWrapper = pageContainer.querySelector('.header-wrapper');
+      const footerWrapper = pageContainer.querySelector('.footer-wrapper');
+
+      const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 0;
+      const footerHeight = footerWrapper ? footerWrapper.offsetHeight : 0;
+      const availableHeight = pageHeight - headerHeight - footerHeight - 40; // 40px buffer
+
+      console.log(`📐 [PAGINATION] Page ${pageIndex}: available height = ${availableHeight}px`);
+
+      // Check if content overflows
+      const contentHeight = mainContent.scrollHeight;
+
+      if (contentHeight <= availableHeight) {
+        // No overflow, keep as is
+        newPages.push(pageContainer.outerHTML);
+        console.log(`✅ [PAGINATION] Page ${pageIndex}: no overflow (${contentHeight}px <= ${availableHeight}px)`);
+        continue;
+      }
+
+      console.log(`⚠️ [PAGINATION] Page ${pageIndex}: overflow detected (${contentHeight}px > ${availableHeight}px)`);
+
+      // Split content across multiple pages
+      const splitPages = splitContentIntoPages(
+        pageContainer,
+        children,
+        availableHeight,
+        headerWrapper,
+        footerWrapper
+      );
+
+      newPages.push(...splitPages);
+      console.log(`✂️ [PAGINATION] Split page ${pageIndex} into ${splitPages.length} pages`);
     }
-    
-    // Add element to current page
-    mainContent.appendChild(child.cloneNode(true));
-    currentHeight += childHeight;
-  }
-  
-  // Add last page
-  if (footerWrapper) {
-    currentPageContent.appendChild(footerWrapper.cloneNode(true));
-  }
-  currentPage.appendChild(currentPageContent);
-  pages.push(currentPage.outerHTML);
-  
-  console.log(`📄 [PAGINATION] Created final page with ${currentHeight}px of content`);
-  
-  return pages;
-}
 
-// ✅ Helper: Get element height accurately
-function getElementHeight(element) {
-  // Create temporary container to measure
-  const temp = document.createElement('div');
-  temp.style.cssText = 'position: absolute; visibility: hidden; width: 100%;';
-  temp.appendChild(element.cloneNode(true));
-  document.body.appendChild(temp);
-  
-  const height = temp.offsetHeight;
-  document.body.removeChild(temp);
-  
-  return height;
-}
-// ✅ NEW: Apply table filtering
-function applyTableFilter(htmlText, columnName, filterValue) {
-  console.log(`🔎 [FILTER] Applying filter: column="${columnName}", value="${filterValue}"`);
-  
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlText, "text/html");
-  const table = doc.querySelector('.json-table-container table, .table, table');
-  
-  if (!table) {
-    console.warn("⚠️ [FILTER] No table found in HTML");
-    return htmlText;
-  }
-  
-  console.log("✅ [FILTER] Table found");
+    // Reconstruct HTML with new pages
+    const body = doc.body;
+    body.innerHTML = '';
+    newPages.forEach(pageHtml => {
+      body.insertAdjacentHTML('beforeend', pageHtml);
+    });
 
-  const headerRow = table.querySelector('thead tr');
-  if (!headerRow) {
-    console.warn("⚠️ [FILTER] No header row found");
-    return htmlText;
+    console.log(`✅ [PAGINATION] Pagination complete: ${pageContainers.length} → ${newPages.length} pages`);
+
+    return doc.documentElement.outerHTML;
   }
 
-  const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
-  console.log("🔍 [FILTER] Table headers:", headers);
-  
-  const columnIndex = headers.indexOf(columnName);
-  if (columnIndex === -1) {
-    console.warn(`⚠️ [FILTER] Column "${columnName}" not found in headers`);
-    return htmlText;
-  }
-  
-  console.log(`✅ [FILTER] Column "${columnName}" found at index ${columnIndex}`);
+  // ✅ NEW: Split content into multiple pages
+  function splitContentIntoPages(pageContainer, children, availableHeight, headerWrapper, footerWrapper) {
+    const pages = [];
+    const pageTemplate = pageContainer.cloneNode(false);
 
-  const rows = Array.from(table.querySelectorAll('tbody tr'));
-  console.log(`🔍 [FILTER] Total rows before filter: ${rows.length}`);
-  
-  let removedCount = 0;
-  rows.forEach((row, idx) => {
-    const cells = Array.from(row.querySelectorAll('td'));
-    const cellValue = cells[columnIndex]?.textContent.toLowerCase() || '';
-    const matches = cellValue.includes(filterValue.toLowerCase());
-    
-    if (!matches) {
-      row.remove();
-      removedCount++;
+    let currentPage = pageTemplate.cloneNode(true);
+    let currentPageContent = document.createElement('div');
+    currentPageContent.className = 'page-content';
+    currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
+
+    // Add header
+    if (headerWrapper) {
+      currentPageContent.appendChild(headerWrapper.cloneNode(true));
     }
-  });
-  
-  console.log(`✅ [FILTER] Removed ${removedCount} rows, kept ${rows.length - removedCount} rows`);
 
-  return doc.body.innerHTML;
-}
+    // Add content wrapper
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'content-wrapper';
+    contentWrapper.style.cssText = pageContainer.querySelector('.content-wrapper').style.cssText;
 
-// Function to filter pages and generate HTML
-async function getFilteredHtml(mode, customPages = "") {
-  console.log("\n🎯 [FILTER-HTML] Starting getFilteredHtml...");
-  console.log("🎯 [FILTER-HTML] Mode:", mode, "Custom:", customPages);
-  
-  const clone = document.createElement("div");
-  clone.innerHTML = html;
-  const containers = Array.from(clone.querySelectorAll(".page-container"));
-  
-  console.log(`🎯 [FILTER-HTML] Total pages BEFORE expansion: ${containers.length}`);
+    const mainContent = document.createElement('div');
+    mainContent.className = 'main-content-area';
+    mainContent.style.cssText = pageContainer.querySelector('.main-content-area').style.cssText;
 
-  // ✅ FIX: Expand subreports FIRST
-  console.log("🎯 [FILTER-HTML] Expanding subreports before filtering...");
-  const { html: expandedHtml, styles: subreportStyles } = await expandSubreports(clone.innerHTML);
-  
-  // ✅ FIX: Re-parse after expansion
-  clone.innerHTML = expandedHtml;
-  const allContainers = Array.from(clone.querySelectorAll(".page-container"));
-  console.log(`🎯 [FILTER-HTML] Total pages AFTER expansion: ${allContainers.length}`);
+    contentWrapper.appendChild(mainContent);
+    currentPageContent.appendChild(contentWrapper);
 
-  // ✅ NOW apply page filtering
-  let pagesToKeep = [];
+    let currentHeight = 0;
 
-  if (mode === "all") {
-    pagesToKeep = allContainers.map((_, i) => i);
-  } else if (mode === "odd") {
-    pagesToKeep = allContainers.map((_, i) => i).filter(i => (i + 1) % 2 === 1);
-  } else if (mode === "even") {
-    pagesToKeep = allContainers.map((_, i) => i).filter(i => (i + 1) % 2 === 0);
-  } else if (mode === "custom") {
-    const ranges = customPages.split(",").map(s => s.trim());
-    ranges.forEach(range => {
-      if (range.includes("-")) {
-        const [start, end] = range.split("-").map(n => parseInt(n.trim()));
-        for (let i = start; i <= end; i++) {
-          if (i >= 1 && i <= allContainers.length) pagesToKeep.push(i - 1);
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const childHeight = getElementHeight(child);
+
+      console.log(`📦 [PAGINATION] Element ${i}: ${childHeight}px`);
+
+      // Check if adding this element would overflow
+      if (currentHeight + childHeight > availableHeight && currentHeight > 0) {
+        // Finish current page
+        if (footerWrapper) {
+          currentPageContent.appendChild(footerWrapper.cloneNode(true));
         }
-      } else {
-        const page = parseInt(range);
-        if (page >= 1 && page <= allContainers.length) pagesToKeep.push(page - 1);
+        currentPage.appendChild(currentPageContent);
+        pages.push(currentPage.outerHTML);
+
+        console.log(`📄 [PAGINATION] Created page with ${currentHeight}px of content`);
+
+        // Start new page
+        currentPage = pageTemplate.cloneNode(true);
+        currentPageContent = document.createElement('div');
+        currentPageContent.className = 'page-content';
+        currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
+
+        if (headerWrapper) {
+          currentPageContent.appendChild(headerWrapper.cloneNode(true));
+        }
+
+        const newContentWrapper = document.createElement('div');
+        newContentWrapper.className = 'content-wrapper';
+        newContentWrapper.style.cssText = contentWrapper.style.cssText;
+
+        const newMainContent = document.createElement('div');
+        newMainContent.className = 'main-content-area';
+        newMainContent.style.cssText = mainContent.style.cssText;
+
+        newContentWrapper.appendChild(newMainContent);
+        currentPageContent.appendChild(newContentWrapper);
+
+        mainContent = newMainContent;
+        currentHeight = 0;
+      }
+
+      // Add element to current page
+      mainContent.appendChild(child.cloneNode(true));
+      currentHeight += childHeight;
+    }
+
+    // Add last page
+    if (footerWrapper) {
+      currentPageContent.appendChild(footerWrapper.cloneNode(true));
+    }
+    currentPage.appendChild(currentPageContent);
+    pages.push(currentPage.outerHTML);
+
+    console.log(`📄 [PAGINATION] Created final page with ${currentHeight}px of content`);
+
+    return pages;
+  }
+
+  // ✅ Helper: Get element height accurately
+  function getElementHeight(element) {
+    // Create temporary container to measure
+    const temp = document.createElement('div');
+    temp.style.cssText = 'position: absolute; visibility: hidden; width: 100%;';
+    temp.appendChild(element.cloneNode(true));
+    document.body.appendChild(temp);
+
+    const height = temp.offsetHeight;
+    document.body.removeChild(temp);
+
+    return height;
+  }
+  // ✅ NEW: Apply table filtering
+  function applyTableFilter(htmlText, columnName, filterValue) {
+    console.log(`🔎 [FILTER] Applying filter: column="${columnName}", value="${filterValue}"`);
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, "text/html");
+    const table = doc.querySelector('.json-table-container table, .table, table');
+
+    if (!table) {
+      console.warn("⚠️ [FILTER] No table found in HTML");
+      return htmlText;
+    }
+
+    console.log("✅ [FILTER] Table found");
+
+    const headerRow = table.querySelector('thead tr');
+    if (!headerRow) {
+      console.warn("⚠️ [FILTER] No header row found");
+      return htmlText;
+    }
+
+    const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+    console.log("🔍 [FILTER] Table headers:", headers);
+
+    const columnIndex = headers.indexOf(columnName);
+    if (columnIndex === -1) {
+      console.warn(`⚠️ [FILTER] Column "${columnName}" not found in headers`);
+      return htmlText;
+    }
+
+    console.log(`✅ [FILTER] Column "${columnName}" found at index ${columnIndex}`);
+
+    const rows = Array.from(table.querySelectorAll('tbody tr'));
+    console.log(`🔍 [FILTER] Total rows before filter: ${rows.length}`);
+
+    let removedCount = 0;
+    rows.forEach((row, idx) => {
+      const cells = Array.from(row.querySelectorAll('td'));
+      const cellValue = cells[columnIndex]?.textContent.toLowerCase() || '';
+      const matches = cellValue.includes(filterValue.toLowerCase());
+
+      if (!matches) {
+        row.remove();
+        removedCount++;
       }
     });
-    pagesToKeep = [...new Set(pagesToKeep)].sort((a, b) => a - b);
+
+    console.log(`✅ [FILTER] Removed ${removedCount} rows, kept ${rows.length - removedCount} rows`);
+
+    return doc.body.innerHTML;
   }
 
-  console.log(`🎯 [FILTER-HTML] Pages to keep:`, pagesToKeep);
+  // Function to filter pages and generate HTML
+  async function getFilteredHtml(mode, customPages = "") {
+    console.log("\n🎯 [FILTER-HTML] Starting getFilteredHtml...");
+    console.log("🎯 [FILTER-HTML] Mode:", mode, "Custom:", customPages);
 
-  allContainers.forEach((container, index) => {
-    if (!pagesToKeep.includes(index)) {
-      container.remove();
+    const clone = document.createElement("div");
+    clone.innerHTML = html;
+    const containers = Array.from(clone.querySelectorAll(".page-container"));
+
+    console.log(`🎯 [FILTER-HTML] Total pages BEFORE expansion: ${containers.length}`);
+
+    // ✅ FIX: Expand subreports FIRST
+    console.log("🎯 [FILTER-HTML] Expanding subreports before filtering...");
+    const { html: expandedHtml, styles: subreportStyles } = await expandSubreports(clone.innerHTML);
+
+    // ✅ FIX: Re-parse after expansion
+    clone.innerHTML = expandedHtml;
+    const allContainers = Array.from(clone.querySelectorAll(".page-container"));
+    console.log(`🎯 [FILTER-HTML] Total pages AFTER expansion: ${allContainers.length}`);
+
+    // ✅ NOW apply page filtering
+    let pagesToKeep = [];
+
+    if (mode === "all") {
+      pagesToKeep = allContainers.map((_, i) => i);
+    } else if (mode === "odd") {
+      pagesToKeep = allContainers.map((_, i) => i).filter(i => (i + 1) % 2 === 1);
+    } else if (mode === "even") {
+      pagesToKeep = allContainers.map((_, i) => i).filter(i => (i + 1) % 2 === 0);
+    } else if (mode === "custom") {
+      const ranges = customPages.split(",").map(s => s.trim());
+      ranges.forEach(range => {
+        if (range.includes("-")) {
+          const [start, end] = range.split("-").map(n => parseInt(n.trim()));
+          for (let i = start; i <= end; i++) {
+            if (i >= 1 && i <= allContainers.length) pagesToKeep.push(i - 1);
+          }
+        } else {
+          const page = parseInt(range);
+          if (page >= 1 && page <= allContainers.length) pagesToKeep.push(page - 1);
+        }
+      });
+      pagesToKeep = [...new Set(pagesToKeep)].sort((a, b) => a - b);
     }
-  });
 
-  console.log("✅ [FILTER-HTML] getFilteredHtml complete\n");
-  
-  return { html: clone.innerHTML, styles: subreportStyles };
-}
+    console.log(`🎯 [FILTER-HTML] Pages to keep:`, pagesToKeep);
+
+    allContainers.forEach((container, index) => {
+      if (!pagesToKeep.includes(index)) {
+        container.remove();
+      }
+    });
+
+    console.log("✅ [FILTER-HTML] getFilteredHtml complete\n");
+
+    return { html: clone.innerHTML, styles: subreportStyles };
+  }
 
   // Function to build final HTML with chart initialization
-function buildFinalHtml(htmlContent, subreportStyles = []) {
+  function buildFinalHtml(htmlContent, subreportStyles = []) {
     console.log("🏗️ [BUILD] Building final HTML...");
     console.log("🏗️ [BUILD] Main CSS length:", editor.getCss().length);
     console.log("🏗️ [BUILD] Subreport styles count:", subreportStyles.length);
 
     const mainCSS = editor.getCss();
-    
+
+    // Ensure subreportStyles is an array and non-empty before joining
+    const subStyles = Array.isArray(subreportStyles) && subreportStyles.length
+      ? subreportStyles.join('\n')
+      : '';
+
     const combinedStyles = `
-        <style>${mainCSS}</style>
-        ${subreportStyles.join('\n')}
-    `;
-    
+    <style>${mainCSS}</style>
+    ${subStyles}
+`;
+
+
     console.log("🏗️ [BUILD] Combined styles length:", combinedStyles.length);
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
-    
+
     const allPages = Array.from(doc.querySelectorAll('.page-container'));
     console.log("📄 [BUILD] Total pages found:", allPages.length);
-    
+
     // ✅ Check if there are any subreport pages or markers
-    const hasSubreportPages = allPages.some(page => 
-        page.getAttribute('data-subreport-page') === 'true'
+    const hasSubreportPages = allPages.some(page =>
+      page.getAttribute('data-subreport-page') === 'true'
     );
     const hasSubreportMarkers = doc.querySelector('.subreport-page-marker') !== null;
-    
+
     let finalBodyHTML;
     let totalPages;
-    
+
     if (hasSubreportPages || hasSubreportMarkers) {
-        console.log("📄 [BUILD] Subreports detected, reorganizing pages...");
-        
-        const mainPages = [];
-        const subreportPageGroups = new Map();
-        
-        allPages.forEach((page, idx) => {
-            if (page.getAttribute('data-subreport-page') === 'true') {
-                const subreportId = page.getAttribute('data-subreport-id');
-                if (!subreportPageGroups.has(subreportId)) {
-                    subreportPageGroups.set(subreportId, []);
-                }
-                subreportPageGroups.get(subreportId).push(page);
-                console.log(`📄 [BUILD] Found subreport page ${idx} for subreport ${subreportId}`);
-            } else {
-                mainPages.push(page);
-            }
-        });
-        
-        const reorganizedPages = [];
-        mainPages.forEach((mainPage, idx) => {
-            reorganizedPages.push(mainPage);
-            
-            const marker = mainPage.querySelector('.subreport-page-marker');
-            if (marker) {
-                const subreportId = marker.getAttribute('data-subreport-id');
-                const sharePageNumber = marker.getAttribute('data-share-page-number') !== 'false';
-                
-                console.log(`📄 [BUILD] Found subreport marker for ${subreportId}, sharePageNumber: ${sharePageNumber}`);
-                
-                const subreportPages = subreportPageGroups.get(subreportId) || [];
-                subreportPages.forEach(subPage => {
-                    // ✅ Set skip attribute based on sharePageNumber
-                    subPage.setAttribute('data-skip-page-number', !sharePageNumber);
-                    reorganizedPages.push(subPage);
-                });
-                
-                marker.remove();
-            }
-        });
-        
-        console.log("📄 [BUILD] Reorganized pages count:", reorganizedPages.length);
-        
-        doc.body.innerHTML = '';
-        reorganizedPages.forEach(page => doc.body.appendChild(page));
-        
-        totalPages = reorganizedPages.length;
+      console.log("📄 [BUILD] Subreports detected, reorganizing pages...");
+
+      const mainPages = [];
+      const subreportPageGroups = new Map();
+
+      allPages.forEach((page, idx) => {
+        if (page.getAttribute('data-subreport-page') === 'true') {
+          const subreportId = page.getAttribute('data-subreport-id');
+          if (!subreportPageGroups.has(subreportId)) {
+            subreportPageGroups.set(subreportId, []);
+          }
+          subreportPageGroups.get(subreportId).push(page);
+          console.log(`📄 [BUILD] Found subreport page ${idx} for subreport ${subreportId}`);
+        } else {
+          mainPages.push(page);
+        }
+      });
+
+      const reorganizedPages = [];
+      mainPages.forEach((mainPage, idx) => {
+        reorganizedPages.push(mainPage);
+
+        const marker = mainPage.querySelector('.subreport-page-marker');
+        if (marker) {
+          const subreportId = marker.getAttribute('data-subreport-id');
+          const sharePageNumber = marker.getAttribute('data-share-page-number') !== 'false';
+
+          console.log(`📄 [BUILD] Found subreport marker for ${subreportId}, sharePageNumber: ${sharePageNumber}`);
+
+          const subreportPages = subreportPageGroups.get(subreportId) || [];
+          subreportPages.forEach(subPage => {
+            // ✅ Set skip attribute based on sharePageNumber
+            subPage.setAttribute('data-skip-page-number', !sharePageNumber);
+            reorganizedPages.push(subPage);
+          });
+
+          marker.remove();
+        }
+      });
+
+      console.log("📄 [BUILD] Reorganized pages count:", reorganizedPages.length);
+
+      doc.body.innerHTML = '';
+      reorganizedPages.forEach(page => doc.body.appendChild(page));
+
+      totalPages = reorganizedPages.length;
     } else {
-        console.log("📄 [BUILD] No subreports detected, using original page structure");
-        totalPages = allPages.length > 0 ? allPages.length : 1;
+      console.log("📄 [BUILD] No subreports detected, using original page structure");
+      totalPages = allPages.length > 0 ? allPages.length : 1;
     }
-    
+
     finalBodyHTML = doc.body.innerHTML;
 
     console.log(`📊 [BUILD] Total pages after processing: ${totalPages}`);
-    
+
     const paginationScript = `
   <script>
     console.log("📄 [PREVIEW-PAGINATION] Script loaded");
@@ -3986,44 +3992,44 @@ function createNewPage(templatePage, headerWrapper, footerWrapper) {
     `;
 
     return fullHTML;
-}
+  }
   // Update preview with chart initialization
-async function updatePreview() {
-  console.log("\n🖼️ [PREVIEW] Starting preview update...");
-  
-  const mode = modeSelect.value;
-  const custom = customInput.value;
-  
-  console.log("🖼️ [PREVIEW] Mode:", mode, "Custom:", custom);
-  
-  const { html: filteredBodyHtml, styles: subreportStyles } = await getFilteredHtml(mode, custom);
-  
-  console.log("🖼️ [PREVIEW] Filtered HTML length:", filteredBodyHtml.length);
-  console.log("🖼️ [PREVIEW] Subreport styles count:", subreportStyles.length);
-  
-const finalHtml = buildFinalHtml(filteredBodyHtml, subreportStyles, css);
+  async function updatePreview() {
+    console.log("\n🖼️ [PREVIEW] Starting preview update...");
 
-  
-  console.log("🖼️ [PREVIEW] Final HTML length:", finalHtml.length);
+    const mode = modeSelect.value;
+    const custom = customInput.value;
 
-  const blob = new Blob([finalHtml], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-  
-  console.log("🖼️ [PREVIEW] Setting iframe src...");
-  iframe.src = url;
+    console.log("🖼️ [PREVIEW] Mode:", mode, "Custom:", custom);
 
-  await new Promise((resolve) => {
-    iframe.onload = () => {
-      console.log("✅ [PREVIEW] Iframe loaded");
-      
-      // Wait for pagination script to run inside iframe
-      setTimeout(() => {
-        console.log("✅ [PREVIEW] Preview complete after delay");
-        resolve();
-      }, 3000); // Give time for pagination to complete
-    };
-  });
-}
+    const { html: filteredBodyHtml, styles: subreportStyles } = await getFilteredHtml(mode, custom);
+
+    console.log("🖼️ [PREVIEW] Filtered HTML length:", filteredBodyHtml.length);
+    console.log("🖼️ [PREVIEW] Subreport styles count:", subreportStyles.length);
+
+    const finalHtml = buildFinalHtml(filteredBodyHtml, subreportStyles, css);
+
+
+    console.log("🖼️ [PREVIEW] Final HTML length:", finalHtml.length);
+
+    const blob = new Blob([finalHtml], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+
+    console.log("🖼️ [PREVIEW] Setting iframe src...");
+    iframe.src = url;
+
+    await new Promise((resolve) => {
+      iframe.onload = () => {
+        console.log("✅ [PREVIEW] Iframe loaded");
+
+        // Wait for pagination script to run inside iframe
+        setTimeout(() => {
+          console.log("✅ [PREVIEW] Preview complete after delay");
+          resolve();
+        }, 3000); // Give time for pagination to complete
+      };
+    });
+  }
   // Event listeners
   modeSelect.addEventListener("change", () => {
     customInput.style.display = modeSelect.value === "custom" ? "inline-block" : "none";
@@ -4038,107 +4044,107 @@ const finalHtml = buildFinalHtml(filteredBodyHtml, subreportStyles, css);
     modal.remove();
   });
 
-generateBtn.addEventListener("click", async () => {
-  console.log("\n🚀 [GENERATE] Starting PDF generation...");
-  
-  modal.remove();
+  generateBtn.addEventListener("click", async () => {
+    console.log("\n🚀 [GENERATE] Starting PDF generation...");
 
-  let overlay = document.createElement("div");
-  overlay.id = "pdf-loading-overlay";
-  Object.assign(overlay.style, {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    background: "rgba(0,0,0,0.5)",
-    color: "#fff",
-    fontSize: "24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-  });
-  overlay.innerText = "Generating PDF...";
-  document.body.appendChild(overlay);
+    modal.remove();
 
-  try {
-    const mode = modeSelect.value;
-    const custom = customInput.value;
-    
-    console.log("🚀 [GENERATE] Getting filtered HTML...");
-    const { html: filteredBodyHtml, styles: subreportStyles } = await getFilteredHtml(mode, custom);
-    
-    console.log("🚀 [GENERATE] Filtered HTML length:", filteredBodyHtml.length);
-    console.log("🚀 [GENERATE] Subreport styles count:", subreportStyles.length);
-
-    // Remove margin and box-shadow from page-container IDs in CSS
-    const tempContainer = document.createElement("div");
-    tempContainer.innerHTML = filteredBodyHtml;
-    const remainingPageContainers = tempContainer.querySelectorAll(".page-container");
-    const idsToClean = Array.from(remainingPageContainers)
-      .filter(el => el.id)
-      .map(el => el.id);
-
-    let cleanedCss = css;
-    idsToClean.forEach(id => {
-      const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
-      cleanedCss = cleanedCss.replace(marginRegex, "$1");
-
-      const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
-      cleanedCss = cleanedCss.replace(boxShadowRegex, "$1");
+    let overlay = document.createElement("div");
+    overlay.id = "pdf-loading-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      background: "rgba(0,0,0,0.5)",
+      color: "#fff",
+      fontSize: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
     });
+    overlay.innerText = "Generating PDF...";
+    document.body.appendChild(overlay);
 
-    // Extract @page rule
-    let pageSize = null;
-    let orientation = null;
-    let width = null;
-    let height = null;
+    try {
+      const mode = modeSelect.value;
+      const custom = customInput.value;
 
-    const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
-    if (pageRuleMatch) {
-      const rule = pageRuleMatch[0];
+      console.log("🚀 [GENERATE] Getting filtered HTML...");
+      const { html: filteredBodyHtml, styles: subreportStyles } = await getFilteredHtml(mode, custom);
 
-      const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
-      if (sizeMatch) {
-        const sizeValue = sizeMatch[1].trim();
+      console.log("🚀 [GENERATE] Filtered HTML length:", filteredBodyHtml.length);
+      console.log("🚀 [GENERATE] Subreport styles count:", subreportStyles.length);
 
-        const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
-        if (standardMatch) {
-          pageSize = standardMatch[1].toUpperCase();
-          orientation = (standardMatch[2] || "portrait").toLowerCase();
-        } else {
-          const parts = sizeValue.split(/\s+/);
-          if (parts.length >= 2) {
-            width = parts[0].trim();
-            height = parts[1].trim();
+      // Remove margin and box-shadow from page-container IDs in CSS
+      const tempContainer = document.createElement("div");
+      tempContainer.innerHTML = filteredBodyHtml;
+      const remainingPageContainers = tempContainer.querySelectorAll(".page-container");
+      const idsToClean = Array.from(remainingPageContainers)
+        .filter(el => el.id)
+        .map(el => el.id);
+
+      let cleanedCss = css;
+      idsToClean.forEach(id => {
+        const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
+        cleanedCss = cleanedCss.replace(marginRegex, "$1");
+
+        const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
+        cleanedCss = cleanedCss.replace(boxShadowRegex, "$1");
+      });
+
+      // Extract @page rule
+      let pageSize = null;
+      let orientation = null;
+      let width = null;
+      let height = null;
+
+      const pageRuleMatch = cleanedCss.match(/@page\s*{[^}]*}/);
+      if (pageRuleMatch) {
+        const rule = pageRuleMatch[0];
+
+        const sizeMatch = rule.match(/size\s*:\s*([^;]+);/);
+        if (sizeMatch) {
+          const sizeValue = sizeMatch[1].trim();
+
+          const standardMatch = sizeValue.match(/(A\d+)\s*(portrait|landscape)?/i);
+          if (standardMatch) {
+            pageSize = standardMatch[1].toUpperCase();
+            orientation = (standardMatch[2] || "portrait").toLowerCase();
+          } else {
+            const parts = sizeValue.split(/\s+/);
+            if (parts.length >= 2) {
+              width = parts[0].trim();
+              height = parts[1].trim();
+            }
           }
+        }
+
+        cleanedCss = cleanedCss.replace(/@page\s*{[^}]*}/g, "").trim();
+      }
+
+      let hasPayload = false;
+      let payload = {};
+
+      if (pageRuleMatch) {
+        if (pageSize) {
+          payload = { pageSize, orientation: orientation || "portrait" };
+          hasPayload = true;
+        } else if (width && height) {
+          payload = { width, height };
+          hasPayload = true;
         }
       }
 
-      cleanedCss = cleanedCss.replace(/@page\s*{[^}]*}/g, "").trim();
-    }
-
-    let hasPayload = false;
-    let payload = {};
-
-    if (pageRuleMatch) {
-      if (pageSize) {
-        payload = { pageSize, orientation: orientation || "portrait" };
-        hasPayload = true;
-      } else if (width && height) {
-        payload = { width, height };
-        hasPayload = true;
+      if (hasPayload) {
+        console.log("🧾 Extracted payload:", payload);
+      } else {
+        console.log("⚠️ No @page rule found — skipping payload");
       }
-    }
 
-    if (hasPayload) {
-      console.log("🧾 Extracted payload:", payload);
-    } else {
-      console.log("⚠️ No @page rule found — skipping payload");
-    }
-
-    const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss, subreportStyles);
+      const finalHtml = buildFinalHtml(tempContainer.innerHTML, cleanedCss, subreportStyles);
 
 
       // Debug download
