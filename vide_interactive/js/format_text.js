@@ -519,7 +519,7 @@ function addFormattedRichTextComponent(editor) {
 
         return result;
       } catch (error) {
-        console.error('Formula evaluation error:', error);
+        DL.error('Formula evaluation error:', error);
         return `#ERROR: ${error.message}`;
       }
     },
@@ -972,12 +972,9 @@ function addFormattedRichTextComponent(editor) {
       },
 
       handleJsonPathChange() {
-        console.log('=== COMPONENT DataSource PATH CHANGE ===');
         const jsonPath = this.get('my-input-json');
-        console.log('DataSource Path:', jsonPath);
 
         if (this.view && this.view.rteActive) {
-          console.log('RTE active, forcing stop before JSON update');
           this.view.forceStopRTE();
         }
 
@@ -1003,7 +1000,7 @@ function addFormattedRichTextComponent(editor) {
                     );
                   }
                 } catch (e) {
-                  console.warn(`Error evaluating path ${path}:`, e);
+                  DL.warn(`Error evaluating path ${path}:`, e);
                 }
               });
 
@@ -1032,7 +1029,7 @@ function addFormattedRichTextComponent(editor) {
               }
             }
           } catch (e) {
-            console.error("Error evaluating DataSource path:", e);
+            DL.error("Error evaluating DataSource path:", e);
           }
         }
       },
@@ -1309,7 +1306,7 @@ function addFormattedRichTextComponent(editor) {
             try {
               formattedContent = formatHelpers.applyFormat(rawContent, formatType, pattern);
             } catch (error) {
-              console.warn('Format error:', error);
+              DL.warn('Format error:', error);
               formattedContent = rawContent;
             }
           }
@@ -1561,7 +1558,7 @@ function addFormattedRichTextComponent(editor) {
           });
           console.log('RTE enabled successfully');
         } catch (e) {
-          console.error('RTE enable error:', e);
+          DL.error('RTE enable error:', e);
           this.rteActive = false;
           this.el.contentEditable = false;
           return;
@@ -1763,7 +1760,7 @@ function addFormattedRichTextComponent(editor) {
           rte.disable(this);
           console.log('RTE disabled successfully');
         } catch (e) {
-          console.error('RTE disable error:', e);
+          DL.error('RTE disable error:', e);
         }
 
         // Restore original actions
@@ -1901,8 +1898,6 @@ function addFormattedRichTextComponent(editor) {
 
       // FIXED: Enhanced render method
       onRender() {
-        console.log('=== VIEW RENDER ===');
-        console.log('RTE Active:', this.rteActive);
 
         // Ensure element is not editable by default
         this.el.contentEditable = false;
@@ -1922,8 +1917,6 @@ function addFormattedRichTextComponent(editor) {
 
         // Get current content
         const content = this.model.get('content') || '';
-        console.log('Content to render:', content);
-        console.log('Current element innerHTML:', this.el.innerHTML);
 
         // Only update content if not in RTE mode and content has changed
         if (!this.rteActive) {
@@ -2095,7 +2088,5 @@ function addFormattedRichTextComponent(editor) {
       }, 100);
     }
   });
-
-  console.log('Text component initialized successfully!');
 
 }

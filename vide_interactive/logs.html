@@ -228,8 +228,19 @@
       window.location.href = "index.html";
     }
 
-    // Initial load
-    fetchLogs();
+    // Initial load: set date inputs to today and fetch only today's logs
+    (function initialLoad() {
+      const today = dayjs().format('YYYY-MM-DD');
+      // Set date inputs so user sees the filter applied
+      const startInput = document.getElementById("startDate");
+      const endInput = document.getElementById("endDate");
+      if (startInput) startInput.value = today;
+      if (endInput) endInput.value = today;
+
+      // Fetch logs for today only
+      const todayUrl = `${apiUrl}?startDate=${today}&endDate=${today}`;
+      fetchLogs(todayUrl);
+    })();
   </script>
 </body>
 

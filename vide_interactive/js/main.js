@@ -13,7 +13,7 @@ window.editor = InteractiveDesigner.init({
     componentFirst: true,
   },
   plugins: [
-    initNotificationsPlugin,
+    //initNotificationsPlugin,
     "code-editor-component",
     "postcss-parser-component",
     "webpage-component",
