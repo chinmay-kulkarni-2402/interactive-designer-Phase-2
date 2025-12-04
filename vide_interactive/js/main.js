@@ -161,6 +161,26 @@ editor.on('load', () => {
   });
 });
 
+editor.on('run:open-assets', () => {
+  const assetManager = editor.AssetManager;
+  const container = assetManager.getContainer();
+  
+  if (!document.getElementById('json-image-selector-btn')) {
+    const jsonButton = document.createElement('button');
+    jsonButton.id = 'json-image-selector-btn';
+    jsonButton.innerHTML = 'Select from JSON';
+    jsonButton.style.cssText = 'margin: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;';
+    jsonButton.addEventListener('click', () => {
+      openJsonImageSelector();
+    });
+    
+    const uploadSection = container.querySelector('.i_designer-am-file-uploader') || container.firstChild;
+    if (uploadSection) {
+      uploadSection.parentNode.insertBefore(jsonButton, uploadSection);
+    }
+  }
+});
+
 function updateLayerRecursively(component) {
   updateLayerName(component);
   if (component.components && component.components.length) {
@@ -3030,194 +3050,7 @@ async function generatePrintDialog() {
     return { html: doc.body.innerHTML, styles: allSubreportStyles };
   }
 
-  // ✅ NEW: Apply pagination logic to preview HTML
-  async function applyPreviewPagination(htmlString) {
-    console.log("📄 [PAGINATION] Starting preview pagination...");
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlString, "text/html");
-    const pageContainers = doc.querySelectorAll('.page-container');
-
-    if (pageContainers.length === 0) {
-      console.warn("⚠️ [PAGINATION] No page containers found");
-      return htmlString;
-    }
-
-    // Get page dimensions from first page
-    const firstPage = pageContainers[0];
-    const pageContent = firstPage.querySelector('.page-content');
-    if (!pageContent) return htmlString;
-
-    const pageHeight = parseInt(window.getComputedStyle(pageContent).height) || 1027;
-
-    console.log(`📏 [PAGINATION] Page height: ${pageHeight}px`);
-
-    const newPages = [];
-
-    for (let pageIndex = 0; pageIndex < pageContainers.length; pageIndex++) {
-      const pageContainer = pageContainers[pageIndex];
-      const mainContent = pageContainer.querySelector('.main-content-area');
-
-      if (!mainContent) {
-        newPages.push(pageContainer.outerHTML);
-        continue;
-      }
-
-      const children = Array.from(mainContent.children);
-
-      if (children.length === 0) {
-        newPages.push(pageContainer.outerHTML);
-        continue;
-      }
-
-      // Calculate available height (accounting for header/footer)
-      const headerWrapper = pageContainer.querySelector('.header-wrapper');
-      const footerWrapper = pageContainer.querySelector('.footer-wrapper');
-
-      const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 0;
-      const footerHeight = footerWrapper ? footerWrapper.offsetHeight : 0;
-      const availableHeight = pageHeight - headerHeight - footerHeight - 40; // 40px buffer
-
-      console.log(`📐 [PAGINATION] Page ${pageIndex}: available height = ${availableHeight}px`);
-
-      // Check if content overflows
-      const contentHeight = mainContent.scrollHeight;
-
-      if (contentHeight <= availableHeight) {
-        // No overflow, keep as is
-        newPages.push(pageContainer.outerHTML);
-        console.log(`✅ [PAGINATION] Page ${pageIndex}: no overflow (${contentHeight}px <= ${availableHeight}px)`);
-        continue;
-      }
-
-      console.log(`⚠️ [PAGINATION] Page ${pageIndex}: overflow detected (${contentHeight}px > ${availableHeight}px)`);
-
-      // Split content across multiple pages
-      const splitPages = splitContentIntoPages(
-        pageContainer,
-        children,
-        availableHeight,
-        headerWrapper,
-        footerWrapper
-      );
-
-      newPages.push(...splitPages);
-      console.log(`✂️ [PAGINATION] Split page ${pageIndex} into ${splitPages.length} pages`);
-    }
-
-    // Reconstruct HTML with new pages
-    const body = doc.body;
-    body.innerHTML = '';
-    newPages.forEach(pageHtml => {
-      body.insertAdjacentHTML('beforeend', pageHtml);
-    });
-
-    console.log(`✅ [PAGINATION] Pagination complete: ${pageContainers.length} → ${newPages.length} pages`);
-
-    return doc.documentElement.outerHTML;
-  }
-
-  // ✅ NEW: Split content into multiple pages
-  function splitContentIntoPages(pageContainer, children, availableHeight, headerWrapper, footerWrapper) {
-    const pages = [];
-    const pageTemplate = pageContainer.cloneNode(false);
-
-    let currentPage = pageTemplate.cloneNode(true);
-    let currentPageContent = document.createElement('div');
-    currentPageContent.className = 'page-content';
-    currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
-
-    // Add header
-    if (headerWrapper) {
-      currentPageContent.appendChild(headerWrapper.cloneNode(true));
-    }
-
-    // Add content wrapper
-    const contentWrapper = document.createElement('div');
-    contentWrapper.className = 'content-wrapper';
-    contentWrapper.style.cssText = pageContainer.querySelector('.content-wrapper').style.cssText;
-
-    const mainContent = document.createElement('div');
-    mainContent.className = 'main-content-area';
-    mainContent.style.cssText = pageContainer.querySelector('.main-content-area').style.cssText;
-
-    contentWrapper.appendChild(mainContent);
-    currentPageContent.appendChild(contentWrapper);
-
-    let currentHeight = 0;
-
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      const childHeight = getElementHeight(child);
-
-      console.log(`📦 [PAGINATION] Element ${i}: ${childHeight}px`);
-
-      // Check if adding this element would overflow
-      if (currentHeight + childHeight > availableHeight && currentHeight > 0) {
-        // Finish current page
-        if (footerWrapper) {
-          currentPageContent.appendChild(footerWrapper.cloneNode(true));
-        }
-        currentPage.appendChild(currentPageContent);
-        pages.push(currentPage.outerHTML);
-
-        console.log(`📄 [PAGINATION] Created page with ${currentHeight}px of content`);
-
-        // Start new page
-        currentPage = pageTemplate.cloneNode(true);
-        currentPageContent = document.createElement('div');
-        currentPageContent.className = 'page-content';
-        currentPageContent.style.cssText = pageContainer.querySelector('.page-content').style.cssText;
-
-        if (headerWrapper) {
-          currentPageContent.appendChild(headerWrapper.cloneNode(true));
-        }
-
-        const newContentWrapper = document.createElement('div');
-        newContentWrapper.className = 'content-wrapper';
-        newContentWrapper.style.cssText = contentWrapper.style.cssText;
-
-        const newMainContent = document.createElement('div');
-        newMainContent.className = 'main-content-area';
-        newMainContent.style.cssText = mainContent.style.cssText;
-
-        newContentWrapper.appendChild(newMainContent);
-        currentPageContent.appendChild(newContentWrapper);
-
-        mainContent = newMainContent;
-        currentHeight = 0;
-      }
-
-      // Add element to current page
-      mainContent.appendChild(child.cloneNode(true));
-      currentHeight += childHeight;
-    }
-
-    // Add last page
-    if (footerWrapper) {
-      currentPageContent.appendChild(footerWrapper.cloneNode(true));
-    }
-    currentPage.appendChild(currentPageContent);
-    pages.push(currentPage.outerHTML);
-
-    console.log(`📄 [PAGINATION] Created final page with ${currentHeight}px of content`);
-
-    return pages;
-  }
-
-  // ✅ Helper: Get element height accurately
-  function getElementHeight(element) {
-    // Create temporary container to measure
-    const temp = document.createElement('div');
-    temp.style.cssText = 'position: absolute; visibility: hidden; width: 100%;';
-    temp.appendChild(element.cloneNode(true));
-    document.body.appendChild(temp);
-
-    const height = temp.offsetHeight;
-    document.body.removeChild(temp);
-
-    return height;
-  }
   // ✅ NEW: Apply table filtering
   function applyTableFilter(htmlText, columnName, filterValue) {
     console.log(`🔎 [FILTER] Applying filter: column="${columnName}", value="${filterValue}"`);
@@ -3330,12 +3163,28 @@ async function generatePrintDialog() {
 
   // Function to build final HTML with chart initialization
 function buildFinalHtml(htmlContent, subreportStyles = []) {
-  console.log("🏗️ [BUILD] Building final HTML...");
+  console.log("🏗️ [BUILD] Building final HTML...", htmlContent);
   console.log("🏗️ [BUILD] Main CSS length:", editor.getCss().length);
   console.log("🏗️ [BUILD] Subreport styles count:", subreportStyles.length);
 
-  const mainCSS = editor.getCss();
+  let mainCSS = editor.getCss();
+ const tempContainer = document.createElement("div");
+      tempContainer.innerHTML = htmlContent;
+      const remainingPageContainers = tempContainer.querySelectorAll(".page-container");
+      const idsToClean = Array.from(remainingPageContainers)
+        .filter(el => el.id)
+        .map(el => el.id);
 
+      idsToClean.forEach(id => {
+        // Remove margin property
+        const marginRegex = new RegExp(`(#${id}\\s*{[^}]*?)margin[^;]*;`, "g");
+        mainCSS = mainCSS.replace(marginRegex, "$1");
+
+        // Remove box-shadow property
+        const boxShadowRegex = new RegExp(`(#${id}\\s*{[^}]*?)box-shadow[^;]*;`, "g");
+        mainCSS = mainCSS.replace(boxShadowRegex, "$1");
+      });
+console.log("css",mainCSS)
   // Ensure subreportStyles is an array and non-empty before joining
   const subStyles = Array.isArray(subreportStyles) && subreportStyles.length
     ? subreportStyles.join('\n')
@@ -3349,7 +3198,7 @@ function buildFinalHtml(htmlContent, subreportStyles = []) {
   console.log("🏗️ [BUILD] Combined styles length:", combinedStyles.length);
 
   const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlContent, 'text/html');
+  const doc = parser.parseFromString(tempContainer.innerHTML, 'text/html');
 
   const allPages = Array.from(doc.querySelectorAll('.page-container'));
   console.log("📄 [BUILD] Total pages found:", allPages.length);
@@ -4030,7 +3879,7 @@ function createNewPage(templatePage, headerWrapper, footerWrapper) {
   <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font-family: Arial, sans-serif; background: white; }
-      .page-container { background: white; margin: 20px auto; box-shadow: 0 0 10px rgba(0,0,0,0.3); position: relative; page-break-after: always; align:center; }
+      .page-container { background: white; }
       @media print {
           body { background: white; }
           .page-container { margin: 0; box-shadow: none; page-break-after: always; }

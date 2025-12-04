@@ -3267,4 +3267,254 @@ function customChartCommonJson(editor) {
         });
 
     }
+
+
+
+function openJsonImageSelector() {
+  // Show file selection first
+  const fileNames = localStorage.getItem('common_json_files');
+  
+  if (!fileNames) {
+    alert('No JSON files uploaded. Please upload a JSON file first.');
+    return;
+  }
+
+  const fileArray = fileNames.split(',').map(f => f.trim());
+  
+  let modalContent = `
+    <div class="new-table-form" style="width: 500px; min-height: 350px;">
+      <div style="padding-bottom:10px">
+        <label style="font-weight: bold;">Step 1: Select JSON File</label>
+      </div>
+      <div style="padding-bottom:10px">
+        <select id="jsonFileSelector" class="form-control" style="width:100%">
+          <option value="0">-- Select File --</option>
+  `;
+  
+  fileArray.forEach((fileName, index) => {
+    modalContent += `<option value="${index + 1}">${fileName}</option>`;
+  });
+  
+  modalContent += `
+        </select>
+      </div>
+      <div id="languageSection" style="display:none; padding-bottom:10px;">
+        <label style="font-weight: bold;">Step 2: Select Language</label>
+        <div id="languageList" class="suggestion-results" style="height: 150px; overflow-y: auto; border: 1px solid #ddd; margin-top: 10px;"></div>
+      </div>
+      <div id="keySection" style="display:none; padding-bottom:10px;">
+        <label style="font-weight: bold;">Step 3: Select Image Key</label>
+        <div style="padding: 5px 0;">
+          <button id="backToLanguageBtn" style="padding: 5px 10px; font-size: 12px;">← Back to Languages</button>
+        </div>
+        <input type="text" id="searchInput" placeholder="Search image keys" style="width:100%; margin-bottom: 10px;">
+        <div id="keyList" class="suggestion-results" style="height: 150px; overflow-y: auto; border: 1px solid #ddd;"></div>
+      </div>
+    </div>
+  `;
+
+  editor.Modal.setTitle('Select Image from JSON');
+  editor.Modal.setContent(modalContent);
+  editor.Modal.open();
+
+  // File selection handler
+  document.getElementById('jsonFileSelector').addEventListener('change', function() {
+    const fileIndex = this.value;
+    
+    if (fileIndex === '0') {
+      document.getElementById('languageSection').style.display = 'none';
+      document.getElementById('keySection').style.display = 'none';
+      return;
+    }
+
+    const selectedFile = fileArray[parseInt(fileIndex) - 1];
+    const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+
+    if (!jsonString) {
+      alert('Selected JSON file not found');
+      return;
+    }
+
+    const commonJson = JSON.parse(jsonString);
+    showLanguagesInSameModal(commonJson, selectedFile);
+  });
+}
+
+function showLanguagesInSameModal(commonJson, selectedFileName) {
+  const topLevelKeys = Object.keys(commonJson);
+  
+  // Show language section
+  document.getElementById('languageSection').style.display = 'block';
+  document.getElementById('keySection').style.display = 'none';
+  
+  const languageList = document.getElementById('languageList');
+  languageList.innerHTML = '';
+
+  topLevelKeys.forEach(key => {
+    const div = document.createElement('div');
+    div.className = 'suggestion language-option';
+    div.setAttribute('data-value', key);
+    div.textContent = key;
+    div.style.cssText = 'padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;';
+    
+    div.addEventListener('mouseenter', function() {
+      this.style.background = '#f0f0f0';
+    });
+    
+    div.addEventListener('mouseleave', function() {
+      this.style.background = '';
+    });
+    
+    div.addEventListener('click', function() {
+      const selectedLanguage = this.getAttribute('data-value');
+      showKeysInSameModal(selectedLanguage, commonJson, selectedFileName);
+    });
+    
+    languageList.appendChild(div);
+  });
+}
+
+function showKeysInSameModal(language, commonJson, selectedFileName) {
+  const metaDataKeys = extractMetaDataKeys(commonJson[language]);
+  
+  // Hide language section, show key section
+  document.getElementById('languageSection').style.display = 'none';
+  document.getElementById('keySection').style.display = 'block';
+  
+  const keyList = document.getElementById('keyList');
+  keyList.innerHTML = '';
+
+  metaDataKeys.forEach(key => {
+    const fullPath = `${language}.${key}`;
+    const div = document.createElement('div');
+    div.className = 'suggestion';
+    div.setAttribute('data-value', fullPath);
+    div.setAttribute('data-language', language);
+    div.textContent = key;
+    div.style.cssText = 'padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;';
+    
+    div.addEventListener('mouseenter', function() {
+      this.style.background = '#f0f0f0';
+    });
+    
+    div.addEventListener('mouseleave', function() {
+      this.style.background = '';
+    });
+    
+    div.addEventListener('click', function() {
+      const selectedValue = this.getAttribute('data-value');
+      const selectedLanguage = this.getAttribute('data-language');
+      loadImageToAssetManager(selectedValue, selectedLanguage, commonJson);
+    });
+    
+    keyList.appendChild(div);
+  });
+
+  // Back button handler
+  document.getElementById('backToLanguageBtn').addEventListener('click', function() {
+    showLanguagesInSameModal(commonJson, selectedFileName);
+  });
+
+  // Search functionality
+  document.getElementById('searchInput').addEventListener('input', function() {
+    const searchValue = this.value.toLowerCase();
+    const suggestions = keyList.querySelectorAll('.suggestion');
+    
+    suggestions.forEach(item => {
+      if (item.textContent.toLowerCase().includes(searchValue)) {
+        item.style.display = 'block';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  });
+}
+
+function loadImageToAssetManager(jsonPath, language, commonJson) {
+  try {
+    const pathParts = jsonPath.split('.');
+    const remainingPath = pathParts.slice(1);
+    
+    // Safely navigate the JSON object without eval
+    let imageValue = commonJson[language];
+    
+    for (let i = 0; i < remainingPath.length; i++) {
+      const key = remainingPath[i];
+      
+      // Handle array notation like [0]
+      if (key.includes('[') && key.includes(']')) {
+        const arrayKey = key.substring(0, key.indexOf('['));
+        const arrayIndex = key.match(/\[(\d+)\]/)[1];
+        imageValue = imageValue[arrayKey][arrayIndex];
+      } else {
+        imageValue = imageValue[key];
+      }
+      
+      if (imageValue === undefined || imageValue === null) {
+        alert('No image value found at this path');
+        return;
+      }
+    }
+
+    if (!imageValue || typeof imageValue !== 'string') {
+      alert('Invalid image value. Must be a string (URL, base64, or filename)');
+      return;
+    }
+
+    // Trim whitespace
+    imageValue = imageValue.trim();
+
+    let imageSrc = '';
+
+    // Check if it's a base64 string
+    if (imageValue.startsWith('data:image')) {
+      imageSrc = imageValue;
+    }
+    // Check if it's a URL (http/https)
+    else if (imageValue.startsWith('http://') || imageValue.startsWith('https://')) {
+      imageSrc = imageValue;
+    }
+    // Check if it's a relative path
+    else if (imageValue.startsWith('./') || imageValue.startsWith('../')) {
+      imageSrc = imageValue;
+    }
+    // Assume it's a filename
+    else {
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'];
+      const hasImageExtension = imageExtensions.some(ext => 
+        imageValue.toLowerCase().endsWith(ext)
+      );
+      
+      if (hasImageExtension) {
+        imageSrc = `./${imageValue}`;
+      } else {
+        alert('Invalid image format. Please provide a valid image URL, base64 string, or filename with extension.');
+        return;
+      }
+    }
+
+    // Close the JSON selection modal first
+    editor.Modal.close();
+
+    // Add image to asset manager (this will show in the asset manager modal)
+    const assetManager = editor.AssetManager;
+    assetManager.add({
+      src: imageSrc,
+      name: remainingPath.join('.'),
+      type: 'image'
+    });
+
+    // Small delay then open asset manager to show the newly added image
+    setTimeout(() => {
+      editor.runCommand('open-assets');
+    }, 300);
+
+  } catch (error) {
+    console.error('Error loading image from JSON:', error);
+    alert('Error loading image. Please check the JSON path and value format.\n\nError: ' + error.message);
+  }
+}
+
+// Make the function globally accessible
+window.openJsonImageSelector = openJsonImageSelector;
 }

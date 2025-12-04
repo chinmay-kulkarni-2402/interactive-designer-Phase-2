@@ -47114,7 +47114,9 @@
                   inputPlh: "http://path/to/the/image.jpg",
                   modalTitle: "Select Image",
                   uploadTitle: "Drop files here or click to upload",
+                  customAssets: true,
                 },
+                
                 blockManager: { labels: {}, categories: {} },
                 domComponents: {
                   names: {

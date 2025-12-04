@@ -1,34 +1,23 @@
 function customSeparator(editor) {
   // -------- local logger shim (uses DesignerLogger if present) --------
   const DL = (window && window.DesignerLogger) ? window.DesignerLogger : {
-    info: (m, c) => console.log(m, c || ''),
-    warn: (m, c) => console.warn(m, c || ''),
-    error: (m, c) => console.error(m, c || ''),
-    success: (m, c) => console.log(m, c || ''),
-    try(fn, ctx, onError) { try { return fn(); } catch (err) { console.error(err); if (onError) onError(err); } }
+    info:   (m,c)=>console.log(m,c||''),
+    warn:   (m,c)=>console.warn(m,c||''),
+    error:  (m,c)=>console.error(m,c||''),
+    success:(m,c)=>console.log(m,c||''),
+    debug:  (m,c)=>console.log(m,c||''),
+    event:  (m,c)=>console.log(m,c||''),
+    try(fn, ctx, onError){ try { return fn(); } catch(err){ console.error(err); if(onError) onError(err); } }
   };
 
-  // Custom debounce function
-  function debounce(fn, delay) {
-    let timer = null;
-    return function (...args) {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        fn.apply(this, args);
-      }, delay);
-    };
-  }
+  // announce component type registration
+  // DL.event('componentType:register', { type: 'separator' });
 
   editor.Components.addType("separator", {
     model: {
       defaults: {
         tagName: "hr",
         name: "Separator",
-        "border-style": "solid",
-        "border-color": "#000000",
-        "border-thickness": 1,
-        "width": "99.5%",
-        "margin": "10px auto",
         traits: [
           {
             type: "select",
@@ -52,7 +41,7 @@ function customSeparator(editor) {
           {
             type: "number",
             label: "Thickness",
-            name: "border-thickness",
+            name: "border-width-custom",
             placeholder: "e.g. 1",
             changeProp: 1,
             default: 1,
@@ -80,121 +69,129 @@ function customSeparator(editor) {
         ],
         style: {
           "border-top": "1px solid #000000",
-          "width": "99.5%",
-          "margin": "10px auto",
+          "width": "100%",
+          "margin": "5px auto",
           "display": "block",
           "padding": "2.5px",
         },
       },
 
       init() {
+        // created/init message
         const compId = (this.getId && this.getId()) || this.cid || null;
+        DL.event('separator:init', {
+          id: compId,
+          initial: {
+            borderStyle: this.get("border-style") || "solid",
+            borderColor: this.get("border-color") || "#000000",
+            borderWidth: this.get("border-width-custom") || 1,
+            width: this.get("width") || "100%",
+            margin: this.get("margin") || "5px auto"
+          }
+        });
 
+        // log trait changes explicitly
         const traitNames = [
           "border-style",
           "border-color",
-          "border-thickness",
+          "border-width-custom",
           "width",
           "margin",
         ];
 
         traitNames.forEach((tName) => {
-          const debouncedHandle = debounce(this.handleTraitChange.bind(this, tName), 300);
-          this.listenTo(this, "change:" + tName, debouncedHandle);
+          this.listenTo(this, "change:" + tName, () => {
+            DL.info('separator:trait:change', {
+              id: compId,
+              trait: tName,
+              value: this.get(tName)
+            });
+          });
         });
-      },
 
-      handleTraitChange(tName) {
-        const compId = (this.getId && this.getId()) || this.cid || null;
-        let value = this.get(tName);
-        let isValid = true;
-        let validatedValue = value;
-
-        switch (tName) {
-          case "border-thickness":
-            let numericValue = Number(value);
-            if (Number.isNaN(numericValue)) {
-              validatedValue = 1;
-              isValid = false;
-            } else if (numericValue < 0) {
-              validatedValue = Math.abs(numericValue);
-              isValid = false;
-            } else if (numericValue > 20) {
-              validatedValue = 20;
-              isValid = false;
-            } else {
-              validatedValue = numericValue;
-            }
-            break;
-
-          case "border-style":
-            const allowedStyles = ['solid', 'dashed', 'dotted'];
-            if (!allowedStyles.includes(value)) {
-              validatedValue = 'solid';
-              isValid = false;
-            }
-            break;
-
-          case "border-color":
-            if (value === '') {
-              validatedValue = '#000000';
-              isValid = false;
-            } else {
-              const isHex = typeof value === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
-              if (!isHex) {
-                validatedValue = '#000000';
-                isValid = false;
-              }
-            }
-            break;
-
-          case "width":
-            if (typeof value !== 'string' || !/^\d+(\.\d+)?(%|px|rem|vw)$/.test(value)) {
-              validatedValue = '99.5%';
-              isValid = false;
-            }
-            break;
-
-          case "margin":
-            const allowedMargins = ['10px auto', '10px 0 10px auto', '10px auto 10px 0'];
-            if (!allowedMargins.includes(value)) {
-              validatedValue = '10px auto';
-              isValid = false;
-            }
-            break;
-        }
-
-        if (!isValid) {
-          const trait = this.getTraits().find(tr => tr.get('name') === tName);
-          if (trait) {
-            trait.setValue(validatedValue, { silent: true });
-          }
-        } 
-
-        this.updateStyle();
+        // apply style whenever one of the tracked props changes
+        this.listenTo(
+          this,
+          "change:border-style change:border-color change:border-width-custom change:width change:margin",
+          this.updateStyle
+        );
       },
 
       updateStyle() {
         const compId = (this.getId && this.getId()) || this.cid || null;
 
-        const borderStyle = this.get("border-style");
-        const borderColor = this.get("border-color");
-        const borderWidth = this.get("border-thickness");
-        const width = this.get("width");
-        const margin = this.get("margin");
+        // read raw values
+        let borderStyle = this.get("border-style") || "solid";
+        let borderColor = this.get("border-color") || "#000000";
+        let borderWidth = this.get("border-width-custom");
+        let width = this.get("width") || "100%";
+        let margin = this.get("margin") || "5px auto";
 
-        const borderTop = `${borderWidth}px ${borderStyle} ${borderColor}`;
+        // ---- validation & normalization with logs ----
+        // thickness
+        let numericWidth = Number(borderWidth);
+        if (Number.isNaN(numericWidth)) {
+          DL.warn('separator:validation:thickness:NaN', { id: compId, received: borderWidth, fallback: 1 });
+          numericWidth = 1;
+        }
+        if (numericWidth < 0) {
+          DL.warn('separator:validation:thickness:negative', { id: compId, received: borderWidth, coercedTo: Math.abs(numericWidth) });
+          numericWidth = Math.abs(numericWidth);
+        }
+        if (numericWidth > 20) {
+          DL.warn('separator:validation:thickness:tooLarge', { id: compId, received: borderWidth, cappedTo: 20 });
+          numericWidth = 20;
+        }
 
-        try {
+        // style type
+        const allowedStyles = ['solid', 'dashed', 'dotted'];
+        if (!allowedStyles.includes(borderStyle)) {
+          DL.warn('separator:validation:style:invalid', { id: compId, received: borderStyle, fallback: 'solid' });
+          borderStyle = 'solid';
+        }
+
+        // color (basic check)
+        const isHex = typeof borderColor === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(borderColor);
+        if (!isHex) {
+          DL.warn('separator:validation:color:invalid', { id: compId, received: borderColor, fallback: '#000000' });
+          borderColor = '#000000';
+        }
+
+        // width string (allow %, px, rem; basic sanity)
+        if (typeof width !== 'string' || !/(%|px|rem|vw)$/.test(width)) {
+          DL.warn('separator:validation:width:invalid', { id: compId, received: width, fallback: '100%' });
+          width = '100%';
+        }
+
+        // margin string – allow typical patterns; if not, fallback center
+        if (typeof margin !== 'string' || margin.trim() === '') {
+          DL.warn('separator:validation:margin:invalid', { id: compId, received: margin, fallback: '10px auto' });
+          margin = '10px auto';
+        }
+
+        // computed style parts
+        const borderTop = `${numericWidth}px ${borderStyle} ${borderColor}`;
+
+        // announce what we’re about to apply
+        DL.debug('separator:style:compute', {
+          id: compId,
+          apply: { borderTop, width, margin }
+        });
+
+        // ---- apply style (guarded) ----
+        DL.try(() => {
           this.addStyle({
             "border-top": borderTop,
             "width": width,
             "margin": margin,
             "display": "block",
           });
-        } catch (err) {
-          
-        }
+        }, { id: compId, phase: 'addStyle' }, (err) => {
+          DL.error('separator:style:apply:failed', { id: compId, error: String(err) });
+        });
+
+        // success message
+        DL.success('separator:style:applied', { id: compId, borderTop, width, margin });
       },
     },
   });
