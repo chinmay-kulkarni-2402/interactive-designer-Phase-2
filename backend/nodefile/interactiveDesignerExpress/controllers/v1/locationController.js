@@ -137,7 +137,7 @@ class locationController {
     }
   }
 
-  async uploadHtmlSinglePage(req, res) {
+async uploadHtmlSinglePage(req, res) {
     try {
       if (!req.file) {
         _sendResponse(res, 400, "Please upload an HTML file!");
@@ -171,6 +171,31 @@ class locationController {
           overflow: visible !important;
         }
 
+        /* Prevent page breaks */
+        * {
+          page-break-before: avoid !important;
+          page-break-after: avoid !important;
+          page-break-inside: avoid !important;
+        }
+
+        /* Remove Bootstrap outer spacing */
+        .container, .container-fluid {
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+          margin: 0 !important;
+          max-width: none !important;
+        }
+
+        .row {
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+
+        .col, [class*="col-"] {
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+        }
+
         @page {
           size: auto;
           margin: 0mm !important;
@@ -179,13 +204,6 @@ class locationController {
         body::after {
           content: none !important;
           display: none !important;
-        }
-
-        div, section, article, table, ul, ol, p, h1, h2, h3, h4, h5, h6 {
-          page-break-before: avoid !important;
-          page-break-after: avoid !important;
-          page-break-inside: avoid !important;
-          margin-bottom: 0 !important;
         }
       </style>
     `;
@@ -215,39 +233,54 @@ class locationController {
         ],
       });
       
-
       const page = await browser.newPage();
+
+      await page.setViewport({
+        width: 1200,
+        height: 3000, // Larger height for big content
+        deviceScaleFactor: 1
+      });
 
       await page.goto(`file://${modifiedPath}`, {
         waitUntil: "networkidle2",
-        timeout: 120000,
+        timeout: 200000,
       });
-      await page.waitForTimeout(2000);
 
-      const bodyHeight = await page.evaluate(() => document.body.scrollHeight);
-const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+      await page.waitForTimeout(7000);
 
-const pxToInch = px => px / 96;
-const pdf = await page.pdf({
-  printBackground: true,
-  width: `${pxToInch(bodyWidth)}in`,
-  height: `${pxToInch(bodyHeight)}in`,
-  margin: { top: 0, right: 0, bottom: 0, left: 0 },
-  preferCSSPageSize: false,
-});
+      // Get exact content dimensions (minimum bounding box)
+      const dimensions = await page.evaluate(() => {
+        const allElements = Array.from(document.body.querySelectorAll('*'));
+        let maxBottom = 0;
+        let maxRight = 0;
+        let minTop = Infinity;
+        let minLeft = Infinity;
+        
+        allElements.forEach(el => {
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            if (rect.top < minTop) minTop = rect.top;
+            if (rect.left < minLeft) minLeft = rect.left;
+            if (rect.bottom > maxBottom) maxBottom = rect.bottom;
+            if (rect.right > maxRight) maxRight = rect.right;
+          }
+        });
+        
+        return {
+          width: Math.ceil(maxRight - minLeft),
+          height: Math.ceil(maxBottom - minTop)
+        };
+      });
 
-
-      // const bodyHeight = await page.evaluate(() => document.body.scrollHeight);
-      // const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-
-      // const pdf = await page.pdf({
-      //   printBackground: true,
-      //   width: `${bodyWidth}px`,
-      //   height: `${bodyHeight}px`,
-      //   margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      //   preferCSSPageSize: false,
-      //   pageRanges: "",
-      // });
+      const pxToInch = px => px / 96;
+      const pdf = await page.pdf({
+        printBackground: true,
+        width: `${pxToInch(dimensions.width)}in`,
+        height: `${pxToInch(dimensions.height)}in`,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        preferCSSPageSize: false,
+        pageRanges: '1',
+      });
 
       await browser.close();
 
@@ -270,7 +303,6 @@ const pdf = await page.pdf({
       }
     }
   }
-
 
 async uploadHTML(req, res) {
   try {

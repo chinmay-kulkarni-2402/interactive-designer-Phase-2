@@ -563,12 +563,12 @@ function jsontablecustom(editor) {
                             this.set('file-download', parsed.meta.fileDownload || '', { silent: true });
                         }
                         // Update container class based on table type
-const tableType = this.get('table-type') || 'standard';
-const currentClass = this.getAttributes().class || 'json-table-container';
-const baseClass = 'json-table-container';
-this.addAttributes({
-    class: `${baseClass} ${tableType}`
-});
+                        const tableType = this.get('table-type') || 'standard';
+                        const currentClass = this.getAttributes().class || 'json-table-container';
+                        const baseClass = 'json-table-container';
+                        this.addAttributes({
+                            class: `${baseClass} ${tableType}`
+                        });
 
                         // ✅ CRITICAL: Set show-placeholder based on data presence
                         const hasValidData = parsed.headers && parsed.data &&
@@ -665,10 +665,10 @@ this.addAttributes({
                             filterValueTrait.view.el.style.display = tableType === 'crosstab' ? 'none' : 'block';
                     }, 100);
 
-                        const baseClass = 'json-table-container';
-    this.addAttributes({
-        class: `${baseClass} ${tableType}`
-    });
+                    const baseClass = 'json-table-container';
+                    this.addAttributes({
+                        class: `${baseClass} ${tableType}`
+                    });
                     if (tableType === 'crosstab') {
                         this.set('filter-column', '');
                         this.set('filter-value', '');
@@ -2504,173 +2504,173 @@ this.addAttributes({
 
                 return null;
             },
-// REPLACE the entire grouping section around line 2950:
+            // REPLACE the entire grouping section around line 2950:
 
-groupData(data, groupingFields) {
-    if (!groupingFields || groupingFields.length === 0) return data;
+            groupData(data, groupingFields) {
+                if (!groupingFields || groupingFields.length === 0) return data;
 
-    // SAFETY CHECK
-    if (!Array.isArray(data) || data.length === 0) {
-        console.warn('Invalid or empty data for grouping');
-        return data;
-    }
+                // SAFETY CHECK
+                if (!Array.isArray(data) || data.length === 0) {
+                    console.warn('Invalid or empty data for grouping');
+                    return data;
+                }
 
-    const grouped = {};
-    const sortOrder = this.get('sort-order') || 'ascending';
-    const topN = this.get('top-n') || 'none';
-    const topNValue = parseInt(this.get('top-n-value')) || 10;
-    const summarizeGroup = this.get('summarize-group') || false;
-    const showSummaryOnly = this.get('show-summary-only') || false;
-    const mergeGroupCells = this.get('merge-group-cells') || false;
-    const hideSubtotalSingleRow = this.get('hide-subtotal-single-row') || false;
-    
-    // ✅ NEW: Get summary-at-field setting
-    const summaryAtField = this.get('summary-at-field') || '';
-    const summaryAtIndex = summaryAtField ? 
-        groupingFields.findIndex(f => f.key === summaryAtField) : 
-        groupingFields.length - 1; // Default to last grouping field
-    
-    console.log(`📊 Summary will display at field index: ${summaryAtIndex} (${groupingFields[summaryAtIndex]?.name || 'last'})`);
+                const grouped = {};
+                const sortOrder = this.get('sort-order') || 'ascending';
+                const topN = this.get('top-n') || 'none';
+                const topNValue = parseInt(this.get('top-n-value')) || 10;
+                const summarizeGroup = this.get('summarize-group') || false;
+                const showSummaryOnly = this.get('show-summary-only') || false;
+                const mergeGroupCells = this.get('merge-group-cells') || false;
+                const hideSubtotalSingleRow = this.get('hide-subtotal-single-row') || false;
 
-    // Group data by ALL grouping fields
-    let processedData = data;
-    
-    const namedGroups = this.get('named-groups') || {};
-    const defineNamedGroup = this.get('define-named-group') || false;
-    
-    if (defineNamedGroup && namedGroups[groupingFields[0].key]) {
-        processedData = this.applyNamedGroups(data, groupingFields[0].key, namedGroups[groupingFields[0].key]);
-    }
+                // ✅ NEW: Get summary-at-field setting
+                const summaryAtField = this.get('summary-at-field') || '';
+                const summaryAtIndex = summaryAtField ?
+                    groupingFields.findIndex(f => f.key === summaryAtField) :
+                    groupingFields.length - 1; // Default to last grouping field
 
-    // Create hierarchical grouping structure
-    processedData.forEach(row => {
-        if (!row || typeof row !== 'object') return;
-        
-        const groupKey = groupingFields.map(field => row[field.key] || '').join('|');
-        if (!grouped[groupKey]) {
-            grouped[groupKey] = {
-                key: groupKey,
-                values: groupingFields.map(field => row[field.key] || ''),
-                rows: []
-            };
-        }
-        grouped[groupKey].rows.push(row);
-    });
+                console.log(`📊 Summary will display at field index: ${summaryAtIndex} (${groupingFields[summaryAtIndex]?.name || 'last'})`);
 
-    if (Object.keys(grouped).length === 0) {
-        console.warn('No groups created from data');
-        return data;
-    }
+                // Group data by ALL grouping fields
+                let processedData = data;
 
-    // Sort groups
-    let sortedGroupKeys = Object.keys(grouped);
-    if (sortOrder === 'ascending') {
-        sortedGroupKeys.sort();
-    } else if (sortOrder === 'descending') {
-        sortedGroupKeys.sort().reverse();
-    }
+                const namedGroups = this.get('named-groups') || {};
+                const defineNamedGroup = this.get('define-named-group') || false;
 
-    // Apply Top/N filtering
-    if (topN !== 'none' && topN !== 'sort-all' && topNValue > 0) {
-        if (topN === 'top') {
-            sortedGroupKeys = sortedGroupKeys.slice(0, topNValue);
-        } else if (topN === 'bottom') {
-            sortedGroupKeys = sortedGroupKeys.slice(-topNValue);
-        }
-    }
+                if (defineNamedGroup && namedGroups[groupingFields[0].key]) {
+                    processedData = this.applyNamedGroups(data, groupingFields[0].key, namedGroups[groupingFields[0].key]);
+                }
 
-    console.log(`Top N Filter: ${topN}, Value: ${topNValue}, Groups shown: ${sortedGroupKeys.length}`);
+                // Create hierarchical grouping structure
+                processedData.forEach(row => {
+                    if (!row || typeof row !== 'object') return;
 
-    // Flatten back to array with group markers
-    const result = [];
-    const selectedSummaryFields = this.get('summary-fields') || [];
-
-    sortedGroupKeys.forEach((groupKey, groupIndex) => {
-        const group = grouped[groupKey];
-        
-        if (showSummaryOnly) {
-            if (summarizeGroup && selectedSummaryFields.length > 0) {
-                const summaryRow = this.createSummaryRow(group.rows, groupKey);
-                summaryRow._isSummary = true;
-                summaryRow._groupIndex = groupIndex;
-                // ✅ Mark summary cells to skip merging
-                Object.keys(this.get('custom-headers') || this.get('table-headers') || {}).forEach(key => {
-                    summaryRow[`_skip_merge_${key}`] = true;
+                    const groupKey = groupingFields.map(field => row[field.key] || '').join('|');
+                    if (!grouped[groupKey]) {
+                        grouped[groupKey] = {
+                            key: groupKey,
+                            values: groupingFields.map(field => row[field.key] || ''),
+                            rows: []
+                        };
+                    }
+                    grouped[groupKey].rows.push(row);
                 });
-                result.push(summaryRow);
-            } else if (this.get('keep-group-hierarchy')) {
-                const firstRow = { ...group.rows[0] };
-                firstRow._groupIndex = groupIndex;
-                result.push(firstRow);
-            }
-        } else {
-            // Add all rows in group
-            group.rows.forEach((row, rowIdx) => {
-                const newRow = { ...row };
 
-                // Mark first row of group for potential merging
-                if (mergeGroupCells && rowIdx === 0) {
-                    newRow._groupStart = true;
-                    newRow._groupSize = group.rows.length;
-                    newRow._groupIndex = groupIndex;
-                    groupingFields.forEach(field => {
-                        newRow[`_merge_${field.key}`] = true;
-                    });
+                if (Object.keys(grouped).length === 0) {
+                    console.warn('No groups created from data');
+                    return data;
                 }
 
-                result.push(newRow);
-                
-                // ✅ NEW: Check if we should add summary at this level
-                const shouldAddSummaryHere = 
-                    summarizeGroup && 
-                    selectedSummaryFields.length > 0 &&
-                    !(hideSubtotalSingleRow && group.rows.length === 1) &&
-                    rowIdx === group.rows.length - 1; // Last row of group
-                
-                if (shouldAddSummaryHere) {
-                    // Check if next group has different value at summary-at-field level
-                    const nextGroupKey = sortedGroupKeys[groupIndex + 1];
-                    let shouldShowSummary = true;
-                    
-                    if (nextGroupKey && summaryAtIndex < groupingFields.length) {
-                        const currentValues = group.values;
-                        const nextValues = grouped[nextGroupKey].values;
-                        
-                        // Compare values up to and including summaryAtIndex
-                        shouldShowSummary = currentValues[summaryAtIndex] !== nextValues[summaryAtIndex];
-                        
-                        console.log(`Comparing at index ${summaryAtIndex}: "${currentValues[summaryAtIndex]}" vs "${nextValues[summaryAtIndex]}" = ${shouldShowSummary}`);
+                // Sort groups
+                let sortedGroupKeys = Object.keys(grouped);
+                if (sortOrder === 'ascending') {
+                    sortedGroupKeys.sort();
+                } else if (sortOrder === 'descending') {
+                    sortedGroupKeys.sort().reverse();
+                }
+
+                // Apply Top/N filtering
+                if (topN !== 'none' && topN !== 'sort-all' && topNValue > 0) {
+                    if (topN === 'top') {
+                        sortedGroupKeys = sortedGroupKeys.slice(0, topNValue);
+                    } else if (topN === 'bottom') {
+                        sortedGroupKeys = sortedGroupKeys.slice(-topNValue);
                     }
-                    
-                    if (shouldShowSummary) {
-                        console.log(`➕ Adding summary row for group ${groupIndex}`);
-                        const summaryRow = this.createSummaryRow(group.rows, groupKey);
-                        summaryRow._isSummary = true;
-                        summaryRow._groupIndex = groupIndex;
-                        
-                        // ✅ Mark summary cells to skip merging
-                        Object.keys(this.get('custom-headers') || this.get('table-headers') || {}).forEach(key => {
-                            summaryRow[`_skip_merge_${key}`] = true;
+                }
+
+                console.log(`Top N Filter: ${topN}, Value: ${topNValue}, Groups shown: ${sortedGroupKeys.length}`);
+
+                // Flatten back to array with group markers
+                const result = [];
+                const selectedSummaryFields = this.get('summary-fields') || [];
+
+                sortedGroupKeys.forEach((groupKey, groupIndex) => {
+                    const group = grouped[groupKey];
+
+                    if (showSummaryOnly) {
+                        if (summarizeGroup && selectedSummaryFields.length > 0) {
+                            const summaryRow = this.createSummaryRow(group.rows, groupKey);
+                            summaryRow._isSummary = true;
+                            summaryRow._groupIndex = groupIndex;
+                            // ✅ Mark summary cells to skip merging
+                            Object.keys(this.get('custom-headers') || this.get('table-headers') || {}).forEach(key => {
+                                summaryRow[`_skip_merge_${key}`] = true;
+                            });
+                            result.push(summaryRow);
+                        } else if (this.get('keep-group-hierarchy')) {
+                            const firstRow = { ...group.rows[0] };
+                            firstRow._groupIndex = groupIndex;
+                            result.push(firstRow);
+                        }
+                    } else {
+                        // Add all rows in group
+                        group.rows.forEach((row, rowIdx) => {
+                            const newRow = { ...row };
+
+                            // Mark first row of group for potential merging
+                            if (mergeGroupCells && rowIdx === 0) {
+                                newRow._groupStart = true;
+                                newRow._groupSize = group.rows.length;
+                                newRow._groupIndex = groupIndex;
+                                groupingFields.forEach(field => {
+                                    newRow[`_merge_${field.key}`] = true;
+                                });
+                            }
+
+                            result.push(newRow);
+
+                            // ✅ NEW: Check if we should add summary at this level
+                            const shouldAddSummaryHere =
+                                summarizeGroup &&
+                                selectedSummaryFields.length > 0 &&
+                                !(hideSubtotalSingleRow && group.rows.length === 1) &&
+                                rowIdx === group.rows.length - 1; // Last row of group
+
+                            if (shouldAddSummaryHere) {
+                                // Check if next group has different value at summary-at-field level
+                                const nextGroupKey = sortedGroupKeys[groupIndex + 1];
+                                let shouldShowSummary = true;
+
+                                if (nextGroupKey && summaryAtIndex < groupingFields.length) {
+                                    const currentValues = group.values;
+                                    const nextValues = grouped[nextGroupKey].values;
+
+                                    // Compare values up to and including summaryAtIndex
+                                    shouldShowSummary = currentValues[summaryAtIndex] !== nextValues[summaryAtIndex];
+
+                                    console.log(`Comparing at index ${summaryAtIndex}: "${currentValues[summaryAtIndex]}" vs "${nextValues[summaryAtIndex]}" = ${shouldShowSummary}`);
+                                }
+
+                                if (shouldShowSummary) {
+                                    console.log(`➕ Adding summary row for group ${groupIndex}`);
+                                    const summaryRow = this.createSummaryRow(group.rows, groupKey);
+                                    summaryRow._isSummary = true;
+                                    summaryRow._groupIndex = groupIndex;
+
+                                    // ✅ Mark summary cells to skip merging
+                                    Object.keys(this.get('custom-headers') || this.get('table-headers') || {}).forEach(key => {
+                                        summaryRow[`_skip_merge_${key}`] = true;
+                                    });
+
+                                    result.push(summaryRow);
+                                }
+                            }
                         });
-                        
-                        result.push(summaryRow);
                     }
-                }
-            });
-        }
-    });
+                });
 
-    // Add grand total if enabled
-    if (this.get('grand-total')) {
-        const grandTotalRow = this.createGrandTotalRow(
-            showSummaryOnly ? result.filter(r => !r._isSummary) : result.filter(r => !r._isSummary && !r._isGrandTotal)
-        );
-        grandTotalRow._isGrandTotal = true;
-        result.push(grandTotalRow);
-    }
-    
-    return result;
-},
+                // Add grand total if enabled
+                if (this.get('grand-total')) {
+                    const grandTotalRow = this.createGrandTotalRow(
+                        showSummaryOnly ? result.filter(r => !r._isSummary) : result.filter(r => !r._isSummary && !r._isGrandTotal)
+                    );
+                    grandTotalRow._isGrandTotal = true;
+                    result.push(grandTotalRow);
+                }
+
+                return result;
+            },
 
             applyNamedGroups(data, fieldKey, namedGroupsConfig) {
                 return data.map(row => {
@@ -3504,7 +3504,6 @@ groupData(data, groupingFields) {
                         style: {
                             ...cellStyles,
                             'width': 'auto',
-                            'height': '100%',
                             'text-align': 'left',
                             'box-sizing': 'border-box',
                             'position': 'relative',
@@ -3733,10 +3732,10 @@ groupData(data, groupingFields) {
                         // Add rowspan if this cell should be merged
                         // Add rowspan if this cell should be merged
                         if (isGroupStart && row[`_merge_${key}`]) {
-                                if (row[`_skip_merge_${key}`]) {
-        // Don't add rowspan for this cell
-        return;
-    }
+                            if (row[`_skip_merge_${key}`]) {
+                                // Don't add rowspan for this cell
+                                return;
+                            }
                             // Calculate actual rowspan considering nested groups
                             let actualRowspan = 1;
                             const groupingFields = this.get('grouping-fields') || [];
@@ -3744,17 +3743,17 @@ groupData(data, groupingFields) {
 
                             if (currentFieldIndex >= 0) {
                                 // For first-level grouping fields, count consecutive rows with same value
-for (let i = rowIndex + 1; i < data.length; i++) {
-            // ✅ UPDATED: Stop counting if next row is summary or has skip flag
-            if (data[i]._isSummary || data[i][`_skip_merge_${key}`]) {
-                break;
-            }
-            if (data[i][key] === row[key] && !data[i]._isPageBreak) {
-                actualRowspan++;
-            } else {
-                break;
-            }
-        }
+                                for (let i = rowIndex + 1; i < data.length; i++) {
+                                    // ✅ UPDATED: Stop counting if next row is summary or has skip flag
+                                    if (data[i]._isSummary || data[i][`_skip_merge_${key}`]) {
+                                        break;
+                                    }
+                                    if (data[i][key] === row[key] && !data[i]._isPageBreak) {
+                                        actualRowspan++;
+                                    } else {
+                                        break;
+                                    }
+                                }
                             } else {
                                 // For non-grouping columns, use the provided groupSize
                                 actualRowspan = groupSize;
@@ -3763,11 +3762,11 @@ for (let i = rowIndex + 1; i < data.length; i++) {
                             attributes.rowspan = actualRowspan.toString();
 
                             // Mark following rows to skip this column
-    for (let i = 1; i < actualRowspan; i++) {
-        if (data[rowIndex + i] && !data[rowIndex + i]._isSummary) {
-            data[rowIndex + i][`_skip_${key}`] = true;
-        }
-    }
+                            for (let i = 1; i < actualRowspan; i++) {
+                                if (data[rowIndex + i] && !data[rowIndex + i]._isSummary) {
+                                    data[rowIndex + i][`_skip_${key}`] = true;
+                                }
+                            }
                         }
 
                         const cellComponent = rowComponent.components().add({
@@ -3785,7 +3784,7 @@ for (let i = rowIndex + 1; i < data.length; i++) {
                                 ...appliedCellStyles,
                                 'position': 'relative',
                                 'width': 'auto',
-                                'height': '100%',
+
                                 'box-sizing': 'border-box',
                                 'my-input-json': `${jsonPath}.data[${rowIndex}].${key}`,
                             }
@@ -4046,7 +4045,7 @@ for (let i = rowIndex + 1; i < data.length; i++) {
                         style: {
                             'margin': '10px',
                             'width': 'auto',
-                            'height': '100%',
+
                             'box-sizing': 'border-content-box'
                         }
                     });
@@ -4498,7 +4497,7 @@ for (let i = rowIndex + 1; i < data.length; i++) {
             }, 100);
         }
     });
-    
+
     editor.Commands.add('open-table-settings-modal', {
         run(editor) {
             const selected = editor.getSelected();
@@ -4826,109 +4825,109 @@ for (let i = rowIndex + 1; i < data.length; i++) {
         }
     });
 
-function initializeTableSettingsModal(component, availableFields) {
-    let selectedGroupingFields = component.get('grouping-fields') || [];
-    let selectedSummaryFields = component.get('summary-fields') || [];
-    // ✅ CHECK TABLE TYPE FIRST - BEFORE ANY EVENT LISTENERS
-    const tableType = component.get('table-type') || 'standard';
+    function initializeTableSettingsModal(component, availableFields) {
+        let selectedGroupingFields = component.get('grouping-fields') || [];
+        let selectedSummaryFields = component.get('summary-fields') || [];
+        // ✅ CHECK TABLE TYPE FIRST - BEFORE ANY EVENT LISTENERS
+        const tableType = component.get('table-type') || 'standard';
 
-    // ✅ HIDE TABS IMMEDIATELY FOR CROSSTAB
-    if (tableType === 'crosstab') {
-        const settingsTab = document.querySelector('.nav-tab[data-tab="settings"]');
-        const runningTotalTab = document.querySelector('.nav-tab[data-tab="running-total"]');
+        // ✅ HIDE TABS IMMEDIATELY FOR CROSSTAB
+        if (tableType === 'crosstab') {
+            const settingsTab = document.querySelector('.nav-tab[data-tab="settings"]');
+            const runningTotalTab = document.querySelector('.nav-tab[data-tab="running-total"]');
 
-        if (settingsTab) settingsTab.style.display = 'none';
-        if (runningTotalTab) runningTotalTab.style.display = 'none';
-    }
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', function () {
-            // Remove active class and styles from all tabs
-            document.querySelectorAll('.nav-tab').forEach(t => {
-                t.classList.remove('active');
-                t.style.background = 'transparent';
-                t.style.borderBottom = 'none';
-                t.style.fontWeight = 'normal';
-            });
-
-            // Hide all tab panes
-            document.querySelectorAll('.tab-pane').forEach(p => {
-                p.style.display = 'none';
-            });
-
-            // Activate clicked tab
-            this.classList.add('active');
-            this.style.background = 'white';
-            this.style.borderBottom = '3px solid #007bff';
-            this.style.fontWeight = 'bold';
-
-            // Show corresponding tab pane
-            const tabId = this.getAttribute('data-tab') + '-tab';
-            const tabPane = document.getElementById(tabId);
-            if (tabPane) {
-                tabPane.style.display = 'block';
-            }
-
-            // Initialize running total tab if needed
-            if (this.getAttribute('data-tab') === 'running-total') {
-                initializeRunningTotalTab(component);
-            }
-        });
-    });
-    // ✅ AUTO-SWITCH TO GROUPING TAB IF CROSSTAB
-    if (tableType === 'crosstab') {
-        setTimeout(() => {
-            document.querySelector('.nav-tab[data-tab="grouping"]')?.click();
-        }, 50);
-    }
-    initializeInlineColumnReorder(component);
-    // Populate Running Total columns - STRICT numeric check
-    const headers = component.get('custom-headers') || component.get('table-headers') || {};
-    const data = component.get('custom-data') || component.get('table-data') || [];
-    const selectedColumns = component.get('selected-running-total-columns') || [];
-
-    const runningTotalContainer = document.getElementById('running-total-columns');
-    const numericHeaders = {};
-
-    Object.entries(headers).forEach(([key, name]) => {
-        const isStrictlyNumeric = data.every(row => {
-            let value = row[key];
-            if (value === '' || value === null || value === undefined) return true;
-
-            // Convert to string and trim spaces
-            value = String(value).trim();
-
-            // Handle accounting-style negatives: (123.45) → -123.45
-            if (/^\(.*\)$/.test(value)) {
-                value = '-' + value.slice(1, -1);
-            }
-
-            // Remove currency symbols and spaces
-            value = value.replace(/[$£€₹,\s]/g, '');
-
-            // Detect if it’s a European-style number (comma as decimal)
-            // e.g., "1200,50" → "1200.50"
-            if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
-                value = value.replace(/\./g, '').replace(',', '.');
-            }
-
-            // Check if final cleaned string is a valid number
-            const numValue = Number(value);
-            return typeof numValue === 'number' && !isNaN(numValue);
-        });
-
-        if (
-            isStrictlyNumeric &&
-            data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)
-        ) {
-            numericHeaders[key] = name;
+            if (settingsTab) settingsTab.style.display = 'none';
+            if (runningTotalTab) runningTotalTab.style.display = 'none';
         }
-    });
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', function () {
+                // Remove active class and styles from all tabs
+                document.querySelectorAll('.nav-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.background = 'transparent';
+                    t.style.borderBottom = 'none';
+                    t.style.fontWeight = 'normal';
+                });
+
+                // Hide all tab panes
+                document.querySelectorAll('.tab-pane').forEach(p => {
+                    p.style.display = 'none';
+                });
+
+                // Activate clicked tab
+                this.classList.add('active');
+                this.style.background = 'white';
+                this.style.borderBottom = '3px solid #007bff';
+                this.style.fontWeight = 'bold';
+
+                // Show corresponding tab pane
+                const tabId = this.getAttribute('data-tab') + '-tab';
+                const tabPane = document.getElementById(tabId);
+                if (tabPane) {
+                    tabPane.style.display = 'block';
+                }
+
+                // Initialize running total tab if needed
+                if (this.getAttribute('data-tab') === 'running-total') {
+                    initializeRunningTotalTab(component);
+                }
+            });
+        });
+        // ✅ AUTO-SWITCH TO GROUPING TAB IF CROSSTAB
+        if (tableType === 'crosstab') {
+            setTimeout(() => {
+                document.querySelector('.nav-tab[data-tab="grouping"]')?.click();
+            }, 50);
+        }
+        initializeInlineColumnReorder(component);
+        // Populate Running Total columns - STRICT numeric check
+        const headers = component.get('custom-headers') || component.get('table-headers') || {};
+        const data = component.get('custom-data') || component.get('table-data') || [];
+        const selectedColumns = component.get('selected-running-total-columns') || [];
+
+        const runningTotalContainer = document.getElementById('running-total-columns');
+        const numericHeaders = {};
+
+        Object.entries(headers).forEach(([key, name]) => {
+            const isStrictlyNumeric = data.every(row => {
+                let value = row[key];
+                if (value === '' || value === null || value === undefined) return true;
+
+                // Convert to string and trim spaces
+                value = String(value).trim();
+
+                // Handle accounting-style negatives: (123.45) → -123.45
+                if (/^\(.*\)$/.test(value)) {
+                    value = '-' + value.slice(1, -1);
+                }
+
+                // Remove currency symbols and spaces
+                value = value.replace(/[$£€₹,\s]/g, '');
+
+                // Detect if it’s a European-style number (comma as decimal)
+                // e.g., "1200,50" → "1200.50"
+                if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
+                    value = value.replace(/\./g, '').replace(',', '.');
+                }
+
+                // Check if final cleaned string is a valid number
+                const numValue = Number(value);
+                return typeof numValue === 'number' && !isNaN(numValue);
+            });
+
+            if (
+                isStrictlyNumeric &&
+                data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)
+            ) {
+                numericHeaders[key] = name;
+            }
+        });
 
 
-    if (Object.keys(numericHeaders).length === 0) {
-        runningTotalContainer.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No columns with purely numeric data available</p>';
-    } else {
-        runningTotalContainer.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
+        if (Object.keys(numericHeaders).length === 0) {
+            runningTotalContainer.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No columns with purely numeric data available</p>';
+        } else {
+            runningTotalContainer.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
         <div style="margin-bottom: 8px;">
             <label style="display: flex; align-items: center; cursor: pointer;">
                 <input type="checkbox" value="${key}" ${selectedColumns.includes(key) ? 'checked' : ''} 
@@ -4937,25 +4936,25 @@ function initializeTableSettingsModal(component, availableFields) {
             </label>
         </div>
     `).join('');
-    }
+        }
 
-    // --- NEW: Insert "Display Summary At" fieldset into Grouping & Summary tab dynamically ---
-    (function insertSummaryAtFieldset() {
-        // Only insert once
-        if (document.getElementById('summary-at-field')) return;
+        // --- NEW: Insert "Display Summary At" fieldset into Grouping & Summary tab dynamically ---
+        (function insertSummaryAtFieldset() {
+            // Only insert once
+            if (document.getElementById('summary-at-field')) return;
 
-        // Find grouping tab pane and locate a good insertion point
-        const groupingTab = document.getElementById('grouping-tab');
-        if (!groupingTab) return;
+            // Find grouping tab pane and locate a good insertion point
+            const groupingTab = document.getElementById('grouping-tab');
+            if (!groupingTab) return;
 
-        // Create fieldset
-        const fs = document.createElement('fieldset');
-        fs.style.border = '1px solid #ddd';
-        fs.style.padding = '15px';
-        fs.style.borderRadius = '4px';
-        fs.style.marginBottom = '20px';
+            // Create fieldset
+            const fs = document.createElement('fieldset');
+            fs.style.border = '1px solid #ddd';
+            fs.style.padding = '15px';
+            fs.style.borderRadius = '4px';
+            fs.style.marginBottom = '20px';
 
-        fs.innerHTML = `
+            fs.innerHTML = `
             <legend style="font-weight: bold; padding: 0 10px;">Display Summary At</legend>
             <div style="margin-bottom: 10px;">
                 <label style="font-weight: bold; display: block; margin-bottom: 8px;">
@@ -4970,279 +4969,279 @@ function initializeTableSettingsModal(component, availableFields) {
             </div>
         `;
 
-        // Insert the fieldset BEFORE the Group Options fieldset (if found), otherwise append near groupingTab top
-        const groupOptionsFs = Array.from(groupingTab.querySelectorAll('fieldset')).find(f => {
-            return f.querySelector('#summarize-group') || f.querySelector('#merge-group-cells') || f.querySelector('#page-break');
-        });
+            // Insert the fieldset BEFORE the Group Options fieldset (if found), otherwise append near groupingTab top
+            const groupOptionsFs = Array.from(groupingTab.querySelectorAll('fieldset')).find(f => {
+                return f.querySelector('#summarize-group') || f.querySelector('#merge-group-cells') || f.querySelector('#page-break');
+            });
 
-        if (groupOptionsFs) {
-            groupOptionsFs.parentElement.insertBefore(fs, groupOptionsFs);
-        } else {
-            // fallback: append to groupingTab
-            groupingTab.insertBefore(fs, groupingTab.firstChild);
-        }
-    })();
-    // --- END INSERT ---
-
-    // === GROUPING & SUMMARY TAB HANDLERS ===
-
-    const savedGroupingFields = component.get('grouping-fields') || [];
-    const savedSummaryFields = component.get('summary-fields') || [];
-
-    selectedGroupingFields = [...savedGroupingFields];
-    selectedSummaryFields = [...savedSummaryFields]; // Add this
-    updateSelectedFields();
-    updateSummaryFieldsList(); // Add this function call
-
-    // --- NEW: updateSummaryAtDropdown definition ---
-    function updateSummaryAtDropdown() {
-        const summaryAtField = document.getElementById('summary-at-field');
-        if (!summaryAtField) return;
-
-        // Clear existing options except the placeholder
-        summaryAtField.innerHTML = '<option value="">Select grouping field...</option>';
-
-        selectedGroupingFields.forEach(field => {
-            const option = document.createElement('option');
-            option.value = field.key;
-            option.textContent = field.name;
-            summaryAtField.appendChild(option);
-        });
-
-        // Set saved value
-        const savedSummaryAt = component.get('summary-at-field') || '';
-        summaryAtField.value = savedSummaryAt;
-
-        // Disable when no grouping fields or no summary fields
-        summaryAtField.disabled = selectedGroupingFields.length === 0 || selectedSummaryFields.length === 0;
-        summaryAtField.style.background = summaryAtField.disabled ? '#f0f0f0' : 'white';
-    }
-
-    // Call initially
-    updateSummaryAtDropdown();
-
-    // --- OVERRIDE updateSelectedFields to refresh "summary-at" dropdown whenever grouping changes ---
-    const originalUpdateSelectedFields = window.updateSelectedFields || null;
-    // We expect updateSelectedFields to be declared later in the same scope — if it is, we'll wrap it after declaration.
-    // To be robust, override the function reference in this scope after its declaration below.
-    // (We'll patch it later by replacing the function object in this scope.)
-
-    // Summary field add button handler
-    document.getElementById('add-summary-field').addEventListener('click', function () {
-        const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
-        const summaryFunction = document.getElementById('summary-function').value;
-
-        if (summaryCheckboxes.length === 0) {
-            alert('Please select at least one field for summary');
-            return;
-        }
-
-        let addedCount = 0;
-        summaryCheckboxes.forEach(checkbox => {
-            const fieldItem = checkbox.closest('.field-item');
-            const fieldKey = fieldItem.getAttribute('data-key');
-            const fieldName = fieldItem.querySelector('span').textContent;
-
-            // Check if already added with same function
-            const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
-            if (!exists) {
-                selectedSummaryFields.push({
-                    key: fieldKey,
-                    name: fieldName,
-                    function: summaryFunction
-                });
-                addedCount++;
+            if (groupOptionsFs) {
+                groupOptionsFs.parentElement.insertBefore(fs, groupOptionsFs);
+            } else {
+                // fallback: append to groupingTab
+                groupingTab.insertBefore(fs, groupingTab.firstChild);
             }
+        })();
+        // --- END INSERT ---
 
-            // Uncheck after adding
-            checkbox.checked = false;
-        });
+        // === GROUPING & SUMMARY TAB HANDLERS ===
 
-        // ✅ Always update the list
-        updateSummaryFieldsList();
-        // Update summary-at dropdown state (may enable it now)
+        const savedGroupingFields = component.get('grouping-fields') || [];
+        const savedSummaryFields = component.get('summary-fields') || [];
+
+        selectedGroupingFields = [...savedGroupingFields];
+        selectedSummaryFields = [...savedSummaryFields]; // Add this
+        updateSelectedFields();
+        updateSummaryFieldsList(); // Add this function call
+
+        // --- NEW: updateSummaryAtDropdown definition ---
+        function updateSummaryAtDropdown() {
+            const summaryAtField = document.getElementById('summary-at-field');
+            if (!summaryAtField) return;
+
+            // Clear existing options except the placeholder
+            summaryAtField.innerHTML = '<option value="">Select grouping field...</option>';
+
+            selectedGroupingFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.key;
+                option.textContent = field.name;
+                summaryAtField.appendChild(option);
+            });
+
+            // Set saved value
+            const savedSummaryAt = component.get('summary-at-field') || '';
+            summaryAtField.value = savedSummaryAt;
+
+            // Disable when no grouping fields or no summary fields
+            summaryAtField.disabled = selectedGroupingFields.length === 0 || selectedSummaryFields.length === 0;
+            summaryAtField.style.background = summaryAtField.disabled ? '#f0f0f0' : 'white';
+        }
+
+        // Call initially
         updateSummaryAtDropdown();
 
-        if (addedCount > 0) {
-            console.log(`Added ${addedCount} summary field(s)`);
-        }
-    });
+        // --- OVERRIDE updateSelectedFields to refresh "summary-at" dropdown whenever grouping changes ---
+        const originalUpdateSelectedFields = window.updateSelectedFields || null;
+        // We expect updateSelectedFields to be declared later in the same scope — if it is, we'll wrap it after declaration.
+        // To be robust, override the function reference in this scope after its declaration below.
+        // (We'll patch it later by replacing the function object in this scope.)
 
-    // Sort summary fields
-    document.getElementById('sort-summary-asc').addEventListener('click', () => {
-        const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
-        items.sort((a, b) => a.textContent.localeCompare(b.textContent));
-        const container = document.getElementById('available-summary-fields');
-        container.innerHTML = '';
-        items.forEach(item => container.appendChild(item));
-    });
+        // Summary field add button handler
+        document.getElementById('add-summary-field').addEventListener('click', function () {
+            const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
+            const summaryFunction = document.getElementById('summary-function').value;
 
-    document.getElementById('sort-summary-desc').addEventListener('click', () => {
-        const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
-        items.sort((a, b) => b.textContent.localeCompare(a.textContent));
-        const container = document.getElementById('available-summary-fields');
-        container.innerHTML = '';
-        items.forEach(item => container.appendChild(item));
-    });
-
-    // Load other saved options with null checks
-    const sortOrder = document.getElementById('sort-order');
-    const topN = document.getElementById('top-n');
-    const topNValue = document.getElementById('top-n-value');
-    const summarizeGroup = document.getElementById('summarize-group');
-    const pageBreak = document.getElementById('page-break');
-    const mergeGroupCells = document.getElementById('merge-group-cells');
-    const groupHeaderInplace = document.getElementById('group-header-inplace');
-    const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
-    const keepGroupHierarchy = document.getElementById('keep-group-hierarchy');
-    const grandTotal = document.getElementById('grand-total');
-    const grandTotalLabel = document.getElementById('grand-total-label');
-    const summaryLabel = document.getElementById('summary-label');
-
-    if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
-    if (topN) topN.value = component.get('top-n') || 'none';
-    if (topNValue) topNValue.value = component.get('top-n-value') || '10';
-    if (summarizeGroup) {
-        summarizeGroup.checked = component.get('summarize-group') === true; // ✅ Fixed strict comparison
-    }
-    if (pageBreak) pageBreak.checked = component.get('page-break') === true;
-    if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') === true;
-    if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
-    if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') === true;
-    if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') === true;
-    if (grandTotal) grandTotal.checked = component.get('grand-total') !== false;
-    if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
-    if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
-
-    // ✅ Load grouping type correctly
-    if (component.get('show-summary-only') === true) {
-        const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
-        if (summaryRadio) {
-            summaryRadio.checked = true;
-            if (keepGroupHierarchy) keepGroupHierarchy.disabled = false;
-        }
-    } else {
-        const normalRadio = document.querySelector('input[name="grouping-type"][value="normal"]');
-        if (normalRadio) {
-            normalRadio.checked = true;
-            if (keepGroupHierarchy) {
-                keepGroupHierarchy.disabled = true;
-                keepGroupHierarchy.checked = false;
+            if (summaryCheckboxes.length === 0) {
+                alert('Please select at least one field for summary');
+                return;
             }
-        }
-    }
-    // Top N value enable/disable logic
-    // ✅ Top N value enable/disable logic - Fixed
-    document.getElementById('top-n').addEventListener('change', function () {
-        const topNValue = document.getElementById('top-n-value');
-        const isEnabled = this.value === 'top' || this.value === 'bottom'; // ✅ Only enable for top/bottom
 
-        topNValue.disabled = !isEnabled;
-        topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
-        topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
-        topNValue.style.opacity = isEnabled ? '1' : '0.6';
-    });
+            let addedCount = 0;
+            summaryCheckboxes.forEach(checkbox => {
+                const fieldItem = checkbox.closest('.field-item');
+                const fieldKey = fieldItem.getAttribute('data-key');
+                const fieldName = fieldItem.querySelector('span').textContent;
 
-    // ✅ Trigger on load to set initial state
-    setTimeout(() => {
-        const topNSelect = document.getElementById('top-n');
-        const topNValue = document.getElementById('top-n-value');
-        const currentValue = topNSelect.value;
-        const isEnabled = currentValue === 'top' || currentValue === 'bottom';
+                // Check if already added with same function
+                const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
+                if (!exists) {
+                    selectedSummaryFields.push({
+                        key: fieldKey,
+                        name: fieldName,
+                        function: summaryFunction
+                    });
+                    addedCount++;
+                }
 
-        topNValue.disabled = !isEnabled;
-        topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
-        topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
-        topNValue.style.opacity = isEnabled ? '1' : '0.6';
-    }, 100);
-    // Grand Total checkbox - Enable/disable labels
-    document.getElementById('grand-total').addEventListener('change', function () {
-        const grandTotalLabel = document.getElementById('grand-total-label');
-        const isEnabled = this.checked;
+                // Uncheck after adding
+                checkbox.checked = false;
+            });
 
-        grandTotalLabel.disabled = !isEnabled;
-        grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
-    });
-    // Grouping field selection
-    document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function () {
-            const fieldItem = this.closest('.field-item');
-            const fieldKey = fieldItem.getAttribute('data-key');
-            const fieldName = fieldItem.querySelector('span').textContent;
+            // ✅ Always update the list
+            updateSummaryFieldsList();
+            // Update summary-at dropdown state (may enable it now)
+            updateSummaryAtDropdown();
 
-            if (this.checked) {
-                selectedGroupingFields.push({ key: fieldKey, name: fieldName });
-                updateSelectedFields();
-                // updateSummaryAtDropdown will be called by the wrapped updateSelectedFields
+            if (addedCount > 0) {
+                console.log(`Added ${addedCount} summary field(s)`);
             }
         });
-    });
 
-    function updateSelectedFields() {
-        const selectedFieldsDiv = document.getElementById('selected-fields');
+        // Sort summary fields
+        document.getElementById('sort-summary-asc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+            items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+            const container = document.getElementById('available-summary-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
 
-        // Add null check
-        if (!selectedFieldsDiv) {
-            console.warn('Selected fields div not found');
-            return;
+        document.getElementById('sort-summary-desc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+            items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+            const container = document.getElementById('available-summary-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
+        // Load other saved options with null checks
+        const sortOrder = document.getElementById('sort-order');
+        const topN = document.getElementById('top-n');
+        const topNValue = document.getElementById('top-n-value');
+        const summarizeGroup = document.getElementById('summarize-group');
+        const pageBreak = document.getElementById('page-break');
+        const mergeGroupCells = document.getElementById('merge-group-cells');
+        const groupHeaderInplace = document.getElementById('group-header-inplace');
+        const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
+        const keepGroupHierarchy = document.getElementById('keep-group-hierarchy');
+        const grandTotal = document.getElementById('grand-total');
+        const grandTotalLabel = document.getElementById('grand-total-label');
+        const summaryLabel = document.getElementById('summary-label');
+
+        if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
+        if (topN) topN.value = component.get('top-n') || 'none';
+        if (topNValue) topNValue.value = component.get('top-n-value') || '10';
+        if (summarizeGroup) {
+            summarizeGroup.checked = component.get('summarize-group') === true; // ✅ Fixed strict comparison
         }
+        if (pageBreak) pageBreak.checked = component.get('page-break') === true;
+        if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') === true;
+        if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
+        if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') === true;
+        if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') === true;
+        if (grandTotal) grandTotal.checked = component.get('grand-total') !== false;
+        if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
+        if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
 
-        if (selectedGroupingFields.length === 0) {
-            selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
+        // ✅ Load grouping type correctly
+        if (component.get('show-summary-only') === true) {
+            const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
+            if (summaryRadio) {
+                summaryRadio.checked = true;
+                if (keepGroupHierarchy) keepGroupHierarchy.disabled = false;
+            }
         } else {
-            selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
+            const normalRadio = document.querySelector('input[name="grouping-type"][value="normal"]');
+            if (normalRadio) {
+                normalRadio.checked = true;
+                if (keepGroupHierarchy) {
+                    keepGroupHierarchy.disabled = true;
+                    keepGroupHierarchy.checked = false;
+                }
+            }
+        }
+        // Top N value enable/disable logic
+        // ✅ Top N value enable/disable logic - Fixed
+        document.getElementById('top-n').addEventListener('change', function () {
+            const topNValue = document.getElementById('top-n-value');
+            const isEnabled = this.value === 'top' || this.value === 'bottom'; // ✅ Only enable for top/bottom
+
+            topNValue.disabled = !isEnabled;
+            topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+            topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+            topNValue.style.opacity = isEnabled ? '1' : '0.6';
+        });
+
+        // ✅ Trigger on load to set initial state
+        setTimeout(() => {
+            const topNSelect = document.getElementById('top-n');
+            const topNValue = document.getElementById('top-n-value');
+            const currentValue = topNSelect.value;
+            const isEnabled = currentValue === 'top' || currentValue === 'bottom';
+
+            topNValue.disabled = !isEnabled;
+            topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
+            topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
+            topNValue.style.opacity = isEnabled ? '1' : '0.6';
+        }, 100);
+        // Grand Total checkbox - Enable/disable labels
+        document.getElementById('grand-total').addEventListener('change', function () {
+            const grandTotalLabel = document.getElementById('grand-total-label');
+            const isEnabled = this.checked;
+
+            grandTotalLabel.disabled = !isEnabled;
+            grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
+        });
+        // Grouping field selection
+        document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const fieldItem = this.closest('.field-item');
+                const fieldKey = fieldItem.getAttribute('data-key');
+                const fieldName = fieldItem.querySelector('span').textContent;
+
+                if (this.checked) {
+                    selectedGroupingFields.push({ key: fieldKey, name: fieldName });
+                    updateSelectedFields();
+                    // updateSummaryAtDropdown will be called by the wrapped updateSelectedFields
+                }
+            });
+        });
+
+        function updateSelectedFields() {
+            const selectedFieldsDiv = document.getElementById('selected-fields');
+
+            // Add null check
+            if (!selectedFieldsDiv) {
+                console.warn('Selected fields div not found');
+                return;
+            }
+
+            if (selectedGroupingFields.length === 0) {
+                selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
+            } else {
+                selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
             <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
                 <span>${field.name}</span>
                 <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
             </div>
         `).join('');
 
-            // Update grouping field display if it exists
-            const groupingFieldDisplay = document.getElementById('grouping-field-display');
-            if (groupingFieldDisplay && selectedGroupingFields.length > 0) {
-                groupingFieldDisplay.innerHTML = `<span style="color: #000;">${selectedGroupingFields[0].name}</span>`;
+                // Update grouping field display if it exists
+                const groupingFieldDisplay = document.getElementById('grouping-field-display');
+                if (groupingFieldDisplay && selectedGroupingFields.length > 0) {
+                    groupingFieldDisplay.innerHTML = `<span style="color: #000;">${selectedGroupingFields[0].name}</span>`;
+                }
+
+                // Add remove functionality
+                selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
+                        const fieldKey = selectedGroupingFields[idx].key;
+                        selectedGroupingFields.splice(idx, 1);
+                        updateSelectedFields();
+
+                        const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
+                        if (availableCheckbox) availableCheckbox.checked = false;
+                    });
+                });
             }
 
-            // Add remove functionality
-            selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
-                    const fieldKey = selectedGroupingFields[idx].key;
-                    selectedGroupingFields.splice(idx, 1);
-                    updateSelectedFields();
-
-                    const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
-                    if (availableCheckbox) availableCheckbox.checked = false;
-                });
-            });
+            // After updating selected fields, also refresh "summary-at" dropdown
+            try {
+                updateSummaryAtDropdown();
+            } catch (e) {
+                console.warn('Failed to update summary-at dropdown:', e);
+            }
         }
 
-        // After updating selected fields, also refresh "summary-at" dropdown
-        try {
-            updateSummaryAtDropdown();
-        } catch (e) {
-            console.warn('Failed to update summary-at dropdown:', e);
-        }
-    }
+        // Add this new function for summary fields
+        // ✅ Fixed updateSummaryFieldsList function
+        function updateSummaryFieldsList() {
+            const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
 
-    // Add this new function for summary fields
-    // ✅ Fixed updateSummaryFieldsList function
-    function updateSummaryFieldsList() {
-        const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
+            if (!selectedSummaryFieldsDiv) {
+                console.warn('Selected summary fields div not found');
+                return;
+            }
 
-        if (!selectedSummaryFieldsDiv) {
-            console.warn('Selected summary fields div not found');
-            return;
-        }
+            if (selectedSummaryFields.length === 0) {
+                selectedSummaryFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
+                // Ensure summary-at gets disabled
+                updateSummaryAtDropdown();
+                return;
+            }
 
-        if (selectedSummaryFields.length === 0) {
-            selectedSummaryFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
-            // Ensure summary-at gets disabled
-            updateSummaryAtDropdown();
-            return;
-        }
-
-        selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields.map((field, idx) => `
+            selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields.map((field, idx) => `
         <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
             <div style="flex: 1;">
                 <strong style="font-size: 13px;">${field.name}</strong>
@@ -5252,180 +5251,180 @@ function initializeTableSettingsModal(component, availableFields) {
         </div>
     `).join('');
 
-        // ✅ Add remove functionality
-        selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const idx = parseInt(this.getAttribute('data-index'));
-                selectedSummaryFields.splice(idx, 1);
-                updateSummaryFieldsList();
-                // refresh summary-at dropdown state
-                updateSummaryAtDropdown();
+            // ✅ Add remove functionality
+            selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const idx = parseInt(this.getAttribute('data-index'));
+                    selectedSummaryFields.splice(idx, 1);
+                    updateSummaryFieldsList();
+                    // refresh summary-at dropdown state
+                    updateSummaryAtDropdown();
+                });
+            });
+
+            console.log('Summary fields list updated:', selectedSummaryFields.length);
+        }
+
+        // Sort buttons
+        document.getElementById('sort-asc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+            items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+            const container = document.getElementById('available-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
+        document.getElementById('sort-desc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
+            items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+            const container = document.getElementById('available-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
+        // Define Named Group checkbox
+        document.getElementById('define-named-group').addEventListener('change', function () {
+            const btn = document.getElementById('open-named-group');
+            const list = document.getElementById('named-groups-list');
+            btn.disabled = !this.checked;
+            btn.style.cursor = this.checked ? 'pointer' : 'not-allowed';
+            btn.style.background = this.checked ? 'white' : '#f0f0f0';
+            list.style.display = this.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('open-named-group').addEventListener('click', function () {
+            if (this.disabled) return;
+
+            if (selectedGroupingFields.length === 0) {
+                alert('Please select a grouping field first');
+                return;
+            }
+
+            const groupField = selectedGroupingFields[0];
+            showNamedGroupModal(component, groupField);
+        });
+
+        // Grouping type radio buttons - Enable/disable Keep Group Hierarchy
+        document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                const keepHierarchy = document.getElementById('keep-group-hierarchy');
+                const isSummaryOnly = this.value === 'summary';
+
+                keepHierarchy.disabled = !isSummaryOnly;
+                keepHierarchy.parentElement.querySelector('span').style.color = isSummaryOnly ? '#000' : '#999';
+
+                if (!isSummaryOnly) {
+                    keepHierarchy.checked = false;
+                }
             });
         });
 
-        console.log('Summary fields list updated:', selectedSummaryFields.length);
+        // Cancel button
+        document.getElementById('cancel-settings').addEventListener('click', () => {
+            editor.Modal.close();
+        });
+
+        // Apply button - FIX: Save selectedSummaryFields
+        // Update the apply-settings event listener in the 'open-table-settings-modal' command
+        document.getElementById('apply-settings').addEventListener('click', () => {
+            console.log('📝 Applying settings...');
+
+            // Validate grouping before applying
+            if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
+                alert('Please select at least one grouping field before adding summaries');
+                return;
+            }
+
+            // ✅ Check if summarize is enabled but no summary fields
+            const summarizeChecked = document.getElementById('summarize-group').checked;
+            if (summarizeChecked && selectedSummaryFields.length === 0) {
+                alert('Please add at least one summary field when "Summarize Group" is enabled');
+                return;
+            }
+
+            // Save grouping fields
+            component.set('grouping-fields', selectedGroupingFields);
+
+            // Save summary fields
+            component.set('summary-fields', selectedSummaryFields);
+
+            console.log('💾 Saved settings:', {
+                groupingFields: selectedGroupingFields.length,
+                summaryFields: selectedSummaryFields.length
+            });
+
+            // Save sort options
+            component.set('sort-order', document.getElementById('sort-order').value);
+            component.set('top-n', document.getElementById('top-n').value);
+            component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
+
+            // ✅ NEW: Save summary-at-field setting
+            const summaryAtFieldEl = document.getElementById('summary-at-field');
+            if (summaryAtFieldEl) {
+                component.set('summary-at-field', summaryAtFieldEl.value);
+                console.log('💾 Saved summary-at-field:', summaryAtFieldEl.value);
+            }
+
+            // Save display options
+            component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+            component.set('summarize-group', document.getElementById('summarize-group').checked);
+            component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
+            component.set('page-break', document.getElementById('page-break').checked);
+
+            // Save display mode
+            const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
+            component.set('show-summary-only', showSummaryOnly);
+            component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
+
+            // Save totals & labels
+            component.set('grand-total', document.getElementById('grand-total').checked);
+            component.set('grand-total-label', document.getElementById('grand-total-label').value);
+            component.set('summary-label', document.getElementById('summary-label').value);
+
+            // Save named groups
+            component.set('define-named-group', document.getElementById('define-named-group').checked);
+
+            // Create loader
+            const loader = document.createElement('div');
+            loader.id = 'settings-loader';
+            loader.style.position = 'fixed';
+            loader.style.top = '0';
+            loader.style.left = '0';
+            loader.style.width = '100vw';
+            loader.style.height = '100vh';
+            loader.style.background = 'rgba(255,255,255,0.8)';
+            loader.style.display = 'flex';
+            loader.style.alignItems = 'center';
+            loader.style.justifyContent = 'center';
+            loader.style.zIndex = '10000';
+            loader.innerHTML = '<div style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">Applying Table settings...</div>';
+            document.body.appendChild(loader);
+
+            editor.Modal.close();
+
+            // ✅ Always apply grouping/summary after settings change (handles reset when empty)
+            setTimeout(() => {
+                console.log('🔄 Applying grouping...');
+                component.applyGroupingAndSummary();
+
+                // ✅ Save running totals if configured
+                const runningTotals = component.get('running-totals') || [];
+                if (runningTotals.length > 0) {
+                    console.log('💾 Applying running totals:', runningTotals.length);
+                    applyRunningTotalsToTable(component);
+                }
+
+                // Remove loader
+                document.getElementById('settings-loader').remove();
+
+                // Show success message
+                alert('Settings applied successfully!');
+            }, 100);
+        });
+
+        // Ensure summary-at dropdown is updated if grouping fields were initially present
+        updateSummaryAtDropdown();
     }
-
-    // Sort buttons
-    document.getElementById('sort-asc').addEventListener('click', () => {
-        const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
-        items.sort((a, b) => a.textContent.localeCompare(b.textContent));
-        const container = document.getElementById('available-fields');
-        container.innerHTML = '';
-        items.forEach(item => container.appendChild(item));
-    });
-
-    document.getElementById('sort-desc').addEventListener('click', () => {
-        const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
-        items.sort((a, b) => b.textContent.localeCompare(a.textContent));
-        const container = document.getElementById('available-fields');
-        container.innerHTML = '';
-        items.forEach(item => container.appendChild(item));
-    });
-
-    // Define Named Group checkbox
-    document.getElementById('define-named-group').addEventListener('change', function () {
-        const btn = document.getElementById('open-named-group');
-        const list = document.getElementById('named-groups-list');
-        btn.disabled = !this.checked;
-        btn.style.cursor = this.checked ? 'pointer' : 'not-allowed';
-        btn.style.background = this.checked ? 'white' : '#f0f0f0';
-        list.style.display = this.checked ? 'block' : 'none';
-    });
-
-    document.getElementById('open-named-group').addEventListener('click', function () {
-        if (this.disabled) return;
-
-        if (selectedGroupingFields.length === 0) {
-            alert('Please select a grouping field first');
-            return;
-        }
-
-        const groupField = selectedGroupingFields[0];
-        showNamedGroupModal(component, groupField);
-    });
-
-    // Grouping type radio buttons - Enable/disable Keep Group Hierarchy
-    document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
-        radio.addEventListener('change', function () {
-            const keepHierarchy = document.getElementById('keep-group-hierarchy');
-            const isSummaryOnly = this.value === 'summary';
-
-            keepHierarchy.disabled = !isSummaryOnly;
-            keepHierarchy.parentElement.querySelector('span').style.color = isSummaryOnly ? '#000' : '#999';
-
-            if (!isSummaryOnly) {
-                keepHierarchy.checked = false;
-            }
-        });
-    });
-
-    // Cancel button
-    document.getElementById('cancel-settings').addEventListener('click', () => {
-        editor.Modal.close();
-    });
-
-    // Apply button - FIX: Save selectedSummaryFields
-    // Update the apply-settings event listener in the 'open-table-settings-modal' command
-    document.getElementById('apply-settings').addEventListener('click', () => {
-        console.log('📝 Applying settings...');
-
-        // Validate grouping before applying
-        if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
-            alert('Please select at least one grouping field before adding summaries');
-            return;
-        }
-
-        // ✅ Check if summarize is enabled but no summary fields
-        const summarizeChecked = document.getElementById('summarize-group').checked;
-        if (summarizeChecked && selectedSummaryFields.length === 0) {
-            alert('Please add at least one summary field when "Summarize Group" is enabled');
-            return;
-        }
-
-        // Save grouping fields
-        component.set('grouping-fields', selectedGroupingFields);
-
-        // Save summary fields
-        component.set('summary-fields', selectedSummaryFields);
-
-        console.log('💾 Saved settings:', {
-            groupingFields: selectedGroupingFields.length,
-            summaryFields: selectedSummaryFields.length
-        });
-
-        // Save sort options
-        component.set('sort-order', document.getElementById('sort-order').value);
-        component.set('top-n', document.getElementById('top-n').value);
-        component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
-
-        // ✅ NEW: Save summary-at-field setting
-        const summaryAtFieldEl = document.getElementById('summary-at-field');
-        if (summaryAtFieldEl) {
-            component.set('summary-at-field', summaryAtFieldEl.value);
-            console.log('💾 Saved summary-at-field:', summaryAtFieldEl.value);
-        }
-
-        // Save display options
-        component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
-        component.set('summarize-group', document.getElementById('summarize-group').checked);
-        component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
-        component.set('page-break', document.getElementById('page-break').checked);
-
-        // Save display mode
-        const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
-        component.set('show-summary-only', showSummaryOnly);
-        component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
-
-        // Save totals & labels
-        component.set('grand-total', document.getElementById('grand-total').checked);
-        component.set('grand-total-label', document.getElementById('grand-total-label').value);
-        component.set('summary-label', document.getElementById('summary-label').value);
-
-        // Save named groups
-        component.set('define-named-group', document.getElementById('define-named-group').checked);
-
-        // Create loader
-        const loader = document.createElement('div');
-        loader.id = 'settings-loader';
-        loader.style.position = 'fixed';
-        loader.style.top = '0';
-        loader.style.left = '0';
-        loader.style.width = '100vw';
-        loader.style.height = '100vh';
-        loader.style.background = 'rgba(255,255,255,0.8)';
-        loader.style.display = 'flex';
-        loader.style.alignItems = 'center';
-        loader.style.justifyContent = 'center';
-        loader.style.zIndex = '10000';
-        loader.innerHTML = '<div style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">Applying Table settings...</div>';
-        document.body.appendChild(loader);
-
-        editor.Modal.close();
-
-        // ✅ Always apply grouping/summary after settings change (handles reset when empty)
-        setTimeout(() => {
-            console.log('🔄 Applying grouping...');
-            component.applyGroupingAndSummary();
-
-            // ✅ Save running totals if configured
-            const runningTotals = component.get('running-totals') || [];
-            if (runningTotals.length > 0) {
-                console.log('💾 Applying running totals:', runningTotals.length);
-                applyRunningTotalsToTable(component);
-            }
-
-            // Remove loader
-            document.getElementById('settings-loader').remove();
-
-            // Show success message
-            alert('Settings applied successfully!');
-        }, 100);
-    });
-
-    // Ensure summary-at dropdown is updated if grouping fields were initially present
-    updateSummaryAtDropdown();
-}
 
     function initializeRunningTotalTab(component) {
         const headers = component.get('custom-headers') || component.get('table-headers') || {};

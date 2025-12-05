@@ -661,99 +661,109 @@ try {
 }
 
 
-  async function exportPDF(body) {
-    const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadSinglePagePdf";
+async function exportPDF(body) {
+  const apiUrl = "http://192.168.0.188:8081/jsonApi/uploadSinglePagePdf";
 
-    const html = editor.getHtml();
-    const css = editor.getCss();
+  const html = editor.getHtml();
+  const css = editor.getCss();
 
-    // --- Create and show loading overlay ---
-    let overlay = document.createElement("div");
-    overlay.id = "pdf-loading-overlay";
-    Object.assign(overlay.style, {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(0,0,0,0.5)",
-      color: "#fff",
-      fontSize: "24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 9999,
-    });
-    overlay.innerText = "Generating PDF...";
-    document.body.appendChild(overlay);
+  // --- Create and show loading overlay ---
+  let overlay = document.createElement("div");
+  overlay.id = "pdf-loading-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    background: "rgba(0,0,0,0.5)",
+    color: "#fff",
+    fontSize: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  });
+  overlay.innerText = "Generating PDF...";
+  document.body.appendChild(overlay);
 
-    try {
-      // --- Prepare Final HTML with external CSS/JS and cleaned DOM ---
-      const tempDiv = document.createElement("div");
-      tempDiv.innerHTML = html;
+  try {
+    // --- Prepare Final HTML with external CSS/JS and cleaned DOM ---
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = html;
 
-      // 🧹 Remove IDs from specific page-related classes
-      const classesToClean = [
-        "page-container",
-        "page-content",
-        "header-wrapper",
-        "page-header-element",
-        "content-wrapper",
-        "main-content-area",
-        "footer-wrapper",
-        "page-footer-element",
-      ];
-      classesToClean.forEach((cls) => {
-        tempDiv.querySelectorAll(`.${cls}`).forEach((el) => {
-          if (el.hasAttribute("id")) el.removeAttribute("id");
-        });
+    // 🧹 Remove IDs from specific page-related classes
+    const classesToClean = [
+      "page-container",
+      "page-content",
+      "header-wrapper",
+      "page-header-element",
+      "content-wrapper",
+      "main-content-area",
+      "footer-wrapper",
+      "page-footer-element",
+    ];
+    classesToClean.forEach((cls) => {
+      tempDiv.querySelectorAll(`.${cls}`).forEach((el) => {
+        if (el.hasAttribute("id")) el.removeAttribute("id");
       });
+    });
 
-      // --- External CSS and JS ---
-      const canvasResources = {
-        styles: [
-          "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
-          "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
-          "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
-          "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
-          "https://fonts.googleapis.com/icon?family=Material+Icons",
-          "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
-          "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
-        ],
-        scripts: [
-          "https://code.jquery.com/jquery-3.3.1.slim.min.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
-          "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
-          "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
-          "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
-          "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
-          "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
-          "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
-          "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
-          "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
-          "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
-          "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
-          "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
-          "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
-          "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
-        ]
-      };
+    // --- REMOVE any elements used for page breaks ---
+    // Removes elements with class="page-break" and any class name that contains "page-break"
+    try {
+      tempDiv.querySelectorAll('.page-break, [class*="page-break"]').forEach(el => el.remove());
+      console.log("🧹 Removed page-break elements from HTML before sending to backend.");
+    } catch (remErr) {
+      console.warn("⚠️ Error removing page-break elements:", remErr);
+    }
 
-      const externalStyles = canvasResources.styles
-        .map((url) => `<link rel="stylesheet" href="${url}">`)
-        .join("\n");
+    // --- External CSS and JS ---
+    const canvasResources = {
+      styles: [
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
+        "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
+        "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+        "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css",
+        "https://fonts.googleapis.com/icon?family=Material+Icons",
+        "https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css",
+        "https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css",
+      ],
+      scripts: [
+        "https://code.jquery.com/jquery-3.3.1.slim.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js",
+        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js",
+        "https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js",
+        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js",
+        "https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js",
+        "https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js",
+        "https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+        "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+        "https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js",
+        "https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js",
+        "https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js",
+        "https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+      ]
+    };
 
-      const externalScripts = canvasResources.scripts
-        .map((url) => `<script src="${url}" defer></script>`)
-        .join("\n");
+    const externalStyles = canvasResources.styles
+      .map((url) => `<link rel="stylesheet" href="${url}">`)
+      .join("\n");
 
-      // --- Combine everything into one HTML ---
-      const finalHtml = `
+    const externalScripts = canvasResources.scripts
+      .map((url) => `<script src="${url}" defer></script>`)
+      .join("\n");
+
+    // --- Combine everything into one HTML ---
+    const finalHtml = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -766,52 +776,53 @@ try {
       </html>
     `;
 
-      // --- Debug: Log and download HTML sent to backend ---
-      try {
-        const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
-        const debugLink = document.createElement("a");
-        debugLink.href = debugUrl;
-        debugLink.download = "sent_to_single_page_pdf_api.html";
-        debugLink.click();
-        URL.revokeObjectURL(debugUrl);
-        console.log("💾 Debug HTML downloaded for inspection");
-      } catch (err) {
-        console.warn("⚠️ Could not auto-download debug HTML:", err);
-      }
-
-      // --- Send to backend API ---
-      const formData = new FormData();
-      formData.append("file", new Blob([finalHtml], { type: "text/html" }), "single_page.html");
-
-      const response = await fetch(apiUrl, { method: "POST", body: formData });
-      if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-
-      const blob = await response.blob();
-      const contentType = response.headers.get("Content-Type");
-
-      if (contentType && contentType.includes("pdf")) {
-        const pdfUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = pdfUrl;
-        a.download = "export.pdf";
-        a.click();
-        URL.revokeObjectURL(pdfUrl);
-        console.log("✅ PDF downloaded successfully!");
-      } else {
-        console.warn("⚠️ Unexpected response type:", contentType);
-        alert("Unexpected response from server, PDF not received.");
-      }
-
+    // --- Debug: Log and download HTML sent to backend ---
+    try {
+      const debugUrl = URL.createObjectURL(new Blob([finalHtml], { type: "text/html" }));
+      const debugLink = document.createElement("a");
+      debugLink.href = debugUrl;
+      debugLink.download = "sent_to_single_page_pdf_api.html";
+      debugLink.click();
+      URL.revokeObjectURL(debugUrl);
+      console.log("💾 Debug HTML downloaded for inspection");
     } catch (err) {
-      console.error("❌ Error exporting PDF:", err);
-      alert("Failed to export PDF. Check console for details.");
-    } finally {
-      // --- Remove overlay ---
-      if (overlay && overlay.parentNode) {
-        overlay.parentNode.removeChild(overlay);
-      }
+      console.warn("⚠️ Could not auto-download debug HTML:", err);
+    }
+
+    // --- Send to backend API ---
+    const formData = new FormData();
+    formData.append("file", new Blob([finalHtml], { type: "text/html" }), "single_page.html");
+
+    const response = await fetch(apiUrl, { method: "POST", body: formData });
+    if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
+
+    const blob = await response.blob();
+    const contentType = response.headers.get("Content-Type");
+
+    if (contentType && contentType.includes("pdf")) {
+      const pdfUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = pdfUrl;
+      a.download = "export.pdf";
+      a.click();
+      URL.revokeObjectURL(pdfUrl);
+      console.log("✅ PDF downloaded successfully!");
+    } else {
+      console.warn("⚠️ Unexpected response type:", contentType);
+      alert("Unexpected response from server, PDF not received.");
+    }
+
+  } catch (err) {
+    console.error("❌ Error exporting PDF:", err);
+    alert("Failed to export PDF. Check console for details.");
+  } finally {
+    // --- Remove overlay ---
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
     }
   }
+}
+
 
 
   function downloadFile(content, filename, type) {

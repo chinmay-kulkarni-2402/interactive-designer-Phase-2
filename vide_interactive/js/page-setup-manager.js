@@ -1734,6 +1734,14 @@ class PageSetupManager {
       return { keepComponent: component, moveComponent: null };
     }
 
+    const originalHeight = compEl.style.height;
+    const originalOverflow = compEl.style.overflow;
+    const originalDisplay = compEl.style.display; // Preserve if needed for flex/grid
+    compEl.style.height = 'auto';
+    compEl.style.overflow = 'visible';
+    compEl.style.display = 'block'; // Ensure block-level for height calc if flex-constrained
+    compEl.offsetHeight; // ✅ Force reflow
+
     const nodesToMove = [];
 
     // Clear temporarily
@@ -1746,8 +1754,8 @@ class PageSetupManager {
       // 1. Add node back to div
       compEl.appendChild(node);
 
-      const currentContentHeight = compEl.offsetHeight;
-
+      const currentContentHeight = compEl.scrollHeight;
+      compEl.offsetHeight;
       if (currentContentHeight > availableSpace) {
         // 🛑 OVERFLOW FOUND!
 
@@ -1788,6 +1796,11 @@ class PageSetupManager {
         break;
       }
     }
+    compEl.style.height = originalHeight;
+    compEl.style.overflow = originalOverflow;
+    compEl.style.display = originalDisplay;
+    compEl.offsetHeight; // Final reflow
+
     // --- End Node Splitting Logic ---
 
     // ✅ CRITICAL FIX: If no nodes to move, restore original content
@@ -1854,7 +1867,13 @@ class PageSetupManager {
   _splitLongTextNode(fullText, containerEl, availableSpace) {
     let textToKeep = '';
     const testNode = document.createTextNode('');
-
+    const originalHeight = containerEl.style.height;
+    const originalOverflow = containerEl.style.overflow;
+    const originalDisplay = containerEl.style.display;
+    containerEl.style.height = 'auto';
+    containerEl.style.overflow = 'visible';
+    containerEl.style.display = 'block'; // Ensure block-level if needed
+    containerEl.offsetHeight; // ✅ Force reflow
     // 1. containerEl mein temporary node daalo
     // Note: containerEl mein abhi sirf woh nodes hain jo fit ho chuke hain 
     // (splitLargeComponent ke loop se).
@@ -1863,10 +1882,10 @@ class PageSetupManager {
     for (let charIndex = 0; charIndex < fullText.length; charIndex++) {
       textToKeep += fullText[charIndex];
       testNode.textContent = textToKeep;
-
+      containerEl.offsetHeight;
       // Height check: Ab containerEl.offsetHeight mein fit hone waala content +
       // current temporary text node ka content dono shamil hai.
-      if (containerEl.offsetHeight > availableSpace) {
+      if (containerEl.scrollHeight > availableSpace) {
         // Height exceed ho gayi. Aakhri character wapas le lo.
         textToKeep = textToKeep.substring(0, textToKeep.length - 1);
 
@@ -1879,6 +1898,11 @@ class PageSetupManager {
 
     // Temporary testNode ko hata do
     containerEl.removeChild(testNode);
+    // ✅ Restore original styles after measurement
+    containerEl.style.height = originalHeight;
+    containerEl.style.overflow = originalOverflow;
+    containerEl.style.display = originalDisplay;
+    containerEl.offsetHeight; // Final reflow
 
     const textToMove = fullText.substring(textToKeep.length);
 
@@ -2390,10 +2414,6 @@ class PageSetupManager {
       return false;
     }
   }
-
-
-
-
 
 
 
@@ -4625,8 +4645,10 @@ padding: 8px;
 }
 
 @media print {
-  .conditional-break-indicator {
+  .conditional-break-indicator,
+  .section-break-indicator {
     display: none !important;
+    visibility: hidden !important;
   }
 }
       [data-continuation-table="true"][data-copy-header="false"] thead,
@@ -5678,17 +5700,18 @@ padding: 8px;
 
 <div class="page-setup-section">
   <h3>✂️ Conditional Page Break Settings</h3>
-  <div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
-    <strong style="color: #1976d2;">Choose Break Type:</strong>
-    <p style="margin: 5px 0 0 0; font-size: 11px; color: #1565c0;">
-      You can apply conditional breaks at either the <strong>page level</strong> or <strong>section level</strong>. Only one can be active at a time.
+  <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+    <strong style="color: #856404;">⚠️ Important:</strong>
+    <p style="margin: 5px 0 0 0; font-size: 11px; color: #856404;">
+      Only ONE type of conditional break (Page-Level OR Section-Level) can be active at a time.
+      Enabling one will automatically disable the other.
     </p>
   </div>
   
-  <!-- PAGE-LEVEL CONDITIONAL BREAK (existing code) -->
+  <!-- PAGE-LEVEL CONDITIONAL BREAK -->
   ${this.generatePageConditionalBreakUI()}
   
-  <!-- SECTION-LEVEL CONDITIONAL BREAK (new) -->
+  <!-- SECTION-LEVEL CONDITIONAL BREAK -->
   ${this.generateSectionConditionalBreakUI()}
 </div>
       <div class="page-setup-section">
@@ -6063,15 +6086,75 @@ padding: 8px;
   }
 
   generatePageConditionalBreakUI() {
-    // Move your existing page conditional break HTML here
+    const conditionalBreakSettings = this.pageSettings.conditionalPageBreak || {
+      enabled: false,
+      defaultDistance: 50,
+      defaultUnit: 'mm',
+      pageOverrides: {}
+    };
+
     return `
-    <div class="page-setup-row">
-      <label>
-        <input type="checkbox" id="conditionalPageBreakEnabled" ...>
-        Enable Page Conditional Page Break
-      </label>
+    <div class="page-setup-section">
+      <h3>✂️ Page Conditional Page Break Settings</h3>
+      <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+        <p style="margin: 0; font-size: 11px; color: #856404;">
+          <strong>Note:</strong> Only one conditional break type (Page or Section) will be active at a time.
+          Page breaks apply to specific page numbers.
+        </p>
+      </div>
+      
+      <div class="page-setup-row">
+        <label>
+          <input type="checkbox" id="conditionalPageBreakEnabled" 
+                 ${conditionalBreakSettings.enabled ? "checked" : ""} 
+                 style="border: 2px solid #000 !important;"> 
+          Enable Page Conditional Page Break
+        </label>
+      </div>
+
+      <div id="conditionalPageBreakControls" class="page-numbering-controls" style="display: ${conditionalBreakSettings.enabled ? 'block' : 'none'};">
+        
+        <!-- GLOBAL DEFAULT SETTINGS -->
+        <div class="page-setup-row" style="margin-bottom: 15px; padding: 15px; background: #e3f2fd; border-radius: 6px;">
+          <div style="margin-bottom: 10px;">
+            <strong style="color: #1976d2;">Default Settings (for all pages without specific overrides)</strong>
+            <p style="font-size: 11px; color: #666; margin: 5px 0 10px 0;">
+              This will apply to all pages that don't have specific settings.
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <label style="min-width: 120px;">Distance from Bottom:</label>
+            <input type="number" id="conditionalBreakDefaultDistance" class="page-setup-control" 
+                   value="${conditionalBreakSettings.defaultDistance || 50}" 
+                   min="1" max="200" step="0.1" style="flex: 1; max-width: 120px;">
+            <select id="conditionalBreakDefaultUnit" class="page-setup-control" style="width: 80px;">
+              <option value="mm" ${(conditionalBreakSettings.defaultUnit || 'mm') === 'mm' ? 'selected' : ''}>mm</option>
+              <option value="cm" ${conditionalBreakSettings.defaultUnit === 'cm' ? 'selected' : ''}>cm</option>
+              <option value="inch" ${conditionalBreakSettings.defaultUnit === 'inch' ? 'selected' : ''}>inch</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PAGE-SPECIFIC OVERRIDES -->
+        <div style="margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <strong style="color: #333;">Page-Specific Overrides (Optional)</strong>
+            <button type="button" id="addPageBreakOverride" class="page-setup-btn" 
+                    style="padding: 5px 10px; font-size: 12px; background: #28a745; color: white;">
+              <i class="fa fa-plus"></i> Add Override
+            </button>
+          </div>
+          <p style="font-size: 11px; color: #666; margin-bottom: 10px;">
+            Set different break distances for specific pages.
+          </p>
+          
+          <div id="pageBreakOverridesList" style="max-height: 300px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px; background: #f8f9fa;">
+            ${this.generatePageBreakOverrides()}
+          </div>
+        </div>
+
+      </div>
     </div>
-    <!-- ... rest of existing page break UI ... -->
   `;
   }
 
@@ -6722,25 +6805,113 @@ padding: 8px;
     // Default distance/unit listeners
 
     // ===============================
-    // CONDITIONAL BREAK — ENABLED TOGGLE  (NEW UPDATED CODE)
+    // CONDITIONAL BREAK — MUTUAL EXCLUSIVITY (ENHANCED)
     // ===============================
     const conditionalBreakEnabled = document.getElementById("conditionalPageBreakEnabled");
     const conditionalBreakControls = document.getElementById("conditionalPageBreakControls");
+    const sectionBreakEnabled = document.getElementById("sectionConditionalBreakEnabled");
+    const sectionBreakControls = document.getElementById("sectionConditionalBreakControls");
 
     if (conditionalBreakEnabled && conditionalBreakControls) {
       conditionalBreakEnabled.addEventListener("change", (e) => {
-        if (!this.pageSettings.conditionalPageBreak) {
-          this.pageSettings.conditionalPageBreak = {};
-        }
-        this.pageSettings.conditionalPageBreak.enabled = e.target.checked;
+        console.log('📋 Page conditional break checkbox changed:', e.target.checked);
 
-        // ✅ IMMEDIATE SHOW/HIDE — no modal re-open needed
         if (e.target.checked) {
-          conditionalBreakControls.classList.add('active');
+          // ✅ Check if section break is active
+          if (this.pageSettings.sectionConditionalPageBreak?.enabled) {
+            const confirmSwitch = confirm(
+              "Section-level conditional breaks are currently active.\n\n" +
+              "Enabling page-level breaks will disable section-level breaks.\n\n" +
+              "Do you want to continue?"
+            );
+
+            if (!confirmSwitch) {
+              e.target.checked = false;
+              return;
+            }
+          }
+
+          // Initialize if needed
+          if (!this.pageSettings.conditionalPageBreak) {
+            this.pageSettings.conditionalPageBreak = {
+              enabled: false,
+              defaultDistance: 50,
+              defaultUnit: 'mm',
+              pageOverrides: {}
+            };
+          }
+
+          this.pageSettings.conditionalPageBreak.enabled = true;
           conditionalBreakControls.style.display = 'block';
+          console.log('✅ Showing page conditional break controls');
+
+          // Disable section-level break
+          if (sectionBreakEnabled && sectionBreakControls) {
+            sectionBreakEnabled.checked = false;
+            if (this.pageSettings.sectionConditionalPageBreak) {
+              this.pageSettings.sectionConditionalPageBreak.enabled = false;
+            }
+            sectionBreakControls.style.display = 'none';
+            console.log('🔒 Disabled section conditional break');
+          }
         } else {
-          conditionalBreakControls.classList.remove('active');
+          if (this.pageSettings.conditionalPageBreak) {
+            this.pageSettings.conditionalPageBreak.enabled = false;
+          }
           conditionalBreakControls.style.display = 'none';
+          console.log('❌ Hiding page conditional break controls');
+        }
+      });
+    }
+
+    if (sectionBreakEnabled && sectionBreakControls) {
+      sectionBreakEnabled.addEventListener("change", (e) => {
+        console.log('📋 Section conditional break checkbox changed:', e.target.checked);
+
+        if (e.target.checked) {
+          // ✅ Check if page break is active
+          if (this.pageSettings.conditionalPageBreak?.enabled) {
+            const confirmSwitch = confirm(
+              "Page-level conditional breaks are currently active.\n\n" +
+              "Enabling section-level breaks will disable page-level breaks.\n\n" +
+              "Do you want to continue?"
+            );
+
+            if (!confirmSwitch) {
+              e.target.checked = false;
+              return;
+            }
+          }
+
+          // Initialize if needed
+          if (!this.pageSettings.sectionConditionalPageBreak) {
+            this.pageSettings.sectionConditionalPageBreak = {
+              enabled: false,
+              defaultDistance: 50,
+              defaultUnit: 'mm',
+              sectionOverrides: {}
+            };
+          }
+
+          this.pageSettings.sectionConditionalPageBreak.enabled = true;
+          sectionBreakControls.style.display = 'block';
+          console.log('✅ Showing section conditional break controls');
+
+          // Disable page-level break
+          if (conditionalBreakEnabled && conditionalBreakControls) {
+            conditionalBreakEnabled.checked = false;
+            if (this.pageSettings.conditionalPageBreak) {
+              this.pageSettings.conditionalPageBreak.enabled = false;
+            }
+            conditionalBreakControls.style.display = 'none';
+            console.log('🔒 Disabled page conditional break');
+          }
+        } else {
+          if (this.pageSettings.sectionConditionalPageBreak) {
+            this.pageSettings.sectionConditionalPageBreak.enabled = false;
+          }
+          sectionBreakControls.style.display = 'none';
+          console.log('❌ Hiding section conditional break controls');
         }
       });
     }
@@ -7064,21 +7235,25 @@ padding: 8px;
         const distance = parseFloat(document.getElementById('newSectionOverrideDistance')?.value);
         const unit = document.getElementById('newSectionOverrideUnit')?.value;
 
+        // ✅ Validation
         if (!countsInput) {
-          alert('Please enter section count(s)');
+          alert('⚠️ Please enter section count(s)');
           return;
         }
 
         if (isNaN(distance) || distance <= 0) {
-          alert('Please enter a valid distance');
+          alert('⚠️ Please enter a valid distance greater than 0');
           return;
         }
 
         // Parse section counts (comma-separated)
-        const sectionCounts = countsInput.split(',').map(c => c.trim()).filter(c => c);
+        const sectionCounts = countsInput.split(',')
+          .map(c => c.trim())
+          .filter(c => c && !isNaN(parseInt(c, 10)))
+          .map(c => parseInt(c, 10));
 
         if (sectionCounts.length === 0) {
-          alert('Invalid section count format');
+          alert('⚠️ Invalid section count format. Please use numbers separated by commas (e.g., 1, 2, 3)');
           return;
         }
 
@@ -7211,28 +7386,63 @@ padding: 8px;
 
   applySectionConditionalBreaks() {
     if (!this.pageSettings.sectionConditionalPageBreak?.enabled) {
+      console.log('⏭️ Section conditional breaks disabled, removing all...');
       this.removeAllSectionConditionalBreaks();
       return;
     }
 
     console.log('🔧 Applying section conditional breaks...');
+    console.log('📊 Settings:', {
+      enabled: this.pageSettings.sectionConditionalPageBreak.enabled,
+      defaultDistance: this.pageSettings.sectionConditionalPageBreak.defaultDistance,
+      defaultUnit: this.pageSettings.sectionConditionalPageBreak.defaultUnit,
+      overrides: this.pageSettings.sectionConditionalPageBreak.sectionOverrides
+    });
 
+    // ✅ IMMEDIATE execution instead of setTimeout
     const allPages = this.editor.getWrapper().find('.page-container');
+    let sectionsFound = 0;
+
+    console.log(`🔍 Scanning ${allPages.length} pages for sections...`);
 
     allPages.forEach((pageComponent, pageIndex) => {
       const sectionsContainer = pageComponent.find('.sections-container')[0];
-      if (!sectionsContainer) return;
+
+      if (!sectionsContainer) {
+        console.log(`⏭️ No sections on page ${pageIndex + 1}`);
+        return;
+      }
 
       const sectionCount = sectionsContainer.getAttributes()['data-section-count'];
-      if (!sectionCount) return;
+      console.log(`🔎 Page ${pageIndex + 1}: Found section with count="${sectionCount}"`);
 
+      if (!sectionCount || sectionCount === 'undefined') {
+        console.warn(`⚠️ Section on page ${pageIndex + 1} has invalid section count: "${sectionCount}"`);
+        return;
+      }
+
+      sectionsFound++;
+      console.log(`📍 Applying break to section ${sectionCount} on page ${pageIndex + 1}`);
+
+      // ✅ Apply the break immediately
       this.applySectionConditionalBreakToSection(sectionsContainer, sectionCount, pageIndex);
     });
+
+    console.log(`✅ Processed ${sectionsFound} sections with conditional breaks`);
+
+    if (sectionsFound === 0) {
+      console.warn('⚠️ No valid sections found to apply breaks to!');
+    }
   }
 
   applySectionConditionalBreakToSection(sectionsContainer, sectionCount, pageIndex) {
+    console.log(`🔧 applySectionConditionalBreakToSection called for section ${sectionCount} on page ${pageIndex + 1}`);
+
     const sectionContent = sectionsContainer.find('.section-content')[0];
-    if (!sectionContent) return;
+    if (!sectionContent) {
+      console.warn(`❌ No section-content found for section ${sectionCount} on page ${pageIndex}`);
+      return;
+    }
 
     // Get settings
     const overrides = this.pageSettings.sectionConditionalPageBreak.sectionOverrides || {};
@@ -7252,29 +7462,110 @@ padding: 8px;
     const mmToPx = 96 / 25.4;
     const distanceInPx = Math.round(distanceInMm * mmToPx);
 
-    // Calculate available height for section-content
+    console.log(`📐 Distance calculation: ${distance}${unit} = ${distanceInMm}mm = ${distanceInPx}px from PAGE BOTTOM`);
+
+    // ✅ CRITICAL FIX: Calculate from PAGE BOTTOM, not section bottom
+    // Get the main content area (page content)
+    const mainContentArea = sectionsContainer.closest('.main-content-area');
+    const mainContentEl = mainContentArea?.getEl();
+
+    if (!mainContentEl) {
+      console.warn(`❌ No main-content-area found for section ${sectionCount}`);
+      return;
+    }
+
+    // Get TOTAL page content height
+    const totalPageContentHeight = mainContentEl.clientHeight || 1023;
+
+    // Calculate section header and footer heights
     const sectionHeader = sectionsContainer.find('.section-header')[0];
     const sectionFooter = sectionsContainer.find('.section-footer')[0];
 
     const headerHeight = sectionHeader?.getEl() ? this.getAccurateComponentHeight(sectionHeader.getEl()) : 0;
     const footerHeight = sectionFooter?.getEl() ? this.getAccurateComponentHeight(sectionFooter.getEl()) : 0;
 
-    // Get main content area height
-    const mainContentArea = sectionsContainer.closest('.main-content-area');
-    const mainHeight = mainContentArea?.getEl()?.clientHeight || 1000;
+    // ✅ NEW CALCULATION LOGIC:
+    // Available height = Total page height - distance from page bottom - header - footer - buffer
+    const availableHeightForContent = totalPageContentHeight - distanceInPx - headerHeight - footerHeight - 20;
 
-    const availableHeight = mainHeight - headerHeight - footerHeight - distanceInPx - 20; // 20px buffer
-
-    // Update section-content height
-    sectionContent.addStyle({
-      'max-height': `${availableHeight}px`,
-      'height': `${availableHeight}px`,
-      'overflow': 'hidden'
+    console.log(`📐 Section ${sectionCount} on page ${pageIndex + 1} CORRECTED calculation:`, {
+      totalPageContentHeight: totalPageContentHeight,
+      distanceFromPageBottom: distanceInPx,
+      headerHeight,
+      footerHeight,
+      buffer: 20,
+      calculatedContentHeight: availableHeightForContent
     });
 
-    console.log(`📐 Section ${sectionCount} on page ${pageIndex + 1} adjusted to ${availableHeight}px (break at ${distanceInPx}px from bottom)`);
+    // ✅ Apply calculated height to section-content
+    sectionContent.addStyle({
+      'max-height': `${availableHeightForContent}px`,
+      'height': `${availableHeightForContent}px`,
+      'min-height': `${availableHeightForContent}px`,
+      'overflow': 'hidden',
+      'box-sizing': 'border-box'
+    });
+
+    // ✅ Force render
+    if (sectionContent.view && sectionContent.view.render) {
+      sectionContent.view.render();
+    }
+
+    // ✅ Add visual indicator at PAGE BOTTOM position
+    this.addSectionBreakIndicator(mainContentEl, distanceInPx, sectionCount, pageIndex);
+
+    console.log(`✅ Section ${sectionCount} content adjusted to ${availableHeightForContent}px (break at ${distanceInPx}px from PAGE BOTTOM)`);
   }
 
+  addSectionBreakIndicator(mainContentEl, distanceInPx, sectionCount, pageIndex) {
+    if (!mainContentEl) return;
+
+    // Remove existing indicators for this section
+    const existingIndicators = mainContentEl.querySelectorAll(`.section-break-indicator[data-section-count="${sectionCount}"]`);
+    if (existingIndicators) {
+      existingIndicators.forEach(ind => ind.remove());
+    }
+
+    const label = `Section ${sectionCount} Break Zone (${distanceInPx}px from page bottom)`;
+
+    // ✅ Position relative to PAGE BOTTOM (main-content-area)
+    const indicatorHTML = `
+    <div class="section-break-indicator" 
+         data-section-count="${sectionCount}"
+         data-page-number="${pageIndex + 1}"
+         style="
+           position: absolute;
+           bottom: ${distanceInPx}px;
+           left: 0;
+           right: 0;
+           height: 2px;
+           border-top: 2px dashed #4caf50;
+           z-index: 999;
+           pointer-events: none;
+           background: rgba(76, 175, 80, 0.1);
+         ">
+      <span style="
+        position: absolute;
+        right: 5px;
+        top: -22px;
+        background: #4caf50;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        z-index: 1000;
+        white-space: nowrap;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      ">${label}</span>
+    </div>
+  `;
+
+    mainContentEl.style.position = 'relative';
+    mainContentEl.insertAdjacentHTML('beforeend', indicatorHTML);
+
+    console.log(`✅ Break indicator added at ${distanceInPx}px from PAGE BOTTOM`);
+  }
   removeAllSectionConditionalBreaks() {
     const allPages = this.editor.getWrapper().find('.page-container');
 
@@ -7289,396 +7580,411 @@ padding: 8px;
       sectionContent.addStyle({
         'max-height': '',
         'height': '',
+        'min-height': '845px',
         'overflow': 'hidden'
       });
+
+      // Remove visual indicators
+      const contentEl = sectionContent.getEl();
+      if (contentEl) {
+        const indicators = contentEl.querySelectorAll('.section-break-indicator');
+        indicators.forEach(ind => ind.remove());
+      }
     });
 
     console.log('🗑️ All section conditional breaks removed');
   }
+  applyPageElementsSettings() {
+    try {
+      // Preserve header/footer content before making changes
+      this.preserveHeaderFooterContent && this.preserveHeaderFooterContent();
 
-applyPageElementsSettings() {
-  try {
-    // Preserve header/footer content before making changes
-    this.preserveHeaderFooterContent && this.preserveHeaderFooterContent();
+      // Section conditional page breaks (apply or remove)
+      if (this.pageSettings.sectionConditionalPageBreak?.enabled) {
+        console.log('🔄 Section breaks enabled, applying...');
 
-    // Section conditional page breaks (apply or remove)
-    if (this.pageSettings.sectionConditionalPageBreak?.enabled) {
-      setTimeout(() => {
-        this.applySectionConditionalBreaks && this.applySectionConditionalBreaks();
-      }, 500);
-    } else {
-      this.removeAllSectionConditionalBreaks && this.removeAllSectionConditionalBreaks();
-    }
+        // ✅ First remove any existing breaks
+        this.removeAllSectionConditionalBreaks && this.removeAllSectionConditionalBreaks();
 
-    // Conditional page break form values
-    const conditionalBreakEnabled =
-      document.getElementById("conditionalPageBreakEnabled")?.checked || false;
-    const conditionalBreakDefaultDistance =
-      parseFloat(
-        document.getElementById("conditionalBreakDefaultDistance")?.value
-      ) || 50;
-    const conditionalBreakDefaultUnit =
-      document.getElementById("conditionalBreakDefaultUnit")?.value || "mm";
-
-    // Collect all overrides from the form
-    const pageOverrides = {};
-    const overrideItems = document.querySelectorAll(".page-break-override-item") || [];
-    overrideItems.forEach((item) => {
-      const pageNum = item.getAttribute("data-page-num");
-      const distanceInput = item.querySelector(".override-distance");
-      const unitSelect = item.querySelector(".override-unit");
-
-      if (distanceInput && unitSelect && pageNum) {
-        pageOverrides[pageNum] = {
-          distance: parseFloat(distanceInput.value) || 0,
-          unit: unitSelect.value || conditionalBreakDefaultUnit,
-        };
+        // ✅ Apply immediately without setTimeout
+        setTimeout(() => {
+          console.log('⏰ Applying section breaks after delay...');
+          this.applySectionConditionalBreaks && this.applySectionConditionalBreaks();
+        }, 1000); // Increased delay for DOM stability
+      } else {
+        console.log('❌ Section breaks disabled, removing all...');
+        this.removeAllSectionConditionalBreaks && this.removeAllSectionConditionalBreaks();
       }
-    });
 
-    // Store conditional break settings on pageSettings
-    this.pageSettings.conditionalPageBreak = {
-      enabled: conditionalBreakEnabled,
-      defaultDistance: conditionalBreakDefaultDistance,
-      defaultUnit: conditionalBreakDefaultUnit,
-      pageOverrides: pageOverrides,
-    };
+      // Conditional page break form values
+      const conditionalBreakEnabled =
+        document.getElementById("conditionalPageBreakEnabled")?.checked || false;
+      const conditionalBreakDefaultDistance =
+        parseFloat(
+          document.getElementById("conditionalBreakDefaultDistance")?.value
+        ) || 50;
+      const conditionalBreakDefaultUnit =
+        document.getElementById("conditionalBreakDefaultUnit")?.value || "mm";
 
-    // Page margins + background
-    const marginTop =
-      Math.max(
-        0,
-        parseFloat(document.getElementById("settingsMarginTop")?.value) || 0
-      );
-    const marginBottom =
-      Math.max(
-        0,
-        parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0
-      );
-    const marginLeft =
-      Math.max(
-        0,
-        parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0
-      );
-    const marginRight =
-      Math.max(
-        0,
-        parseFloat(document.getElementById("settingsMarginRight")?.value) || 0
-      );
-    const newBackgroundColor =
-      document.getElementById("settingsPageBackgroundColor")?.value ||
-      "#ffffff";
+      // Collect all overrides from the form
+      const pageOverrides = {};
+      const overrideItems = document.querySelectorAll(".page-break-override-item") || [];
+      overrideItems.forEach((item) => {
+        const pageNum = item.getAttribute("data-page-num");
+        const distanceInput = item.querySelector(".override-distance");
+        const unitSelect = item.querySelector(".override-unit");
 
-    // Clear last applied background reference
-    delete this._lastAppliedBackgroundColor;
-
-    // Force update background in pageSettings and pages
-    this.pageSettings.backgroundColor = newBackgroundColor;
-    if (Array.isArray(this.pageSettings.pages)) {
-      this.pageSettings.pages.forEach((page) => {
-        page.backgroundColor = newBackgroundColor;
+        if (distanceInput && unitSelect && pageNum) {
+          pageOverrides[pageNum] = {
+            distance: parseFloat(distanceInput.value) || 0,
+            unit: unitSelect.value || conditionalBreakDefaultUnit,
+          };
+        }
       });
-    }
 
-    console.log(`✅ Background color set to: ${newBackgroundColor}`);
-
-    // --- Header settings ---
-    const headerEnabled =
-      document.getElementById("settingsHeaderEnabled")?.checked !== false;
-    const headerHeight =
-      Math.max(
-        5,
-        Math.min(
-          50,
-          parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7
-        )
-      );
-    const headerApplyMode =
-      document.getElementById("headerApplyMode")?.value || "all";
-    const headerCustomPageList =
-      document.getElementById("headerCustomPageList")?.value || "";
-    const headerText =
-      document.getElementById("settingsHeaderText")?.value || "";
-
-    // --- Footer settings ---
-    const footerEnabled =
-      document.getElementById("settingsFooterEnabled")?.checked !== false;
-    const footerHeight =
-      Math.max(
-        5,
-        Math.min(
-          50,
-          parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7
-        )
-      );
-    const footerApplyMode =
-      document.getElementById("footerApplyMode")?.value || "all";
-    const footerCustomPageList =
-      document.getElementById("footerCustomPageList")?.value || "";
-    const footerText =
-      document.getElementById("settingsFooterText")?.value || "";
-
-    // --- Page Number settings ---
-    const pageNumberEnabled =
-      document.getElementById("pageNumberEnabled")?.checked || false;
-    const pageNumberStartFrom = parseInt(
-      document.getElementById("pageNumberStartFrom")?.value || "1",
-      10
-    );
-    const pageNumberFormat =
-      document.getElementById("pageNumberFormat")?.value || "Page {n}";
-    const pageNumberPosition =
-      document.querySelector(".position-option.selected")?.dataset?.position ||
-      "bottom-center";
-    const storedPageNumber = this.pageSettings.pageNumber || {};
-    const pageNumberFontSize =
-      storedPageNumber.fontSize ||
-      parseInt(document.getElementById("pageNumberFontSize")?.value || "8", 10);
-    const pageNumberColor =
-      storedPageNumber.color ||
-      document.getElementById("pageNumberColor")?.value ||
-      "#333333";
-    const pageNumberBackgroundColor =
-      storedPageNumber.backgroundColor ||
-      document.getElementById("pageNumberBackgroundColor")?.value ||
-      "#ffffff";
-    const pageNumberShowBorder =
-      typeof storedPageNumber.showBorder !== "undefined"
-        ? storedPageNumber.showBorder
-        : document.getElementById("pageNumberShowBorder")?.checked || false;
-
-    // --- Watermark settings ---
-    const watermarkEnabled =
-      document.getElementById("settingsWatermarkEnabled")?.checked || false;
-    const watermarkType =
-      document.querySelector(".watermark-type-btn.active")?.dataset?.type ||
-      "text";
-    const watermarkTiled =
-      document.getElementById("settingsWatermarkTiled")?.checked || false;
-
-    // Text watermark settings
-    const watermarkTextContent =
-      document.getElementById("settingsWatermarkText")?.value ||
-      "CONFIDENTIAL";
-    const watermarkFontSize =
-      parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
-    const watermarkColor =
-      document.getElementById("settingsWatermarkColor")?.value || "#000000";
-    const watermarkOpacity =
-      (parseInt(document.getElementById("settingsWatermarkOpacity")?.value, 10) / 100) ||
-      0.4;
-    const watermarkRotation =
-      parseInt(document.getElementById("settingsWatermarkRotation")?.value, 10) || 0;
-    const watermarkTextPosition =
-      document.querySelector(".watermark-text-position-option.selected")
-        ?.dataset?.position || "center";
-
-    // Image watermark settings
-    const watermarkImageUrl =
-      document.getElementById("settingsWatermarkImageUrl")?.value || "";
-    const watermarkImageWidth =
-      parseInt(document.getElementById("settingsWatermarkImageWidth")?.value, 10) || 200;
-    const watermarkImageHeight =
-      parseInt(document.getElementById("settingsWatermarkImageHeight")?.value, 10) || 200;
-    const watermarkImageOpacity =
-      (parseInt(document.getElementById("settingsWatermarkImageOpacity")?.value, 10) / 100) ||
-      0.4;
-    const watermarkImageRotation =
-      parseInt(document.getElementById("settingsWatermarkImageRotation")?.value, 10) || 0;
-    const watermarkImagePosition =
-      document.querySelector(".watermark-image-position-option.selected")
-        ?.dataset?.position || "center";
-
-    // --- Parse custom page lists ---
-    const headerCustomPages = this.parsePageList
-      ? this.parsePageList(headerCustomPageList)
-      : [];
-    const footerCustomPages = this.parsePageList
-      ? this.parsePageList(footerCustomPageList)
-      : [];
-
-    const pageNumberRotation = parseInt(
-      document.getElementById("pageNumberRotation")?.value || "0",
-      10
-    );
-
-    // Persist last-known values for UI convenience
-    this._lastHeaderApplyMode = headerApplyMode;
-    this._lastFooterApplyMode = footerApplyMode;
-    this._lastHeaderCustomPageList = headerCustomPageList;
-    this._lastFooterCustomPageList = footerCustomPageList;
-    this._lastHeaderCustomPages = headerCustomPages;
-    this._lastFooterCustomPages = footerCustomPages;
-
-    // ALSO store in pageSettings for updateSinglePageVisuals
-    this.pageSettings.headerFooter = this.pageSettings.headerFooter || {};
-    this.pageSettings.headerFooter.headerApplyMode = headerApplyMode;
-    this.pageSettings.headerFooter.footerApplyMode = footerApplyMode;
-    this.pageSettings.headerFooter.headerCustomPages = headerCustomPages;
-    this.pageSettings.headerFooter.footerCustomPages = footerCustomPages;
-
-    // Update headerFooter block and margins
-    this.pageSettings.headerFooter = {
-      headerEnabled,
-      footerEnabled,
-      headerHeight,
-      footerHeight,
-      headerText,
-      footerText,
-      headerApplyMode,
-      footerApplyMode,
-      headerCustomPages,
-      footerCustomPages,
-    };
-
-    this.pageSettings.margins = {
-      top: marginTop,
-      bottom: marginBottom,
-      left: marginLeft,
-      right: marginRight,
-    };
-
-    // Apply background and CSS rule updates
-    this.pageSettings.backgroundColor = newBackgroundColor;
-    this.updatePageRule && this.updatePageRule();
-
-    // Page number settings saved to pageSettings
-    this.pageSettings.pageNumber = {
-      enabled: pageNumberEnabled,
-      startFrom: pageNumberStartFrom,
-      format: pageNumberFormat,
-      position: pageNumberPosition,
-      fontSize: pageNumberFontSize,
-      fontFamily: storedPageNumber.fontFamily || "Arial",
-      color: pageNumberColor,
-      backgroundColor: pageNumberBackgroundColor,
-      showBorder: pageNumberShowBorder,
-      rotation: pageNumberRotation,
-      visibility: storedPageNumber.visibility || "all",
-    };
-
-    // Watermark saved to pageSettings
-    this.pageSettings.watermark = {
-      enabled: watermarkEnabled,
-      type: watermarkType,
-      tiled: watermarkTiled,
-      textPosition: watermarkTextPosition,
-      imagePosition: watermarkImagePosition,
-      text: {
-        content: watermarkTextContent,
-        fontSize: watermarkFontSize,
-        color: watermarkColor,
-        opacity: watermarkOpacity,
-        rotation: watermarkRotation,
-      },
-      image: {
-        url: watermarkImageUrl,
-        width: watermarkImageWidth,
-        height: watermarkImageHeight,
-        opacity: watermarkImageOpacity,
-        rotation: watermarkImageRotation,
-      },
-    };
-
-    // Apply conditional page breaks immediately if enabled
-    if (conditionalBreakEnabled) {
-      console.log("🔄 Applying conditional breaks to existing pages...");
-
-      const settingsToLog = {
-        enabled: this.pageSettings.conditionalPageBreak.enabled,
-        defaultDistance: this.pageSettings.conditionalPageBreak.defaultDistance,
-        defaultUnit: this.pageSettings.conditionalPageBreak.defaultUnit,
-        pageOverrides: this.pageSettings.conditionalPageBreak.pageOverrides,
+      // Store conditional break settings on pageSettings
+      this.pageSettings.conditionalPageBreak = {
+        enabled: conditionalBreakEnabled,
+        defaultDistance: conditionalBreakDefaultDistance,
+        defaultUnit: conditionalBreakDefaultUnit,
+        pageOverrides: pageOverrides,
       };
-      console.log("Settings:", JSON.stringify(settingsToLog, null, 2));
 
-      setTimeout(() => {
-        this.removeAllConditionalPageBreaks && this.removeAllConditionalPageBreaks();
+      // Page margins + background
+      const marginTop =
+        Math.max(
+          0,
+          parseFloat(document.getElementById("settingsMarginTop")?.value) || 0
+        );
+      const marginBottom =
+        Math.max(
+          0,
+          parseFloat(document.getElementById("settingsMarginBottom")?.value) || 0
+        );
+      const marginLeft =
+        Math.max(
+          0,
+          parseFloat(document.getElementById("settingsMarginLeft")?.value) || 0
+        );
+      const marginRight =
+        Math.max(
+          0,
+          parseFloat(document.getElementById("settingsMarginRight")?.value) || 0
+        );
+      const newBackgroundColor =
+        document.getElementById("settingsPageBackgroundColor")?.value ||
+        "#ffffff";
+
+      // Clear last applied background reference
+      delete this._lastAppliedBackgroundColor;
+
+      // Force update background in pageSettings and pages
+      this.pageSettings.backgroundColor = newBackgroundColor;
+      if (Array.isArray(this.pageSettings.pages)) {
+        this.pageSettings.pages.forEach((page) => {
+          page.backgroundColor = newBackgroundColor;
+        });
+      }
+
+      console.log(`✅ Background color set to: ${newBackgroundColor}`);
+
+      // --- Header settings ---
+      const headerEnabled =
+        document.getElementById("settingsHeaderEnabled")?.checked !== false;
+      const headerHeight =
+        Math.max(
+          5,
+          Math.min(
+            50,
+            parseFloat(document.getElementById("settingsHeaderHeight")?.value) || 12.7
+          )
+        );
+      const headerApplyMode =
+        document.getElementById("headerApplyMode")?.value || "all";
+      const headerCustomPageList =
+        document.getElementById("headerCustomPageList")?.value || "";
+      const headerText =
+        document.getElementById("settingsHeaderText")?.value || "";
+
+      // --- Footer settings ---
+      const footerEnabled =
+        document.getElementById("settingsFooterEnabled")?.checked !== false;
+      const footerHeight =
+        Math.max(
+          5,
+          Math.min(
+            50,
+            parseFloat(document.getElementById("settingsFooterHeight")?.value) || 12.7
+          )
+        );
+      const footerApplyMode =
+        document.getElementById("footerApplyMode")?.value || "all";
+      const footerCustomPageList =
+        document.getElementById("footerCustomPageList")?.value || "";
+      const footerText =
+        document.getElementById("settingsFooterText")?.value || "";
+
+      // --- Page Number settings ---
+      const pageNumberEnabled =
+        document.getElementById("pageNumberEnabled")?.checked || false;
+      const pageNumberStartFrom = parseInt(
+        document.getElementById("pageNumberStartFrom")?.value || "1",
+        10
+      );
+      const pageNumberFormat =
+        document.getElementById("pageNumberFormat")?.value || "Page {n}";
+      const pageNumberPosition =
+        document.querySelector(".position-option.selected")?.dataset?.position ||
+        "bottom-center";
+      const storedPageNumber = this.pageSettings.pageNumber || {};
+      const pageNumberFontSize =
+        storedPageNumber.fontSize ||
+        parseInt(document.getElementById("pageNumberFontSize")?.value || "8", 10);
+      const pageNumberColor =
+        storedPageNumber.color ||
+        document.getElementById("pageNumberColor")?.value ||
+        "#333333";
+      const pageNumberBackgroundColor =
+        storedPageNumber.backgroundColor ||
+        document.getElementById("pageNumberBackgroundColor")?.value ||
+        "#ffffff";
+      const pageNumberShowBorder =
+        typeof storedPageNumber.showBorder !== "undefined"
+          ? storedPageNumber.showBorder
+          : document.getElementById("pageNumberShowBorder")?.checked || false;
+
+      // --- Watermark settings ---
+      const watermarkEnabled =
+        document.getElementById("settingsWatermarkEnabled")?.checked || false;
+      const watermarkType =
+        document.querySelector(".watermark-type-btn.active")?.dataset?.type ||
+        "text";
+      const watermarkTiled =
+        document.getElementById("settingsWatermarkTiled")?.checked || false;
+
+      // Text watermark settings
+      const watermarkTextContent =
+        document.getElementById("settingsWatermarkText")?.value ||
+        "CONFIDENTIAL";
+      const watermarkFontSize =
+        parseInt(document.getElementById("settingsWatermarkFontSize")?.value) || 36;
+      const watermarkColor =
+        document.getElementById("settingsWatermarkColor")?.value || "#000000";
+      const watermarkOpacity =
+        (parseInt(document.getElementById("settingsWatermarkOpacity")?.value, 10) / 100) ||
+        0.4;
+      const watermarkRotation =
+        parseInt(document.getElementById("settingsWatermarkRotation")?.value, 10) || 0;
+      const watermarkTextPosition =
+        document.querySelector(".watermark-text-position-option.selected")
+          ?.dataset?.position || "center";
+
+      // Image watermark settings
+      const watermarkImageUrl =
+        document.getElementById("settingsWatermarkImageUrl")?.value || "";
+      const watermarkImageWidth =
+        parseInt(document.getElementById("settingsWatermarkImageWidth")?.value, 10) || 200;
+      const watermarkImageHeight =
+        parseInt(document.getElementById("settingsWatermarkImageHeight")?.value, 10) || 200;
+      const watermarkImageOpacity =
+        (parseInt(document.getElementById("settingsWatermarkImageOpacity")?.value, 10) / 100) ||
+        0.4;
+      const watermarkImageRotation =
+        parseInt(document.getElementById("settingsWatermarkImageRotation")?.value, 10) || 0;
+      const watermarkImagePosition =
+        document.querySelector(".watermark-image-position-option.selected")
+          ?.dataset?.position || "center";
+
+      // --- Parse custom page lists ---
+      const headerCustomPages = this.parsePageList
+        ? this.parsePageList(headerCustomPageList)
+        : [];
+      const footerCustomPages = this.parsePageList
+        ? this.parsePageList(footerCustomPageList)
+        : [];
+
+      const pageNumberRotation = parseInt(
+        document.getElementById("pageNumberRotation")?.value || "0",
+        10
+      );
+
+      // Persist last-known values for UI convenience
+      this._lastHeaderApplyMode = headerApplyMode;
+      this._lastFooterApplyMode = footerApplyMode;
+      this._lastHeaderCustomPageList = headerCustomPageList;
+      this._lastFooterCustomPageList = footerCustomPageList;
+      this._lastHeaderCustomPages = headerCustomPages;
+      this._lastFooterCustomPages = footerCustomPages;
+
+      // ALSO store in pageSettings for updateSinglePageVisuals
+      this.pageSettings.headerFooter = this.pageSettings.headerFooter || {};
+      this.pageSettings.headerFooter.headerApplyMode = headerApplyMode;
+      this.pageSettings.headerFooter.footerApplyMode = footerApplyMode;
+      this.pageSettings.headerFooter.headerCustomPages = headerCustomPages;
+      this.pageSettings.headerFooter.footerCustomPages = footerCustomPages;
+
+      // Update headerFooter block and margins
+      this.pageSettings.headerFooter = {
+        headerEnabled,
+        footerEnabled,
+        headerHeight,
+        footerHeight,
+        headerText,
+        footerText,
+        headerApplyMode,
+        footerApplyMode,
+        headerCustomPages,
+        footerCustomPages,
+      };
+
+      this.pageSettings.margins = {
+        top: marginTop,
+        bottom: marginBottom,
+        left: marginLeft,
+        right: marginRight,
+      };
+
+      // Apply background and CSS rule updates
+      this.pageSettings.backgroundColor = newBackgroundColor;
+      this.updatePageRule && this.updatePageRule();
+
+      // Page number settings saved to pageSettings
+      this.pageSettings.pageNumber = {
+        enabled: pageNumberEnabled,
+        startFrom: pageNumberStartFrom,
+        format: pageNumberFormat,
+        position: pageNumberPosition,
+        fontSize: pageNumberFontSize,
+        fontFamily: storedPageNumber.fontFamily || "Arial",
+        color: pageNumberColor,
+        backgroundColor: pageNumberBackgroundColor,
+        showBorder: pageNumberShowBorder,
+        rotation: pageNumberRotation,
+        visibility: storedPageNumber.visibility || "all",
+      };
+
+      // Watermark saved to pageSettings
+      this.pageSettings.watermark = {
+        enabled: watermarkEnabled,
+        type: watermarkType,
+        tiled: watermarkTiled,
+        textPosition: watermarkTextPosition,
+        imagePosition: watermarkImagePosition,
+        text: {
+          content: watermarkTextContent,
+          fontSize: watermarkFontSize,
+          color: watermarkColor,
+          opacity: watermarkOpacity,
+          rotation: watermarkRotation,
+        },
+        image: {
+          url: watermarkImageUrl,
+          width: watermarkImageWidth,
+          height: watermarkImageHeight,
+          opacity: watermarkImageOpacity,
+          rotation: watermarkImageRotation,
+        },
+      };
+
+      // Apply conditional page breaks immediately if enabled
+      if (conditionalBreakEnabled) {
+        console.log("🔄 Applying conditional breaks to existing pages...");
+
+        const settingsToLog = {
+          enabled: this.pageSettings.conditionalPageBreak.enabled,
+          defaultDistance: this.pageSettings.conditionalPageBreak.defaultDistance,
+          defaultUnit: this.pageSettings.conditionalPageBreak.defaultUnit,
+          pageOverrides: this.pageSettings.conditionalPageBreak.pageOverrides,
+        };
+        console.log("Settings:", JSON.stringify(settingsToLog, null, 2));
 
         setTimeout(() => {
-          this.insertConditionalPageBreaksToAllPages && this.insertConditionalPageBreaksToAllPages();
+          this.removeAllConditionalPageBreaks && this.removeAllConditionalPageBreaks();
 
-          // Verify application
           setTimeout(() => {
-            const allPages = (this.editor && this.editor.getWrapper && this.editor.getWrapper().find(".page-container")) || [];
-            allPages.forEach((page, idx) => {
-              try {
-                const indicator = (page.find && page.find('.conditional-break-indicator[data-conditional="true"]')[0]) || null;
-                if (indicator) {
-                  const pageNum = idx + 1;
-                  const override = this.pageSettings.conditionalPageBreak.pageOverrides?.[pageNum];
-                  console.log(`✅ Page ${pageNum} has break indicator. Override:`, override || "using default");
+            this.insertConditionalPageBreaksToAllPages && this.insertConditionalPageBreaksToAllPages();
+
+            // Verify application
+            setTimeout(() => {
+              const allPages = (this.editor && this.editor.getWrapper && this.editor.getWrapper().find(".page-container")) || [];
+              allPages.forEach((page, idx) => {
+                try {
+                  const indicator = (page.find && page.find('.conditional-break-indicator[data-conditional="true"]')[0]) || null;
+                  if (indicator) {
+                    const pageNum = idx + 1;
+                    const override = this.pageSettings.conditionalPageBreak.pageOverrides?.[pageNum];
+                    console.log(`✅ Page ${pageNum} has break indicator. Override:`, override || "using default");
+                  }
+                } catch (err) {
+                  console.warn("Error checking conditional indicator for page", idx, err);
                 }
-              } catch (err) {
-                console.warn("Error checking conditional indicator for page", idx, err);
-              }
-            });
-          }, 500);
-        }, 200);
-      }, 500);
-    } else {
-      this.removeAllConditionalPageBreaks && this.removeAllConditionalPageBreaks();
-    }
-
-    this.logConditionalBreakSettings && this.logConditionalBreakSettings();
-
-    // Update individual page settings (e.g., per-page header/footer overrides)
-    this.updateIndividualPageSettings && this.updateIndividualPageSettings();
-
-    // Apply background color immediately for live preview
-    this.applyBackgroundColorToPages && this.applyBackgroundColorToPages(newBackgroundColor);
-
-    // Important: do not rebuild pages — update visuals on existing page-containers
-    const allPages = (this.editor && this.editor.getWrapper && this.editor.getWrapper().find(".page-container")) || [];
-    allPages.forEach((pageComponent, index) => {
-      try {
-        const pageEl = pageComponent.getEl && pageComponent.getEl();
-        const pageSettings = this.pageSettings.pages && this.pageSettings.pages[index];
-        if (pageEl && pageSettings) {
-          this.updateSinglePageVisuals && this.updateSinglePageVisuals(pageEl, pageSettings, index);
-        }
-      } catch (err) {
-        console.warn("Error updating visuals for page", index, err);
+              });
+            }, 500);
+          }, 200);
+        }, 500);
+      } else {
+        this.removeAllConditionalPageBreaks && this.removeAllConditionalPageBreaks();
       }
-    });
 
-    // Force section min-heights (safety guard)
-    const allSections = (this.editor && this.editor.getWrapper && this.editor.getWrapper().find(".sections-container")) || [];
-    allSections.forEach((sectionComp) => {
+      this.logConditionalBreakSettings && this.logConditionalBreakSettings();
+
+      // Update individual page settings (e.g., per-page header/footer overrides)
+      this.updateIndividualPageSettings && this.updateIndividualPageSettings();
+
+      // Apply background color immediately for live preview
+      this.applyBackgroundColorToPages && this.applyBackgroundColorToPages(newBackgroundColor);
+
+      // Important: do not rebuild pages — update visuals on existing page-containers
+      const allPages = (this.editor && this.editor.getWrapper && this.editor.getWrapper().find(".page-container")) || [];
+      allPages.forEach((pageComponent, index) => {
+        try {
+          const pageEl = pageComponent.getEl && pageComponent.getEl();
+          const pageSettings = this.pageSettings.pages && this.pageSettings.pages[index];
+          if (pageEl && pageSettings) {
+            this.updateSinglePageVisuals && this.updateSinglePageVisuals(pageEl, pageSettings, index);
+          }
+        } catch (err) {
+          console.warn("Error updating visuals for page", index, err);
+        }
+      });
+
+      // Force section min-heights (safety guard)
+      const allSections = (this.editor && this.editor.getWrapper && this.editor.getWrapper().find(".sections-container")) || [];
+      allSections.forEach((sectionComp) => {
+        try {
+          const headerComp = sectionComp.find && sectionComp.find(".section-header")[0];
+          const contentComp = sectionComp.find && sectionComp.find(".section-content")[0];
+          const footerComp = sectionComp.find && sectionComp.find(".section-footer")[0];
+
+          if (headerComp && headerComp.addStyle) {
+            headerComp.addStyle({ "min-height": "80px" });
+          }
+          if (contentComp && contentComp.addStyle) {
+            contentComp.addStyle({ "min-height": "845px" });
+          }
+          if (footerComp && footerComp.addStyle) {
+            footerComp.addStyle({ "min-height": "60px" });
+          }
+        } catch (err) {
+          console.warn("Error applying min-heights to section container:", err);
+        }
+      });
+
+      // Close modal if available
       try {
-        const headerComp = sectionComp.find && sectionComp.find(".section-header")[0];
-        const contentComp = sectionComp.find && sectionComp.find(".section-content")[0];
-        const footerComp = sectionComp.find && sectionComp.find(".section-footer")[0];
-
-        if (headerComp && headerComp.addStyle) {
-          headerComp.addStyle({ "min-height": "80px" });
-        }
-        if (contentComp && contentComp.addStyle) {
-          contentComp.addStyle({ "min-height": "845px" });
-        }
-        if (footerComp && footerComp.addStyle) {
-          footerComp.addStyle({ "min-height": "60px" });
-        }
+        this.editor && this.editor.Modal && this.editor.Modal.close && this.editor.Modal.close();
       } catch (err) {
-        console.warn("Error applying min-heights to section container:", err);
+        // not critical
       }
-    });
-
-    // Close modal if available
-    try {
-      this.editor && this.editor.Modal && this.editor.Modal.close && this.editor.Modal.close();
     } catch (err) {
-      // not critical
-    }
-  } catch (err) {
-    console.error("❌ Error in applyPageElementsSettings:", err);
-    try {
-      alert("Failed to apply settings.");
-    } catch (e) {
-      // ignore alert errors in non-browser envs
+      console.error("❌ Error in applyPageElementsSettings:", err);
+      try {
+        alert("Failed to apply settings.");
+      } catch (e) {
+        // ignore alert errors in non-browser envs
+      }
     }
   }
-}
 
 
 
@@ -8694,6 +9000,12 @@ applyPageElementsSettings() {
             'data-section-count': newSectionCount
           });
           console.log(`✅ Assigned count ${newSectionCount} to existing section on page ${pageIndex}`);
+          setTimeout(() => {
+            if (this.pageSettings.sectionConditionalPageBreak?.enabled) {
+              console.log(`🔄 Applying section break to newly assigned section ${newSectionCount} on page ${pageIndex}`);
+              this.applySectionConditionalBreakToSection(sectionToUpdate, newSectionCount, pageIndex);
+            }
+          }, 500);
           return sectionToUpdate;
         }
 
@@ -8732,7 +9044,13 @@ applyPageElementsSettings() {
         })[0];
 
         this.onSectionAdded(newSection, pageIndex);
-
+        // ✅ After creating section, check if section breaks should be applied
+        setTimeout(() => {
+          if (this.pageSettings.sectionConditionalPageBreak?.enabled) {
+            console.log('🔄 Checking section breaks after manual section addition...');
+            this.applySectionConditionalBreaks();
+          }
+        }, 1000);
         console.log(`✅ Created autopaginated section with count ${sourceSectionCount} on page ${pageIndex}`);
         this.editor.trigger('change:canvasOffset');
         return newSection;
@@ -8983,7 +9301,8 @@ applyPageElementsSettings() {
         flex: "1",
         display: "flex",
         "flex-direction": "column",
-        height: `${mainContentHeight}px`
+        height: `${mainContentHeight}px`,
+        overflow: "hidden"
       });
 
       const existingMainContentArea = existingContentWrapper.find(".main-content-area")[0];

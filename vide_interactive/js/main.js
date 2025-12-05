@@ -26,6 +26,7 @@ window.editor = InteractiveDesigner.init({
     customNewFontUrl,
     customLoadingPage,
     customVideoIn,
+    loadBackButtonComponent,
     customSeparator,
     customSections,
     jsontablecustom,
@@ -43,6 +44,7 @@ window.editor = InteractiveDesigner.init({
     "basic-block-component",
     "countdown-component",
     "forms-component",
+    "video-forms-component",
     "table-component",
     newComponents,
     object,
@@ -288,6 +290,11 @@ editor.Panels.addPanel({ id: "devices-c" })
       attributes: { title: "View All Logs", id: "allLogs" },
       className: "fa fa-envelope",
     },
+        {
+      id: "excelCsvUpload",
+      attributes: { title: "Upload Excel/CSV file", id: "excelCsvUpload" },
+      className: "fa fa-file-excel-o",
+    },
     // {
     //   id: "save-template",
     //   className: "fa fa-save",
@@ -323,6 +330,9 @@ function viewAllTemplates() {
 function viewAllLogsD() {
   window.location.href = 'logs.html';
 }
+
+var excelscv = document.getElementById("excelCsvUpload"); 
+excelscv.addEventListener("click", uploadExcelCsv, true);
 
 let uploadedJsonFiles = [];
 // Updated modal command with hierarchical JSON key selection
@@ -4503,6 +4513,64 @@ function updateComponentsWithNewJson(editor) {
       }
     }
   }
+}
+
+function uploadExcelCsv() {
+  const uploadedFileName = localStorage.getItem('uploadedFileName');
+  console.log('Previously uploaded file name:', uploadedFileName);
+
+  const modal = editor.Modal;
+  const container = document.createElement('div');
+
+  container.innerHTML = `
+    <div style="padding: 5px;">
+      <div> ${uploadedFileName ? `Already added file: ${uploadedFileName}` : 'No file added'}</div>
+      <br>
+      <input type="file" id="excelCsvInput" accept=".csv, .xlsx" />
+      <br><br>
+      <button id="uploadExcelCsvBtn" style="padding: 5px 10px;">Add</button>
+    </div>
+  `;
+
+  modal.setTitle('Upload Excel/CSV (Logic) File');
+  modal.setContent(container);
+  modal.open();
+
+  container.querySelector('#uploadExcelCsvBtn').onclick = () => {
+    const input = container.querySelector('#excelCsvInput');
+    const file = input.files[0];
+
+    if (!file) {
+      alert('Please select a file!');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('http://103.75.226.215:8080/api/excel/upload', {
+      method: 'POST',
+      body: formData,
+    })
+      .then(response => {
+        if (!response.ok) throw new Error('Upload failed');
+        return response.json();
+      })
+      .then(data => {
+        alert('Upload successful!');
+        console.log(data);
+
+        // Store filename and uploaded ID
+        localStorage.setItem('uploadedFileId', data); // or data.id if your response is { id: ..., filename: ... }
+        localStorage.setItem('uploadedFileName', file.name);
+
+        modal.close();
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Upload failed.');
+      });
+  };
 }
 
 let slides = [];

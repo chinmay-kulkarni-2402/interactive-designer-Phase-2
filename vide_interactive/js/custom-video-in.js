@@ -40,12 +40,11 @@ function handlePageSelection() {
 }
 
 function askCanvasSize(numPages) {
-  // Create modal for canvas selection
   editor.Modal.setTitle("Select Canvas Size");
   editor.Modal.setContent(`
     <div>
       <label for="canvasSizeSelect">Choose Canvas Size:</label>
-      <select id="canvasSizeSelect" class="form-control" onchange="handleSizeChange()">
+      <select id="canvasSizeSelect" class="form-control">
         <option value="A4">A4 (595px x 842px)</option>
         <option value="720p">720p (1280px x 720px)</option>
         <option value="custom">Custom Size</option>
@@ -65,11 +64,16 @@ function askCanvasSize(numPages) {
 
   editor.Modal.open();
 
-  // Add event listener to Confirm button
+  // ✅ Bind events *after* modal is rendered
+  document
+    .getElementById("canvasSizeSelect")
+    .addEventListener("change", handleSizeChange);
+
   document
     .getElementById("confirmCanvasSize")
     .addEventListener("click", () => handleCanvasSelection(numPages));
 }
+
 
 // 🎯 Handle size selection and custom input visibility
 function handleSizeChange() {
@@ -124,6 +128,7 @@ function isValidSize(size) {
 
 
 let transitions = {};
+let thumbnailNames = {};
 let clickStates = {}; 
 window.presentationState = {
   currentSlideIndex: 1, // Current active slide index
@@ -149,16 +154,16 @@ function createSlides(numPages, width, height) {
    window.presentationState.slides = slides;
   const slidesContainer = document.createElement("div");
   slidesContainer.id = "slides-thumbnails";
-  slidesContainer.style.position = "fixed";
+  slidesContainer.style.position = "sticky";
   slidesContainer.style.bottom = "0";
   slidesContainer.style.left = "0";
-  slidesContainer.style.right = "0";
+  slidesContainer.style.width = "82.9%";
   slidesContainer.style.zIndex = "999";
   slidesContainer.style.display = "flex";
   slidesContainer.style.overflowX = "auto";
   slidesContainer.style.background = "#f9f9f9";
   slidesContainer.style.padding = "10px 15px";
-  slidesContainer.style.borderTop = "1px solid #ccc";
+  slidesContainer.style.border = "1px solid #ccc";
   slidesContainer.style.alignItems = "center";
 
   function createDeleteButton(thumbnail, slideIndex) {
@@ -232,6 +237,7 @@ function createSlides(numPages, width, height) {
         "data-transition-type": "none",
         "data-transition-duration": "0",
         "data-transition-direction": "none",
+        "data-slide-input":"False",
       },
       content: ``,
       style: {
@@ -248,7 +254,7 @@ function createSlides(numPages, width, height) {
       },
     });
 
-    transitions[i] = { type: "none", duration: 0, direction: "none" };
+    transitions[i] = { type: "none", duration: 0, direction: "none", slideInput:"False", hasMusic: false, musicFile: null, musicLoop: false};
     slides.push(slide);
 
     let thumbnail = document.createElement("div");
@@ -316,6 +322,47 @@ function createSlides(numPages, width, height) {
       clickStates[index] = !clickStates[index];
     });
 
+    thumbnail.addEventListener("dblclick", (e) => {
+  e.stopPropagation();
+  const slideIndex = parseInt(thumbnail.getAttribute("data-slide-index"));
+  const currentName = thumbnailNames[slideIndex] || `Page ${slideIndex}`;
+  
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = currentName;
+  input.style.width = "70px";
+  input.style.textAlign = "center";
+  input.style.fontSize = "14px";
+  input.style.fontWeight = "bold";
+  input.style.border = "1px solid #007bff";
+  input.style.borderRadius = "3px";
+  
+  // Store the current delete button to restore it later
+  const existingDeleteBtn = thumbnail.querySelector('.delete-btn');
+  
+  thumbnail.innerHTML = "";
+  thumbnail.appendChild(input);
+  input.focus();
+  input.select();
+  
+  const saveEdit = () => {
+    const newName = input.value.trim() || `Page ${slideIndex}`;
+    thumbnailNames[slideIndex] = newName; // Save the name
+    thumbnail.innerHTML = newName;
+    
+    // Re-add the EXISTING delete button (don't create new one)
+    if (existingDeleteBtn) {
+      thumbnail.appendChild(existingDeleteBtn);
+    }
+  };
+  
+  input.addEventListener("blur", saveEdit);
+  input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      saveEdit();
+    }
+  });
+});
     if (i === 1) {
       thumbnail.classList.add("active-thumbnail"); // ✅ Start with first thumbnail highlighted
     }
@@ -355,6 +402,7 @@ function createSlides(numPages, width, height) {
         "data-transition-type": "none",
         "data-transition-duration": "0",
         "data-transition-direction": "none",
+        "data-slide-input": "False",
       },
       content: ``,
       style: {
@@ -371,7 +419,7 @@ function createSlides(numPages, width, height) {
       },
     });
 
-    transitions[newIndex] = { type: "none", duration: 0, direction: "none" };
+    transitions[newIndex] = { type: "none", duration: 0, direction: "none" , slideInput: "False"};
     slides.push(slide);
 
     let thumbnail = document.createElement("div");
@@ -420,11 +468,60 @@ function createSlides(numPages, width, height) {
       clickStates[newIndex] = !clickStates[newIndex];
     });
 
+    thumbnail.addEventListener("dblclick", (e) => {
+  e.stopPropagation();
+  const slideIndex = parseInt(thumbnail.getAttribute("data-slide-index"));
+  const currentName = thumbnailNames[slideIndex] || `Page ${slideIndex}`;
+  
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = currentName;
+  input.style.width = "70px";
+  input.style.textAlign = "center";
+  input.style.fontSize = "14px";
+  input.style.fontWeight = "bold";
+  input.style.border = "1px solid #007bff";
+  input.style.borderRadius = "3px";
+  
+  // Store the current delete button
+  const existingDeleteBtn = thumbnail.querySelector('.delete-btn');
+  
+  thumbnail.innerHTML = "";
+  thumbnail.appendChild(input);
+  input.focus();
+  input.select();
+  
+  const saveEdit = () => {
+    const newName = input.value.trim() || `Page ${slideIndex}`;
+    thumbnailNames[slideIndex] = newName; // Save the name
+    thumbnail.innerHTML = newName;
+    
+    // Re-add the EXISTING delete button
+    if (existingDeleteBtn) {
+      thumbnail.appendChild(existingDeleteBtn);
+    }
+  };
+  
+  input.addEventListener("blur", saveEdit);
+  input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      saveEdit();
+    }
+  });
+});
     slidesContainer.insertBefore(thumbnail, addSlideBtn);
   });
 
   slidesContainer.appendChild(addSlideBtn);
   document.body.appendChild(slidesContainer);
+
+  // ✅ Modify iframe styling
+const iframe = document.querySelector("iframe.i_designer-frame");
+if (iframe) {
+  iframe.style.height = "89.16%";
+  iframe.style.margin = "0";
+}
+document.body.style.overflow = "hidden";
 
 
   // Only show the download button if a "videoIn" component is added
@@ -442,8 +539,84 @@ function createSlides(numPages, width, height) {
     downloadBtn.style.border = "none";
     downloadBtn.style.cursor = "pointer";
     downloadBtn.style.transition = "background-color 0.3s ease, transform 0.3s ease"; // Smooth hover effect
+
+    const checkboxContainer = document.createElement("div");
+    checkboxContainer.style.display = "inline-flex";
+    checkboxContainer.style.alignItems = "center";
+    checkboxContainer.style.marginLeft = "20px";
+    
+    const thumbnailCheckbox = document.createElement("input");
+    thumbnailCheckbox.type = "checkbox";
+    thumbnailCheckbox.id = "hideThumbnails";
+    thumbnailCheckbox.style.marginRight = "8px";
+    thumbnailCheckbox.style.cursor = "pointer";
+    
+    const checkboxLabel = document.createElement("label");
+    checkboxLabel.htmlFor = "hideThumbnails";
+    checkboxLabel.textContent = "Hide Thumbnails";
+    checkboxLabel.style.cursor = "pointer";
+    checkboxLabel.style.fontSize = "14px";
+    checkboxLabel.style.color = "#333";
+    
+    checkboxContainer.appendChild(thumbnailCheckbox);
+    checkboxContainer.appendChild(checkboxLabel);
+
+    slidesContainer.appendChild(checkboxContainer);
+    slidesContainer.appendChild(downloadBtn);
+
+    // Add upload sound button
+const uploadSoundBtn = document.createElement("button");
+uploadSoundBtn.textContent = "Upload Sound";
+uploadSoundBtn.className = "btn btn-info";
+uploadSoundBtn.style.marginLeft = "20px";
+uploadSoundBtn.style.padding = "12px 24px";
+uploadSoundBtn.style.fontSize = "16px";
+uploadSoundBtn.style.borderRadius = "8px";
+uploadSoundBtn.style.backgroundColor = "#17a2b8";
+uploadSoundBtn.style.color = "#fff";
+uploadSoundBtn.style.border = "none";
+uploadSoundBtn.style.cursor = "pointer";
+uploadSoundBtn.style.transition = "background-color 0.3s ease, transform 0.3s ease";
+
+uploadSoundBtn.addEventListener("mouseenter", () => {
+  uploadSoundBtn.style.backgroundColor = "#138496";
+  uploadSoundBtn.style.transform = "scale(1.05)";
+});
+
+uploadSoundBtn.addEventListener("mouseleave", () => {
+  uploadSoundBtn.style.backgroundColor = "#17a2b8";
+  uploadSoundBtn.style.transform = "scale(1)";
+});
+
+uploadSoundBtn.onclick = () => {
+  askForSoundFile();
+};
+
+slidesContainer.appendChild(uploadSoundBtn);
+
+
     downloadBtn.onclick = () => {
-      generateInteractiveSlideshowHTML();
+  //       let hasInvalidVideo = false;
+  // let invalidSlideNumbers = [];
+  
+  // slideElements.forEach((el, idx) => {
+  //   const slideIndex = idx + 1;
+  //   const videoElement = el.querySelector('video');
+  //   const slideTimer = parseFloat(el.getAttribute("data-slide-timer")) || 0;
+    
+  //   if (videoElement && slideTimer <= 0) {
+  //     hasInvalidVideo = true;
+  //     invalidSlideNumbers.push(slideIndex);
+  //   }
+  // });
+  
+  // if (hasInvalidVideo) {
+  //   alert(`Cannot download slideshow. Please set slide timer for slides with videos: ${invalidSlideNumbers.join(', ')}`);
+  //   return;
+  // }
+  
+  const hideThumbnails = document.getElementById("hideThumbnails").checked;
+  generateInteractiveSlideshowHTML(hideThumbnails);
     };
 
     // Add hover effect to the download button
@@ -486,117 +659,346 @@ function switchSlide(index) {
 }
 
 function askTransitionSettings(slideIndex) {
-  const transition = transitions[slideIndex] || { type: "none", duration: 0, direction: "none", slideTimer: 0, isHidden: false, wordToHide: "" };
+  const transition = transitions[slideIndex] || {
+    type: "none",
+    duration: 0,
+    direction: "none",
+    slideTimer: 0,
+    isHidden: false,
+    wordToHide: "",
+    slideInput: "False",
+    hasMusic: false,
+    musicFile: null,
+    musicLoop: false
+  };
 
-  // Initialize the modal content
+  const slide = slides[slideIndex - 1];
+  const slideEl = slide?.view?.el;
+
+  // Check for video
+  const video = slideEl?.querySelector("video");
+
+  // Check for input fields (input, select, textarea, contenteditable elements)
+  const hasInputs = !!slideEl?.querySelector("input, select, textarea, [contenteditable='true']");
+
   editor.Modal.setTitle(`Transition for Slide ${slideIndex}`);
   editor.Modal.setContent(`
-  <div>
-    <label for="transitionType">Transition Type:</label>
-    <select id="transitionType" class="form-control">
-      <option value="none" ${transition.type === "none" ? "selected" : ""}>None</option>
-      <option value="fade" ${transition.type === "fade" ? "selected" : ""}>Fade</option>
-      <option value="slide" ${transition.type === "slide" ? "selected" : ""}>Slide</option>
-      <option value="zoom" ${transition.type === "zoom" ? "selected" : ""}>Zoom</option>
-    </select>
-
-    <label for="transitionDuration" style="margin-top: 10px;">Transition Duration (seconds):</label>
-    <input type="number" id="transitionDuration" class="form-control" min="0" step="0.1" value="${transition.duration || 0}" /><br>
-
-    <label for="slideTimer" style="margin-top: 10px;">Slide Timer (seconds):</label>
-    <input type="number" id="slideTimer" class="form-control" min="0" step="0.1" value="${transition.slideTimer || 0}" />
-
-    <div id="directionField" style="display:${transition.type === "slide" ? "block" : "none"}; margin-top: 10px;">
-      <label for="transitionDirection">Direction:</label>
-      <select id="transitionDirection" class="form-control">
-        <option value="left" ${transition.direction === "left" ? "selected" : ""}>Left</option>
-        <option value="right" ${transition.direction === "right" ? "selected" : ""}>Right</option>
-        <option value="up" ${transition.direction === "up" ? "selected" : ""}>Up</option>
-        <option value="down" ${transition.direction === "down" ? "selected" : ""}>Down</option>
+    <div>
+      <label for="transitionType">Transition Type:</label>
+      <select id="transitionType" class="form-control">
+        <option value="none" ${transition.type === "none" ? "selected" : ""}>None</option>
+        <option value="fade" ${transition.type === "fade" ? "selected" : ""}>Fade</option>
+        <option value="slide" ${transition.type === "slide" ? "selected" : ""}>Slide</option>
+        <option value="zoom" ${transition.type === "zoom" ? "selected" : ""}>Zoom</option>
       </select>
+
+      <label for="transitionDuration" style="margin-top: 10px;">Transition Duration (seconds):</label>
+      <input type="number" id="transitionDuration" class="form-control" min="0" step="0.1" value="${transition.duration || 0}" /><br>
+
+      <label for="slideTimer" style="margin-top: 10px;">Slide Timer (seconds):</label>
+      <input type="number" id="slideTimer" class="form-control" min="0" step="0.1" value="${transition.slideTimer || 0}" />
+
+      <div id="directionField" style="display:${transition.type === "slide" ? "block" : "none"}; margin-top: 10px;">
+        <label for="transitionDirection">Direction:</label>
+        <select id="transitionDirection" class="form-control">
+          <option value="left" ${transition.direction === "left" ? "selected" : ""}>Left</option>
+          <option value="right" ${transition.direction === "right" ? "selected" : ""}>Right</option>
+          <option value="up" ${transition.direction === "up" ? "selected" : ""}>Up</option>
+          <option value="down" ${transition.direction === "down" ? "selected" : ""}>Down</option>
+        </select>
+      </div>
+
+      <label for="hideSlide" style="margin-top: 10px;">
+        <input type="checkbox" id="hideSlide" ${transition.isHidden ? "checked" : ""} />
+        Hide Slide in Downloaded Slideshow
+      </label>
+
+      <div id="wordToHideDiv" style="display:${transition.isHidden ? "block" : "none"}; margin-top: 10px;">
+        <label for="wordToHide">Enter word to hide this slide:</label>
+        <input type="text" id="wordToHide" class="form-control" value="${transition.wordToHide || ""}" />
+      </div>
+
+      ${hasInputs ? `
+        <label style="margin-top: 10px;">
+          <input type="checkbox" id="stopOnInput" ${transition.slideInput === "True" ? "checked" : ""} />
+          Stop on Input Fields
+        </label>
+      ` : ""}
+      <hr style="margin: 20px 0;">
+      <h5>Slide Music</h5>
+      
+      <label for="addMusic" style="margin-top: 10px;">
+        <input type="checkbox" id="addMusic" ${transition.hasMusic ? "checked" : ""} />
+        Add Music to This Slide
+      </label>
+
+      <div id="musicOptions" style="display:${transition.hasMusic ? "block" : "none"}; margin-top: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+        <label for="musicFile">Select Audio File:</label>
+        <input type="file" id="musicFile" class="form-control" accept="audio/*" style="margin-top: 5px;" />
+        
+        <div style="margin-top: 10px;">
+          <label>Playback Mode:</label><br>
+          <label style="margin-right: 15px;">
+            <input type="radio" name="musicMode" value="single" ${!transition.musicLoop ? "checked" : ""} />
+            Play Once
+          </label>
+          <label>
+            <input type="radio" name="musicMode" value="loop" ${transition.musicLoop ? "checked" : ""} />
+            Loop
+          </label>
+        </div>
+
+        ${transition.musicFile ? `
+          <div style="margin-top: 10px;">
+            <small style="color: green;">✓ Music file already selected</small>
+            <button type="button" id="testMusic" class="btn btn-sm btn-secondary" style="margin-left: 10px;">Test</button>
+            <button type="button" id="removeMusic" class="btn btn-sm btn-danger" style="margin-left: 5px;">Remove</button>
+          </div>
+        ` : ""}
+      </div>
+
+
+      <div id="videoWarning" style="color:red;display:none;margin-top:10px;"></div>
+
+      <button id="saveTransition" class="btn btn-primary" style="margin-top: 15px;">Save</button>
     </div>
+  `);
 
-    <label for="hideSlide" style="margin-top: 10px;">
-      <input type="checkbox" id="hideSlide" ${transition.isHidden ? "checked" : ""} />
-      Hide Slide in Downloaded Slideshow
-    </label>
+  editor.Modal.open();
 
-    <div id="wordToHideDiv" style="display:${transition.isHidden ? "block" : "none"}; margin-top: 10px;">
-      <label for="wordToHide">Enter word to hide this slide:</label>
-      <input type="text" id="wordToHide" class="form-control" value="${transition.wordToHide || ""}" />
-    </div>
-
-    <button id="saveTransition" class="btn btn-primary" style="margin-top: 15px;">Save</button>
-  </div>
-`);
-
-  // Show or hide the word input based on the checkbox state
+  // Toggle extra fields
   document.getElementById("hideSlide").addEventListener("change", (e) => {
     document.getElementById("wordToHideDiv").style.display = e.target.checked ? "block" : "none";
   });
 
-  // Update direction field visibility when transition type changes
   document.getElementById("transitionType").addEventListener("change", (e) => {
     document.getElementById("directionField").style.display = e.target.value === "slide" ? "block" : "none";
   });
 
-  // Save the transition settings when the save button is clicked
-  document.getElementById("saveTransition").addEventListener("click", () => saveTransition(slideIndex));
-  
-  editor.Modal.open();
+  // NEW MUSIC EVENT LISTENERS
+  document.getElementById("addMusic").addEventListener("change", (e) => {
+    document.getElementById("musicOptions").style.display = e.target.checked ? "block" : "none";
+  });
+
+  // Test music button
+  const testMusicBtn = document.getElementById("testMusic");
+  if (testMusicBtn) {
+    testMusicBtn.addEventListener("click", () => {
+      if (transition.musicFile) {
+        const testAudio = new Audio(`data:audio/mp3;base64,${transition.musicFile}`);
+        testAudio.volume = 0.5;
+        testAudio.play().catch(e => console.log("Test audio failed:", e));
+        setTimeout(() => {
+          testAudio.pause();
+          testAudio.currentTime = 0;
+        }, 3000);
+      }
+    });
+  }
+
+  // Remove music button
+  const removeMusicBtn = document.getElementById("removeMusic");
+  if (removeMusicBtn) {
+    removeMusicBtn.addEventListener("click", () => {
+      transition.musicFile = null;
+      transition.hasMusic = false;
+      document.getElementById("addMusic").checked = false;
+      document.getElementById("musicOptions").style.display = "none";
+      alert("Music removed from this slide.");
+    });
+  }
+
+  // Video Duration Handling
+  const slideTimerInput = document.getElementById("slideTimer");
+  const warning = document.getElementById("videoWarning");
+  let videoDuration = 0;
+  let timerAlreadyValid = !isNaN(transition.slideTimer) && transition.slideTimer > 0;
+
+  if (video) {
+    const updateIfValid = () => {
+      if (!isNaN(video.duration) && isFinite(video.duration) && video.duration > 0) {
+        videoDuration = video.duration;
+        if (!timerAlreadyValid || parseFloat(slideTimerInput.value) <= videoDuration) {
+          slideTimerInput.value = videoDuration.toFixed(1);
+        }
+        slideTimerInput.min = videoDuration.toFixed(1);
+        warning.style.display = "block";
+        warning.innerText = `This slide contains a video of ${videoDuration.toFixed(1)}s. Slide timer must be ≥ video length.`;
+      }
+    };
+
+    if (video.readyState >= 1) {
+      updateIfValid();
+    } else {
+      video.addEventListener("loadedmetadata", updateIfValid);
+      try {
+        video.play().then(() => video.pause()).catch(() => {});
+      } catch (e) {}
+    }
+  }
+
+  // Save button handler
+  document.getElementById("saveTransition").addEventListener("click", () => {
+    const slideTimer = parseFloat(slideTimerInput.value);
+    if (video && videoDuration > 0 && slideTimer < videoDuration) {
+      alert(`Slide timer must be at least ${videoDuration.toFixed(1)} seconds due to embedded video.`);
+      return;
+    }
+    saveTransition(slideIndex, hasInputs);
+  });
 }
 
-function saveTransition(slideIndex) {
+function saveTransition(slideIndex, hasInputs) {
   const type = document.getElementById("transitionType").value;
   let transitionDuration = parseFloat(document.getElementById("transitionDuration").value);
   let slideTimer = parseFloat(document.getElementById("slideTimer").value);
   const direction = type === "slide" ? document.getElementById("transitionDirection").value : "none";
   const isHidden = document.getElementById("hideSlide").checked;
-  const wordToHide = document.getElementById("wordToHide").value.trim(); // Trim any extra spaces
+  const wordToHide = document.getElementById("wordToHide").value.trim();
 
-  // If transitionDuration or slideTimer are invalid, set them to 0
+  const inputCheckbox = document.getElementById("stopOnInput");
+  const slideInput = hasInputs && inputCheckbox?.checked ? "True" : "False";
+
+  // Music handling
+  const hasMusic = document.getElementById("addMusic").checked;
+  const musicLoop = hasMusic ? document.querySelector('input[name="musicMode"]:checked').value === "loop" : false;
+  const musicFileInput = document.getElementById("musicFile");
+
   if (isNaN(transitionDuration)) transitionDuration = 0;
   if (isNaN(slideTimer)) slideTimer = 0;
 
-  // Store transition data
-  transitions[slideIndex] = { type, transitionDuration, direction, slideTimer, isHidden, wordToHide: wordToHide || "" };
+  // Handle music file upload
+  if (hasMusic && musicFileInput.files.length > 0) {
+    const file = musicFileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+      const base64String = e.target.result.split(',')[1]; // Remove data:audio/...;base64, prefix
+      
+      // Store in transition object
+      transitions[slideIndex] = {
+        type,
+        transitionDuration,
+        direction,
+        slideTimer,
+        isHidden,
+        wordToHide: wordToHide || "",
+        slideInput,
+        hasMusic,
+        musicFile: base64String,
+        musicLoop
+      };
 
-  let slide = slides[slideIndex - 1];
+      updateSlideAttributes(slideIndex);
+      editor.Modal.close();
+      switchSlide(currentSlideIndex);
+    };
+    
+    reader.readAsDataURL(file);
+  } else {
+    // No new file uploaded, keep existing music data
+    transitions[slideIndex] = {
+      type,
+      transitionDuration,
+      direction,
+      slideTimer,
+      isHidden,
+      wordToHide: wordToHide || "",
+      slideInput,
+      hasMusic,
+      musicFile: hasMusic ? (transitions[slideIndex].musicFile || null) : null,
+      musicLoop
+    };
+
+    updateSlideAttributes(slideIndex);
+    editor.Modal.close();
+    switchSlide(currentSlideIndex);
+  }
+}
+
+function updateSlideAttributes(slideIndex) {
+  const slide = slides[slideIndex - 1];
+  const transition = transitions[slideIndex];
+  
   if (slide) {
     slide.addAttributes({
-      "data-transition-type": type,
-      "data-transition-duration": transitionDuration,
-      "data-transition-direction": direction,
-      "data-slide-timer": slideTimer,
-      "data-hide": isHidden ? "true" : "false",  // Store the hide flag
-      "data-word-to-hide": wordToHide || "",  // Store the word to hide the slide (empty string if no word)
+      "data-transition-type": transition.type,
+      "data-transition-duration": transition.transitionDuration,
+      "data-transition-direction": transition.direction,
+      "data-slide-timer": transition.slideTimer,
+      "data-hide": transition.isHidden ? "true" : "false",
+      "data-word-to-hide": transition.wordToHide || "",
+      "data-slide-input": transition.slideInput,
+      "data-has-music": transition.hasMusic ? "true" : "false",
+      "data-music-loop": transition.musicLoop ? "true" : "false"
     });
   }
-
-  editor.Modal.close();
-  switchSlide(currentSlideIndex); // Ensure the current slide is still displayed after saving
 }
 
+// Global variable to store sound file path
+let slideshowSoundPath = null;
 
-function showDownloadButton() {
-  const footer = document.createElement("div");
-  footer.style.textAlign = "center";
-  footer.style.marginTop = "20px";
+function askForSoundFile() {
+  editor.Modal.setTitle("Add Background Sound");
+  editor.Modal.setContent(`
+    <div>
+      <label for="soundFilePath">Sound File Path (.mp3):</label>
+      <input type="text" id="soundFilePath" class="form-control" placeholder="Enter local file path or server URL" value="${slideshowSoundPath || ''}" style="margin-top: 10px;" />
+      <small class="form-text text-muted">Example: ./sounds/background.mp3 or https://example.com/audio.mp3</small>
+      
+      <div style="margin-top: 15px;">
+        <button id="testSound" class="btn btn-secondary" style="margin-right: 10px;">Test Sound</button>
+        <button id="removeSoundBtn" class="btn btn-danger" style="margin-right: 10px;">Remove Sound</button>
+        <button id="confirmSound" class="btn btn-primary">Confirm</button>
+      </div>
+    </div>
+  `);
 
-  const downloadBtn = document.createElement("button");
-  downloadBtn.textContent = "Download";
-  downloadBtn.className = "btn btn-success";
-  downloadBtn.style.margin = "10px";
-  downloadBtn.onclick = () => {
-    generateInteractiveSlideshowHTML();
-  };
+  editor.Modal.open();
 
-  footer.appendChild(downloadBtn);
-  document.body.appendChild(footer);
+  // Test sound button
+  document.getElementById("testSound").addEventListener("click", () => {
+    const soundPath = document.getElementById("soundFilePath").value.trim();
+    if (soundPath) {
+      const testAudio = new Audio(soundPath);
+      testAudio.volume = 0.5;
+      testAudio.play().catch(e => {
+        alert("Cannot play audio. Please check the file path.");
+      });
+      
+      // Stop test audio after 3 seconds
+      setTimeout(() => {
+        testAudio.pause();
+        testAudio.currentTime = 0;
+      }, 3000);
+    } else {
+      alert("Please enter a sound file path first.");
+    }
+  });
+
+  // Remove sound button
+  document.getElementById("removeSoundBtn").addEventListener("click", () => {
+    slideshowSoundPath = null;
+    document.getElementById("soundFilePath").value = "";
+    alert("Background sound removed.");
+  });
+
+  // Confirm button
+  document.getElementById("confirmSound").addEventListener("click", () => {
+    const soundPath = document.getElementById("soundFilePath").value.trim();
+    if (soundPath) {
+      slideshowSoundPath = soundPath;
+      alert("Background sound added successfully!");
+    } else {
+      slideshowSoundPath = null;
+    }
+    editor.Modal.close();
+  });
 }
 
-
-async function generateInteractiveSlideshowHTML() { 
+async function generateInteractiveSlideshowHTML(hideThumbnails = false)  { 
+  const uploadedId = localStorage.getItem('uploadedFileId');
+  console.log('Previously uploaded ID:', uploadedId);
   const iframe = document.querySelector('#editor iframe'); 
   const iframeDoc = iframe?.contentDocument || iframe?.contentWindow?.document; 
   const slideElements = iframeDoc?.querySelectorAll('[data-slide]'); 
@@ -624,13 +1026,28 @@ async function generateInteractiveSlideshowHTML() {
     const width = parseFloat(computed.width); 
     const height = parseFloat(computed.height); 
     const img = encodeURIComponent(el.innerHTML); 
-    const transition = parseFloat(el.getAttribute("data-transition-duration")) || 1; 
-    const display = parseFloat(el.getAttribute("data-slide-timer")) || 5; 
+    const transition = parseFloat(el.getAttribute("data-transition-duration")) || 0; 
+    const display = parseFloat(el.getAttribute("data-slide-timer")) || 1; 
     const type = el.getAttribute("data-transition-type") || "fade"; 
     const dir = el.getAttribute("data-transition-direction") || "left"; 
     const backgroundColor = computed.backgroundColor || "#fff"; 
     const isHidden = el.getAttribute("data-hide") === "true"; 
     const wordToHide = el.getAttribute("data-word-to-hide") || ""; 
+    const slideInput = el.getAttribute("data-slide-input"); 
+    const hasMusic = el.getAttribute("data-has-music") === "true";
+    const musicLoop = el.getAttribute("data-music-loop") === "true";
+    const musicFile = hasMusic ? transitions[slideIndex]?.musicFile : null;
+
+    
+    // Check for video in slide
+    const videoElement = el.querySelector('video');
+    const hasVideo = videoElement !== null;
+    let videoSrc = null;
+    
+    if (hasVideo) {
+      videoSrc = videoElement.getAttribute('src') || 
+                 (videoElement.querySelector('source') ? videoElement.querySelector('source').getAttribute('src') : null);
+    }
     
     if (isHidden && !wordToHide) { 
       continue; 
@@ -671,7 +1088,13 @@ async function generateInteractiveSlideshowHTML() {
       display, 
       type, 
       dir, 
-      backgroundColor 
+      backgroundColor,
+      hasVideo,
+      videoSrc,
+      slideInput,
+      hasMusic,
+      musicFile,
+      musicLoop
     }); 
   } 
   
@@ -689,14 +1112,102 @@ async function generateInteractiveSlideshowHTML() {
       }); 
     </script>` : ''; 
   
-  const headContent = [ 
-    `<style>${editorCss}</style>`, 
-    ...styles.map(url => `<link rel="stylesheet" href="${url}">`), 
-    ...scripts.map(url => `<script src="${url}"></script>`), 
-    tableInitializationScript // Add script only if a table exists 
-  ].join(''); 
-  
-  const fullHTML = `<!DOCTYPE html> 
+
+const dragDropScript = `
+<script>
+  // Drag and Drop functionality for custom input components
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing custom input drag and drop...');
+    
+    // Setup draggable buttons
+    const buttons = document.querySelectorAll('[data-custom-input-button="true"]');
+    buttons.forEach(button => {
+      button.setAttribute('draggable', 'true');
+      button.style.cursor = 'grab';
+      
+      button.addEventListener('dragstart', function(e) {
+        console.log('Drag started for button:', this.getAttribute('name'), 'value:', this.getAttribute('value'));
+        
+        const buttonData = {
+          name: this.getAttribute('name') || '',
+          value: this.getAttribute('value') || this.innerText,
+          type: 'custom-button'
+        };
+        
+        e.dataTransfer.setData('text/plain', JSON.stringify(buttonData));
+        e.dataTransfer.effectAllowed = 'copy';
+        this.style.opacity = '0.7';
+      });
+      
+      button.addEventListener('dragend', function(e) {
+        this.style.opacity = '';
+      });
+      
+      button.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.05)';
+        this.style.transition = 'transform 0.2s ease';
+      });
+      
+      button.addEventListener('mouseleave', function() {
+        this.style.transform = '';
+      });
+    });
+    
+    // Setup drop zones
+    const dropzones = document.querySelectorAll('[data-custom-dropzone="true"]');
+    dropzones.forEach(dropzone => {
+      dropzone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      });
+      
+      
+      dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        console.log('Drop event on dropzone:', this.getAttribute('name'));
+        
+        try {
+          const data = e.dataTransfer.getData('text/plain');
+          let buttonInfo = JSON.parse(data);
+          
+          // CHECK NAME MATCHING
+          var dropzoneName = this.getAttribute('name');
+          var buttonName = buttonInfo.name;
+          
+          console.log('Checking names - Button:', buttonName, 'Dropzone:', dropzoneName);
+          
+          if (buttonName !== dropzoneName) {
+            alert('Error: Button name "' + buttonName + '" does not match dropzone name "' + dropzoneName + '"');
+            return;
+          }
+          
+          if (buttonInfo && buttonInfo.value) {
+            console.log('Setting dropzone value to:', buttonInfo.value);
+            this.value = buttonInfo.value;
+            this.setAttribute('value', buttonInfo.value);
+            this.dispatchEvent(new Event('change', { bubbles: true }));
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        } catch (error) {
+          console.error('Error handling drop:', error);
+        }
+      });
+    });
+    
+    console.log('Custom input drag and drop initialization complete');
+  });
+</script>
+`;
+
+// THEN UPDATE the headContent to include dragDropScript:
+const headContent = [
+  `<style>${editorCss}</style>`,
+  ...styles.map(url => `<link rel="stylesheet" href="${url}">`),
+  ...scripts.map(url => `<script src="${url}"></script>`),
+  dragDropScript, // ADD this line back
+  tableInitializationScript
+].join('');
+ const fullHTML = `<!DOCTYPE html> 
 <html lang="en"> 
 <head> 
   <meta charset="UTF-8" /> 
@@ -728,6 +1239,119 @@ async function generateInteractiveSlideshowHTML() {
   <script src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"></script> 
   <script src="https://code.highcharts.com/highcharts.js"></script> 
   <script src="https://code.highcharts.com/modules/drilldown.js"></script> 
+  <script>
+    // Form submission handler
+    document.addEventListener('DOMContentLoaded', function() {
+      // Handle all form submissions
+      document.addEventListener('submit', function(e) {
+        var form = e.target;
+        if (form.tagName === 'FORM') {
+          e.preventDefault();
+          
+          var action = form.getAttribute('action');
+          var method = form.getAttribute('method') || 'GET';
+          var formData = new FormData(form);
+          
+          // Show loading indicator (optional)
+          var submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+          var originalText = '';
+          if (submitBtn) {
+            originalText = submitBtn.textContent || submitBtn.value;
+            if (submitBtn.tagName === 'BUTTON') {
+              submitBtn.textContent = 'Sending...';
+            } else {
+              submitBtn.value = 'Sending...';
+            }
+            submitBtn.disabled = true;
+          }
+          
+          // Convert FormData to object
+          var data = {};
+          formData.forEach(function(value, key) {
+            data[key] = value;
+          });
+          
+          // Make AJAX request
+          if (action) {
+            var xhr = new XMLHttpRequest();
+            xhr.open(method.toUpperCase(), action, true);
+            
+            xhr.onload = function() {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                console.log('Form submitted successfully:', xhr.responseText);
+                
+                // Handle response - you can customize this part
+                try {
+                  var response = JSON.parse(xhr.responseText);
+                  // Display response in the form or elsewhere
+                  handleFormResponse(form, response);
+                } catch (e) {
+                  console.log('Response is not JSON:', xhr.responseText);
+                }
+                
+                // Trigger custom event
+                form.dispatchEvent(new CustomEvent('formSubmitSuccess', {
+                  detail: { response: xhr.responseText }
+                }));
+              } else {
+                console.error('Form submission failed:', xhr.status);
+                alert('Form submission failed. Please try again.');
+                
+                form.dispatchEvent(new CustomEvent('formSubmitError', {
+                  detail: { status: xhr.status, response: xhr.responseText }
+                }));
+              }
+              
+              // Reset button
+              if (submitBtn) {
+                if (submitBtn.tagName === 'BUTTON') {
+                  submitBtn.textContent = originalText;
+                } else {
+                  submitBtn.value = originalText;
+                }
+                submitBtn.disabled = false;
+              }
+            };
+            
+            xhr.onerror = function() {
+              console.error('Network error during form submission');
+              alert('Network error. Please check your connection.');
+              
+              // Reset button
+              if (submitBtn) {
+                if (submitBtn.tagName === 'BUTTON') {
+                  submitBtn.textContent = originalText;
+                } else {
+                  submitBtn.value = originalText;
+                }
+                submitBtn.disabled = false;
+              }
+            };
+            
+            if (method.toUpperCase() === 'POST') {
+              xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+              xhr.send(new URLSearchParams(data).toString());
+            } else {
+              // For GET requests, append data to URL
+              var params = new URLSearchParams(data).toString();
+              xhr.open('GET', action + (action.includes('?') ? '&' : '?') + params, true);
+              xhr.send();
+            }
+          }
+        }
+      });
+      
+      // Custom function to handle form responses
+      function handleFormResponse(form, response) {
+        try {
+          const formKey = form.getAttribute('id') || form.getAttribute('action') || 'global-form-response';
+          sessionStorage.setItem('formResponse', JSON.stringify(response));
+        } catch (e) {
+          console.error('Failed to store form response in sessionStorage:', e);
+        }
+      }
+    });
+  </script>
   <style> 
   html, body { 
     margin: 0; 
@@ -736,7 +1360,7 @@ async function generateInteractiveSlideshowHTML() {
     width: 100%; 
     height: 100%; 
     overflow: hidden; 
-    font-family: Arial, sans-serif; 
+    font-family: 'Roboto', sans-serif;
   } 
   
   .slide { 
@@ -748,6 +1372,55 @@ async function generateInteractiveSlideshowHTML() {
     transform: translate(-50%, -50%); 
     transition: opacity 0.5s ease, transform 0.5s ease; 
   } 
+  
+  /* Hide video controls */
+  .slide video {
+    pointer-events: none;
+  }
+  
+  .slide video::-webkit-media-controls {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-panel {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-play-button {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-start-playback-button {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-timeline {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-current-time-display {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-time-remaining-display {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-mute-button {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-volume-slider {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-fullscreen-button {
+    display: none !important;
+  }
+  
+  .slide video::-webkit-media-controls-picture-in-picture-button {
+    display: none !important;
+  }
   
   .controls { 
     position: absolute; 
@@ -886,7 +1559,7 @@ async function generateInteractiveSlideshowHTML() {
     left: 0;
     width: 100%;
     height: 90px;
-    display: flex;
+    display: ${hideThumbnails ? 'none' : 'flex'}; 
     overflow-x: auto;
     padding: 10px 20px;
     opacity: 0;
@@ -938,10 +1611,10 @@ async function generateInteractiveSlideshowHTML() {
     border-color: rgba(255,255,255,0.7);
   }
   
-.thumbnail.active {
-  border: 3px solid #ff3636;
-  box-shadow: 0 0 15px rgba(255, 50, 50, 0.5);
-}
+  .thumbnail.active {
+    border: 3px solid #ff3636;
+    box-shadow: 0 0 15px rgba(255, 50, 50, 0.5);
+  }
 
   .thumbnail-label {
     position: absolute;
@@ -963,11 +1636,18 @@ async function generateInteractiveSlideshowHTML() {
   </div>`).join('')} 
   
   <!-- Thumbnail Navigation -->
-  <div id="thumbnailContainer">
-    ${slideData.map((s, i) => `<div class="thumbnail" id="thumb-${i}" onclick="jumpToSlide(${i})">
-      <div class="thumbnail-label">Slide ${i+1}</div>
-    </div>`).join('')}
-  </div>
+<div id="thumbnailContainer">
+  ${slideData.map((s, i) => {
+    const slideIndex = i + 1;
+    const displayName = thumbnailNames[slideIndex] || `Slide ${slideIndex}`;
+    return `<div class="thumbnail" id="thumb-${i}" onclick="jumpToSlide(${i})">
+      <div class="thumbnail-label">${displayName}</div>
+    </div>`;
+  }).join('')}
+</div>
+  
+  <!-- Background Audio -->
+  ${slideshowSoundPath ? `<audio id="backgroundAudio" loop preload="auto"><source src="${slideshowSoundPath}" type="audio/mpeg"></audio>` : ''}
   
   <div class="controls"> 
     <button onclick="togglePlay()" id="playBtn"><i class="fas fa-pause"></i></button> 
@@ -978,12 +1658,98 @@ async function generateInteractiveSlideshowHTML() {
   <div id="timeLabel">00:00 / 00:00</div> 
   
   <script> 
-  const slides = [...document.querySelectorAll('.slide')]; 
-  const thumbnails = [...document.querySelectorAll('.thumbnail')];
-  const slideData = ${JSON.stringify(slideData)}; 
-  const totalTime = ${totalDuration}; 
-  const progressBar = document.getElementById("progressBar"); 
-  const timeLabel = document.getElementById("timeLabel"); 
+  const slides = [...document.querySelectorAll('.slide')];
+console.log("slides:", slides);
+
+const thumbnails = [...document.querySelectorAll('.thumbnail')];
+console.log("thumbnails:", thumbnails);
+
+const slideData = ${JSON.stringify(slideData)};
+console.log("slideData:", slideData);
+
+const totalTime = ${totalDuration};
+console.log("totalTime:", totalTime);
+
+const progressBar = document.getElementById("progressBar");
+console.log("progressBar:", progressBar);
+
+const timeLabel = document.getElementById("timeLabel");
+console.log("timeLabel:", timeLabel);
+
+const ID = ${uploadedId};
+console.log("Id is: ", ID);
+
+let currentSlideAudio = null;
+let slideAudioStarted = false;
+
+function setupSlideAudio() {
+  // Stop and cleanup previous slide audio
+  if (currentSlideAudio) {
+    currentSlideAudio.pause();
+    currentSlideAudio.currentTime = 0;
+    currentSlideAudio = null;
+    slideAudioStarted = false;
+  }
+
+  // Setup new slide audio if exists
+  if (slideData[current].hasMusic && slideData[current].musicFile) {
+    currentSlideAudio = new Audio(\`data:audio/mp3;base64,\${slideData[current].musicFile}\`);
+    currentSlideAudio.volume = 0.7;
+    currentSlideAudio.loop = slideData[current].musicLoop;
+    
+    // If we're in display phase and playing, start the audio
+    if (playing && phase === 'display') {
+      slideAudioStarted = true;
+      currentSlideAudio.play().catch(e => console.log('Slide audio play failed:', e));
+    }
+  }
+}
+
+function startSlideAudio() {
+  if (currentSlideAudio && !slideAudioStarted && playing) {
+    slideAudioStarted = true;
+    currentSlideAudio.currentTime = 0;
+    currentSlideAudio.play().catch(e => console.log('Slide audio play failed:', e));
+  }
+}
+
+function pauseSlideAudio() {
+  if (currentSlideAudio && !currentSlideAudio.paused) {
+    currentSlideAudio.pause();
+  }
+}
+
+function resumeSlideAudio() {
+  if (currentSlideAudio && slideAudioStarted && currentSlideAudio.paused) {
+    currentSlideAudio.play().catch(e => console.log('Slide audio resume failed:', e));
+  }
+}
+
+function stopSlideAudio() {
+  if (currentSlideAudio) {
+    currentSlideAudio.pause();
+    currentSlideAudio.currentTime = 0;
+    slideAudioStarted = false;
+  }
+}
+
+// Background audio setup
+const backgroundAudio = document.getElementById('backgroundAudio');
+console.log("Background audio:", backgroundAudio);
+let backgroundAudioStarted = false;
+  
+  // Video sync variables
+  let currentVideo = null;
+  let videoSyncMode = false;
+  let videoStartTime = 0;
+  let slideDisplayStartTime = 0
+  // Video loading state
+let videoLoading = false;
+let videoLoadTimeout = null;
+  
+  // Input validation variables
+  let waitingForInput = false;
+  let inputValidationListener = null;
   
   // Add slide boundary markers 
   const progressContainer = document.getElementById("progressContainer"); 
@@ -1005,6 +1771,40 @@ async function generateInteractiveSlideshowHTML() {
   let last = null; 
   let rafId; 
   
+  // Background audio functions
+  function startBackgroundAudio() {
+    if (backgroundAudio && !backgroundAudioStarted) {
+      backgroundAudio.volume = 0.3; // Set volume to 30%
+      backgroundAudio.currentTime = 0;
+      backgroundAudio.play().catch(e => {
+        console.log('Background audio play failed:', e);
+      });
+      backgroundAudioStarted = true;
+    }
+  }
+  
+  function pauseBackgroundAudio() {
+    if (backgroundAudio) {
+      backgroundAudio.pause();
+    }
+  }
+  
+  function resumeBackgroundAudio() {
+    if (backgroundAudio && backgroundAudioStarted) {
+      backgroundAudio.play().catch(e => {
+        console.log('Background audio resume failed:', e);
+      });
+    }
+  }
+  
+  function stopBackgroundAudio() {
+    if (backgroundAudio) {
+      backgroundAudio.pause();
+      backgroundAudio.currentTime = 0;
+      backgroundAudioStarted = false;
+    }
+  }
+  
   function format(t) { 
     const m = Math.floor(t / 60).toString().padStart(2, '0'); 
     const s = Math.floor(t % 60).toString().padStart(2, '0'); 
@@ -1022,216 +1822,889 @@ async function generateInteractiveSlideshowHTML() {
     });
   } 
   
-  function showSlide(index) { 
-    slides.forEach((s, i) => { 
-      s.style.display = i === index ? 'block' : 'none'; 
-      s.style.opacity = 0; 
-      if (i === index) { 
-        const { type, dir } = slideData[i]; 
-        if (type === 'zoom') { 
-          s.style.transform = 'translate(-50%, -50%) scale(0.8)'; 
-        } else if (type === 'slide') { 
-          let tx = 0, ty = 0, dist = 100; 
-          if (dir === 'left') tx = -dist; 
-          if (dir === 'right') tx = dist; 
-          if (dir === 'up') ty = -dist; 
-          if (dir === 'down') ty = dist; 
-          s.style.transform = \`translate(calc(-50% + \${tx}%), calc(-50% + \${ty}%))\`; 
-        } else { 
-          s.style.transform = 'translate(-50%, -50%)'; 
-        } 
-      } 
-    }); 
-  } 
-  
-  function renderTransition(progress) { 
-    const slide = slides[current]; 
-    const { type, dir } = slideData[current]; 
-    if (type === 'fade') { 
-      slide.style.opacity = progress; 
-      slide.style.transform = 'translate(-50%, -50%)'; 
-    } else if (type === 'zoom') { 
-      slide.style.opacity = 1; 
-      slide.style.transform = \`translate(-50%, -50%) scale(\${0.8 + 0.2 * progress})\`; 
-    } else if (type === 'slide') { 
-      slide.style.opacity = 1; 
-      let tx = 0, ty = 0; 
-      const dist = 100; 
-      if (dir === 'left') tx = -dist * (1 - progress); 
-      if (dir === 'right') tx = dist * (1 - progress); 
-      if (dir === 'up') ty = -dist * (1 - progress); 
-      if (dir === 'down') ty = dist * (1 - progress); 
-      slide.style.transform = \`translate(calc(-50% + \${tx}%), calc(-50% + \${ty}%))\`; 
-    } 
-  } 
-  
-  function run(timestamp) { 
-    if (!last) last = timestamp; 
-    const delta = (timestamp - last) / 1000; 
-    last = timestamp; 
-    remaining -= delta; 
-    elapsed += delta; 
-    updateProgressUI(); 
-    
-    if (phase === 'transition') { 
-      const full = slideData[current].transition; 
-      const progress = 1 - (remaining / full); 
-      renderTransition(progress); 
-    } 
-    
-    if (remaining <= 0) { 
-      if (phase === 'transition') { 
-        phase = 'display'; 
-        remaining = slideData[current].display; 
-        slides[current].style.opacity = 1; 
-      } else { 
-        if (current === slideData.length - 1) { 
-          playing = false; 
-          document.getElementById("playBtn").innerHTML = '<i class="fas fa-play"></i>'; 
-          return; 
-        } 
-        slides[current].style.opacity = 0; 
-        current++; 
-        phase = 'transition'; 
-        remaining = slideData[current].transition; 
-        showSlide(current); 
-      } 
-    } 
-    
-    if (playing) rafId = requestAnimationFrame(run); 
-  } 
-  
-  function togglePlay() { 
-    playing = !playing; 
-    const playBtn = document.getElementById("playBtn");
-    playBtn.innerHTML = playing ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
-    
-    if (playing) { 
-      last = null; 
-      rafId = requestAnimationFrame(run); 
-    } else { 
-      cancelAnimationFrame(rafId); 
-    } 
-  } 
-  
-  function seek(e) { 
-    const pct = e.offsetX / e.currentTarget.offsetWidth; 
-    const targetTime = pct * totalTime; 
-    jumpToTime(targetTime);
-  } 
-  
-  function jumpToSlide(slideIndex) {
-    // Calculate time to the beginning of the selected slide
-    let targetTime = 0;
-    for (let i = 0; i < slideIndex; i++) {
-      targetTime += slideData[i].transition + slideData[i].display;
-    }
-    jumpToTime(targetTime);
+  function getCurrentSlideVideo() {
+    const slideElement = slides[current];
+    return slideElement ? slideElement.querySelector('video') : null;
   }
   
-  function jumpToTime(targetTime) {
-    elapsed = 0;
-    let time = 0;
+  function setupVideoSync() {
+  // Clear any existing video references and listeners
+  if (currentVideo) {
+    currentVideo.removeEventListener('loadedmetadata', onVideoLoaded);
+    currentVideo.removeEventListener('timeupdate', onVideoTimeUpdate);
+    currentVideo.removeEventListener('ended', onVideoEnded);
+    currentVideo.removeEventListener('contextmenu', preventContextMenu);
+    currentVideo.removeEventListener('canplay', onVideoCanPlay);
+    currentVideo.removeEventListener('waiting', onVideoWaiting);
+    currentVideo.removeEventListener('error', onVideoError);
+    currentVideo.removeEventListener('play', onVideoPlay);
+    currentVideo.pause();
+    currentVideo.currentTime = 0;
+  }
+  
+  currentVideo = getCurrentSlideVideo();
+  
+  if (currentVideo && slideData[current].hasVideo) {
+    videoSyncMode = true;
+    videoLoading = false; // Reset loading state
     
-    for (let i = 0; i < slideData.length; i++) {
-      const { transition, display } = slideData[i];
-      
-      if (time + transition >= targetTime) {
-        current = i;
-        phase = 'transition';
-        remaining = transition - (targetTime - time);
-        elapsed = targetTime;
-        showSlide(current);
-        renderTransition(1 - (remaining / transition));
-        updateProgressUI();
-        return restart();
+    // Clear any existing timeout
+    if (videoLoadTimeout) {
+      clearTimeout(videoLoadTimeout);
+      videoLoadTimeout = null;
+    }
+    
+    // Add event listeners
+    currentVideo.addEventListener('loadedmetadata', onVideoLoaded);
+    currentVideo.addEventListener('timeupdate', onVideoTimeUpdate);
+    currentVideo.addEventListener('ended', onVideoEnded);
+    currentVideo.addEventListener('contextmenu', preventContextMenu);
+    currentVideo.addEventListener('canplay', onVideoCanPlay);
+    currentVideo.addEventListener('waiting', onVideoWaiting);
+    currentVideo.addEventListener('error', onVideoError);
+    currentVideo.addEventListener('play', onVideoPlay);
+    
+    // Set video attributes to hide controls
+    currentVideo.setAttribute('controls', false);
+    currentVideo.setAttribute('controlsList', 'nodownload nofullscreen noremoteplaybook');
+    currentVideo.setAttribute('disablePictureInPicture', true);
+    
+    // Reset video to beginning
+    currentVideo.currentTime = 0;
+    
+    // If we're in display phase and playing, start video immediately
+    if (playing && phase === 'display') {
+      currentVideo.play().catch(e => console.log('Video play failed:', e));
+    }
+  } else {
+    videoSyncMode = false;
+    currentVideo = null;
+    videoLoading = false;
+  }
+}
+  
+  function preventContextMenu(event) {
+    event.preventDefault();
+  }
+  
+  function onVideoLoaded() {
+  // Video metadata loaded, ensure it's ready to play
+  if (currentVideo) {
+    currentVideo.currentTime = 0;
+    
+    // If we're in display phase and playing, start video
+    if (playing && phase === 'display') {
+      requestAnimationFrame(() => {
+        currentVideo.play().catch(e => console.log('Video play failed:', e));
+      });
+    }
+  }
+}
+  
+  function onVideoTimeUpdate() {
+    // Only sync during active playback
+    if (!playing || !videoSyncMode || !currentVideo || phase !== 'display') return;
+    
+    const videoTime = currentVideo.currentTime;
+    const slideDisplayTime = slideDisplayStartTime + videoTime;
+    
+    // Small tolerance for sync differences
+    const tolerance = 0.1;
+    const expectedTime = elapsed - (getCurrentSlideStartTime() + slideData[current].transition);
+    
+    if (Math.abs(videoTime - expectedTime) > tolerance) {
+      // Sync video to slide timer only during playback
+      const targetVideoTime = Math.max(0, expectedTime);
+      if (targetVideoTime <= currentVideo.duration) {
+        currentVideo.currentTime = targetVideoTime;
+      }
+    }
+  }
+  
+  function onVideoEnded() {
+    // Video has ended, but slide timer might still be running
+    // Let the slide timer continue normally
+  }
+
+  function onVideoCanPlay() {
+  videoLoading = false;
+  hideLoadingIndicator();
+  
+  // Clear timeout
+  if (videoLoadTimeout) {
+    clearTimeout(videoLoadTimeout);
+    videoLoadTimeout = null;
+  }
+  
+  // If we're in display phase and playing, start video
+  if (playing && phase === 'display') {
+    requestAnimationFrame(() => {
+      currentVideo.play().catch(e => console.log('Video play failed:', e));
+    });
+  }
+}
+
+function onVideoWaiting() {
+  videoLoading = true;
+  showLoadingIndicator();
+}
+
+function onVideoError(e) {
+  console.error('Video error:', e);
+  videoLoading = false;
+  hideLoadingIndicator();
+  
+  // Clear timeout
+  if (videoLoadTimeout) {
+    clearTimeout(videoLoadTimeout);
+    videoLoadTimeout = null;
+  }
+  
+  // Pause slideshow on
+  // Pause slideshow on error
+ if (playing) {
+   togglePlay();
+   alert('Video failed to load. Slideshow paused.');
+ }
+}
+
+function onVideoPlay() {
+ // If video starts playing but slideshow is paused, update the UI
+ if (!playing && currentVideo && !currentVideo.paused) {
+   playing = true;
+   document.getElementById("playBtn").innerHTML = '<i class="fas fa-pause"></i>';
+   
+   // Start the animation loop if not running
+   if (!rafId) {
+     last = null;
+     rafId = requestAnimationFrame(run);
+   }
+ }
+}
+
+function showLoadingIndicator() {
+ let loader = document.getElementById('videoLoader');
+ if (!loader) {
+   loader = document.createElement('div');
+   loader.id = 'videoLoader';
+   loader.innerHTML = '<div class="spinner"></div><div>Loading video...</div>';
+   loader.style.cssText = \`
+     position: fixed;
+     top: 50%;
+     left: 50%;
+     transform: translate(-50%, -50%);
+     background: rgba(0,0,0,0.8);
+     color: white;
+     padding: 20px;
+     border-radius: 8px;
+     z-index: 10000;
+     text-align: center;
+   \`;
+   document.body.appendChild(loader);
+   
+   // Add spinner styles
+   const style = document.createElement('style');
+   style.textContent = \`
+     .spinner {
+       border: 3px solid #f3f3f3;
+       border-top: 3px solid #3498db;
+       border-radius: 50%;
+       width: 40px;
+       height: 40px;
+       animation: spin 1s linear infinite;
+       margin: 0 auto 10px;
+     }
+     @keyframes spin {
+       0% { transform: rotate(0deg); }
+       100% { transform: rotate(360deg); }
+     }
+   \`;
+   document.head.appendChild(style);
+ }
+ loader.style.display = 'block';
+}
+
+function hideLoadingIndicator() {
+ const loader = document.getElementById('videoLoader');
+ if (loader) {
+   loader.style.display = 'none';
+ }
+}
+ 
+ function getCurrentSlideStartTime() {
+   let time = 0;
+   for (let i = 0; i < current; i++) {
+     time += slideData[i].transition + slideData[i].display;
+   }
+   return time;
+ }
+ 
+ function syncVideoToSlideTime() {
+ // Only sync during active playback
+ if (!playing || !videoSyncMode || !currentVideo || phase !== 'display') return;
+ 
+ const slideStartTime = getCurrentSlideStartTime() + slideData[current].transition;
+ const videoTime = elapsed - slideStartTime;
+ 
+ if (videoTime >= 0 && videoTime <= currentVideo.duration) {
+   const timeDiff = Math.abs(currentVideo.currentTime - videoTime);
+   if (timeDiff > 0.1) { // Only sync if difference is significant
+     currentVideo.currentTime = videoTime;
+   }
+ }
+}
+ 
+ function checkInputValidation() {
+   if (!slideData[current].slideInput) return true;
+   
+   const slideElement = slides[current];
+   const Inputs = slideElement.querySelectorAll('input, textarea, select');
+   
+   // Check if all inputs are filled
+   for (let input of Inputs) {
+     if (!input.value.trim()) {
+       return false;
+     }
+   }
+   
+   return true;
+ }
+
+   function populateFormFromSessionStorage() {
+ const slideElement = slides[current];
+ const forms = slideElement.querySelectorAll('form');
+
+ // Parse the stored response object from session storage
+ const storedDataStr = sessionStorage.getItem('formResponse');
+ if (!storedDataStr) return;
+
+ let storedData;
+ try {
+   storedData = JSON.parse(storedDataStr);
+ } catch (err) {
+   console.error('Invalid session data:', err);
+   return;
+ }
+
+ forms.forEach(form => {
+   const method = form.getAttribute('method')?.toLowerCase() || '';
+   const action = form.getAttribute('action') || '';
+
+   // Only populate forms with method="get" and no action
+   if (method === 'get' && action === '') {
+     const inputs = form.querySelectorAll('input, textarea, select');
+
+     inputs.forEach(input => {
+       const key = input.name;
+       if (!key) return;
+
+       const value = storedData[key];
+       if (value === undefined || value === null) return;
+
+       if (input.type === 'checkbox') {
+         input.checked = value === 'true';
+       } else if (input.type === 'radio') {
+         if (input.value === value) {
+           input.checked = true;
+         }
+       } else {
+         input.value = value;
+       }
+     });
+   }
+ });
+ 
+}
+ 
+ function setupInputValidation() {
+    console.log("current slide input", slideData[current].slideInput)
+   if (slideData[current].slideInput === "False") return;
+   
+   const slideElement = slides[current];
+   const submitButton = slideElement.querySelector('button[type="submit"], input[type="submit"]');
+   const Inputs = slideElement.querySelectorAll('input, textarea, select');
+   
+   if (submitButton && Inputs.length > 0) {
+     waitingForInput = true;
+     
+     // Remove existing listener if any
+     if (inputValidationListener) {
+       submitButton.removeEventListener('click', inputValidationListener);
+     }
+     
+     // Add new listener
+     inputValidationListener = function(event) {
+       if (checkInputValidation()) {
+         waitingForInput = false;
+         // Resume slideshow
+         if (!playing) {
+           togglePlay();
+         }
+         submitButton.removeEventListener('click', inputValidationListener);
+         inputValidationListener = null;
+       }
+     };
+     
+     submitButton.addEventListener('click', inputValidationListener);
+     
+     // Pause slideshow if it's playing
+     if (playing) {
+       togglePlay();
+     }
+   }
+ }
+ 
+ // Also update the showSlide function to ensure proper visibility
+function showSlide(index) { 
+ slides.forEach((s, i) => { 
+   if (i === index) {
+     s.style.display = 'block';
+     // Don't set opacity here - let transition handle it
+     const { type, dir } = slideData[i]; 
+     if (type === 'zoom') { 
+       s.style.transform = 'translate(-50%, -50%) scale(0.8)'; 
+     } else if (type === 'slide') { 
+       let tx = 0, ty = 0, dist = 100; 
+       if (dir === 'left') tx = -dist; 
+       if (dir === 'right') tx = dist; 
+       if (dir === 'up') ty = -dist; 
+       if (dir === 'down') ty = dist; 
+       s.style.transform = \`translate(calc(-50% + \${tx}%), calc(-50% + \${ty}%))\`; 
+     } else { 
+       s.style.transform = 'translate(-50%, -50%)'; 
+     }
+   } else {
+     s.style.display = 'none'; 
+     s.style.opacity = 0; 
+   }
+ }); 
+ 
+ // Populate forms with sessionStorage data
+ populateFormFromSessionStorage();
+
+ // Setup video sync for the new slide
+ setupVideoSync();
+
+ setupSlideAudio();
+ 
+ // Hide all video controls for the current slide
+ const slideVideos = slides[index].querySelectorAll('video');
+ slideVideos.forEach(video => {
+   video.setAttribute('controls', false);
+   video.setAttribute('controlsList', 'nodownload nofullscreen noremoteplayback');
+   video.setAttribute('disablePictureInPicture', true);
+   video.addEventListener('contextmenu', preventContextMenu);
+ });
+
+ setupBackButtonNavigation(index);
+} 
+ 
+ function renderTransition(progress) { 
+   const slide = slides[current]; 
+   const { type, dir } = slideData[current]; 
+   if (type === 'fade') { 
+     slide.style.opacity = progress; 
+     slide.style.transform = 'translate(-50%, -50%)'; 
+   } else if (type === 'zoom') { 
+     slide.style.opacity = 1; 
+     slide.style.transform = \`translate(-50%, -50%) scale(\${0.8 + 0.2 * progress})\`; 
+   } else if (type === 'slide') { 
+     slide.style.opacity = 1; 
+     let tx = 0, ty = 0; 
+     const dist = 100; 
+     if (dir === 'left') tx = -dist * (1 - progress); 
+     if (dir === 'right') tx = dist * (1 - progress); 
+     if (dir === 'up') ty = -dist * (1 - progress); 
+     if (dir === 'down') ty = dist * (1 - progress); 
+     slide.style.transform = \`translate(calc(-50% + \${tx}%), calc(-50% + \${ty}%))\`; 
+   } 
+ } 
+ 
+ function setupBackButtonNavigation(slideIndex) {
+  const slideElement = slides[slideIndex];
+  const backButtons = slideElement.querySelectorAll('button[navigate-to-slide]');
+  
+  backButtons.forEach(button => {
+    // Remove any existing listeners to prevent duplicates
+    button.removeEventListener('click', handleBackButtonClick);
+    
+    // Add new listener
+    button.addEventListener('click', handleBackButtonClick);
+  });
+}
+
+function handleBackButtonClick(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  const targetSlide = event.target.getAttribute('navigate-to-slide');
+  console.log('Back button clicked, target slide:', targetSlide);
+  
+  if (targetSlide) {
+    // Convert to 0-based index (slide numbers are 1-based for users)
+    const slideIndex = parseInt(targetSlide) - 1;
+    console.log('Calculated slide index:', slideIndex);
+    
+    if (slideIndex >= 0 && slideIndex < slideData.length) {
+      jumpToSlide(slideIndex);
+    } else {
+      console.log('Invalid slide index:', slideIndex);
+    }
+  } else {
+    console.log('No target slide specified');
+  }
+}
+
+ function run(timestamp) { 
+ if (!last) last = timestamp; 
+ const delta = (timestamp - last) / 1000; 
+ last = timestamp; 
+ 
+ // Don't progress if waiting for input or video is loading
+ if (waitingForInput || videoLoading) {
+   if (playing) rafId = requestAnimationFrame(run);
+   return;
+ }
+ 
+ remaining -= delta; 
+ elapsed += delta; 
+ updateProgressUI(); 
+ 
+ if (phase === 'transition') { 
+   const full = slideData[current].transition; 
+   if (full > 0) {
+     const progress = Math.min(1, Math.max(0, 1 - (remaining / full))); 
+     renderTransition(progress); 
+   } else {
+     // No transition, go directly to display
+     slides[current].style.opacity = 1;
+     slides[current].style.transform = 'translate(-50%, -50%)';
+     phase = 'display';
+     remaining = slideData[current].display;
+     
+     // Start video playback when display phase begins
+     if (videoSyncMode && currentVideo && playing) {
+       currentVideo.currentTime = 0;
+       requestAnimationFrame(() => {
+         currentVideo.play().catch(e => console.log('Video play failed:', e));
+       });
+     }
+     
+     setupInputValidation();
+   }
+ } else if (phase === 'display') {
+  // Start slide audio when display phase begins
+  startSlideAudio();
+   // Sync video during display phase
+   syncVideoToSlideTime();
+ }
+ 
+ if (remaining <= 0) { 
+   if (phase === 'transition') { 
+     phase = 'display'; 
+     remaining = slideData[current].display; 
+     slides[current].style.opacity = 1; 
+     slides[current].style.transform = 'translate(-50%, -50%)';
+     
+    // Start slide audio when display phase begins
+    startSlideAudio();
+
+     // Start video playback when display phase begins (transition just ended)
+     if (videoSyncMode && currentVideo && playing) {
+       currentVideo.currentTime = 0;
+       requestAnimationFrame(() => {
+         currentVideo.play().catch(e => console.log('Video play failed:', e));
+       });
+     }
+     
+     // Check for input validation requirement
+     setupInputValidation();
+   } else { 
+     if (current === slideData.length - 1) { 
+       playing = false; 
+       document.getElementById("playBtn").innerHTML = '<i class="fas fa-play"></i>'; 
+       
+       // Pause video if it's playing
+       if (currentVideo) {
+         currentVideo.pause();
+       }
+       
+       // Stop background audio when slideshow ends
+       stopBackgroundAudio();
+       stopSlideAudio();
+       return; 
+     } 
+     
+     // Pause and reset current video before moving to next slide
+     if (currentVideo) {
+       currentVideo.pause();
+       currentVideo.currentTime = 0;
+     }
+     
+     stopSlideAudio();
+     current++; 
+     phase = 'transition'; 
+     remaining = slideData[current].transition; 
+     showSlide(current); 
+   } 
+ } 
+ 
+ if (playing) rafId = requestAnimationFrame(run); 
+}
+
+ 
+ function togglePlay() {
+  // Don't allow play if waiting for input validation
+  if (waitingForInput && !playing) {
+    return;
+  }
+  
+  playing = !playing;
+  const btn = document.getElementById("playBtn");
+  
+  if (playing) {
+    btn.innerHTML = '<i class="fas fa-pause"></i>';
+    last = null;
+    rafId = requestAnimationFrame(run);
+    
+    // Start background audio on first play
+    if (!backgroundAudioStarted) {
+      startBackgroundAudio();
+    } else {
+      resumeBackgroundAudio();
+    }
+    
+    // Resume video if in display phase
+    if (phase === 'display' && currentVideo && videoSyncMode) {
+      currentVideo.play().catch(e => console.log('Video play failed:', e));
+    }
+      resumeSlideAudio();
+  } else {
+    btn.innerHTML = '<i class="fas fa-play"></i>';
+    if (rafId) cancelAnimationFrame(rafId);
+    
+    // Pause background audio only if not waiting for input
+    if (!waitingForInput) {
+      pauseBackgroundAudio();
+      pauseSlideAudio();
+    }
+    
+    // Pause video
+    if (currentVideo) {
+      currentVideo.pause();
+    }
+  }
+}
+ 
+function seek(event) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const percent = (event.clientX - rect.left) / rect.width;
+  const targetTime = percent * totalTime;
+  
+  // Find which slide this time corresponds to
+  let acc = 0;
+  for (let i = 0; i < slideData.length; i++) {
+    const slideEnd = acc + slideData[i].transition + slideData[i].display;
+    if (targetTime <= slideEnd) {
+      // Clear existing video state properly
+      if (currentVideo) {
+        currentVideo.pause();
+        currentVideo.currentTime = 0;
+        // Remove all event listeners
+        currentVideo.removeEventListener('loadedmetadata', onVideoLoaded);
+        currentVideo.removeEventListener('timeupdate', onVideoTimeUpdate);
+        currentVideo.removeEventListener('ended', onVideoEnded);
+        currentVideo.removeEventListener('contextmenu', preventContextMenu);
+        currentVideo.removeEventListener('canplay', onVideoCanPlay);
+        currentVideo.removeEventListener('waiting', onVideoWaiting);
+        currentVideo.removeEventListener('error', onVideoError);
+        currentVideo.removeEventListener('play', onVideoPlay);
       }
       
-      time += transition;
+      // Clear any input validation state when manually seeking
+      const wasWaitingForInput = waitingForInput;
+      waitingForInput = false;
+      if (inputValidationListener) {
+        const oldSlideElement = slides[current];
+        const oldSubmitButton = oldSlideElement.querySelector('button[type="submit"], input[type="submit"]');
+        if (oldSubmitButton) {
+          oldSubmitButton.removeEventListener('click', inputValidationListener);
+        }
+        inputValidationListener = null;
+      }
       
-      if (time + display >= targetTime) {
-        current = i;
+      current = i;
+      const slideStart = acc;
+      const slideTime = targetTime - slideStart;
+      
+      if (slideTime < slideData[i].transition) {
+        phase = 'transition';
+        remaining = slideData[i].transition - slideTime;
+        
+        // Show slide and render transition at correct progress
+        showSlide(current);
+        const progress = slideTime / slideData[i].transition;
+        renderTransition(progress);
+      } else {
         phase = 'display';
-        remaining = display - (targetTime - time);
-        elapsed = targetTime;
+        remaining = slideData[i].display - (slideTime - slideData[i].transition);
+        
+        // Show slide with full opacity
         showSlide(current);
         slides[current].style.opacity = 1;
-        updateProgressUI();
-        return restart();
+        slides[current].style.transform = 'translate(-50%, -50%)';
+        
+        // Setup video and resume playback if there's a video and we're playing
+        if (videoSyncMode && currentVideo && playing) {
+          const videoTime = slideTime - slideData[current].transition;
+          if (videoTime >= 0 && videoTime <= currentVideo.duration) {
+            currentVideo.currentTime = videoTime;
+            currentVideo.play().catch(e => console.log('Video play failed:', e));
+          }
+        }
+        
+        setupSlideAudio();
+
+        // Check for input validation requirement
+        setupInputValidation();
       }
       
-      time += display;
-    }
-  }
-  
-  function restart() { 
-    cancelAnimationFrame(rafId); 
-    last = null; 
-    if (playing) rafId = requestAnimationFrame(run); 
-  } 
-  
-  window.onload = () => { 
-    showSlide(current); 
-    updateProgressUI(); 
-    if (playing) rafId = requestAnimationFrame(run); 
-    
-    // Set up idle timer for UI elements
-    setupIdleTimer();
-    
-    // Set specific background image for each thumbnail
-    thumbnails.forEach((thumb) => {
-      thumb.style.backgroundImage = "url('https://blogs.windows.com/wp-content/uploads/prod/sites/44/2022/09/photos-newicon.png')";
-    });
-  }; 
-  
-  // Handle idle time for UI visibility
-  let idleTimer = null;
-  function setupIdleTimer() {
-    // Show controls initially
-    document.getElementById('thumbnailContainer').classList.add('visible');
-    document.getElementById('progressContainer').classList.add('visible');
-    document.getElementById('timeLabel').classList.add('visible');
-    document.querySelector('.controls').classList.add('visible');
-    
-    // Hide after 3 seconds of inactivity
-    idleTimer = setTimeout(hideUIElements, 3000);
-    
-    // Reset timer on mouse movement
-    document.addEventListener('mousemove', resetIdleTimer);
-    
-    // Also reset on touch for mobile devices
-    document.addEventListener('touchstart', resetIdleTimer);
-  }
-  
-  function resetIdleTimer() {
-    // Show UI elements
-    document.getElementById('thumbnailContainer').classList.add('visible');
-    document.getElementById('progressContainer').classList.add('visible');
-    document.getElementById('timeLabel').classList.add('visible');
-    document.querySelector('.controls').classList.add('visible');
-    
-    // Clear and reset timer
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(hideUIElements, 3000);
-  }
-  
-  function hideUIElements() {
-    document.getElementById('thumbnailContainer').classList.remove('visible');
-    document.getElementById('progressContainer').classList.remove('visible');
-    document.getElementById('timeLabel').classList.remove('visible');
-    document.querySelector('.controls').classList.remove('visible');
-  }
-  </script> 
-</body> 
-</html>`; 
+      // If we were waiting for input and seeked to a new slide, resume if playing
+      if (wasWaitingForInput && playing) {
+        resumeBackgroundAudio();
+        resumeSlideAudio();
 
+      }
+      
+      elapsed = targetTime;
+      updateProgressUI();
+      
+      // Resume animation if playing and not running
+      if (playing && !rafId) {
+        last = null;
+        rafId = requestAnimationFrame(run);
+      }
+      
+      break;
+    }
+    acc = slideEnd;
+  }
+} 
+function jumpToSlide(index) {
+  if (index < 0 || index >= slideData.length) return;
+  
+  // Clear any existing video state properly
+  if (currentVideo) {
+    currentVideo.pause();
+    currentVideo.currentTime = 0;
+    // Remove all event listeners to prevent conflicts
+    currentVideo.removeEventListener('loadedmetadata', onVideoLoaded);
+    currentVideo.removeEventListener('timeupdate', onVideoTimeUpdate);
+    currentVideo.removeEventListener('ended', onVideoEnded);
+    currentVideo.removeEventListener('contextmenu', preventContextMenu);
+    currentVideo.removeEventListener('canplay', onVideoCanPlay);
+    currentVideo.removeEventListener('waiting', onVideoWaiting);
+    currentVideo.removeEventListener('error', onVideoError);
+    currentVideo.removeEventListener('play', onVideoPlay);
+  }
+  
+  // Clear any input validation state when jumping to a new slide
+  const wasWaitingForInput = waitingForInput;
+  waitingForInput = false;
+  if (inputValidationListener) {
+    const oldSlideElement = slides[current];
+    const oldSubmitButton = oldSlideElement.querySelector('button[type="submit"], input[type="submit"]');
+    if (oldSubmitButton) {
+      oldSubmitButton.removeEventListener('click', inputValidationListener);
+    }
+    inputValidationListener = null;
+  }
+  
+  // Calculate the time at the start of the target slide
+  let targetTime = 0;
+  for (let i = 0; i < index; i++) {
+    targetTime += slideData[i].transition + slideData[i].display;
+  }
+  
+  current = index;
+  phase = 'transition';
+  remaining = slideData[index].transition;
+  elapsed = targetTime;
+  
+  // Show the slide and setup video properly
+  showSlide(current);
+  
+  setupSlideAudio();
+
+  // If transition duration is 0, go directly to display phase
+  if (slideData[index].transition === 0) {
+    phase = 'display';
+    remaining = slideData[index].display;
+    slides[current].style.opacity = 1;
+    slides[current].style.transform = 'translate(-50%, -50%)';
+    
+    // If there's a video on this slide and we're playing, start it
+    if (videoSyncMode && currentVideo && playing) {
+      currentVideo.currentTime = 0;
+      requestAnimationFrame(() => {
+        currentVideo.play().catch(e => console.log('Video play failed:', e));
+      });
+    }
+    
+    // Check for input validation requirement on the new slide
+    setupInputValidation();
+  } else {
+    // Start transition from beginning
+    renderTransition(0);
+  }
+  
+  // If we were waiting for input and jumped to a new slide, resume if playing
+  if (wasWaitingForInput && playing) {
+    // Resume background audio
+    resumeBackgroundAudio();
+    resumeSlideAudio();
+  }
+  
+  updateProgressUI();
+  
+  // Resume animation if playing and not already running
+  if (playing && !rafId) {
+    last = null;
+    rafId = requestAnimationFrame(run);
+  }
+} 
+ // Mouse movement detection for UI visibility
+ let mouseTimeout;
+ let isMouseMoving = false;
+ 
+ function showUI() {
+ document.querySelector('.controls').classList.add('visible');
+ document.getElementById('progressContainer').classList.add('visible');
+ document.getElementById('timeLabel').classList.add('visible');
+ 
+ // Only show thumbnails if not hidden
+ const thumbnailContainer = document.getElementById('thumbnailContainer');
+ if (thumbnailContainer && thumbnailContainer.style.display !== 'none') {
+   thumbnailContainer.classList.add('visible');
+ }
+ 
+ clearTimeout(mouseTimeout);
+ mouseTimeout = setTimeout(hideUI, 3000);
+}
+ 
+ function hideUI() {
+   if (!isMouseMoving) {
+     document.querySelector('.controls').classList.remove('visible');
+     document.getElementById('progressContainer').classList.remove('visible');
+     document.getElementById('timeLabel').classList.remove('visible');
+     document.getElementById('thumbnailContainer').classList.remove('visible');
+   }
+ }
+ 
+ // Enhanced video control hiding
+ function hideAllVideoControls() {
+   slides.forEach(slide => {
+     const videos = slide.querySelectorAll('video');
+     videos.forEach(video => {
+       // Hide native controls
+       video.setAttribute('controls', false);
+       video.setAttribute('controlsList', 'nodownload nofullscreen noremoteplayback');
+       video.setAttribute('disablePictureInPicture', true);
+       video.style.pointerEvents = 'none';
+       
+       // Prevent context menu
+       video.addEventListener('contextmenu', event => event.preventDefault());
+       
+       // Hide controls on hover/mouse events
+       video.addEventListener('mouseenter', () => {
+         video.setAttribute('controls', false);
+       });
+       
+       video.addEventListener('mouseover', () => {
+         video.setAttribute('controls', false);
+       });
+       
+       video.addEventListener('focus', () => {
+         video.blur();
+       });
+       
+       // Prevent keyboard controls
+       video.addEventListener('keydown', event => {
+         event.preventDefault();
+       });
+     });
+   });
+ }
+ 
+ // Mouse event listeners
+ document.addEventListener('mousemove', () => {
+   isMouseMoving = true;
+   showUI();
+   
+   clearTimeout(mouseTimeout);
+   mouseTimeout = setTimeout(() => {
+     isMouseMoving = false;
+     hideUI();
+   }, 3000);
+ });
+ 
+ document.addEventListener('mouseenter', showUI);
+ document.addEventListener('mouseleave', () => {
+   isMouseMoving = false;
+   hideUI();
+ });
+ 
+window.jumpToSlide = jumpToSlide; 
+ 
+// Initialize slideshow
+function init() {
+ // Start with slideshow paused
+ playing = false;
+ document.getElementById("playBtn").innerHTML = '<i class="fas fa-play"></i>';
+ 
+ // Hide all video controls initially
+ hideAllVideoControls();
+ 
+ // Show first slide
+ showSlide(0);
+ 
+ // Render the first slide at full opacity if no transition
+ if (slideData[0].transition === 0) {
+   slides[0].style.opacity = 1;
+   slides[0].style.transform = 'translate(-50%, -50%)';
+ } else {
+   // Show first frame of transition
+   renderTransition(0);
+ }
+ 
+ updateProgressUI();
+ 
+ // Don't start the animation loop automatically
+ // User must press play to start
+ 
+  setupBackButtonNavigation(0);
+  
+ // Initial UI state
+ showUI();
+}
+ 
+ // Start when DOM is ready
+ if (document.readyState === 'loading') {
+   document.addEventListener('DOMContentLoaded', init);
+ } else {
+   init();
+ }
+ 
+ </script> 
+</body> 
+</html>`;
+  
+  // Create and download the file
   const blob = new Blob([fullHTML], { type: 'text/html' }); 
   const url = URL.createObjectURL(blob); 
-  const a = document.createElement("a"); 
+  const a = document.createElement('a'); 
   a.href = url; 
-  a.download = "interactive_slideshow.html"; 
-  document.body.appendChild(a); 
+  a.download = 'interactive_slideshow.html'; 
   a.click(); 
-  document.body.removeChild(a); 
-}
-}
+  URL.revokeObjectURL(url); 
+}}
