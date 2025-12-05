@@ -31,6 +31,21 @@ function customSections(editor) {
         z-index: 10;
       }
 
+            .gjs-editor-header::before {
+        content: attr(data-gjs-name);
+        position: absolute;
+        left: 0;
+        top: -2px;
+        font-size: 11px;
+        font-weight: bold;
+        background: #f0f0f0;
+        color: #444;
+        padding: 1px 5px;
+        border-radius: 3px;
+        pointer-events: none;
+        z-index: 10;
+      }
+
       .sections-container:hover {
         outline: 2px dashed #aaa;
         outline-offset: -3px;

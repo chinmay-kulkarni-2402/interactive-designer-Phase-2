@@ -1825,6 +1825,8 @@ class PageSetupManager {
     // ✅ Reapply styles to original component
     component.setStyle(preservedStyles);
 
+component.removeStyle(['height', 'max-height', 'min-height']);
+
     // 2. Create new component for overflow content
     let secondPartHTML = '';
     nodesToMove.forEach(node => {
@@ -1874,9 +1876,6 @@ class PageSetupManager {
     containerEl.style.overflow = 'visible';
     containerEl.style.display = 'block'; // Ensure block-level if needed
     containerEl.offsetHeight; // ✅ Force reflow
-    // 1. containerEl mein temporary node daalo
-    // Note: containerEl mein abhi sirf woh nodes hain jo fit ho chuke hain 
-    // (splitLargeComponent ke loop se).
     containerEl.appendChild(testNode);
 
     for (let charIndex = 0; charIndex < fullText.length; charIndex++) {
@@ -10967,7 +10966,7 @@ padding: 8px;
                 "data-gjs-name": "Header",
               },
               style: {
-                padding: "10px",
+                padding: "5px",
                 "min-height": "80px",
                 position: "relative",
                 top: '0px !important',
@@ -10983,7 +10982,7 @@ padding: 8px;
               },
               style: {
                 flex: "1",
-                padding: "10px",
+                padding: "5px",
                 position: "relative",
                 "min-height": "845px",
               },
@@ -10996,7 +10995,7 @@ padding: 8px;
                 "data-gjs-name": "Footer",
               },
               style: {
-                padding: "10px",
+                padding: "5px",
                 "min-height": "60px",
                 position: "relative",
                 top: '0px !important',
@@ -11009,8 +11008,7 @@ padding: 8px;
             display: "flex",
             "flex-direction": "column",
             width: "100%",
-            margin: "10px 0",
-            padding: "5px",
+            height: "100%",
           },
         },
       },

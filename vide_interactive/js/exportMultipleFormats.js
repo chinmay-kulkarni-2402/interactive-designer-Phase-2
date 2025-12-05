@@ -721,7 +721,6 @@ async function exportPDF(body) {
     // --- External CSS and JS ---
     const canvasResources = {
       styles: [
-        "https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css",
         "https://use.fontawesome.com/releases/v5.8.2/css/all.css",
         "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
         "https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css",
