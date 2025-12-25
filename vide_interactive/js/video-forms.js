@@ -41,7 +41,6 @@
                 p = "video-button",
                 c = "video-label",
                 l = "video-option",
-                // ADD NEW COMPONENT TYPE
                 customInput = "video-custom-input",
                 customInputButton = "video-custom-input-button",
                 customInputDropzone = "video-custom-input-dropzone";
@@ -77,7 +76,6 @@
                     );
                 };
 
-            // Shared API functions to avoid duplication
             var apiHelpers = {
                 loadExcelHeaders: function (component) {
                     var uploadId = localStorage.getItem('uploadedFileId');
@@ -90,7 +88,11 @@
                     }
 
                     var xhr = new XMLHttpRequest();
-                    xhr.open('GET', 'http://103.75.226.215:8080/api/excel/headers?uploadId=' + uploadId, true);
+                    xhr.open(
+                        'GET',
+                        `${API_BASE_URL_Video}/excel/headers?uploadId=` + uploadId,
+                        true
+                    );
 
                     xhr.onload = function () {
                         if (xhr.status >= 200 && xhr.status < 300) {
@@ -116,31 +118,25 @@
                     var uploadId = localStorage.getItem('uploadedFileId');
 
                     if (!uploadId || !columnName) return;
-
-                    console.log('Loading unique values for column:', columnName);
-
                     var xhr = new XMLHttpRequest();
-                    xhr.open('GET', 'http://103.75.226.215:8080/api/excel/unique-values?uploadId=' + uploadId + '&columnName=' + encodeURIComponent(columnName), true);
-
+                    xhr.open(
+                        'GET',
+                        `${API_BASE_URL_Video}/excel/unique-values?uploadId=` +
+                        uploadId +
+                        '&columnName=' +
+                        encodeURIComponent(columnName),
+                        true
+                    );
                     xhr.onload = function () {
                         if (xhr.status >= 200 && xhr.status < 300) {
                             try {
                                 var response = JSON.parse(xhr.responseText);
-                                console.log('Unique values response:', response);
-
                                 var uniqueValues = response.map(function (value) {
                                     return { value: value, name: value };
                                 });
-
                                 component.set('unique-values', uniqueValues);
-                                console.log('Set unique values:', uniqueValues);
-
-                                // For select components, force update the traits
                                 if (component.get('tagName') === 'select') {
-                                    // Reset selected values when new unique values are loaded
                                     component.set('selected-values', []);
-
-                                    // Update traits to refresh the unique values selector
                                     component.updateTraitsForInputType();
                                 } else {
                                     component.updateTraitsForInputType();
@@ -163,21 +159,20 @@
 
             const m = function (e, t) {
                 void 0 === t && (t = {});
-                // CHANGE: Update blocks array to use correct string identifiers
                 var m = u(
                     {
                         blocks: [
-                            "video-form",        // was "form"
-                            "video-input",       // was "input"
-                            "video-textarea",    // was "textarea"
-                            "video-select",      // was "select"
-                            "video-button",      // was "button"
-                            "video-label",       // was "label"
-                            "video-checkbox",    // was "checkbox"
-                            "video-radio",       // was "radio"
-                            "video-custom-input", // was "custom-input"
+                            "video-form",
+                            "video-input",
+                            "video-textarea",
+                            "video-select",
+                            "video-button",
+                            "video-label",
+                            "video-checkbox",
+                            "video-radio",
+                            "video-custom-input",
                         ],
-                        category: { id: "forms1", label: "Video-Forms" }, // Already correct
+                        category: { id: "forms1", label: "Video-Forms" },
                         block: function () {
                             return {};
                         },
@@ -196,7 +191,6 @@
                             e.Commands.isActive("preview") || t.preventDefault();
                         };
 
-                    // Shared function to create API-enabled traits for components that have name/value
                     var createInputTypeTraitsWithValue = function (originalTraits) {
                         return function () {
                             var inputType = this.get('input-type');
@@ -214,12 +208,10 @@
                             ];
 
                             if (inputType === 'api') {
-                                // For API type, replace name and value with dropdowns but keep other traits
                                 var apiTraits = originalTraits.filter(function (trait) {
                                     return trait.name !== 'name' && trait.name !== 'value';
                                 });
 
-                                // Add API dropdown traits
                                 baseTraits.push(
                                     {
                                         type: "select",
@@ -239,13 +231,10 @@
 
                                 baseTraits = baseTraits.concat(apiTraits);
 
-                                // Load headers if not already loaded
                                 if (!this.get('excel-headers') || this.get('excel-headers').length === 0) {
-                                    console.log('Loading Excel headers for component');
                                     apiHelpers.loadExcelHeaders(this);
                                 }
                             } else {
-                                // For None type, show original traits
                                 baseTraits = baseTraits.concat(originalTraits);
                             }
 
@@ -253,7 +242,6 @@
                         };
                     };
 
-                    // Shared function to create API-enabled traits for components that DON'T have value
                     var createInputTypeTraitsWithoutValue = function (originalTraits) {
                         return function () {
                             var inputType = this.get('input-type');
@@ -271,12 +259,10 @@
                             ];
 
                             if (inputType === 'api') {
-                                // For API type, replace name with dropdown but keep other traits
                                 var apiTraits = originalTraits.filter(function (trait) {
                                     return trait.name !== 'name';
                                 });
 
-                                // Add API dropdown traits
                                 baseTraits.push({
                                     type: "select",
                                     name: "name",
@@ -287,13 +273,10 @@
 
                                 baseTraits = baseTraits.concat(apiTraits);
 
-                                // Load headers if not already loaded
                                 if (!this.get('excel-headers') || this.get('excel-headers').length === 0) {
-                                    console.log('Loading Excel headers for component');
                                     apiHelpers.loadExcelHeaders(this);
                                 }
                             } else {
-                                // For None type, show original traits
                                 baseTraits = baseTraits.concat(originalTraits);
                             }
 
@@ -301,66 +284,42 @@
                         };
                     };
 
-                    // Shared function for API components initialization with value
                     var initApiComponentWithValue = function () {
                         this.on('change:input-type', this.updateTraitsForInputType);
-
-                        // Listen for name changes to load unique values AND update HTML name attribute
                         this.on('change:name', function () {
                             var inputType = this.get('input-type');
                             var selectedName = this.get('name');
 
-                            console.log('Name changed:', selectedName, 'Input type:', inputType);
-
                             if (inputType === 'api' && selectedName) {
-                                // Update HTML name attribute
                                 this.addAttributes({ name: selectedName });
-                                console.log('Updated HTML name attribute to:', selectedName);
-
-                                // Load unique values for this header
                                 apiHelpers.loadUniqueValues(this, selectedName);
                             }
                         });
 
-                        // Listen for value changes to update HTML value attribute
                         this.on('change:value', function () {
                             var inputType = this.get('input-type');
                             var selectedValue = this.get('value');
-
-                            console.log('Value changed:', selectedValue, 'Input type:', inputType);
-
                             if (inputType === 'api' && selectedValue) {
-                                // Update HTML value attribute
                                 this.addAttributes({ value: selectedValue });
-                                console.log('Updated HTML value attribute to:', selectedValue);
                             }
                         });
 
                         this.updateTraitsForInputType();
                     };
 
-                    // Shared function for API components initialization without value
                     var initApiComponentWithoutValue = function () {
                         this.on('change:input-type', this.updateTraitsForInputType);
-
-                        // Listen for name changes to update HTML name attribute
                         this.on('change:name', function () {
                             var inputType = this.get('input-type');
                             var selectedName = this.get('name');
-
-                            console.log('Name changed:', selectedName, 'Input type:', inputType);
-
                             if (inputType === 'api' && selectedName) {
-                                // Update HTML name attribute
                                 this.addAttributes({ name: selectedName });
-                                console.log('Updated HTML name attribute to:', selectedName);
                             }
                         });
 
                         this.updateTraitsForInputType();
                     };
 
-                    // ADD CUSTOM INPUT BUTTON COMPONENT
                     t.addType(customInputButton, {
                         isComponent: function (e) {
                             return e.getAttribute && e.getAttribute('data-gjs-type') === customInputButton;
@@ -374,14 +333,13 @@
                                     'data-custom-input-button': true
                                 },
                                 text: "Button",
-                                name: "", // ADD name property
+                                name: "",
                                 value: "",
-                                'input-type': 'none', // ADD input-type
-                                'excel-headers': [], // ADD excel-headers
-                                'unique-values': [], // ADD unique-values
+                                'input-type': 'none',
+                                'excel-headers': [],
+                                'unique-values': [],
                                 droppable: false,
                                 draggable: function (component, target) {
-                                    // Can be dragged into custom input dropzone WITH SAME NAME
                                     if (target && target.get('type') === customInputDropzone) {
                                         var buttonName = component.get('name');
                                         var dropzoneName = target.get('name');
@@ -402,7 +360,7 @@
                                     },
                                     { name: "text", changeProp: true, label: "Display Text" },
                                     { name: "id" },
-                                    { name: "name", label: "Name" }, // ADD name trait
+                                    { name: "name", label: "Name" },
                                     { name: "value", label: "Value" }
                                 ],
                             },
@@ -416,30 +374,19 @@
                                     this.on("change:text", this.__onTextChange),
                                     o !== n && this.__onTextChange();
 
-                                // ADD API functionality
                                 this.on('change:input-type', this.updateTraitsForInputType);
-
-                                // Listen for name changes to load unique values AND update HTML name attribute
                                 this.on('change:name', function () {
                                     var inputType = this.get('input-type');
                                     var selectedName = this.get('name');
 
-                                    console.log('Button name changed:', selectedName, 'Input type:', inputType);
-
                                     if (inputType === 'api' && selectedName) {
-                                        // Update HTML name attribute
                                         this.addAttributes({ name: selectedName });
-                                        console.log('Updated button HTML name attribute to:', selectedName);
-
-                                        // Load unique values for this header
                                         apiHelpers.loadUniqueValues(this, selectedName);
                                     } else if (inputType === 'none' && selectedName) {
-                                        // For manual input, just update HTML name attribute
                                         this.addAttributes({ name: selectedName });
                                     }
                                 });
 
-                                // Listen for value changes to update HTML value attribute
                                 this.on('change:value', function () {
                                     var selectedValue = this.get('value');
                                     if (selectedValue) {
@@ -466,7 +413,7 @@
                             },
                             onDoubleClick: function (e) {
                                 e.preventDefault();
-                                if (e.detail === 2) { // Ensure it's a real double click
+                                if (e.detail === 2) {
                                     var currentText = this.model.get('text') || 'Button';
                                     var newText = prompt('Enter button text:', currentText);
                                     if (newText !== null && newText !== currentText) {
@@ -477,7 +424,6 @@
                         },
                     });
 
-                    // ADD CUSTOM INPUT DROPZONE COMPONENT
                     t.addType(customInputDropzone, {
                         isComponent: function (e) {
                             return e.getAttribute && e.getAttribute('data-gjs-type') === customInputDropzone;
@@ -492,10 +438,9 @@
                                     'data-gjs-type': customInputDropzone,
                                     'data-custom-dropzone': true
                                 },
-                                'input-type': 'none', // ADD input-type
-                                'excel-headers': [], // ADD excel-headers
+                                'input-type': 'none',
+                                'excel-headers': [],
                                 droppable: function (component) {
-                                    // Only accept custom input buttons WITH SAME NAME
                                     if (component.get('type') === customInputButton) {
                                         var buttonName = component.get('name');
                                         var dropzoneName = this.get('name');
@@ -521,21 +466,14 @@
                             },
                             init: function () {
                                 this.on('component:add', this.onComponentAdd);
-
-                                // ADD API functionality
                                 this.on('change:input-type', this.updateTraitsForInputType);
-
-                                // Listen for name changes to update HTML name attribute
                                 this.on('change:name', function () {
                                     var inputType = this.get('input-type');
                                     var selectedName = this.get('name');
 
                                     if (inputType === 'api' && selectedName) {
-                                        // Update HTML name attribute
                                         this.addAttributes({ name: selectedName });
-                                        console.log('Updated dropzone HTML name attribute to:', selectedName);
                                     } else if (inputType === 'none' && selectedName) {
-                                        // For manual input, just update HTML name attribute
                                         this.addAttributes({ name: selectedName });
                                     }
                                 });
@@ -549,34 +487,29 @@
                             ]),
                             onComponentAdd: function (component) {
                                 if (component.get('type') === customInputButton) {
-                                    // CHECK NAME MATCHING
                                     var buttonName = component.get('name');
                                     var dropzoneName = this.get('name');
 
                                     if (buttonName !== dropzoneName) {
-                                        // Show error and remove the component
                                         alert('Error: Button name "' + buttonName + '" does not match dropzone name "' + dropzoneName + '"');
                                         component.remove();
                                         return;
                                     }
 
-                                    // Remove any existing components (only one at a time)
                                     var existing = this.components().models.filter(function (comp) {
                                         return comp.get('type') === customInputButton;
                                     });
 
                                     if (existing.length > 1) {
-                                        // Remove all but the last one
+
                                         for (var i = 0; i < existing.length - 1; i++) {
                                             existing[i].remove();
                                         }
                                     }
 
-                                    // Update input value with button's value
                                     var buttonValue = component.get('value') || '';
                                     this.addAttributes({ value: buttonValue });
 
-                                    // Update parent custom input container
                                     var parent = this.parent();
                                     if (parent && parent.get('type') === customInput) {
                                         parent.trigger('dropzone:updated');
@@ -592,7 +525,6 @@
                         }
                     });
 
-                    // ADD MAIN CUSTOM INPUT COMPONENT
                     t.addType(customInput, {
                         isComponent: function (e) {
                             return e.getAttribute && e.getAttribute('data-gjs-type') === customInput;
@@ -609,28 +541,27 @@
                                         type: customInputButton,
                                         attributes: { 'data-custom-input-button': true },
                                         text: "Button 1",
-                                        value: "value1" // REMOVED name property
+                                        value: "value1"
                                     },
                                     {
                                         type: customInputButton,
                                         attributes: { 'data-custom-input-button': true },
                                         text: "Button 2",
-                                        value: "value2" // REMOVED name property
+                                        value: "value2"
                                     },
                                     {
                                         type: customInputDropzone,
                                         attributes: { 'data-custom-dropzone': true },
-                                        name: "custom_input_1" // ADDED name property
+                                        name: "custom_input_1"
                                     }
                                 ],
                                 droppable: function (component) {
-                                    // Can accept more buttons
                                     return component.get('type') === customInputButton;
                                 },
                                 traits: [
                                     { name: "id" },
                                     {
-                                        type: "video-button-trait", 
+                                        type: "video-button-trait",
                                         name: "add-button",
                                         label: "Add Button",
                                         text: "Add Button",
@@ -653,10 +584,9 @@
                                     type: customInputButton,
                                     attributes: { 'data-custom-input-button': true },
                                     text: "Button " + (buttonCount + 1),
-                                    value: "value" + (buttonCount + 1) // REMOVED name property
+                                    value: "value" + (buttonCount + 1)
                                 };
 
-                                // Add before the dropzone
                                 var dropzoneIndex = -1;
                                 this.components().models.forEach(function (comp, index) {
                                     if (comp.get('type') === customInputDropzone) {
@@ -672,7 +602,6 @@
                             },
                             onComponentAdd: function (component) {
                                 if (component.get('type') === customInputButton) {
-                                    // Ensure it's positioned before dropzone
                                     var dropzone = this.components().models.find(function (comp) {
                                         return comp.get('type') === customInputDropzone;
                                     });
@@ -689,8 +618,6 @@
                                 }
                             },
                             onDropzoneUpdated: function () {
-                                // Handle any updates needed when dropzone content changes
-                                console.log('Dropzone updated in custom input');
                             }
                         },
                         view: {
@@ -776,11 +703,11 @@
                                         return;
                                     }
 
-                                    var apiAction = 'http://103.75.226.215:8080/api/excel/query-full-row-form/' + Id;
+                                    var apiAction = `${API_BASE_URL_Video}/excel/query-full-row-form/` + Id;
                                     this.addAttributes({ action: apiAction });
                                 } else if (actionType === 'none') {
                                     var currentAction = this.get('attributes').action || '';
-                                    if (currentAction.includes('103.75.226.215:8080/api/excel')) {
+                                    if (currentAction.includes(`${API_BASE_URL_Video}/excel`)) {
                                         this.addAttributes({ action: '' });
                                     }
                                 }
@@ -795,117 +722,106 @@
                                     }
                                 },
                             },
-                            // ADD this method to the form view
                             onRender: function () {
-                                // Add drag-drop functionality script to the document head if not already added
                                 if (!document.querySelector('#drag-drop-script')) {
                                     var script = document.createElement('script');
                                     script.id = 'drag-drop-script';
                                     script.innerHTML = `
-        // Drag and Drop functionality
-        document.addEventListener('DOMContentLoaded', function() {
-          console.log('Initializing drag and drop functionality...');
-          
-          // Setup draggable buttons
-          const buttons = document.querySelectorAll('[data-custom-input-button="true"]');
-          buttons.forEach(button => {
-            button.setAttribute('draggable', 'true');
-            
-            button.addEventListener('dragstart', function(e) {
-              const buttonData = {
-                id: this.id,
-                name: this.getAttribute('name') || '',
-                value: this.getAttribute('value') || this.innerText,
-                type: 'button'
-              };
-              
-              e.dataTransfer.setData('text/plain', JSON.stringify(buttonData));
-              e.dataTransfer.effectAllowed = 'copy';
-              this.style.opacity = '0.7';
-            });
-            
-            button.addEventListener('dragend', function(e) {
-              this.style.opacity = '';
-            });
-          });
-          
-          // Setup drop zones
-          const dropzones = document.querySelectorAll('[data-custom-dropzone="true"]');
-          dropzones.forEach(dropzone => {
-            dropzone.addEventListener('dragover', function(e) {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'copy';
-              this.style.backgroundColor = '#e3f2fd';
-              this.style.borderColor = '#2196f3';
-            });
-            
-            dropzone.addEventListener('dragleave', function(e) {
-              if (!this.contains(e.relatedTarget)) {
-                this.style.backgroundColor = '';
-                this.style.borderColor = '';
-              }
-            });
-            
-            dropzone.addEventListener('drop', function(e) {
-              e.preventDefault();
-              this.style.backgroundColor = '';
-              this.style.borderColor = '';
-              
-              try {
-                const data = e.dataTransfer.getData('text/plain');
-                let buttonInfo = JSON.parse(data);
-                
-                // CHECK NAME MATCHING
-                var dropzoneName = this.getAttribute('name');
-                var buttonName = buttonInfo.name;
-                
-                if (buttonName !== dropzoneName) {
-                  alert('Error: Button name "' + buttonName + '" does not match dropzone name "' + dropzoneName + '"');
-                  return;
-                }
-                
-                if (buttonInfo && buttonInfo.value) {
-                  this.value = buttonInfo.value;
-                  this.setAttribute('value', buttonInfo.value);
-                  this.dispatchEvent(new Event('change', { bubbles: true }));
-                  
-                  // Visual confirmation
-                  this.style.backgroundColor = '#c8e6c9';
-                  setTimeout(() => {
-                    this.style.backgroundColor = '';
-                  }, 1000);
-                }
-              } catch (error) {
-                console.error('Error handling drop:', error);
-              }
-            });
-          });
-        });
-      `;
+                                        document.addEventListener('DOMContentLoaded', function() {
+                                        
+                                        const buttons = document.querySelectorAll('[data-custom-input-button="true"]');
+                                        buttons.forEach(button => {
+                                            button.setAttribute('draggable', 'true');
+                                            
+                                            button.addEventListener('dragstart', function(e) {
+                                            const buttonData = {
+                                                id: this.id,
+                                                name: this.getAttribute('name') || '',
+                                                value: this.getAttribute('value') || this.innerText,
+                                                type: 'button'
+                                            };
+                                            
+                                            e.dataTransfer.setData('text/plain', JSON.stringify(buttonData));
+                                            e.dataTransfer.effectAllowed = 'copy';
+                                            this.style.opacity = '0.7';
+                                            });
+                                            
+                                            button.addEventListener('dragend', function(e) {
+                                            this.style.opacity = '';
+                                            });
+                                        });
+                                        
+                                        const dropzones = document.querySelectorAll('[data-custom-dropzone="true"]');
+                                        dropzones.forEach(dropzone => {
+                                            dropzone.addEventListener('dragover', function(e) {
+                                            e.preventDefault();
+                                            e.dataTransfer.dropEffect = 'copy';
+                                            this.style.backgroundColor = '#e3f2fd';
+                                            this.style.borderColor = '#2196f3';
+                                            });
+                                            
+                                            dropzone.addEventListener('dragleave', function(e) {
+                                            if (!this.contains(e.relatedTarget)) {
+                                                this.style.backgroundColor = '';
+                                                this.style.borderColor = '';
+                                            }
+                                            });
+                                            
+                                            dropzone.addEventListener('drop', function(e) {
+                                            e.preventDefault();
+                                            this.style.backgroundColor = '';
+                                            this.style.borderColor = '';
+                                            
+                                            try {
+                                                const data = e.dataTransfer.getData('text/plain');
+                                                let buttonInfo = JSON.parse(data);
+
+                                                var dropzoneName = this.getAttribute('name');
+                                                var buttonName = buttonInfo.name;
+                                                
+                                                if (buttonName !== dropzoneName) {
+                                                alert('Error: Button name "' + buttonName + '" does not match dropzone name "' + dropzoneName + '"');
+                                                return;
+                                                }
+                                                
+                                                if (buttonInfo && buttonInfo.value) {
+                                                this.value = buttonInfo.value;
+                                                this.setAttribute('value', buttonInfo.value);
+                                                this.dispatchEvent(new Event('change', { bubbles: true }));
+                                                this.style.backgroundColor = '#c8e6c9';
+                                                setTimeout(() => {
+                                                    this.style.backgroundColor = '';
+                                                }, 1000);
+                                                }
+                                            } catch (error) {
+                                            }
+                                            });
+                                        });
+                                        });
+                                    `;
                                     document.head.appendChild(script);
 
-                                    // Add CSS if not already added
                                     if (!document.querySelector('#drag-drop-css')) {
                                         var style = document.createElement('style');
                                         style.id = 'drag-drop-css';
                                         style.innerHTML = `
-          [data-custom-input-button="true"] {
-            cursor: grab;
-            transition: all 0.2s ease;
-            user-select: none;
-          }
-          [data-custom-input-button="true"]:hover {
-            transform: scale(1.05);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          }
-          [data-custom-dropzone="true"] {
-            transition: all 0.2s ease;
-            min-height: 40px;
-            border: 2px dashed #ccc;
-            padding: 10px;
-            text-align: center;
-          }
-        `;
+                                            [data-custom-input-button="true"] {
+                                                cursor: grab;
+                                                transition: all 0.2s ease;
+                                                user-select: none;
+                                            }
+                                            [data-custom-input-button="true"]:hover {
+                                                transform: scale(1.05);
+                                                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                                            }
+                                            [data-custom-dropzone="true"] {
+                                                transition: all 0.2s ease;
+                                                min-height: 40px;
+                                                border: 2px dashed #ccc;
+                                                padding: 10px;
+                                                text-align: center;
+                                            }
+                                            `;
                                         document.head.appendChild(style);
                                     }
                                 }
@@ -928,12 +844,10 @@
 
                                     xhr.onload = function () {
                                         if (xhr.status >= 200 && xhr.status < 300) {
-                                            console.log('Form submitted successfully:', xhr.responseText);
                                             form.dispatchEvent(new CustomEvent('formSubmitSuccess', {
                                                 detail: { response: xhr.responseText }
                                             }));
                                         } else {
-                                            console.error('Form submission failed:', xhr.status);
                                             form.dispatchEvent(new CustomEvent('formSubmitError', {
                                                 detail: { status: xhr.status, response: xhr.responseText }
                                             }));
@@ -1089,36 +1003,20 @@
                                 },
                                 init: function () {
                                     this.on('change:input-type', this.updateTraitsForInputType);
-
-                                    // Listen for name changes to load unique values
                                     this.on('change:name', function () {
                                         var inputType = this.get('input-type');
                                         var selectedName = this.get('name');
-
-                                        console.log('Select name changed:', selectedName, 'Input type:', inputType);
-
                                         if (inputType === 'api' && selectedName) {
-                                            // Update HTML name attribute
                                             this.addAttributes({ name: selectedName });
-                                            console.log('Updated HTML name attribute to:', selectedName);
-
-                                            // Reset selected values when header changes
                                             this.set('selected-values', []);
-
-                                            // Load unique values for this header
                                             apiHelpers.loadUniqueValues(this, selectedName);
                                         }
                                     });
 
-                                    // Listen for unique values changes to trigger trait re-render
                                     this.on('change:unique-values', function () {
-                                        console.log('Unique values changed, triggering trait update');
                                         var inputType = this.get('input-type');
                                         if (inputType === 'api') {
-                                            // Force refresh traits to update the unique-values-selector
                                             this.updateTraitsForInputType();
-
-                                            // Also trigger the trait manager to re-render
                                             setTimeout(function () {
                                                 if (this.em && this.em.get('TraitManager')) {
                                                     var traitManager = this.em.get('TraitManager');
@@ -1133,7 +1031,6 @@
                                         }
                                     });
 
-                                    // Listen for selected values changes to update HTML options
                                     this.on('change:selected-values', function () {
                                         var inputType = this.get('input-type');
 
@@ -1160,7 +1057,6 @@
                                     ];
 
                                     if (inputType === 'api') {
-                                        // For API type, show name dropdown and unique values selector
                                         baseTraits.push(
                                             {
                                                 type: "select",
@@ -1179,13 +1075,11 @@
                                             m
                                         );
 
-                                        // Load headers if not already loaded
                                         if (!this.get('excel-headers') || this.get('excel-headers').length === 0) {
                                             console.log('Loading Excel headers for select component');
                                             apiHelpers.loadExcelHeaders(this);
                                         }
                                     } else {
-                                        // For None type, show original traits
                                         baseTraits.push(
                                             d,
                                             { name: "options", type: "select-options" },
@@ -1195,7 +1089,6 @@
 
                                     this.set('traits', baseTraits);
 
-                                    // Force refresh the trait manager if it exists
                                     if (this.em && this.em.get('TraitManager')) {
                                         var traitManager = this.em.get('TraitManager');
                                         if (traitManager.getTraitsViewer) {
@@ -1210,7 +1103,6 @@
                                     var selectedValues = this.get('selected-values') || [];
                                     var newOptions = [];
 
-                                    // Create option components for each selected value
                                     for (var i = 0; i < selectedValues.length; i++) {
                                         var value = selectedValues[i];
                                         newOptions.push({
@@ -1220,7 +1112,6 @@
                                         });
                                     }
 
-                                    // Update the select component's children
                                     this.components().reset(newOptions);
                                     this.view && this.view.render();
                                 }
@@ -1381,19 +1272,14 @@
                             },
                         });
 
-                        // Add custom trait type for unique values selector with checkboxes
                         e.TraitManager.addType("unique-values-selector", {
                             templateInput: function () {
                                 return '<div class="unique-values-container"></div>';
                             },
 
                             onRender: function () {
-                                console.log('Trait onRender called');
                                 this.updateContent();
-
-                                // Listen for changes to unique-values on the target
                                 this.listenTo(this.target, 'change:unique-values', function () {
-                                    console.log('Target unique-values changed, updating content');
                                     this.updateContent();
                                 });
                             },
@@ -1403,15 +1289,10 @@
                                 var uniqueValues = target.get('unique-values') || [];
                                 var selectedValues = target.get('selected-values') || [];
                                 var container = this.el.querySelector('.unique-values-container');
-
-                                console.log('updateContent called with unique values:', uniqueValues);
-
                                 if (!container) {
-                                    console.log('Container not found');
                                     return;
                                 }
 
-                                // Clear existing content
                                 container.innerHTML = '';
                                 container.style.cssText = 'max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 5px; width: 72.5%; ';
 
@@ -1420,13 +1301,10 @@
                                     return;
                                 }
 
-                                console.log('Rendering', uniqueValues.length, 'unique values');
-
                                 var trait = this;
 
-                                // Create checkboxes for each unique value
                                 uniqueValues.forEach(function (valueObj, index) {
-                                    if (!valueObj.value) return; // Skip empty values
+                                    if (!valueObj.value) return;
 
                                     var checkboxContainer = document.createElement('div');
                                     checkboxContainer.style.cssText = 'display: flex; align-items: center; padding: 3px 0; justify-content: space-between;';
@@ -1440,7 +1318,6 @@
                                     checkbox.id = 'checkbox_' + index;
                                     checkbox.style.cssText = 'margin-right: 5px;';
 
-                                    // Check if this value is already selected
                                     checkbox.checked = selectedValues.indexOf(valueObj.value) !== -1;
 
                                     var label = document.createElement('label');
@@ -1451,7 +1328,6 @@
                                     leftDiv.appendChild(checkbox);
                                     leftDiv.appendChild(label);
 
-                                    // Add number indicator
                                     var numberSpan = document.createElement('span');
                                     numberSpan.style.cssText = 'background: #007cba;  border-radius: 10px; padding: 2px 6px; font-size: 10px; min-width: 16px; text-align: center;';
                                     var currentIndex = selectedValues.indexOf(valueObj.value);
@@ -1461,25 +1337,18 @@
                                     checkboxContainer.appendChild(leftDiv);
                                     checkboxContainer.appendChild(numberSpan);
 
-                                    // Add change event listener
                                     checkbox.addEventListener('change', function () {
                                         var currentSelected = target.get('selected-values') || [];
                                         var newSelected = [];
 
                                         if (this.checked) {
-                                            // Add to selected values
                                             newSelected = currentSelected.concat([this.value]);
                                         } else {
-                                            // Remove from selected values
                                             newSelected = currentSelected.filter(function (val) {
                                                 return val !== checkbox.value;
                                             });
                                         }
-
-                                        console.log('Updating selected values:', newSelected);
                                         target.set('selected-values', newSelected);
-
-                                        // Update all number indicators
                                         trait.updateNumberIndicators(container, newSelected);
                                     });
 
@@ -1499,20 +1368,17 @@
                             },
 
                             onValueChange: function () {
-                                // This gets called when the target's selected-values change
-                                console.log('onValueChange called');
                                 this.updateContent();
                             }
                         });
 
-                        // ADD CUSTOM BUTTON TRAIT TYPE
-                        e.TraitManager.addType("video-button-trait", {  // was "button"
+                        e.TraitManager.addType("video-button-trait", {
                             templateInput: function () {
                                 return '<button type="button" class="video-trait-button">' + this.model.get('text') + '</button>';  // changed class name
                             },
 
                             onRender: function () {
-                                var button = this.el.querySelector('.video-trait-button');  // changed class selector
+                                var button = this.el.querySelector('.video-trait-button');
                                 var command = this.model.get('command');
 
                                 if (button && command) {
@@ -1616,22 +1482,21 @@
                                     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8m0-18C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 5c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z"></path></svg>',
                                 content: { type: r },
                             }),
-                            // ADD CUSTOM INPUT BLOCK
                             m(customInput, {
                                 label: "Drag & Drop",
                                 media: `
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="24" viewBox="0 0 350 290" style="display:block; padding:4px; margin-left: 15px;">
-      <path fill="currentColor" d="
-        M48 32c0 17.7-14.3 32-32 32S-16 49.7-16 32  -1.7 0 16 0s32 14.3 32 32z
-        M160 32c0 17.7-14.3 32-32 32s-32-14.3-32-32S110.3 0 128 0s32 14.3 32 32z
-        M272 32c0 17.7-14.3 32-32 32s-32-14.3-32-32S221.7 0 240 0s32 14.3 32 32z
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="24" viewBox="0 0 350 290" style="display:block; padding:4px; margin-left: 15px;">
+                                    <path fill="currentColor" d="
+                                        M48 32c0 17.7-14.3 32-32 32S-16 49.7-16 32  -1.7 0 16 0s32 14.3 32 32z
+                                        M160 32c0 17.7-14.3 32-32 32s-32-14.3-32-32S110.3 0 128 0s32 14.3 32 32z
+                                        M272 32c0 17.7-14.3 32-32 32s-32-14.3-32-32S221.7 0 240 0s32 14.3 32 32z
 
-        M48 128c0 17.7-14.3 32-32 32S-16 145.7-16 128  -1.7 96 16 96s32 14.3 32 32z
-        M160 128c0 17.7-14.3 32-32 32s-32-14.3-32-32S110.3 96 128 96s32 14.3 32 32z
-        M272 128c0 17.7-14.3 32-32 32s-32-14.3-32-32S221.7 96 240 96s32 14.3 32 32z
-      "/>
-    </svg>
-  `,
+                                        M48 128c0 17.7-14.3 32-32 32S-16 145.7-16 128  -1.7 96 16 96s32 14.3 32 32z
+                                        M160 128c0 17.7-14.3 32-32 32s-32-14.3-32-32S110.3 96 128 96s32 14.3 32 32z
+                                        M272 128c0 17.7-14.3 32-32 32s-32-14.3-32-32S221.7 96 240 96s32 14.3 32 32z
+                                    "/>
+                                    </svg>
+                                `,
                                 content: { type: customInput },
                             });
 

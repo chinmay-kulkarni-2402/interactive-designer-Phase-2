@@ -1,9 +1,5 @@
-// Create new js file and add this code
-
 function drawingTool(editor) {
-    // Inject styles into document head
     const styles = `
-        /* Drawing Modal Styles */
         #drawing-modal {
             display: none;
             position: fixed;
@@ -124,8 +120,7 @@ function drawingTool(editor) {
         .footer-btn:hover {
             opacity: 0.9;
         }
-        
-        /* Custom block style */
+
         .drawing-canvas-block {
             min-height: 200px;
             display: flex;
@@ -135,8 +130,7 @@ function drawingTool(editor) {
             font-size: 16px;
             cursor: pointer;
         }
-        
-        /* Icon styles */
+
         .tool-icon {
             font-size: 16px;
             transition: font-size 0.2s;
@@ -147,7 +141,6 @@ function drawingTool(editor) {
             font-size: 20px;
         }
         
-        /* Fallback icons for better compatibility */
         .tool-btn[data-tool="pencil"] .tool-icon::before {
             content: "✏️";
         }
@@ -161,16 +154,15 @@ function drawingTool(editor) {
         }
             .pencil-cursor {
         cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">✏️</text></svg>') 8 20, crosshair !important;
-    }
-    
-    .eraser-cursor {
-        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">🧽</text></svg>') 8 20, crosshair !important;
-    }
-        .paint-cursor {
-        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">🪣</text></svg>') 8 20, pointer !important;
-    }
+        }
         
-        /* Size indicator */
+        .eraser-cursor {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">🧽</text></svg>') 8 20, crosshair !important;
+        }
+            .paint-cursor {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><text y="18" font-size="16">🪣</text></svg>') 8 20, pointer !important;
+        }
+
         .size-indicator {
             position: absolute;
             top: 10px;
@@ -184,12 +176,10 @@ function drawingTool(editor) {
         }
     `;
 
-    // Create and inject style element
     const styleElement = document.createElement('style');
     styleElement.textContent = styles;
     document.head.appendChild(styleElement);
 
-    // Create and inject modal HTML
     const modalHTML = `
         <div id="drawing-modal">
             <div class="modal-content">
@@ -259,7 +249,6 @@ function drawingTool(editor) {
         </div>
     `;
 
-    // Create modal element and append to body
     const modalContainer = document.createElement('div');
     modalContainer.innerHTML = modalHTML;
     document.body.appendChild(modalContainer.firstElementChild);
@@ -290,7 +279,6 @@ function drawingTool(editor) {
         }
     });
 
-    // Add block to block manager
     editor.BlockManager.add('drawing-canvas-block', {
         label: `
         <svg width="60" height="60" viewBox="0 0 60 60" fill="none" 
@@ -331,8 +319,6 @@ function drawingTool(editor) {
         }
     });
 
-
-    // Initialize Konva stage and layer
     const modal = document.getElementById('drawing-modal');
     let stage, layer, transformer;
     let history = [];
@@ -345,14 +331,12 @@ function drawingTool(editor) {
     let eraserSize = 15;
     let currentColor = '#000000';
 
-    // Tool state management
     let toolStates = {
         pencil: { size: 5, icon: '✏️' },
         eraser: { size: 15, icon: '🧽' },
         paint: { icon: '🪣' }
     };
 
-    // Flood fill algorithm for paint bucket
     function floodFill(imageData, startX, startY, fillColor, tolerance = 0) {
         const canvas = stage.getStage();
         const width = canvas.width();
@@ -370,7 +354,6 @@ function drawingTool(editor) {
         const fillB = parseInt(fillColor.slice(5, 7), 16);
         const fillA = 255;
 
-        // Check if the start color is the same as fill color
         if (startR === fillR && startG === fillG && startB === fillB && startA === fillA) {
             return imageData;
         }
@@ -410,7 +393,6 @@ function drawingTool(editor) {
             visited.add(key);
             setPixel(x, y);
 
-            // Add neighboring pixels
             stack.push({ x: x + 1, y: y });
             stack.push({ x: x - 1, y: y });
             stack.push({ x: x, y: y + 1 });
@@ -433,19 +415,16 @@ function drawingTool(editor) {
         layer = new Konva.Layer();
         stage.add(layer);
 
-        // Add transformer for selection with improved configuration
         transformer = new Konva.Transformer({
             rotateEnabled: true,
             enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right',
                 'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
             boundBoxFunc: (oldBox, newBox) => {
-                // Prevent negative scaling
                 if (newBox.width < 5 || newBox.height < 5) {
                     return oldBox;
                 }
                 return newBox;
             },
-            // Ensure transformer updates properly
             shouldOverdrawWholeArea: true
         });
         layer.add(transformer);
@@ -459,18 +438,14 @@ function drawingTool(editor) {
         stage.on('mousedown touchstart', handleMouseDown);
         stage.on('mousemove touchmove', handleMouseMove);
         stage.on('mouseup touchend', handleMouseUp);
-
-        // Click to select objects (only for select tool)
         stage.on('click tap', handleClick);
 
-        // Updated dragstart handler to allow dragging for move tool
         stage.on('dragstart', (e) => {
             if (currentTool !== 'select' && currentTool !== 'move') {
                 e.evt.preventDefault();
             }
         });
 
-        // Add dragend handler to save state after moving objects
         stage.on('dragend', (e) => {
             if (currentTool === 'move' || currentTool === 'select') {
                 saveState();
@@ -479,7 +454,6 @@ function drawingTool(editor) {
     }
 
     function handleClick(e) {
-        // Handle selection for both select and move tools
         if (currentTool === 'select' || currentTool === 'move') {
             if (e.target === stage) {
                 transformer.nodes([]);
@@ -494,19 +468,14 @@ function drawingTool(editor) {
                 return;
             }
 
-            // For move tool, enable dragging on the clicked object
             if (currentTool === 'move') {
-                // Make sure the clicked object is draggable
                 e.target.draggable(true);
-
-                // Select the object for visual feedback (optional)
                 transformer.nodes([e.target]);
                 transformer.forceUpdate();
                 layer.draw();
                 return;
             }
 
-            // Handle multi-selection for select tool
             const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
             const isSelected = transformer.nodes().indexOf(e.target) >= 0;
 
@@ -521,38 +490,26 @@ function drawingTool(editor) {
                 transformer.nodes(nodes);
             }
 
-            // Force transformer to update its position and size
             transformer.forceUpdate();
             layer.draw();
         } else if (currentTool === 'paint') {
-            // Paint bucket functionality - flood fill algorithm
             const pos = stage.getPointerPosition();
-
-            // Get current canvas as image data
             const canvas = stage.toCanvas();
             const ctx = canvas.getContext('2d');
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            // Apply flood fill
             const filledImageData = floodFill(imageData, Math.floor(pos.x), Math.floor(pos.y), currentColor, 10);
-
-            // Create new image from filled data
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.putImageData(filledImageData, 0, 0);
-
-            // Clear current layer and add filled image
             layer.destroyChildren();
 
-            // Recreate transformer
             transformer = new Konva.Transformer({
                 rotateEnabled: true,
                 enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right',
                     'bottom-right', 'bottom-center', 'bottom-left', 'middle-left'],
                 boundBoxFunc: (oldBox, newBox) => {
-                    // Prevent negative scaling
                     if (newBox.width < 5 || newBox.height < 5) {
                         return oldBox;
                     }
@@ -561,7 +518,6 @@ function drawingTool(editor) {
             });
             layer.add(transformer);
 
-            // Add the filled image to layer
             const img = new Image();
             img.onload = () => {
                 const konvaImg = new Konva.Image({
@@ -577,8 +533,6 @@ function drawingTool(editor) {
             };
             img.src = tempCanvas.toDataURL();
         }
-        // For all other tools (pencil, eraser, line, etc.), do nothing on click
-        // This prevents unwanted selection/transformation behavior
     }
 
     function handleMouseDown(e) {
@@ -649,10 +603,7 @@ function drawingTool(editor) {
                 draggable: true
             });
             layer.add(text);
-
-            // Make text editable
             addTextEditingHandler(text);
-
             layer.draw();
             saveState();
             return;
@@ -661,7 +612,6 @@ function drawingTool(editor) {
 
     function handleMouseMove(e) {
         if (!isDrawing) return;
-
         const pos = stage.getPointerPosition();
 
         if (currentTool === 'pencil' || currentTool === 'eraser') {
@@ -696,7 +646,6 @@ function drawingTool(editor) {
         }
     }
 
-    // Function to add text editing handler
     function addTextEditingHandler(text) {
         text.on('dblclick', () => {
             const textPosition = text.absolutePosition();
@@ -729,7 +678,6 @@ function drawingTool(editor) {
             textarea.style.textAlign = text.align();
             textarea.style.color = text.fill();
             textarea.style.zIndex = '10001';
-
             textarea.focus();
             textarea.select();
 
@@ -758,7 +706,6 @@ function drawingTool(editor) {
         });
     }
 
-    // Save state for undo/redo
     function saveState() {
         const state = layer.toJSON();
         history = history.slice(0, historyIndex + 1);
@@ -771,7 +718,6 @@ function drawingTool(editor) {
         }
     }
 
-    // Tool button references
     const toolButtons = {
         select: document.getElementById('select-btn'),
         move: document.getElementById('move-btn'),
@@ -788,19 +734,15 @@ function drawingTool(editor) {
     const sizeInput = document.getElementById('brush-size');
     const sizeIndicator = document.getElementById('size-indicator');
 
-    // Set active tool
     function setActiveTool(tool) {
-        // Clear any selections when switching away from select tool
         if (currentTool !== 'select' && tool !== 'select' && transformer) {
             transformer.nodes([]);
             layer.draw();
         } else if (tool !== 'select' && tool !== 'move' && transformer) {
-            // Clear selections when switching to drawing tools (but keep for move tool)
             transformer.nodes([]);
             layer.draw();
         }
 
-        // When switching to move tool, make all objects draggable
         if (tool === 'move') {
             layer.children.forEach(child => {
                 if (child !== transformer) {
@@ -808,14 +750,12 @@ function drawingTool(editor) {
                 }
             });
         } else if (tool !== 'select') {
-            // When switching away from move tool to drawing tools, disable dragging
             layer.children.forEach(child => {
                 if (child !== transformer) {
                     child.draggable(false);
                 }
             });
         } else if (tool === 'select') {
-            // For select tool, allow dragging only when selected
             layer.children.forEach(child => {
                 if (child !== transformer) {
                     child.draggable(true);
@@ -823,22 +763,18 @@ function drawingTool(editor) {
             });
         }
 
-        // Remove active class from all tools
         Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
 
-        // Add active class to current tool
         if (toolButtons[tool]) {
             toolButtons[tool].classList.add('active');
         }
 
         currentTool = tool;
 
-        // Update cursor based on tool with custom icons and sizes
         const container = stage ? stage.container() : null;
         if (container) {
-            // Remove all cursor classes first
             container.classList.remove('pencil-cursor', 'eraser-cursor', 'paint-cursor');
-            container.style.cursor = ''; // Clear any inline cursor styles
+            container.style.cursor = '';
 
             switch (tool) {
                 case 'select':
@@ -861,61 +797,6 @@ function drawingTool(editor) {
             }
         }
 
-        // Update size input based on tool
-        if (tool === 'pencil') {
-            sizeInput.value = toolStates.pencil.size;
-            pencilSize = toolStates.pencil.size;
-        } else if (tool === 'eraser') {
-            sizeInput.value = toolStates.eraser.size;
-            eraserSize = toolStates.eraser.size;
-        }
-
-        updateSizeIndicator();
-    }
-
-
-    function setActiveToolAlternative(tool) {
-        // Clear any selections when switching tools
-        if (transformer) {
-            transformer.nodes([]);
-            layer.draw();
-        }
-
-        // Remove active class from all tools
-        Object.values(toolButtons).forEach(btn => btn.classList.remove('active'));
-
-        // Add active class to current tool
-        if (toolButtons[tool]) {
-            toolButtons[tool].classList.add('active');
-        }
-
-        currentTool = tool;
-
-        // Update cursor based on tool
-        const container = stage ? stage.container() : null;
-        if (container) {
-            switch (tool) {
-                case 'select':
-                case 'move':
-                    container.style.cursor = 'default';
-                    break;
-                case 'pencil':
-                    // Create pencil cursor using canvas
-                    container.style.cursor = createToolCursor('✏️');
-                    break;
-                case 'eraser':
-                    // Create eraser cursor using canvas
-                    container.style.cursor = createToolCursor('🧽');
-                    break;
-                case 'paint':
-                    container.style.cursor = 'pointer';
-                    break;
-                default:
-                    container.style.cursor = 'crosshair';
-            }
-        }
-
-        // Update size input based on tool
         if (tool === 'pencil') {
             sizeInput.value = toolStates.pencil.size;
             pencilSize = toolStates.pencil.size;
@@ -929,15 +810,12 @@ function drawingTool(editor) {
 
     function createToolCursor(emoji, size = 5) {
         const canvas = document.createElement('canvas');
-        const canvasSize = Math.max(24, size + 8); // Minimum 24px, grows with brush size
+        const canvasSize = Math.max(24, size + 8);
         canvas.width = canvasSize;
         canvas.height = canvasSize;
         const ctx = canvas.getContext('2d');
-
-        // Clear canvas
         ctx.clearRect(0, 0, canvasSize, canvasSize);
 
-        // Draw outer circle to show brush size
         if (emoji === '✏️' || emoji === '🧽') {
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 1;
@@ -946,7 +824,6 @@ function drawingTool(editor) {
             ctx.stroke();
         }
 
-        // Draw emoji in center
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -961,7 +838,6 @@ function drawingTool(editor) {
         sizeIndicator.textContent = `${currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} Size: ${currentSize}px`;
     }
 
-    // Tool event listeners
     toolButtons.select.onclick = () => setActiveTool('select');
     toolButtons.move.onclick = () => setActiveTool('move');
     toolButtons.pencil.onclick = () => setActiveTool('pencil');
@@ -972,18 +848,15 @@ function drawingTool(editor) {
     toolButtons.text.onclick = () => setActiveTool('text');
     toolButtons.paint.onclick = () => setActiveTool('paint');
 
-    // Color change
     colorPicker.onchange = () => {
         currentColor = colorPicker.value;
     };
 
-    // Size change
     sizeInput.onchange = () => {
         const newSize = parseInt(sizeInput.value, 10);
         if (currentTool === 'pencil') {
             pencilSize = newSize;
             toolStates.pencil.size = newSize;
-            // Update cursor with new size
             const container = stage ? stage.container() : null;
             if (container) {
                 container.style.cursor = createToolCursor('✏️', pencilSize);
@@ -991,7 +864,6 @@ function drawingTool(editor) {
         } else if (currentTool === 'eraser') {
             eraserSize = newSize;
             toolStates.eraser.size = newSize;
-            // Update cursor with new size
             const container = stage ? stage.container() : null;
             if (container) {
                 container.style.cursor = createToolCursor('🧽', eraserSize);
@@ -1002,7 +874,6 @@ function drawingTool(editor) {
         updateSizeIndicator();
     };
 
-    // Keyboard shortcuts for resizing icons
     document.addEventListener('keydown', (e) => {
         if (modal.style.display === 'flex') {
             if (e.shiftKey && e.key === '+') {
@@ -1018,7 +889,6 @@ function drawingTool(editor) {
                     if (currentTool === 'pencil') {
                         pencilSize = newSize;
                         toolStates.pencil.size = newSize;
-                        // Update cursor
                         const container = stage ? stage.container() : null;
                         if (container) {
                             container.style.cursor = createToolCursor('✏️', pencilSize);
@@ -1026,7 +896,6 @@ function drawingTool(editor) {
                     } else {
                         eraserSize = newSize;
                         toolStates.eraser.size = newSize;
-                        // Update cursor
                         const container = stage ? stage.container() : null;
                         if (container) {
                             container.style.cursor = createToolCursor('🧽', eraserSize);
@@ -1054,7 +923,6 @@ function drawingTool(editor) {
                     if (currentTool === 'pencil') {
                         pencilSize = newSize;
                         toolStates.pencil.size = newSize;
-                        // Update cursor
                         const container = stage ? stage.container() : null;
                         if (container) {
                             container.style.cursor = createToolCursor('✏️', pencilSize);
@@ -1062,7 +930,6 @@ function drawingTool(editor) {
                     } else {
                         eraserSize = newSize;
                         toolStates.eraser.size = newSize;
-                        // Update cursor
                         const container = stage ? stage.container() : null;
                         if (container) {
                             container.style.cursor = createToolCursor('🧽', eraserSize);
@@ -1081,7 +948,6 @@ function drawingTool(editor) {
         }
     });
 
-    // Clear canvas
     document.getElementById('clear-btn').onclick = () => {
         layer.destroyChildren();
         transformer = new Konva.Transformer({
@@ -1101,7 +967,6 @@ function drawingTool(editor) {
         saveState();
     };
 
-    // Undo functionality
     document.getElementById('undo-btn').onclick = () => {
         if (historyIndex > 0) {
             historyIndex--;
@@ -1111,8 +976,6 @@ function drawingTool(editor) {
                 if (obj.className !== 'Transformer') {
                     const shape = Konva.Node.create(obj);
                     layer.add(shape);
-
-                    // Re-add text editing handlers for text objects
                     if (shape.className === 'Text') {
                         addTextEditingHandler(shape);
                     }
@@ -1136,7 +999,6 @@ function drawingTool(editor) {
         }
     };
 
-    // Redo functionality
     document.getElementById('redo-btn').onclick = () => {
         if (historyIndex < history.length - 1) {
             historyIndex++;
@@ -1147,7 +1009,6 @@ function drawingTool(editor) {
                     const shape = Konva.Node.create(obj);
                     layer.add(shape);
 
-                    // Re-add text editing handlers for text objects
                     if (shape.className === 'Text') {
                         addTextEditingHandler(shape);
                     }
@@ -1171,7 +1032,6 @@ function drawingTool(editor) {
         }
     };
 
-    // Load image
     document.getElementById('load-image-btn').onclick = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -1192,7 +1052,6 @@ function drawingTool(editor) {
                             draggable: true
                         });
 
-                        // Add event listeners for proper transformer updates
                         konvaImg.on('dragend', () => {
                             transformer.forceUpdate();
                             layer.draw();
@@ -1214,7 +1073,6 @@ function drawingTool(editor) {
         input.click();
     };
 
-    // Canvas resize functionality
     document.getElementById('resize-canvas-btn').onclick = () => {
         const newWidth = parseInt(document.getElementById('canvas-width').value, 10);
         const newHeight = parseInt(document.getElementById('canvas-height').value, 10);
@@ -1229,17 +1087,10 @@ function drawingTool(editor) {
         }
     };
 
-    // Modal functions
     function showDrawingModal(model) {
         modal.style.display = 'flex';
-
-        // Initialize canvas
         initializeCanvas();
-
-        // Reset tool states
         setActiveTool('select');
-
-        // Handle OK button
         document.getElementById('drawing-ok-btn').onclick = () => {
             const dataURL = stage.toDataURL({ pixelRatio: 2 });
             const canvasWidth = stage.width();
@@ -1251,13 +1102,11 @@ function drawingTool(editor) {
             modal.style.display = 'none';
         };
 
-        // Handle Cancel button
         document.getElementById('drawing-cancel-btn').onclick = () => {
             modal.style.display = 'none';
         };
     }
 
-    // Close modal when clicking outside
     modal.onclick = (e) => {
         if (e.target === modal) {
             modal.style.display = 'none';

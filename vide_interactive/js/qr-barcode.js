@@ -15,9 +15,6 @@ function addQRBarcodeComponent(editor) {
         components: [],
         droppable: false,
         traits: [],
-        script: function () {
-          // optional inline script
-        },
       },
       init() {
         const component = this;
@@ -29,9 +26,7 @@ function addQRBarcodeComponent(editor) {
     }
   });
 
-  // Toast notification function
   function showToast(message, type = 'error') {
-    console.log(message)
     const toast = document.createElement('div');
     toast.style.cssText = `
     position: fixed;
@@ -133,7 +128,7 @@ function addQRBarcodeComponent(editor) {
         </select>
       </div>
 
-      <!-- Advanced Options (Default Enabled) -->
+      <!-- Advanced Options -->
       <div id="advanced-options" style="margin-bottom: 20px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
         <div style="display: flex; align-items: center; margin-bottom: 16px;">
           <span style="font-weight: 600; color: #374151; font-size: 14px;">⚙️ Advanced Options</span>
@@ -221,7 +216,6 @@ function addQRBarcodeComponent(editor) {
     modal.setContent(content);
     modal.open();
 
-    // Get elements
     const typeSelect = content.querySelector('#qr-type');
     const qrOptions = content.querySelector('#qr-options');
     const formatInfo = content.querySelector('#format-info');
@@ -232,7 +226,6 @@ function addQRBarcodeComponent(editor) {
     const heightValue = content.querySelector('#height-value');
     const textInput = content.querySelector('#qr-text');
 
-    // Add input focus styles
     textInput.onfocus = () => {
       textInput.style.borderColor = '#3b82f6';
       textInput.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
@@ -242,7 +235,6 @@ function addQRBarcodeComponent(editor) {
       textInput.style.boxShadow = 'none';
     };
 
-    // Update slider values
     widthSlider.oninput = () => {
       widthValue.textContent = widthSlider.value + 'x';
     };
@@ -251,57 +243,11 @@ function addQRBarcodeComponent(editor) {
       heightValue.textContent = heightSlider.value + 'px';
     };
 
-    // Show format requirements and QR options
-    // typeSelect.onchange = () => {
-    //   const selectedType = typeSelect.value;
-    //   const is2D = ['qr', 'datamatrix', 'pdf417', 'aztec'].includes(selectedType);
-
-    //   // Show QR options only for QR codes
-    //   qrOptions.style.display = 'none';
-
-    //   // Update placeholder based on type
-    //   const placeholders = {
-    //     'qr': 'https://example.com or any text',
-    //     'upc': '123456789012 (12 digits)',
-    //     'ean13': '1234567890123 (13 digits)',
-    //     'ean8': '12345678 (8 digits)',
-    //     'upce': '123456 (6-8 digits)',
-    //     'code128': 'ABC123 (letters & numbers)',
-    //     'code39': 'HELLO123 (uppercase + numbers)',
-    //     'code93': 'Test123 (letters & numbers)',
-    //     'codabar': '12345 (numbers + symbols)',
-    //     'itf': '1234 (even number of digits)',
-    //     'postnet': '12345 (ZIP code)',
-    //     'planet': '12345678901 (11 or 13 digits)',
-    //     'pharmacode': '12345 (number 3-131070)',
-    //     'gs1_128': '(01)12345678901231',
-    //     'msi': '123456789 (numbers only)',
-    //     'datamatrix': 'Any text or data',
-    //     'pdf417': 'Document text or data',
-    //     'aztec': 'Transport or ticket data'
-    //   };
-
-    //   textInput.placeholder = placeholders[selectedType] || 'Enter data to encode';
-
-    //   // // Show format requirements
-    //   // const requirements = getFormatRequirements(selectedType);
-    //   // if (requirements) {
-    //   //   formatDetails.innerHTML = requirements;
-    //   //   formatInfo.style.display = 'block';
-    //   // } else {
-    //   //   formatInfo.style.display = 'none';
-    //   // }
-    // };
-
-    // Initialize QR options visibility
-    // typeSelect.onchange();
-
     content.querySelector('#generate-btn').onclick = async () => {
       const text = content.querySelector('#qr-text').value.trim();
       const type = content.querySelector('#qr-type').value;
 
       if (!text) {
-        // Enhanced error styling
         textInput.style.borderColor = '#ef4444';
         textInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
         textInput.focus();
@@ -313,7 +259,6 @@ function addQRBarcodeComponent(editor) {
         return;
       }
 
-      // Show loading state
       const btn = content.querySelector('#generate-btn');
       const originalContent = btn.innerHTML;
       btn.innerHTML = '<span style="font-size: 16px;">⏳</span> Generating...';
@@ -337,7 +282,6 @@ function addQRBarcodeComponent(editor) {
           imgBase64 = await generateBarcodeBase64(text, type, options);
         }
 
-        // Render image inside canvas
         component.components().reset([{
           tagName: 'img',
           attributes: {
@@ -350,11 +294,7 @@ function addQRBarcodeComponent(editor) {
         showToast(`${type.toUpperCase()} code generated successfully!`, 'success');
         modal.close();
       } catch (error) {
-        // Show error in toast
         showToast(error.message, 'error');
-        console.log(error)
-
-        // Reset button
         btn.innerHTML = originalContent;
         btn.disabled = false;
         btn.style.opacity = '1';
@@ -362,28 +302,7 @@ function addQRBarcodeComponent(editor) {
     };
   }
 
-  // function getFormatRequirements(type) {
-  //   const requirements = {
-  //     'upc': 'UPC-A: Exactly 12 digits (e.g., 123456789012)',
-  //     'ean13': 'EAN-13: Exactly 13 digits (e.g., 1234567890123)',
-  //     'ean8': 'EAN-8: Exactly 8 digits (e.g., 12345678)',
-  //     'upce': 'UPC-E: 6, 7, or 8 digits (e.g., 123456)',
-  //     'code39': 'Code 39: Letters, numbers, and symbols: - . $ / + % SPACE',
-  //     'code93': 'Code 93: Letters, numbers, and symbols',
-  //     'codabar': 'Codabar: Numbers 0-9 and symbols: - $ : / . +',
-  //     'itf': 'ITF: Even number of digits only (e.g., 1234)',
-  //     'postnet': 'POSTNET: 5, 9, or 11 digits (ZIP codes)',
-  //     'planet': 'PLANET: 11 or 13 digits',
-  //     'pharmacode': 'Pharmacode: Numbers 3-131070 only',
-  //     'gs1_128': 'GS1-128: Use Application Identifiers (e.g., (01)12345678901231)',
-  //     'msi': 'MSI: Numbers 0-9 only'
-  //   };
-
-  //   return requirements[type] || null;
-  // }
-
   async function generateQRCodeBase64(text, options = {}) {
-    // Check if QRCode library is available
     if (typeof QRCode === 'undefined') {
       throw new Error('QRCode library not found. Please include qrcode.js library.');
     }
@@ -403,7 +322,6 @@ function addQRBarcodeComponent(editor) {
   }
 
   async function generate2DBarcodeBase64(text, type) {
-    // Check if bwip-js library is available
     if (typeof bwipjs === 'undefined') {
       throw new Error(`${type.toUpperCase()} generation requires bwip-js library. Please include it in your project.`);
     }
@@ -456,14 +374,12 @@ function addQRBarcodeComponent(editor) {
   }
 
   async function generateBarcodeBase64(text, format, options = {}) {
-    // Check if JsBarcode library is available
     if (typeof JsBarcode === 'undefined') {
       throw new Error('JsBarcode library not found. Please include jsbarcode.js library.');
     }
 
     const canvas = document.createElement('canvas');
 
-    // Format mapping for JsBarcode with correct format names
     const formatMap = {
       'code128': 'CODE128',
       'code39': 'CODE39',
@@ -476,9 +392,9 @@ function addQRBarcodeComponent(editor) {
       'msi': 'MSI',
       'codabar': 'codabar',
       'pharmacode': 'pharmacode',
-      'gs1_128': 'CODE128', // GS1-128 is based on Code 128
-      'postnet': 'CODE128', // Fallback for postal codes
-      'planet': 'CODE128'   // Fallback for postal codes
+      'gs1_128': 'CODE128',
+      'postnet': 'CODE128',
+      'planet': 'CODE128'
     };
 
     const barcodeFormat = formatMap[format];
@@ -488,12 +404,7 @@ function addQRBarcodeComponent(editor) {
     }
 
     try {
-      // Validate input based on format
-      // validateBarcodeInput(text, format);
-
-      // Special handling for postal codes
       if (format === 'postnet' || format === 'planet') {
-        // Use Code 128 as fallback for postal formats
         JsBarcode(canvas, text, {
           format: 'CODE128',
           width: options.width || 2,
@@ -536,59 +447,4 @@ function addQRBarcodeComponent(editor) {
       throw new Error(`Failed to generate ${format.toUpperCase()}: ${error.message}`);
     }
   }
-
-  // function validateBarcodeInput(text, format) {
-  //   switch (format) {
-  //     case 'upc':
-  //       if (!/^\d{11,12}$/.test(text)) {
-  //         throw new Error('UPC-A requires 11-12 digits');
-  //       }
-  //       break;
-  //     case 'ean13':
-  //       if (!/^\d{12,13}$/.test(text)) {
-  //         throw new Error('EAN-13 requires 12-13 digits');
-  //       }
-  //       break;
-  //     case 'ean8':
-  //       if (!/^\d{7,8}$/.test(text)) {
-  //         throw new Error('EAN-8 requires 7-8 digits');
-  //       }
-  //       break;
-  //     case 'upce':
-
-  //       break;
-  //     case 'itf':
-  //       if (!/^\d+$/.test(text) || text.length % 2 !== 0) {
-  //         throw new Error('ITF requires an even number of digits');
-  //       }
-  //       break;
-  //     case 'postnet':
-  //       if (!/^\d{5}$|^\d{9}$|^\d{11}$/.test(text)) {
-  //         throw new Error('POSTNET requires 5, 9, or 11 digits');
-  //       }
-  //       break;
-  //     case 'planet':
-  //       if (!/^\d{11}$|^\d{13}$/.test(text)) {
-  //         throw new Error('PLANET requires 11 or 13 digits');
-  //       }
-  //       break;
-  //     case 'pharmacode':
-  //       const num = parseInt(text);
-  //       if (isNaN(num) || num < 3 || num > 131070) {
-  //         throw new Error('Pharmacode requires a number between 3 and 131070');
-  //       }
-  //       break;
-  //     case 'msi':
-  //       if (!/^\d+$/.test(text)) {
-  //         throw new Error('MSI requires only digits');
-  //       }
-  //       break;
-  //     case 'code39':
-  //       // Code 39 allows uppercase letters, numbers, and some symbols
-  //       if (!/^[A-Z0-9\-.\$\/+%\s]+$/.test(text)) {
-  //         throw new Error('Code 39 supports uppercase letters, numbers, and symbols: - . $ / + % SPACE');
-  //       }
-  //       break;
-  //   }
-  // }
 }

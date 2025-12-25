@@ -1,0 +1,232 @@
+<script>  
+  const checkDivs = document.querySelectorAll("[id^='izjm']"); 
+  checkDivs.forEach(div => {
+    const text = div.innerText.trim().toLowerCase();
+    if (text.includes("insert")) { 
+      const img = document.getElementById("izxm"); 
+      if (img) {
+        img.style.display = "none";
+      }
+    }
+  }); 
+</script>
+
+
+
+
+<script>
+// setTimeout(() => {
+  // 🔹 Step 1: Text to search
+  const searchText = "english.SA[0].name";  
+
+  // 🔹 Step 2: Escape regex special chars
+  const escapedText = searchText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");  
+  const exactMatch = new RegExp("\\b" + escapedText + "\\b");  
+
+  // 🔹 Step 3: Check inside <style> tags
+  const allElements = document.querySelectorAll("style"); 
+  allElements.forEach(el => {
+    let found = false; 
+
+    if (el.innerText) {
+      // 🔹 Remove all CSS comments before checking
+      const cssWithoutComments = el.innerText.replace(/\/\[\s\S]?\*\//g, "");
+
+      // 🔹 Match only in uncommented CSS
+      if (exactMatch.test(cssWithoutComments)) { 
+        console.log("Found inside:", el);  
+        found = true;
+      }
+    }   
+
+    if (found) { 
+      const target = document.getElementById("ivlm");
+      if (target) { 
+        target.style.display = "none";
+      }
+    }
+  });
+// }, 1000);
+</script>
+
+
+
+"#FF0000,#00FF00"
+
+[
+  { name: 'Chrome', y: 60 },   // gets #FF0000
+  { name: 'Edge', y: 30 },     // gets #00FF00
+  { name: 'Safari', y: 10 }    // gets default color
+]
+
+
+Form-select (sample script)
+<style>
+  :root{--card-bg:#fff;--card-pad:20px;--card-radius:14px;--card-shadow:0 10px 30px rgba(0,0,0,.06)}
+  html,body{height:100%}
+  body{margin:0;background:#f6f7fb;display:block}
+  .wrap{
+    font:14px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial;
+    width:min(960px, 92vw);
+    margin:40px auto;
+    padding:var(--card-pad);
+    background:var(--card-bg);
+    border-radius:var(--card-radius);
+    box-shadow:var(--card-shadow)
+  }
+  .grid{
+    display:grid;
+    gap:14px 16px;
+    grid-template-columns:1fr 1fr
+  }
+  .row{
+    display:grid;
+    grid-template-columns:180px 1fr;
+    gap:10px;
+    align-items:center
+  }
+  .row input,.row textarea,.row select{
+    padding:10px 12px;
+    border:1px solid #e5e7eb;
+    border-radius:10px;
+    outline:none;
+    transition:border-color .15s, box-shadow .15s;
+    background:#fff
+  }
+  .row input:focus,.row textarea:focus,.row select:focus{
+    border-color:#5b67f1;
+    box-shadow:0 0 0 3px rgba(91,103,241,.15)
+  }
+  .row label{color:#374151;font-weight:600}
+  .muted{color:#6b7280;font-size:12px}
+  .section-title{
+    font-size:18px;
+    font-weight:700;
+    margin:24px 0 8px;
+    color:#111827
+  }
+
+  .table-wrap{overflow:auto; border:1px solid #e5e7eb; border-radius:10px; background:#fff}
+  table{width:100%; border-collapse:separate; border-spacing:0; min-width:540px}
+  th,td{border-bottom:1px solid #eef0f3; padding:10px 12px; text-align:left}
+  th{background:#f9fafb; position:sticky; top:0; z-index:1}
+  tr:last-child td{border-bottom:0}
+
+  @media (max-width: 720px){
+    .grid{grid-template-columns:1fr}
+    .row{grid-template-columns:1fr}
+    .row label{margin-bottom:6px}
+  }
+</style>
+
+<div class="wrap" id="json1-binding">
+  <div class="section-title">User Details</div>
+  <div class="row">
+    <label>User</label>
+    <select id="userSelect"></select>
+  </div>
+
+  <div class="grid" id="boundFields">
+    <div class="row">
+      <label>Customer Name</label>
+      <input data-bind="input" data-key="CUSTOMER_NAME" placeholder="CUSTOMER_NAME">
+    </div>
+    <div class="row">
+      <label>Customer ID</label>
+      <input data-bind="input" data-key="CUSTOMER_ID" placeholder="CUSTOMER_ID">
+    </div>
+    <div class="row">
+      <label>Email</label>
+      <input data-bind="input" data-key="EMAIL_ID" placeholder="EMAIL_ID">
+    </div>
+    <div class="row">
+      <label>Contact No</label>
+      <input data-bind="input" data-key="CONTACTNO" placeholder="CONTACTNO">
+    </div>
+    <div class="row">
+      <label>Address</label>
+      <textarea data-bind="text" data-key="ADDRESS" rows="2" placeholder="ADDRESS"></textarea>
+    </div>
+    <div class="row">
+      <label>Statement Date</label>
+      <input data-bind="input" data-key="STATEMENT_DATE" placeholder="STATEMENT_DATE">
+    </div>
+    <div class="row">
+      <label>IFSC</label>
+      <input data-bind="input" data-key="IFSC_CODE" placeholder="IFSC_CODE">
+    </div>
+    <div class="row">
+      <label>Video URL</label>
+      <input data-bind="input" data-key="VIDEO_URL" placeholder="VIDEO_URL">
+    </div>
+    <div class="row">
+      <label>Preview Name</label>
+      <div data-bind="textContent" data-key="CUSTOMER_NAME" class="muted"></div>
+    </div>
+  </div>
+
+  <div class="section-title">Table 1</div>
+  <div class="table-wrap">
+    <table id="table1">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  const root=document.getElementById('json1-binding');
+  const sel=root.querySelector('#userSelect');
+  const bound=root.querySelector('#boundFields');
+  const tHead=root.querySelector('#table1 thead');
+  const tBody=root.querySelector('#table1 tbody');
+  const jsonObj=(typeof jsonData1!=='undefined' && jsonData1.length)?jsonData1[0]:{};
+  const users=jsonObj||{};
+  const keys=Object.keys(users).filter(k=>/^user\d+$/i.test(k));
+  function buildSelect(){
+    sel.innerHTML=keys.map(k=>`<option value="${k}">${k}</option>`).join('')||`<option value="">(empty)</option>`;
+  }
+  function renderTable(user){
+    const tbl=user&&user.table1?user.table1:null;
+    if(!tbl){tHead.innerHTML='';tBody.innerHTML='';return;}
+    const h=tbl.heading||{};
+    const cols=Object.keys(h);
+    tHead.innerHTML=cols.length?`<tr>${cols.map(c=>`<th>${h[c]}</th>`).join('')}</tr>`:'';
+    const rows=tbl.data||[];
+    tBody.innerHTML=rows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('');
+  }
+  function applyToDom(userId){
+    const obj=users[userId]||{};
+    bound.querySelectorAll('[data-key]').forEach(el=>{
+      const key=el.getAttribute('data-key');
+      const mode=el.getAttribute('data-bind')||'input';
+      const val=obj[key]??'';
+      if(mode==='input'){ if(el.value!==String(val)) el.value=String(val); }
+      else if(mode==='text'){ el.value=String(val); }
+      else{ el.textContent=String(val); }
+    });
+    renderTable(obj);
+  }
+  function setUser(id){
+    window.__currentUser=id;
+    applyToDom(id);
+  }
+  function attachTwoWay(){
+    bound.addEventListener('input',e=>{
+      const el=e.target.closest('[data-key]');
+      if(!el)return;
+      const key=el.getAttribute('data-key');
+      const id=window.__currentUser;
+      if(!id||!key)return;
+      if(!users[id])users[id]={};
+      users[id][key]=el.value;
+    });
+  }
+  buildSelect();
+  const initial=keys[0]||'';
+  if(initial){ sel.value=initial; setUser(initial); }
+  sel.addEventListener('change',e=>setUser(e.target.value));
+  attachTwoWay();
+})();
+</script>

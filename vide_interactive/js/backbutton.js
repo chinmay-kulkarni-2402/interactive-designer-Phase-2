@@ -35,38 +35,27 @@ function loadBackButtonComponent(editor) {
         script: function () {
           const el = this;
           const targetSlide = el.getAttribute('navigate-to-slide');
-          console.log('Back button script initialized, target slide:', targetSlide);
-          
+
           el.addEventListener('click', (event) => {
-            console.log('Back button clicked, target slide:', targetSlide);
             event.preventDefault();
-            
+
             if (targetSlide) {
-              // Convert to 0-based index (slide numbers are 1-based for users)
               const slideIndex = parseInt(targetSlide) - 1;
-              console.log('Calculated slide index:', slideIndex);
-              
-              // Dispatch custom event that the slideshow can listen to
               const navigateEvent = new CustomEvent('navigate-to-slide', {
-                detail: { 
+                detail: {
                   slideNumber: parseInt(targetSlide),
                   slideIndex: slideIndex
                 },
                 bubbles: true
               });
-              
-              console.log('Dispatching navigate event:', navigateEvent.detail);
+
               window.dispatchEvent(navigateEvent);
-              
-              // Also try direct function call as fallback
+
               if (typeof window.jumpToSlide === 'function') {
-                console.log('Direct function call to jumpToSlide');
                 window.jumpToSlide(slideIndex);
               } else {
-                console.log('jumpToSlide function not available');
               }
             } else {
-              console.log('No target slide specified');
             }
           });
         }
@@ -117,7 +106,7 @@ function loadBackButtonComponent(editor) {
       onKeyDown(e) {
         if (e.key === 'Enter') {
           e.preventDefault();
-          this.el.blur(); // triggers saveEditing
+          this.el.blur();
         }
       },
     },

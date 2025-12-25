@@ -10,8 +10,6 @@ function linkTrackerPlugin(editor) {
 
       allLinks.forEach(linkComp => {
         const href = linkComp.getAttributes().href || '';
-
-        // Ensure every link has a unique ID
         let linkId = linkComp.getId();
         if (!linkId) {
           linkId = `link-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -19,8 +17,6 @@ function linkTrackerPlugin(editor) {
         }
 
         const selector = `#${linkId}`;
-
-        // Store link text for print replacement
         const linkText = linkComp.get('content') || '';
         linkComp.addAttributes({ 'data-text': linkText });
 
@@ -32,13 +28,11 @@ function linkTrackerPlugin(editor) {
           const target = pageContainer.find(`#${targetId}`);
 
           if (target && target.length > 0) {
-            // ✅ Valid self-link → disable pointer/cursor in editor
             cssc.setRule(selector, {
               'pointer-events': 'none',
               cursor: 'default',
             });
 
-            // ✅ Print/PDF: replace link with plain text using ::after
             const printSelector = `@media print { ${selector} }`;
             cssc.setRule(printSelector, {
               'pointer-events': 'none',
@@ -53,7 +47,6 @@ function linkTrackerPlugin(editor) {
             });
 
           } else {
-            // ❌ Broken anchor → clear styles
             cssc.setRule(selector, { 'pointer-events': '', cursor: '' });
             const printSelector = `@media print { ${selector} }`;
             cssc.setRule(printSelector, { 'pointer-events': '', cursor: '' });
@@ -61,7 +54,6 @@ function linkTrackerPlugin(editor) {
             cssc.setRule(printAfterSelector, { content: '' });
           }
         } else {
-          // ❌ External/normal link → clear styles
           cssc.setRule(selector, { 'pointer-events': '', cursor: '' });
           const printSelector = `@media print { ${selector} }`;
           cssc.setRule(printSelector, { 'pointer-events': '', cursor: '' });
@@ -70,11 +62,8 @@ function linkTrackerPlugin(editor) {
         }
       });
     };
-
-    // Run once
     scanLinks();
 
-    // Track changes
     editor.on('component:add', scanLinks);
     editor.on('component:update', scanLinks);
     editor.on('component:remove', scanLinks);

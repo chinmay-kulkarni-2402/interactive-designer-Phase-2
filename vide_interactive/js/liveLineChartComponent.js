@@ -50,14 +50,12 @@ function addLiveLineChartComponent(editor) {
         script: function () {
           const initChart = () => {
             if (typeof Highcharts === 'undefined') {
-              console.warn('Highcharts not loaded, retrying...');
               setTimeout(initChart, 500);
               return;
             }
 
             const container = this.querySelector('.highchart-live-areaspline');
             if (!container) {
-              console.warn('Container not found');
               return;
             }
 

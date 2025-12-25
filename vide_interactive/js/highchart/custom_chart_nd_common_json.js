@@ -1,4 +1,5 @@
 function customChartCommonJson(editor) {
+    // chart code start (Using Highcharts)
     editor.on('load', () => {
         const iframeHead = editor.Canvas.getDocument().head;
 
@@ -179,7 +180,6 @@ function customChartCommonJson(editor) {
             ...legend_colors_Trait,
         ];
 
-
         const invertibleCharts = [
             'bar', 'column', 'line', 'area', 'scatter',
             'stacked-column', 'stacked-bar', 'line-column', 'bubble'
@@ -225,25 +225,26 @@ function customChartCommonJson(editor) {
 
                     const initializeChart = () => {
                         if (!window.Highcharts) {
-                            console.warn("Highcharts not loaded yet, retrying...");
                             setTimeout(initializeChart, 500);
                             return;
                         }
                         const ctx = this.id;
-                        console.log("ctx id", ctx);
                         const element = document.getElementById(ctx);
-                        console.log("eleement", element);
 
                         if (!element) {
-                            console.warn('Chart container not found:', ctx);
                             return;
                         }
 
+                        const existingChart = element.getAttribute('data-chart-initialized');
+                        if (existingChart === 'true') {
+                            return;
+                        }
                         let chart_Title = "{[ chartTitle ]}" || "Chart Title";
                         let chart_Title_align = "{[ SelectTitleAlign ]}" || "left";
                         let JsonPath1 = "{[ jsonpath ]}" || "";
                         let chartType = "{[ SelectChart ]}" || "pie";
                         let chart_yAxis = "{[ ChartyAxis ]}" || "Values";
+                        let chart_xAxis = "{[ ChartxAxis ]}" || "Values";
                         let chart_layout = "{[ SelectChartLayout ]}" || "horizontal";
                         let swapAxis = "{[ swapAxis ]}" === "true" || false;
                         let legendColors = "{[ legendColors ]}" || "";
@@ -258,56 +259,87 @@ function customChartCommonJson(editor) {
                             }
                         }
 
-                        let language = 'english';
                         let project_type = 'developmentJsonType';
                         let str = null;
                         let seriesData = {};
-                        let jsonFileIndex = "{[ jsonFileIndex ]}" || "0";
-
                         try {
-                            if (typeof localStorage !== 'undefined' && JsonPath1) {
-                                language = localStorage.getItem('language') || 'english';
-                                let commonJson = null;
+                            if (!JsonPath1 || JsonPath1.indexOf('.') === -1) {
+                                throw new Error('Invalid JsonPath1');
+                            }
+                            let jsonPath3 = JsonPath1;
+                            const pathParts = jsonPath3.split('.');
+                            const language = pathParts.shift();
+                            const jsonPath = pathParts.join('.');
+
+                            if (typeof project_type2 !== 'undefined' && project_type2 === 'downloadedJsonType') {
+                                project_type = 'downloadedJsonType';
+                            }
+
+                            let commonJson = null;
+
+                            if (project_type === 'developmentJsonType') {
+                                let jsonFileIndex = "{[ jsonFileIndex ]}" || "0";
 
                                 if (jsonFileIndex !== "0") {
-                                    const fileNames = (localStorage.getItem('common_json_files') || "")
-                                        .split(',').map(f => f.trim());
-                                    const selectedFile = fileNames[parseInt(jsonFileIndex) - 1];
-                                    const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
-                                    if (jsonString) {
-                                        commonJson = JSON.parse(jsonString);
+                                    const filesRaw = localStorage.getItem('common_json_files');
+                                    const files = (filesRaw || '').split(',').map(f => f.trim());
+                                    const fileName = files[parseInt(jsonFileIndex) - 1];
+
+                                    if (fileName) {
+                                        const raw = localStorage.getItem(`common_json_${fileName}`);
+                                        if (raw) {
+                                            commonJson = JSON.parse(raw);
+                                        }
                                     }
                                 } else {
-
-                                    commonJson = JSON.parse(localStorage.getItem('common_json') || 'null');
-                                }
-
-                                if (commonJson && JsonPath1) {
-
-                                    const jsonPaths = JsonPath1.split(',').map(path => path.trim());
-                                    const firstPath = jsonPaths[0];
-                                    const pathParts = firstPath.split('.');
-
-
-                                    let fullPath;
-                                    if (commonJson[pathParts[0]]) {
-                                        fullPath = `commonJson.${firstPath}`;
-                                    } else {
-                                        fullPath = `commonJson.${language}.${firstPath}`;
+                                    const raw = localStorage.getItem('common_json');
+                                    if (raw) {
+                                        commonJson = JSON.parse(raw);
                                     }
+                                }
 
-                                    str = eval(fullPath);
+                                if (commonJson && commonJson[language]) {
+                                    let value = commonJson[language];
+                                    jsonPath.split('.').forEach(k => value = value?.[k]);
+                                    str = value;
+                                }
+
+                                if (str) {
+                                    seriesData = typeof str === 'string' ? eval(str) : str;
+                                }
+                            } else if (project_type === 'downloadedJsonType') {
+                                let jsonFileIndex = "{[ jsonFileIndex ]}" || "0";
+
+                                if (jsonFileIndex !== "0") {
+                                    const filesRaw = localStorage.getItem('common_json_files');
+                                    const files = (filesRaw || '').split(',').map(f => f.trim());
+                                    const fileName = "sample json.json";
+
+                                    if (fileName) {
+                                        const raw = localStorage.getItem(`common_json_${fileName}`);
+                                        if (raw) {
+                                            commonJson = JSON.parse(raw);
+                                        }
+                                    }
+                                } else {
+                                    const raw = localStorage.getItem('common_json');
+                                    if (raw) {
+                                        commonJson = JSON.parse(raw);
+                                    }
+                                }
+
+                                if (commonJson && commonJson[language]) {
+                                    let value = commonJson[language];
+                                    jsonPath.split('.').forEach(k => value = value?.[k]);
+                                    str = value;
+                                }
+
+                                if (str) {
+                                    seriesData = typeof str === 'string' ? eval(str) : str;
                                 }
                             }
 
-                            if (str) {
-                                seriesData = typeof str === 'string' ? JSON.parse(str) : str;
-                                if (!seriesData.series) {
-                                    throw new Error("Series array not found");
-                                }
-                            }
                         } catch (e) {
-                            console.warn("DataSource path evaluation failed, using default data:", e.message);
                             seriesData = {};
                         }
 
@@ -516,23 +548,38 @@ function customChartCommonJson(editor) {
                         }
 
                         if (chartType === 'column') {
-                            if (!seriesData.series) {
+
+                            const hasValidColumnData =
+                                seriesData &&
+                                Array.isArray(seriesData.series) &&
+                                seriesData.xAxis &&
+                                Array.isArray(seriesData.xAxis.categories);
+
+
+                            if (!hasValidColumnData) {
                                 seriesData = {
-                                    "xAxis": {
-                                        "categories": ["Africa", "America", "Asia"],
+                                    xAxis: {
+                                        categories: ["Africa", "America", "Asia"],
                                     },
-                                    "series": [{
-                                        "name": "Year 1990",
-                                        "data": [631, 727, 3202]
+                                    series: [{
+                                        name: "Year 1990",
+                                        data: [631, 727, 3202]
                                     }, {
-                                        "name": "Year 2000",
-                                        "data": [814, 841, 3714]
+                                        name: "Year 2000",
+                                        data: [814, 841, 3714]
                                     }, {
-                                        "name": "Year 2010",
-                                        "data": [1044, 944, 4170]
+                                        name: "Year 2010",
+                                        data: [1044, 944, 4170]
                                     }]
                                 };
                             }
+
+
+                            if (seriesData.chart_Title) chart_Title = seriesData.chart_Title;
+                            if (seriesData.chart_Title_align) chart_Title_align = seriesData.chart_Title_align;
+                            if (seriesData.chart_yAxis) chart_yAxis = seriesData.chart_yAxis;
+                            if (seriesData.chart_xAxis) chart_xAxis = seriesData.chart_xAxis;
+
                             seriesData2 = {
                                 chart: {
                                     plotBackgroundColor: null,
@@ -549,7 +596,7 @@ function customChartCommonJson(editor) {
                                 xAxis: {
                                     categories: seriesData.xAxis.categories,
                                     title: {
-                                        text: null
+                                        text: chart_xAxis || null
                                     }
                                 },
                                 yAxis: {
@@ -562,7 +609,7 @@ function customChartCommonJson(editor) {
                                     }
                                 },
                                 tooltip: {
-                                    valueSuffix: " millions"
+                                    valueSuffix: ""
                                 },
                                 plotOptions: {
                                     column: {
@@ -587,7 +634,6 @@ function customChartCommonJson(editor) {
                                 credits: {
                                     enabled: false
                                 },
-
                                 series: seriesData.series
                             };
                         }
@@ -949,95 +995,113 @@ function customChartCommonJson(editor) {
                         }
 
                         if (chartType === 'donut') {
-                            if (!seriesData.series) {
+                            if (!seriesData || !Array.isArray(seriesData.series)) {
                                 seriesData = {
                                     series: [{
-                                        name: 'Registrations',
+                                        name: 'Accounts',
                                         colorByPoint: true,
                                         innerSize: '75%',
                                         data: [
-                                            { name: 'EV', y: 23.9 },
-                                            { name: 'Hybrids', y: 12.6 },
-                                            { name: 'Diesel', y: 37.0 },
-                                            { name: 'Petrol', y: 26.4 }
+                                            { name: 'Savings', y: 0.44, color: '#F5A623' },
+                                            { name: 'Deposits', y: 99.56, color: '#FFFF33' }
                                         ]
                                     }]
                                 };
                             }
 
+                            const finalTitle = seriesData.chart_Title || chart_Title;
+                            const finalTitleAlign = seriesData.chart_Title_align || chart_Title_align;
+
+                            const isVertical = seriesData.orientation === 'vertical';
+                            const startAngle = isVertical ? 0 : 90;
+                            const endAngle = isVertical ? 360 : 450;
+
+
+                            const showCenterLabel = seriesData.showCenterLabel !== false;
+
                             seriesData2 = {
                                 chart: {
                                     type: 'pie',
                                     animation: false,
-                                    custom: {},
                                     events: {
                                         render() {
-                                            const chart = this,
-                                                series = chart.series[0];
-                                            let customLabel = chart.options.chart.custom.label;
+                                            const chart = this;
+                                            const series = chart.series[0];
 
-                                            if (!customLabel) {
-                                                customLabel = chart.options.chart.custom.label = chart.renderer.label(
-                                                    'Total<br/><strong>2 877 820</strong>'
+                                            if (!showCenterLabel) {
+                                                if (chart.customCenterLabel) {
+                                                    chart.customCenterLabel.destroy();
+                                                    chart.customCenterLabel = null;
+                                                }
+                                                return;
+                                            }
+
+                                            if (!chart.customCenterLabel) {
+                                                chart.customCenterLabel = chart.renderer.label(
+                                                    'Out of<br/><strong>100%</strong>'
                                                 )
                                                     .css({
-                                                        color: 'var(--highcharts-neutral-color-100, #000)',
-                                                        textAnchor: 'middle'
+                                                        color: '#000000',
+                                                        textAlign: 'center'
                                                     })
                                                     .add();
                                             }
 
-                                            const x = series.center[0] + chart.plotLeft;
-                                            const y = series.center[1] + chart.plotTop - (customLabel.attr('height') / 2);
+                                            const label = chart.customCenterLabel;
+                                            const bbox = label.getBBox();
 
-                                            customLabel.attr({ x, y });
+                                            const x = chart.plotLeft + series.center[0] - bbox.width / 2;
+                                            const y = chart.plotTop + series.center[1] - bbox.height / 2;
 
-                                            customLabel.css({
-                                                fontSize: `${series.center[2] / 12}px`
+                                            label.attr({ x, y });
+                                            label.css({
+                                                fontSize: (series.center[2] / 10) + 'px'
                                             });
                                         }
                                     }
                                 },
+
                                 title: {
-                                    text: chart_Title,
-                                    align: chart_Title_align
+                                    text: finalTitle,
+                                    align: finalTitleAlign
                                 },
 
                                 accessibility: {
-                                    point: {
-                                        valueSuffix: '%'
-                                    }
+                                    point: { valueSuffix: '%' }
                                 },
+
                                 tooltip: {
-                                    pointFormat: '{series.name}: <b>{point.percentage:.0f}%</b>'
+                                    pointFormat: '{point.name}: <b>{point.percentage:.2f}%</b>'
                                 },
+
                                 legend: {
-                                    enabled: false
+                                    enabled: true,
+                                    align: 'center',
+                                    verticalAlign: 'bottom',
+                                    layout: 'horizontal'
                                 },
+
                                 plotOptions: {
+                                    pie: {
+                                        startAngle: startAngle,
+                                        endAngle: endAngle
+                                    },
                                     series: {
                                         allowPointSelect: true,
                                         cursor: 'pointer',
                                         borderRadius: 8,
                                         colors: customColors,
+
+
                                         dataLabels: [
-                                            {
-                                                enabled: true,
-                                                distance: 20,
-                                                format: '{point.name}'
-                                            },
-                                            {
-                                                enabled: true,
-                                                distance: -15,
-                                                format: '{point.percentage:.0f}%',
-                                                style: {
-                                                    fontSize: '0.9em'
-                                                }
-                                            }
+                                            { enabled: false },
+                                            { enabled: false }
                                         ],
+
                                         showInLegend: true
                                     }
                                 },
+
                                 series: seriesData.series,
                                 credits: { enabled: false }
                             };
@@ -1631,7 +1695,6 @@ function customChartCommonJson(editor) {
                             };
                         }
 
-
                         if (chartType === 'ohlc-live') {
                             const symbol = 'btcusdt';
                             const interval = '1m';
@@ -1724,7 +1787,6 @@ function customChartCommonJson(editor) {
                                 }
                             };
                         }
-
 
                         if (chartType === 'line-column') {
                             if (!seriesData.series) {
@@ -2033,6 +2095,7 @@ function customChartCommonJson(editor) {
                                 }
                             };
                         }
+                        element.setAttribute('data-chart-initialized', 'true');
 
                         try {
                             if (window.Highcharts) {
@@ -2046,8 +2109,8 @@ function customChartCommonJson(editor) {
                                 const chart = window.Highcharts.chart(ctx, seriesData2);
 
                                 element.chartInstance = chart;
-
                                 element.setAttribute('data-chart-ready', 'true');
+                                element.setAttribute('data-chart-initialized', 'true');
 
                                 setTimeout(() => {
                                     if (chart && chart.reflow) {
@@ -2161,7 +2224,7 @@ function customChartCommonJson(editor) {
                     const trait = this.getTrait('jsonFileIndex');
                     if (!trait) return;
 
-                    const opts = getJsonFileOptions(); // reads fresh from localStorage
+                    const opts = getJsonFileOptions();
                     trait.set('options', opts);
 
                     if (!opts.length) {
@@ -2190,14 +2253,11 @@ function customChartCommonJson(editor) {
                     }
                 };
 
-                // 1) immediately populate for this instance
                 refreshJsonFileTrait();
 
-                // 2) listen for add/delete updates for THIS instance
                 const onFilesUpdated = () => refreshJsonFileTrait();
                 window.addEventListener('common-json-files-updated', onFilesUpdated);
 
-                // 3) clean up when this component is removed
                 this.once('remove', () => {
                     window.removeEventListener('common-json-files-updated', onFilesUpdated);
                 });
@@ -2206,6 +2266,41 @@ function customChartCommonJson(editor) {
                     const chartType = this.get('SelectChart');
                     const newTraits = getTraitsForChartType(chartType);
                     this.set('traits', [id_Trait, title_Trait, ...newTraits]);
+
+                    setTimeout(() => {
+                        const trait = this.getTrait('jsonFileIndex');
+                        if (trait) {
+                            const opts = getJsonFileOptions();
+                            trait.set('options', opts);
+
+                            const currentVal = String(this.get('jsonFileIndex') ?? '');
+                            const stillExists = opts.some(o => String(o.id) === currentVal);
+
+                            if (stillExists) {
+                                trait.set('value', currentVal);
+                            } else if (opts.length > 0) {
+                                trait.set('value', String(opts[0].id));
+                                this.set('jsonFileIndex', String(opts[0].id));
+                            }
+
+                            if (trait.view && trait.view.render) {
+                                trait.view.render();
+                            }
+                        }
+
+                        const jsonBtnWrapper = document.querySelector('.i_designer-trt-trait__wrp-json-suggestion-btn');
+                        if (jsonBtnWrapper) {
+                            const jsonBtn = jsonBtnWrapper.querySelector('.i_designer-btn-prim');
+                            if (jsonBtn) {
+                                jsonBtn.id = 'json-suggestion-btn-custom-line-chart';
+                                const newJsonBtn = jsonBtn.cloneNode(true);
+                                jsonBtn.parentNode.replaceChild(newJsonBtn, jsonBtn);
+                                newJsonBtn.addEventListener('click', function () {
+                                    openSuggestionJsonModalChartTable('chart');
+                                });
+                            }
+                        }
+                    }, 100);
                 });
                 this.on('change:jsonFileIndex change:jsonpath', () => {
                     this.trigger("change:script");
@@ -2249,7 +2344,8 @@ function customChartCommonJson(editor) {
 
     addCustomLineChartType(editor);
 
-
+    // Chart code ended    
+    // Json data to all fields code start (option button is at below of setting for each component)
     const styleManager = editor.StyleManager;
     let common_json_file_name_value = localStorage.getItem('common_json_file_name');
     let common_json_file_name_text = '';
@@ -2262,6 +2358,7 @@ function customChartCommonJson(editor) {
         jsonF.addEventListener("click", jsonFileUploads, true);
     })
 
+    // Json/XML file upload options function
     function jsonFileUploads() {
         let existingFileNames = localStorage.getItem('common_json_files');
         let displayFileNames = '';
@@ -2348,32 +2445,24 @@ function customChartCommonJson(editor) {
                     }
 
                     if (value && typeof value === 'object') {
-                        // Check if this object wraps an array with 'item' property
                         if (value.item !== undefined) {
-                            // Unwrap the item
                             if (Array.isArray(value.item)) {
                                 normalized[key] = value.item.map(item => normalizeXMLtoJSON(item, key));
                             } else {
-                                // Single item, make it an array
                                 normalized[key] = [normalizeXMLtoJSON(value.item, key)];
                             }
                         }
-                        // Handle __text property (text content from XML)
                         else if (value.__text !== undefined && Object.keys(value).length === 1) {
-                            // If only __text exists, use its value directly
                             normalized[key] = value.__text;
                         }
-                        // Check for numeric or boolean strings in __text
                         else if (value.__text !== undefined) {
                             const textValue = value.__text;
-                            // Try to preserve the actual value type
                             if (!isNaN(textValue) && textValue !== '') {
                                 normalized[key] = Number(textValue);
                             } else {
                                 normalized[key] = textValue;
                             }
                         }
-                        // Recursively process nested objects
                         else if (Array.isArray(value)) {
                             normalized[key] = value.map(item => normalizeXMLtoJSON(item, key));
                         }
@@ -2381,7 +2470,6 @@ function customChartCommonJson(editor) {
                             normalized[key] = normalizeXMLtoJSON(value, key);
                         }
                     } else {
-                        // Primitive value - try to convert numbers
                         if (typeof value === 'string' && !isNaN(value) && value !== '') {
                             normalized[key] = Number(value);
                         } else {
@@ -2403,28 +2491,18 @@ function customChartCommonJson(editor) {
                             let code;
 
                             if (fileExtension === 'xml') {
-                                // Convert XML to JSON
                                 const x2js = new X2JS();
                                 const xmlDoc = new DOMParser().parseFromString(e.target.result, 'text/xml');
                                 const xmlJson = x2js.xml2json(xmlDoc);
 
-                                // Log for debugging
-                                console.log('Original XML to JSON:', JSON.stringify(xmlJson).substring(0, 500));
-
-                                // Normalize the structure to match JSON format
                                 code = normalizeXMLtoJSON(xmlJson);
 
-                                // Log normalized result
-                                console.log('Normalized JSON:', JSON.stringify(code).substring(0, 500));
                             } else {
-                                // Parse JSON directly
                                 code = JSON.parse(e.target.result);
                             }
 
-                            // Save this file's JSON separately
                             localStorage.setItem(`common_json_${file.name}`, JSON.stringify(code));
 
-                            // Track file name
                             if (!allFileNames.includes(file.name)) {
                                 allFileNames.push(file.name);
                             }
@@ -2436,23 +2514,20 @@ function customChartCommonJson(editor) {
 
                         processedCount++;
                         if (processedCount === files.length) {
-                            // Save updated file list
                             localStorage.setItem('common_json_files', allFileNames.join(', '));
                             window.dispatchEvent(new CustomEvent('common-json-files-updated'));
 
                             common_json_file_name_text = 'Already Added File(s): ' + allFileNames.join(', ');
 
-                            // Update dropdown BEFORE closing modal
                             updateFileIndexOptionsImmediate();
-
-                            // Close modal after a short delay to ensure DOM updates
+                            refreshAllComponentsWithJson(editor);
                             setTimeout(() => {
                                 alert('File(s) Imported');
                                 editor.Modal.close();
 
-                                if (typeof updateComponentsWithNewJson === 'function') {
-                                    updateComponentsWithNewJson(editor);
-                                }
+                                // if (typeof updateComponentsWithNewJson === 'function') {
+                                //     updateComponentsWithNewJson(editor);
+                                // }
                             }, 150);
                         }
                     };
@@ -2464,6 +2539,205 @@ function customChartCommonJson(editor) {
             alert('No file selected');
         }
     }
+    function refreshAllComponentsWithJson(editor) {
+        console.group('%c[JSON REFRESH] START', 'color:#4caf50;font-weight:bold');
+
+        const allComponents = editor.DomComponents.getComponents();
+        console.log('Total root components:', allComponents.length);
+
+        function safeParseJSON(json, source) {
+            try {
+                return JSON.parse(json);
+            } catch (e) {
+                console.error(`❌ JSON parse failed (${source})`, e);
+                return null;
+            }
+        }
+
+        function updateComponentRecursively(component, depth = 0) {
+            const indent = '—'.repeat(depth);
+            const compId = component.getId();
+            const compType = component.get('type');
+
+            console.group(
+                `%c${indent}▶ Component`,
+                'color:#03a9f4;font-weight:bold',
+                { id: compId, type: compType }
+            );
+
+            const jsonPath = component.get('my-input-json');
+            const fileIndex = component.get('json-file-index') || '0';
+
+            console.log('jsonPath:', jsonPath);
+            console.log('fileIndex:', fileIndex);
+
+            if (!jsonPath || !jsonPath.trim()) {
+                console.log('⏭ No jsonPath → skipping component');
+                console.groupEnd();
+                return;
+            }
+
+            if (!['text', 'formatted-rich-text', 'custom-heading'].includes(compType)) {
+                console.log('⏭ Unsupported component type');
+                console.groupEnd();
+                return;
+            }
+
+            let commonJson = null;
+
+            /* =========================
+               JSON SOURCE RESOLUTION
+            ==========================*/
+            if (fileIndex !== '0') {
+                console.log('Using multi-file JSON source');
+
+                const rawFiles = localStorage.getItem('common_json_files');
+                if (!rawFiles) {
+                    console.warn('⚠️ common_json_files missing');
+                } else {
+                    const fileNames = rawFiles.split(',').map(f => f.trim());
+                    const selectedFile = fileNames[parseInt(fileIndex) - 1];
+
+                    console.log('Resolved file name:', selectedFile);
+
+                    if (!selectedFile) {
+                        console.warn('⚠️ Invalid file index');
+                    } else {
+                        const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+                        if (!jsonString) {
+                            console.warn(`⚠️ JSON not found for file: ${selectedFile}`);
+                        } else {
+                            commonJson = safeParseJSON(jsonString, selectedFile);
+                        }
+                    }
+                }
+            } else {
+                console.log('Using default common_json');
+                const jsonString = localStorage.getItem('common_json');
+                if (!jsonString) {
+                    console.warn('⚠️ common_json missing');
+                } else {
+                    commonJson = safeParseJSON(jsonString, 'common_json');
+                }
+            }
+
+            if (!commonJson) {
+                console.warn('⛔ commonJson unavailable → aborting component update');
+                console.groupEnd();
+                return;
+            }
+
+            /* =========================
+               CONTENT RESOLUTION
+            ==========================*/
+            const jsonPaths = jsonPath.split(',').map(p => p.trim());
+            const rawContent =
+                component.get('raw-content') ||
+                component.get('content') ||
+                '';
+
+            console.log('Raw content:', rawContent);
+            console.log('Resolved JSON paths:', jsonPaths);
+
+            try {
+                if (rawContent.includes('{') && rawContent.includes('}')) {
+                    console.log('🧩 Template mode detected');
+
+                    let updatedContent = rawContent;
+
+                    jsonPaths.forEach(path => {
+                        console.group(`Path → ${path}`);
+
+                        const parts = path.split('.');
+                        const lang = parts[0];
+                        const remainingPath = parts.slice(1).join('.');
+
+                        console.log('Language:', lang);
+                        console.log('JSON Path:', remainingPath);
+
+                        try {
+                            const fullPath = `commonJson.${lang}.${remainingPath}`;
+                            console.log('Eval path:', fullPath);
+
+                            const value = eval(fullPath);
+
+                            if (value !== undefined && value !== null) {
+                                const placeholder = `{${remainingPath}}`;
+                                const escaped = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+                                updatedContent = updatedContent.replace(
+                                    new RegExp(escaped, 'g'),
+                                    value
+                                );
+
+                                console.log('✔ Replaced', placeholder, '→', value);
+                            } else {
+                                console.warn('⚠️ Value undefined/null');
+                            }
+                        } catch (err) {
+                            console.error('❌ Eval error', err);
+                        }
+
+                        console.groupEnd();
+                    });
+
+                    if (compType === 'formatted-rich-text') {
+                        component.set('raw-content', updatedContent, { silent: true });
+                        component.updateContent?.();
+                        console.log('✔ formatted-rich-text updated');
+                    } else {
+                        component.view.el.innerHTML = updatedContent;
+                        console.log('✔ DOM innerHTML updated');
+                    }
+
+                } else {
+                    console.log('📌 Direct binding mode');
+
+                    const firstPath = jsonPaths[0];
+                    const parts = firstPath.split('.');
+                    const lang = parts[0];
+                    const remainingPath = parts.slice(1).join('.');
+
+                    const evalPath = `commonJson.${lang}.${remainingPath}`;
+                    console.log('Eval path:', evalPath);
+
+                    const value = eval(evalPath);
+
+                    if (value !== undefined && value !== null) {
+                        if (compType === 'formatted-rich-text') {
+                            component.set('raw-content', String(value), { silent: true });
+                            component.updateContent?.();
+                            console.log('✔ formatted-rich-text set');
+                        } else {
+                            component.view.el.innerHTML = value;
+                            console.log('✔ DOM value set');
+                        }
+                    } else {
+                        console.warn('⚠️ Value undefined/null');
+                    }
+                }
+            } catch (e) {
+                console.error('🔥 Component processing failed', e);
+            }
+
+            /* =========================
+               CHILD COMPONENTS
+            ==========================*/
+            const children = component.components();
+            if (children && children.length > 0) {
+                console.log(`🔽 Recursing into ${children.length} children`);
+                children.each(child => updateComponentRecursively(child, depth + 1));
+            } else {
+                console.log('⏹ No children');
+            }
+
+            console.groupEnd();
+        }
+
+        allComponents.each(component => updateComponentRecursively(component));
+
+        console.groupEnd();
+    }
 
     function updateFileIndexOptionsImmediate() {
         const newOptions = getJsonFileOptions();
@@ -2472,19 +2746,12 @@ function customChartCommonJson(editor) {
         if (jsonSector) {
             const fileIndexProperty = jsonSector.getProperty('json-file-index');
             if (fileIndexProperty) {
-                // Update the property options
                 fileIndexProperty.set('options', newOptions);
 
-                // Force immediate update of the select element in DOM
                 const selectElement = document.querySelector('.i_designer-sm-property__json-file-index select');
                 if (selectElement) {
-                    // Store current selected value
                     const currentValue = selectElement.value;
-
-                    // Clear existing options
                     selectElement.innerHTML = '';
-
-                    // Add new options directly to DOM
                     newOptions.forEach(option => {
                         const optionElement = document.createElement('option');
                         optionElement.value = option.id;
@@ -2492,7 +2759,6 @@ function customChartCommonJson(editor) {
                         selectElement.appendChild(optionElement);
                     });
 
-                    // Restore selection if still valid
                     if (Array.from(selectElement.options).some(opt => opt.value === currentValue)) {
                         selectElement.value = currentValue;
                     }
@@ -2521,16 +2787,11 @@ function customChartCommonJson(editor) {
         if (jsonSector) {
             const fileIndexProperty = jsonSector.getProperty('json-file-index');
             if (fileIndexProperty) {
-                // Update options
                 fileIndexProperty.set('options', newOptions);
-
-                // Force immediate update of the select element in DOM
                 const selectElement = document.querySelector('.i_designer-sm-property__json-file-index select');
                 if (selectElement) {
-                    // Clear existing options
                     selectElement.innerHTML = '';
 
-                    // Add new options directly to DOM
                     newOptions.forEach(option => {
                         const optionElement = document.createElement('option');
                         optionElement.value = option.id;
@@ -2539,7 +2800,6 @@ function customChartCommonJson(editor) {
                     });
                 }
 
-                // Also trigger StyleManager re-render
                 setTimeout(() => {
                     editor.StyleManager.render();
                     ensureJsonSuggestionButton();
@@ -2552,7 +2812,6 @@ function customChartCommonJson(editor) {
         setTimeout(() => {
             const jsonSector = document.querySelector('.i_designer-sm-sector__JSON');
             if (jsonSector) {
-                // Check if button already exists
                 const existingButton = document.getElementById('json-suggestion-btn');
                 if (!existingButton) {
                     const jsonPathInput = jsonSector.querySelector('.i_designer-fields');
@@ -2573,10 +2832,8 @@ function customChartCommonJson(editor) {
 
     function deleteJsonFile(fileName) {
         if (confirm(`Are you sure you want to delete "${fileName}"?`)) {
-            // Remove the specific JSON file from localStorage
             localStorage.removeItem(`common_json_${fileName}`);
 
-            // Update the file list
             let existingFileNames = localStorage.getItem('common_json_files');
             if (existingFileNames) {
                 let fileArray = existingFileNames.split(',').map(f => f.trim());
@@ -2584,9 +2841,8 @@ function customChartCommonJson(editor) {
 
                 if (fileArray.length > 0) {
                     localStorage.setItem('common_json_files', fileArray.join(', '));
-                    // after removing the item from localStorage (and updating any index/list you keep)
                     window.dispatchEvent(new CustomEvent('common-json-files-updated', {
-                        detail: { action: 'delete', key: fileName } // optional metadata
+                        detail: { action: 'delete', key: fileName }
                     }));
 
                     common_json_file_name_text = 'Already Added File(s): ' + fileArray.join(', ');
@@ -2596,10 +2852,8 @@ function customChartCommonJson(editor) {
                 }
             }
 
-            // Update StyleManager options
             updateFileIndexOptions();
 
-            // Close and reopen modal to show updated list
             editor.Modal.close();
             setTimeout(() => {
                 jsonFileUploads();
@@ -2609,7 +2863,6 @@ function customChartCommonJson(editor) {
         }
     }
 
-    // Make deleteJsonFile globally accessible
     window.deleteJsonFile = deleteJsonFile;
 
     styleManager.addSector('JSON', {
@@ -2633,11 +2886,14 @@ function customChartCommonJson(editor) {
     });
 
     function handleFileIndexChange(event) {
-        // Clear the JSON path when file changes
         const selectedComponent = editor.getSelected();
         if (selectedComponent) {
+            const fileIndexSelect = document.querySelector('.i_designer-sm-property__json-file-index select');
+            if (fileIndexSelect) {
+                selectedComponent.set('json-file-index', fileIndexSelect.value || '0', { silent: true });
+            }
+
             selectedComponent.set('my-input-json', '', { silent: true });
-            // Force re-render of traits to show cleared path
             setTimeout(() => {
                 editor.TraitManager.render();
             }, 50);
@@ -2653,13 +2909,12 @@ function customChartCommonJson(editor) {
                 const content = selectedComponent?.get('content');
                 if (content !== undefined) {
                     try {
-                        // Get file index from dropdown
                         let fileIndex = '0';
                         const fileIndexSelect = document.querySelector('.i_designer-sm-property__json-file-index select');
                         if (fileIndexSelect) {
                             fileIndex = fileIndexSelect.value || '0';
                         }
-
+                        selectedComponent.set('json-file-index', fileIndex, { silent: true });
                         let commonJson;
 
                         if (fileIndex !== '0') {
@@ -2676,11 +2931,8 @@ function customChartCommonJson(editor) {
                         if (commonJson) {
                             const jsonPaths = event.value.split(',').map(path => path.trim());
 
-                            // Check if content has curly braces for selective replacement
                             if (content.includes('{') && content.includes('}')) {
-                                // Selective replacement mode
                                 let updatedContent = content;
-
                                 jsonPaths.forEach(jsonPath => {
                                     const pathParts = jsonPath.split('.');
                                     const selectedLanguage = pathParts[0];
@@ -2691,7 +2943,6 @@ function customChartCommonJson(editor) {
                                         const value = eval(fullJsonPath);
 
                                         if (value !== undefined && value !== null) {
-                                            // Replace {remainingPath} with the actual value
                                             const placeholder = `{${remainingPath}}`;
                                             updatedContent = updatedContent.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
                                         }
@@ -2711,8 +2962,7 @@ function customChartCommonJson(editor) {
                                     }
                                 }
                             } else {
-                                // Complete replacement mode (existing behavior)
-                                const jsonPath = jsonPaths[0]; // Use first path for complete replacement
+                                const jsonPath = jsonPaths[0];
                                 const pathParts = jsonPath.split('.');
                                 const selectedLanguage = pathParts[0];
                                 const remainingPath = pathParts.slice(1).join('.');
@@ -2784,15 +3034,12 @@ function customChartCommonJson(editor) {
 
     function openSuggestionJsonModal() {
         const selectedComponent = editor.getSelected();
-
-        // Get file index from the StyleManager dropdown value directly
         let fileIndex = '0';
         const fileIndexSelect = document.querySelector('.i_designer-sm-property__json-file-index select');
         if (fileIndexSelect) {
             fileIndex = fileIndexSelect.value || '0';
         }
 
-        // Also try to get from component attribute as fallback
         if (fileIndex === '0' && selectedComponent) {
             fileIndex = selectedComponent.get('json-file-index') || '0';
         }
@@ -2802,7 +3049,6 @@ function customChartCommonJson(editor) {
             return;
         }
 
-        // Get the selected file's JSON data
         const fileNames = (localStorage.getItem('common_json_files') || "")
             .split(',').map(f => f.trim());
         const selectedFile = fileNames[parseInt(fileIndex) - 1];
@@ -2815,7 +3061,6 @@ function customChartCommonJson(editor) {
 
         const commonJson = JSON.parse(jsonString);
 
-        // Show top-level keys (language options) first
         const topLevelKeys = Object.keys(commonJson);
 
         let modalContent = `
@@ -2839,7 +3084,6 @@ function customChartCommonJson(editor) {
         editor.Modal.setContent(modalContent);
         editor.Modal.open();
 
-        // Add event listener to search input
         document.getElementById("searchInput").addEventListener("input", function () {
             filterSuggestions(this.value);
         });
@@ -2851,10 +3095,8 @@ function customChartCommonJson(editor) {
                 const dataType = this.getAttribute('data-type');
 
                 if (dataType === 'language') {
-                    // Show keys under selected language
                     showLanguageKeys(selectedValue, commonJson);
                 } else {
-                    // Final selection - set the value
                     const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
                     if (inputField) {
                         inputField.value = selectedValue;
@@ -2874,19 +3116,19 @@ function customChartCommonJson(editor) {
         const metaDataKeys = extractMetaDataKeys(commonJson[language]);
 
         let modalContent = `
-    <div class="new-table-form">
-      <div style="padding-bottom:10px">
-        <button id="backBtn" style="margin-right: 10px;">← Back</button>
-        <input type="text" id="searchInput" placeholder="Search json">
-      </div>
-      <div style="padding-bottom:10px">
-        <label>
-          <input type="checkbox" id="multipleKeysCheckbox" style="margin-right: 5px;">
-          Select multiple keys
-        </label>
-      </div>
-      <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-  `;
+            <div class="new-table-form">
+            <div style="padding-bottom:10px">
+                <button id="backBtn" style="margin-right: 10px;">← Back</button>
+                <input type="text" id="searchInput" placeholder="Search json">
+            </div>
+            <div style="padding-bottom:10px">
+                <label>
+                <input type="checkbox" id="multipleKeysCheckbox" style="margin-right: 5px;">
+                Select multiple keys
+                </label>
+            </div>
+            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+        `;
 
         metaDataKeys.forEach(key => {
             const fullPath = `${language}.${key}`;
@@ -2900,17 +3142,14 @@ function customChartCommonJson(editor) {
 
         editor.Modal.setContent(modalContent);
 
-        // Back button functionality
         document.getElementById("backBtn").addEventListener("click", function () {
             openSuggestionJsonModal();
         });
 
-        // Search functionality
         document.getElementById("searchInput").addEventListener("input", function () {
             filterSuggestions(this.value);
         });
 
-        // Key selection with multiple selection support
         const suggestionItems = document.querySelectorAll('.suggestion');
         let selectedKeys = new Set();
 
@@ -2920,7 +3159,6 @@ function customChartCommonJson(editor) {
                 const multipleMode = document.getElementById('multipleKeysCheckbox').checked;
 
                 if (multipleMode) {
-                    // Toggle selection
                     if (selectedKeys.has(selectedValue)) {
                         selectedKeys.delete(selectedValue);
                         this.style.backgroundColor = '';
@@ -2931,7 +3169,6 @@ function customChartCommonJson(editor) {
                         this.style.color = 'white';
                     }
                 } else {
-                    // Single selection (original behavior)
                     const inputField = document.querySelector('.i_designer-sm-property__my-input-json input');
                     if (inputField) {
                         inputField.value = selectedValue;
@@ -2946,7 +3183,6 @@ function customChartCommonJson(editor) {
             });
         });
 
-        // Handle multiple selection checkbox
         document.getElementById('multipleKeysCheckbox').addEventListener('change', function () {
             const applyBtn = document.getElementById('applyMultipleKeys');
             if (this.checked && !applyBtn) {
@@ -2970,7 +3206,6 @@ function customChartCommonJson(editor) {
             } else if (!this.checked && applyBtn) {
                 applyBtn.parentElement.remove();
                 selectedKeys.clear();
-                // Reset all selections visually
                 suggestionItems.forEach(item => {
                     item.style.backgroundColor = '';
                     item.style.color = '';
@@ -2990,7 +3225,7 @@ function customChartCommonJson(editor) {
             }
         });
     }
-    // Add event listener for component selection 
+
     editor.on('component:selected', (component) => {
         if (component.attributes.type === 'custom_line_chart') {
             setTimeout(() => {
@@ -3003,20 +3238,19 @@ function customChartCommonJson(editor) {
                             openSuggestionJsonModalChartTable('chart');
                         });
                     } else {
-                        console.error('DataSource Suggestion button not found within the wrapper element');
+                        console.error('DataSource Suggestion button not found');
                     }
                 } else {
-                    console.error('DataSource Suggestion button wrapper not found within the selected component');
+                    console.error('DataSource Suggestion button within the selected component');
                 }
             }, 1000);
         }
     });
 
-    // open chart and table json popup model
+    // chart json data addition function
     function openSuggestionJsonModalChartTable(type) {
         const selectedComponent = editor.getSelected();
 
-        // Get file index from component trait
         let fileIndex = selectedComponent?.get('jsonFileIndex') || '0';
 
         if (fileIndex === '0') {
@@ -3024,7 +3258,6 @@ function customChartCommonJson(editor) {
             return;
         }
 
-        // Get the selected file's JSON data
         const fileNames = (localStorage.getItem('common_json_files') || "")
             .split(',').map(f => f.trim());
         const selectedFile = fileNames[parseInt(fileIndex) - 1];
@@ -3036,32 +3269,28 @@ function customChartCommonJson(editor) {
         }
 
         const commonJson = JSON.parse(jsonString);
-
-        // Show top-level keys (language options) first
         const topLevelKeys = Object.keys(commonJson);
 
         let modalContent = `
-        <div class="new-table-form">
-        <div style="padding-bottom:10px">
-            <input type="text" id="searchInput" placeholder="Search json">
-        </div>
-        <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-    `;
+            <div class="new-table-form">
+            <div style="padding-bottom:10px">
+                <input type="text" id="searchInput" placeholder="Search json">
+            </div>
+            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+        `;
 
         topLevelKeys.forEach(key => {
             modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
         });
 
         modalContent += `
-      </div>
-    </div>
-  `;
+            </div>
+            </div>
+        `;
 
         editor.Modal.setTitle('DataSource Suggestion - Select Language');
         editor.Modal.setContent(modalContent);
         editor.Modal.open();
-
-        // Add event listener to search input
         document.getElementById("searchInput").addEventListener("input", function () {
             filterSuggestions(this.value);
         });
@@ -3073,7 +3302,6 @@ function customChartCommonJson(editor) {
                 const dataType = this.getAttribute('data-type');
 
                 if (dataType === 'language') {
-                    // Show keys under selected language for chart
                     showLanguageKeysForChart(selectedValue, commonJson, type);
                 }
             });
@@ -3084,13 +3312,13 @@ function customChartCommonJson(editor) {
         const metaDataKeys = extractMetaDataKeys(commonJson[language]);
 
         let modalContent = `
-    <div class="new-table-form">
-      <div style="padding-bottom:10px">
-        <button id="backBtn" style="margin-right: 10px;">← Back</button>
-        <input type="text" id="searchInput" placeholder="Search json">
-      </div>
-      <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-  `;
+            <div class="new-table-form">
+            <div style="padding-bottom:10px">
+                <button id="backBtn" style="margin-right: 10px;">← Back</button>
+                <input type="text" id="searchInput" placeholder="Search json">
+            </div>
+            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+        `;
 
         metaDataKeys.forEach(key => {
             const fullPath = `${language}.${key}`;
@@ -3098,23 +3326,19 @@ function customChartCommonJson(editor) {
         });
 
         modalContent += `
-      </div>
-    </div>
-  `;
+            </div>
+            </div>
+        `;
 
         editor.Modal.setContent(modalContent);
-
-        // Back button functionality
         document.getElementById("backBtn").addEventListener("click", function () {
             openSuggestionJsonModalChartTable(type);
         });
 
-        // Search functionality
         document.getElementById("searchInput").addEventListener("input", function () {
             filterSuggestions(this.value);
         });
 
-        // Key selection
         const suggestionItems = document.querySelectorAll('.suggestion');
         suggestionItems.forEach(item => {
             item.addEventListener('click', function () {
@@ -3123,14 +3347,11 @@ function customChartCommonJson(editor) {
                 if (type === 'chart') {
                     const selectedComponent = editor.getSelected();
                     if (selectedComponent) {
-                        // Set the trait value
                         selectedComponent.set('jsonpath', selectedValue);
 
-                        // Force chart update
                         selectedComponent.highchartsInitialized = false;
                         selectedComponent.trigger('change:script');
 
-                        // Also update the trait input field visually
                         setTimeout(() => {
                             const inputField = document.querySelector('.i_designer-trt-trait__wrp-jsonpath input');
                             if (inputField) {
@@ -3162,20 +3383,20 @@ function customChartCommonJson(editor) {
     function languageChange() {
         editor.Modal.setTitle('Language');
         editor.Modal.setContent(`<div class="new-table-form">
-    <div style="padding-bottom:10px">
-    ${language_text}
-    </div>
-    <div> 
-    <select class="form-control class="popupaddbtn"" style="width:95%"  name="singleLanguageName" id="singleLanguageName">
-    <option value="english">English</option>
-    <option value="hindi">Hindi</option>
-    <option value="tamil">Tamil</option>
-    </select> 
-    </div>  
-    <input id="saveLanguageChange" type="button" value="Add" class="popupaddbtn" data-component-id="c1006">
-    </div>
-    </div>
-    `);
+            <div style="padding-bottom:10px">
+            ${language_text}
+            </div>
+            <div> 
+            <select class="form-control class="popupaddbtn"" style="width:95%"  name="singleLanguageName" id="singleLanguageName">
+            <option value="english">English</option>
+            <option value="hindi">Hindi</option>
+            <option value="tamil">Tamil</option>
+            </select> 
+            </div>  
+            <input id="saveLanguageChange" type="button" value="Add" class="popupaddbtn" data-component-id="c1006">
+            </div>
+            </div>
+            `);
         editor.Modal.open();
         var el = document.getElementById("saveLanguageChange");
         el.addEventListener("click", ChangeLanguage, true);
@@ -3218,303 +3439,285 @@ function customChartCommonJson(editor) {
         }, 500);
         editor.Modal.close();
     }
+    const jsonData1 = JSON.parse(localStorage.getItem("common_json"));
+    if (jsonData1 !== null) {
+        jsonData.length = 0;
+        jsonData = [];
+        jsonData.push(jsonData1);
+    }
+    // function updateComponentsWithNewJson(editor) {
+    //     var styleTags2 = editor.getCss();
+    //     var jsonDataNew = {};
+    //     var styleContent = styleTags2;
+    //     var regex = /#(\w+)\s*{\s*[^{}]*my-input-json:\s*([^;]+)\s*;[^{}]*}/g;
+    //     var matches;
+    //     while ((matches = regex.exec(styleContent)) !== null) {
+    //         var divId = matches[1];
+    //         var jsonKey = matches[2];
+    //         var lang = jsonKey;
+    //         jsonDataNew[divId] = lang;
+    //     }
+    //     let updateDivContenthtml = editor.getHtml();
+    //     if (custom_language === null) {
+    //         custom_language = 'english';
+    //     }
+    //     for (var divId in jsonDataNew) {
+    //         var jsonKey2 = jsonDataNew[divId];
+    //         const str = 'jsonData1[0].' + custom_language + '.' + jsonKey2;
+    //         var value = eval(str);
+    //         if (divId && value) {
+    //             var parser = new DOMParser();
+    //             var doc = parser.parseFromString(updateDivContenthtml, 'text/html');
+    //             var myDiv = doc.getElementById(divId);
+    //             if (myDiv) {
+    //                 myDiv.textContent = value;
+    //                 var component = editor.getWrapper().find(`#${divId}`)[0];
+    //                 if (component) {
+    //                     component.components(value);
+    //                 }
+    //             }
+    //         }
+    //     }
 
-    function updateComponentsWithNewJson(editor) {
-        var styleTags2 = editor.getCss();
-        var jsonDataNew = {};
-        var styleContent = styleTags2;
-        var regex = /#(\w+)\s*{\s*[^{}]*my-input-json:\s*([^;]+)\s*;[^{}]*}/g;
-        var matches;
-        while ((matches = regex.exec(styleContent)) !== null) {
-            var divId = matches[1];
-            var jsonKey = matches[2];
-            var lang = jsonKey;
-            jsonDataNew[divId] = lang;
-        }
-        let updateDivContenthtml = editor.getHtml();
-        if (custom_language === null) {
-            custom_language = 'english';
-        }
-        for (var divId in jsonDataNew) {
-            var jsonKey2 = jsonDataNew[divId];
-            const str = 'jsonData2[0].' + custom_language + '.' + jsonKey2;
-            var value = eval(str);
-            if (divId && value) {
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(updateDivContenthtml, 'text/html');
-                var myDiv = doc.getElementById(divId);
-                if (myDiv) {
-                    myDiv.textContent = value;
-                    var component = editor.getWrapper().find(`#${divId}`)[0];
-                    if (component) {
-                        component.components(value);
-                    }
-                }
-            }
+    //     editor.getWrapper().find('[data-i_designer-type="custom_line_chart"]').forEach(chart => {
+    //         chart.highchartsInitialized = false;
+    //         chart.trigger('change:script');
+    //     });
+
+    // }
+
+    // Image Json Data Addition code    
+    function openJsonImageSelector() {
+        const fileNames = localStorage.getItem('common_json_files');
+
+        if (!fileNames) {
+            alert('No JSON files uploaded. Please upload a JSON file first.');
+            return;
         }
 
-        const jsonData1 = JSON.parse(localStorage.getItem("common_json"));
-        if (jsonData1 !== null) {
-            jsonData.length = 0;
-            jsonData = [];
-            jsonData.push(jsonData1);
-        }
+        const fileArray = fileNames.split(',').map(f => f.trim());
 
-        // Refresh all charts with new JSON data
-        editor.getWrapper().find('[data-i_designer-type="custom_line_chart"]').forEach(chart => {
-            chart.highchartsInitialized = false;
-            chart.trigger('change:script');
+        let modalContent = `
+            <div class="new-table-form" style="width: 500px; min-height: 350px;">
+            <div style="padding-bottom:10px">
+                <label style="font-weight: bold;">Step 1: Select JSON File</label>
+            </div>
+            <div style="padding-bottom:10px">
+                <select id="jsonFileSelector" class="form-control" style="width:100%">
+                <option value="0">-- Select File --</option>
+        `;
+
+        fileArray.forEach((fileName, index) => {
+            modalContent += `<option value="${index + 1}">${fileName}</option>`;
         });
 
+        modalContent += `
+                </select>
+            </div>
+            <div id="languageSection" style="display:none; padding-bottom:10px;">
+                <label style="font-weight: bold;">Step 2: Select Language</label>
+                <div id="languageList" class="suggestion-results" style="height: 150px; overflow-y: auto; border: 1px solid #ddd; margin-top: 10px;"></div>
+            </div>
+            <div id="keySection" style="display:none; padding-bottom:10px;">
+                <label style="font-weight: bold;">Step 3: Select Image Key</label>
+                <div style="padding: 5px 0;">
+                <button id="backToLanguageBtn" style="padding: 5px 10px; font-size: 12px;">← Back to Languages</button>
+                </div>
+                <input type="text" id="searchInput" placeholder="Search image keys" style="width:100%; margin-bottom: 10px;">
+                <div id="keyList" class="suggestion-results" style="height: 150px; overflow-y: auto; border: 1px solid #ddd;"></div>
+            </div>
+            </div>
+        `;
+
+        editor.Modal.setTitle('Select Image from JSON');
+        editor.Modal.setContent(modalContent);
+        editor.Modal.open();
+
+        document.getElementById('jsonFileSelector').addEventListener('change', function () {
+            const fileIndex = this.value;
+
+            if (fileIndex === '0') {
+                document.getElementById('languageSection').style.display = 'none';
+                document.getElementById('keySection').style.display = 'none';
+                return;
+            }
+
+            const selectedFile = fileArray[parseInt(fileIndex) - 1];
+            const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+
+            if (!jsonString) {
+                alert('Selected JSON file not found');
+                return;
+            }
+
+            const commonJson = JSON.parse(jsonString);
+            showLanguagesInSameModal(commonJson, selectedFile);
+        });
     }
 
+    function showLanguagesInSameModal(commonJson, selectedFileName) {
+        const topLevelKeys = Object.keys(commonJson);
 
+        document.getElementById('languageSection').style.display = 'block';
+        document.getElementById('keySection').style.display = 'none';
 
-function openJsonImageSelector() {
-  // Show file selection first
-  const fileNames = localStorage.getItem('common_json_files');
-  
-  if (!fileNames) {
-    alert('No JSON files uploaded. Please upload a JSON file first.');
-    return;
-  }
+        const languageList = document.getElementById('languageList');
+        languageList.innerHTML = '';
 
-  const fileArray = fileNames.split(',').map(f => f.trim());
-  
-  let modalContent = `
-    <div class="new-table-form" style="width: 500px; min-height: 350px;">
-      <div style="padding-bottom:10px">
-        <label style="font-weight: bold;">Step 1: Select JSON File</label>
-      </div>
-      <div style="padding-bottom:10px">
-        <select id="jsonFileSelector" class="form-control" style="width:100%">
-          <option value="0">-- Select File --</option>
-  `;
-  
-  fileArray.forEach((fileName, index) => {
-    modalContent += `<option value="${index + 1}">${fileName}</option>`;
-  });
-  
-  modalContent += `
-        </select>
-      </div>
-      <div id="languageSection" style="display:none; padding-bottom:10px;">
-        <label style="font-weight: bold;">Step 2: Select Language</label>
-        <div id="languageList" class="suggestion-results" style="height: 150px; overflow-y: auto; border: 1px solid #ddd; margin-top: 10px;"></div>
-      </div>
-      <div id="keySection" style="display:none; padding-bottom:10px;">
-        <label style="font-weight: bold;">Step 3: Select Image Key</label>
-        <div style="padding: 5px 0;">
-          <button id="backToLanguageBtn" style="padding: 5px 10px; font-size: 12px;">← Back to Languages</button>
-        </div>
-        <input type="text" id="searchInput" placeholder="Search image keys" style="width:100%; margin-bottom: 10px;">
-        <div id="keyList" class="suggestion-results" style="height: 150px; overflow-y: auto; border: 1px solid #ddd;"></div>
-      </div>
-    </div>
-  `;
+        topLevelKeys.forEach(key => {
+            const div = document.createElement('div');
+            div.className = 'suggestion language-option';
+            div.setAttribute('data-value', key);
+            div.textContent = key;
+            div.style.cssText = 'padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;';
 
-  editor.Modal.setTitle('Select Image from JSON');
-  editor.Modal.setContent(modalContent);
-  editor.Modal.open();
+            div.addEventListener('mouseenter', function () {
+                this.style.background = '#f0f0f0';
+            });
 
-  // File selection handler
-  document.getElementById('jsonFileSelector').addEventListener('change', function() {
-    const fileIndex = this.value;
-    
-    if (fileIndex === '0') {
-      document.getElementById('languageSection').style.display = 'none';
-      document.getElementById('keySection').style.display = 'none';
-      return;
+            div.addEventListener('mouseleave', function () {
+                this.style.background = '';
+            });
+
+            div.addEventListener('click', function () {
+                const selectedLanguage = this.getAttribute('data-value');
+                showKeysInSameModal(selectedLanguage, commonJson, selectedFileName);
+            });
+
+            languageList.appendChild(div);
+        });
     }
 
-    const selectedFile = fileArray[parseInt(fileIndex) - 1];
-    const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
+    function showKeysInSameModal(language, commonJson, selectedFileName) {
+        const metaDataKeys = extractMetaDataKeys(commonJson[language]);
 
-    if (!jsonString) {
-      alert('Selected JSON file not found');
-      return;
+        document.getElementById('languageSection').style.display = 'none';
+        document.getElementById('keySection').style.display = 'block';
+
+        const keyList = document.getElementById('keyList');
+        keyList.innerHTML = '';
+
+        metaDataKeys.forEach(key => {
+            const fullPath = `${language}.${key}`;
+            const div = document.createElement('div');
+            div.className = 'suggestion';
+            div.setAttribute('data-value', fullPath);
+            div.setAttribute('data-language', language);
+            div.textContent = key;
+            div.style.cssText = 'padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;';
+
+            div.addEventListener('mouseenter', function () {
+                this.style.background = '#f0f0f0';
+            });
+
+            div.addEventListener('mouseleave', function () {
+                this.style.background = '';
+            });
+
+            div.addEventListener('click', function () {
+                const selectedValue = this.getAttribute('data-value');
+                const selectedLanguage = this.getAttribute('data-language');
+                loadImageToAssetManager(selectedValue, selectedLanguage, commonJson);
+            });
+
+            keyList.appendChild(div);
+        });
+
+        document.getElementById('backToLanguageBtn').addEventListener('click', function () {
+            showLanguagesInSameModal(commonJson, selectedFileName);
+        });
+
+        document.getElementById('searchInput').addEventListener('input', function () {
+            const searchValue = this.value.toLowerCase();
+            const suggestions = keyList.querySelectorAll('.suggestion');
+
+            suggestions.forEach(item => {
+                if (item.textContent.toLowerCase().includes(searchValue)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
     }
 
-    const commonJson = JSON.parse(jsonString);
-    showLanguagesInSameModal(commonJson, selectedFile);
-  });
-}
+    function loadImageToAssetManager(jsonPath, language, commonJson) {
+        try {
+            const pathParts = jsonPath.split('.');
+            const remainingPath = pathParts.slice(1);
 
-function showLanguagesInSameModal(commonJson, selectedFileName) {
-  const topLevelKeys = Object.keys(commonJson);
-  
-  // Show language section
-  document.getElementById('languageSection').style.display = 'block';
-  document.getElementById('keySection').style.display = 'none';
-  
-  const languageList = document.getElementById('languageList');
-  languageList.innerHTML = '';
+            let imageValue = commonJson[language];
 
-  topLevelKeys.forEach(key => {
-    const div = document.createElement('div');
-    div.className = 'suggestion language-option';
-    div.setAttribute('data-value', key);
-    div.textContent = key;
-    div.style.cssText = 'padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;';
-    
-    div.addEventListener('mouseenter', function() {
-      this.style.background = '#f0f0f0';
-    });
-    
-    div.addEventListener('mouseleave', function() {
-      this.style.background = '';
-    });
-    
-    div.addEventListener('click', function() {
-      const selectedLanguage = this.getAttribute('data-value');
-      showKeysInSameModal(selectedLanguage, commonJson, selectedFileName);
-    });
-    
-    languageList.appendChild(div);
-  });
-}
+            for (let i = 0; i < remainingPath.length; i++) {
+                const key = remainingPath[i];
 
-function showKeysInSameModal(language, commonJson, selectedFileName) {
-  const metaDataKeys = extractMetaDataKeys(commonJson[language]);
-  
-  // Hide language section, show key section
-  document.getElementById('languageSection').style.display = 'none';
-  document.getElementById('keySection').style.display = 'block';
-  
-  const keyList = document.getElementById('keyList');
-  keyList.innerHTML = '';
+                if (key.includes('[') && key.includes(']')) {
+                    const arrayKey = key.substring(0, key.indexOf('['));
+                    const arrayIndex = key.match(/\[(\d+)\]/)[1];
+                    imageValue = imageValue[arrayKey][arrayIndex];
+                } else {
+                    imageValue = imageValue[key];
+                }
 
-  metaDataKeys.forEach(key => {
-    const fullPath = `${language}.${key}`;
-    const div = document.createElement('div');
-    div.className = 'suggestion';
-    div.setAttribute('data-value', fullPath);
-    div.setAttribute('data-language', language);
-    div.textContent = key;
-    div.style.cssText = 'padding: 8px; cursor: pointer; border-bottom: 1px solid #eee;';
-    
-    div.addEventListener('mouseenter', function() {
-      this.style.background = '#f0f0f0';
-    });
-    
-    div.addEventListener('mouseleave', function() {
-      this.style.background = '';
-    });
-    
-    div.addEventListener('click', function() {
-      const selectedValue = this.getAttribute('data-value');
-      const selectedLanguage = this.getAttribute('data-language');
-      loadImageToAssetManager(selectedValue, selectedLanguage, commonJson);
-    });
-    
-    keyList.appendChild(div);
-  });
+                if (imageValue === undefined || imageValue === null) {
+                    alert('No image value found at this path');
+                    return;
+                }
+            }
 
-  // Back button handler
-  document.getElementById('backToLanguageBtn').addEventListener('click', function() {
-    showLanguagesInSameModal(commonJson, selectedFileName);
-  });
+            if (!imageValue || typeof imageValue !== 'string') {
+                alert('Invalid image value. Must be a string (URL, base64, or filename)');
+                return;
+            }
 
-  // Search functionality
-  document.getElementById('searchInput').addEventListener('input', function() {
-    const searchValue = this.value.toLowerCase();
-    const suggestions = keyList.querySelectorAll('.suggestion');
-    
-    suggestions.forEach(item => {
-      if (item.textContent.toLowerCase().includes(searchValue)) {
-        item.style.display = 'block';
-      } else {
-        item.style.display = 'none';
-      }
-    });
-  });
-}
+            imageValue = imageValue.trim();
 
-function loadImageToAssetManager(jsonPath, language, commonJson) {
-  try {
-    const pathParts = jsonPath.split('.');
-    const remainingPath = pathParts.slice(1);
-    
-    // Safely navigate the JSON object without eval
-    let imageValue = commonJson[language];
-    
-    for (let i = 0; i < remainingPath.length; i++) {
-      const key = remainingPath[i];
-      
-      // Handle array notation like [0]
-      if (key.includes('[') && key.includes(']')) {
-        const arrayKey = key.substring(0, key.indexOf('['));
-        const arrayIndex = key.match(/\[(\d+)\]/)[1];
-        imageValue = imageValue[arrayKey][arrayIndex];
-      } else {
-        imageValue = imageValue[key];
-      }
-      
-      if (imageValue === undefined || imageValue === null) {
-        alert('No image value found at this path');
-        return;
-      }
+            let imageSrc = '';
+
+            if (imageValue.startsWith('data:image')) {
+                imageSrc = imageValue;
+            }
+
+            else if (imageValue.startsWith('http://') || imageValue.startsWith('https://')) {
+                imageSrc = imageValue;
+            }
+
+            else if (imageValue.startsWith('./') || imageValue.startsWith('../')) {
+                imageSrc = imageValue;
+            }
+
+            else {
+                const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'];
+                const hasImageExtension = imageExtensions.some(ext =>
+                    imageValue.toLowerCase().endsWith(ext)
+                );
+
+                if (hasImageExtension) {
+                    imageSrc = `./${imageValue}`;
+                } else {
+                    alert('Invalid image format. Please provide a valid image URL, base64 string, or filename with extension.');
+                    return;
+                }
+            }
+
+            editor.Modal.close();
+
+            const assetManager = editor.AssetManager;
+            assetManager.add({
+                src: imageSrc,
+                name: remainingPath.join('.'),
+                type: 'image'
+            });
+
+            setTimeout(() => {
+                editor.runCommand('open-assets');
+            }, 300);
+
+        } catch (error) {
+            console.error('Error loading image from JSON:', error);
+            alert('Error loading image. Please check the JSON path and value format.\n\nError: ' + error.message);
+        }
     }
 
-    if (!imageValue || typeof imageValue !== 'string') {
-      alert('Invalid image value. Must be a string (URL, base64, or filename)');
-      return;
-    }
-
-    // Trim whitespace
-    imageValue = imageValue.trim();
-
-    let imageSrc = '';
-
-    // Check if it's a base64 string
-    if (imageValue.startsWith('data:image')) {
-      imageSrc = imageValue;
-    }
-    // Check if it's a URL (http/https)
-    else if (imageValue.startsWith('http://') || imageValue.startsWith('https://')) {
-      imageSrc = imageValue;
-    }
-    // Check if it's a relative path
-    else if (imageValue.startsWith('./') || imageValue.startsWith('../')) {
-      imageSrc = imageValue;
-    }
-    // Assume it's a filename
-    else {
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'];
-      const hasImageExtension = imageExtensions.some(ext => 
-        imageValue.toLowerCase().endsWith(ext)
-      );
-      
-      if (hasImageExtension) {
-        imageSrc = `./${imageValue}`;
-      } else {
-        alert('Invalid image format. Please provide a valid image URL, base64 string, or filename with extension.');
-        return;
-      }
-    }
-
-    // Close the JSON selection modal first
-    editor.Modal.close();
-
-    // Add image to asset manager (this will show in the asset manager modal)
-    const assetManager = editor.AssetManager;
-    assetManager.add({
-      src: imageSrc,
-      name: remainingPath.join('.'),
-      type: 'image'
-    });
-
-    // Small delay then open asset manager to show the newly added image
-    setTimeout(() => {
-      editor.runCommand('open-assets');
-    }, 300);
-
-  } catch (error) {
-    console.error('Error loading image from JSON:', error);
-    alert('Error loading image. Please check the JSON path and value format.\n\nError: ' + error.message);
-  }
-}
-
-// Make the function globally accessible
-window.openJsonImageSelector = openJsonImageSelector;
+    window.openJsonImageSelector = openJsonImageSelector;
 }

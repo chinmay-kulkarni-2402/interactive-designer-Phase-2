@@ -2,34 +2,34 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = t())
     : "function" == typeof define && define.amd
-    ? define([], t)
-    : "object" == typeof exports
-    ? (exports["forms-component"] = t())
-    : (e["forms-component"] = t());
+      ? define([], t)
+      : "object" == typeof exports
+        ? (exports["forms-component"] = t())
+        : (e["forms-component"] = t());
 })(
   "undefined" != typeof globalThis
     ? globalThis
     : "undefined" != typeof window
-    ? window
-    : this,
+      ? window
+      : this,
   () =>
     (() => {
       "use strict";
       var e = {
-          d: (t, n) => {
-            for (var o in n)
-              e.o(n, o) &&
-                !e.o(t, o) &&
-                Object.defineProperty(t, o, { enumerable: !0, get: n[o] });
-          },
-          o: (e, t) => Object.prototype.hasOwnProperty.call(e, t),
-          r: (e) => {
-            "undefined" != typeof Symbol &&
-              Symbol.toStringTag &&
-              Object.defineProperty(e, Symbol.toStringTag, { value: "Module" }),
-              Object.defineProperty(e, "__esModule", { value: !0 });
-          },
+        d: (t, n) => {
+          for (var o in n)
+            e.o(n, o) &&
+              !e.o(t, o) &&
+              Object.defineProperty(t, o, { enumerable: !0, get: n[o] });
         },
+        o: (e, t) => Object.prototype.hasOwnProperty.call(e, t),
+        r: (e) => {
+          "undefined" != typeof Symbol &&
+            Symbol.toStringTag &&
+            Object.defineProperty(e, Symbol.toStringTag, { value: "Module" }),
+            Object.defineProperty(e, "__esModule", { value: !0 });
+        },
+      },
         t = {};
       e.r(t), e.d(t, { default: () => m });
       var n = "form",
@@ -310,10 +310,10 @@
               onValueChange: function () {
                 for (
                   var e = this.model,
-                    t = this.target,
-                    n = e.get("value").trim().split("\n"),
-                    o = [],
-                    a = 0;
+                  t = this.target,
+                  n = e.get("value").trim().split("\n"),
+                  o = [],
+                  a = 0;
                   a < n.length;
                   a++
                 ) {

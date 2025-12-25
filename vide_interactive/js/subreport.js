@@ -1,8 +1,5 @@
 function subreportPlugin(editor) {
-  console.log("📦 Initializing Subreport Plugin (Components Approach)...");
-
-  const apiUrl = "http://192.168.0.188:8081/api/getTemplate";
-
+  const apiUrl = `${API_BASE_URL}/getTemplate`;
   editor.DomComponents.addType("subreport", {
     model: {
       defaults: {
@@ -41,15 +38,12 @@ function subreportPlugin(editor) {
             type: 'checkbox',
             name: 'sharePageNumber',
             label: 'Share Page Number',
-            default: true  // ✅ Default checked
+            default: true
           }
         ]
       },
 
       init() {
-        console.log("🚀 Subreport component initialized");
-
-        // Hide merge trait initially
         try {
           const traits = this.get("traits");
           if (traits && typeof traits.find === "function") {
@@ -58,11 +52,10 @@ function subreportPlugin(editor) {
             });
             if (mt) {
               mt.set("visible", false);
-              console.log("🔒 Merge trait hidden by default");
             }
           }
         } catch (e) {
-          console.warn("⚠️ Couldn't set merge trait visibility in init():", e);
+          console.error("⚠️ Couldn't set merge trait visibility in init():", e);
         }
 
         this.on("change:attributes:filePath", this.onPathChange);
@@ -71,7 +64,6 @@ function subreportPlugin(editor) {
         this.on("change:attributes:filterValue", this.onFilterChange);
         this.silentUpdate = false;
 
-        // Add initial placeholder component if empty
         if (this.components().length === 0) {
           this.components().add({
             type: 'div',
@@ -104,10 +96,7 @@ function subreportPlugin(editor) {
 
       onPathChange() {
         const newPath = this.getAttributes().filePath;
-        console.log("🔁 Subreport filePath changed to:", newPath);
-
         if (this.silentUpdate) {
-          console.log("⚡ Skipping subreport fetch (set from modal).");
           this.silentUpdate = false;
           return;
         }
@@ -120,7 +109,6 @@ function subreportPlugin(editor) {
 
       onMergeHeaderToggle() {
         const merge = this.getAttributes().mergeHeaderFooter;
-        console.log("🧩 Merge Header/Footer changed to:", merge);
         const view = this.view;
         if (view && typeof view.toggleMergeHeaderFooter === "function") {
           view.toggleMergeHeaderFooter(merge);
@@ -134,7 +122,6 @@ function subreportPlugin(editor) {
       },
 
       onRender() {
-        // Ensure placeholder is visible on initial render
         const attrs = this.model.getAttributes();
         if (!attrs.filePath && this.model.components().length === 0) {
           this.showInitialPlaceholder();
@@ -148,12 +135,10 @@ function subreportPlugin(editor) {
       async onDoubleClick() {
         const showData = this.model.getAttributes().showData;
         if (showData === true || showData === "true") {
-          console.log("🚫 Subreport data is shown - double-click disabled");
           e.stopPropagation();
           e.preventDefault();
           return;
         }
-        console.log("🖱️ Double-click detected on subreport component");
         const model = this.model;
         const attrs = model.getAttributes();
         const currentFile = attrs.filePath || "";
@@ -237,7 +222,6 @@ function subreportPlugin(editor) {
             });
 
             document.querySelectorAll(".add-subreport-btn").forEach(btn => {
-              // Around line 130 in subreportPlugin
               btn.addEventListener("click", async (e) => {
                 const name = e.target.dataset.name;
                 const templateId = e.target.dataset.id;
@@ -253,7 +237,6 @@ function subreportPlugin(editor) {
                 }
 
                 modal.close();
-                console.log("📡 Fetching selected template:", name, templateId);
 
                 try {
                   const templateRes = await fetch(`${apiUrl}/${templateId}`, { cache: "no-store" });
@@ -269,11 +252,10 @@ function subreportPlugin(editor) {
                     filePath: templateId,
                     templateName: name,
                     showData: false,
-                    sharePageNumber: true  // ✅ ADD: Set default value
+                    sharePageNumber: true
                   });
 
                 } catch (err) {
-                  console.error("❌ Failed to fetch subreport template:", err);
                   alert(`Failed to fetch template: ${err.message}`);
                 }
               });
@@ -282,7 +264,6 @@ function subreportPlugin(editor) {
 
           renderTable();
         } catch (err) {
-          console.error("❌ Failed to load templates:", err);
           document.getElementById("subreport-modal-content").innerHTML =
             `<div style="color:red;">⚠️ Failed to fetch templates: ${err.message}</div>`;
         }
@@ -291,12 +272,9 @@ function subreportPlugin(editor) {
       async loadSubreportFromHTML(htmlContent, name = "") {
         try {
           const { innerContent, styles, hasHeaderOrFooter } = this.extractSubreportHTML(htmlContent);
-
-          // Extract column headers from tables
           const columns = this.extractTableColumns(innerContent);
           this.updateFilterColumnOptions(columns);
 
-          // Update merge trait visibility
           try {
             const traits = this.model.get("traits");
             if (traits && typeof traits.find === "function") {
@@ -305,7 +283,6 @@ function subreportPlugin(editor) {
               });
               if (mt) {
                 mt.set("visible", !!hasHeaderOrFooter);
-                console.log(`🔎 Merge trait visibility set to ${!!hasHeaderOrFooter}`);
               }
             }
           } catch (e) {
@@ -314,11 +291,8 @@ function subreportPlugin(editor) {
 
           this.cachedSubreport = { innerContent, styles, templateName: name, hasHeaderOrFooter };
           this.injectStylesToCanvas(styles);
-
-          // Show placeholder message
           this.showPlaceholder(name);
 
-          console.log("✅ Subreport HTML loaded successfully:", name);
         } catch (err) {
           console.error("❌ Error processing HTML:", err);
           this.showErrorPlaceholder(err.message);
@@ -372,20 +346,16 @@ function subreportPlugin(editor) {
         rows.forEach(row => {
           const cells = Array.from(row.querySelectorAll('td'));
           if (cells[columnIndex]?.textContent.toLowerCase().includes(filterValue)) {
-            // Keep row
           } else {
             row.remove();
           }
         });
 
-        return doc.body.innerHTML; // Return filtered HTML
+        return doc.body.innerHTML;
       },
 
       showPlaceholder(templateName) {
-        // Clear any existing components first
         this.model.components().reset();
-
-        // Add a simple text placeholder
         this.model.components().add({
           type: 'div',
           content: `📄 Subreport loaded: ${templateName || 'Unknown'}<br><small style="color:#888;">Toggle "Show Data" to render content</small>`,
@@ -451,27 +421,22 @@ function subreportPlugin(editor) {
       },
 
       handleNormalMode(bodyElement, merge) {
-        // If merge is false, extract only main-content-area
         let contentRoot = bodyElement;
 
         if (!merge) {
           const mainContent = bodyElement.querySelector(".main-content-area");
           if (mainContent) {
             contentRoot = mainContent;
-            console.log("📌 Extracting only .main-content-area (merge disabled)");
           }
         }
-
-        // Convert HTML elements to GrapeJS components
         this.convertHTMLToComponents(contentRoot, this.model);
       },
 
       handleMergeMode(bodyElement) {
-        console.log("🔀 Merge mode: Checking if page is fresh...");
 
         const frameDoc = editor.Canvas.getFrameEl()?.contentDocument;
         if (!frameDoc) {
-          console.warn("⚠️ No frame document found");
+          //  console.warn("⚠️ No frame document found");
           this.handleNormalMode(bodyElement, true);
           return;
         }
@@ -481,21 +446,21 @@ function subreportPlugin(editor) {
         const isInSectionContent = !!subEl.closest(".section-content");
 
         if (!isInMainContent && !isInSectionContent) {
-          console.log("ℹ️ Subreport not in main content, using normal mode");
+          //   console.log("ℹ️ Subreport not in main content, using normal mode");
           this.handleNormalMode(bodyElement, true);
           return;
         }
 
         const pageContainer = subEl.closest(".page-container");
         if (!pageContainer) {
-          console.log("⚠️ No page-container found");
+          //  console.log("⚠️ No page-container found");
           this.handleNormalMode(bodyElement, true);
           return;
         }
 
         // Check if page is fresh
         if (this.isPageFresh(pageContainer, subEl)) {
-          console.log("✅ Fresh page detected! Merging into page sections...");
+          //   console.log("✅ Fresh page detected! Merging into page sections...");
           this.performPageMerge(bodyElement, pageContainer);
           // Hide the subreport block after merge
           this.model.addStyle({ display: 'none' });
@@ -524,7 +489,7 @@ function subreportPlugin(editor) {
             const hasContent = clone.textContent.trim().length > 0;
 
             if (childCount > 0 || hasContent) {
-              console.log(`❌ Page not fresh: ${selector} has content`);
+              //   console.log(`❌ Page not fresh: ${selector} has content`);
               return false;
             }
           }
@@ -534,9 +499,7 @@ function subreportPlugin(editor) {
       },
 
       performPageMerge(subreportBody, pageContainer) {
-        console.log("🔀 Performing page-level merge...");
 
-        // Find target sections in main page
         const headerTarget = pageContainer.querySelector(".page-header-element");
         const contentTarget = pageContainer.querySelector(".main-content-area");
         const footerTarget = pageContainer.querySelector(".page-footer-element");
@@ -550,7 +513,7 @@ function subreportPlugin(editor) {
         const pageModel = this.findPageModel(pageContainer);
 
         if (!pageModel) {
-          console.warn("⚠️ Could not find page model");
+          //   console.warn("⚠️ Could not find page model");
           return;
         }
 
@@ -558,7 +521,7 @@ function subreportPlugin(editor) {
         if (headerSource && headerTarget) {
           const headerModel = this.findComponentByEl(pageModel, headerTarget);
           if (headerModel) {
-            console.log("📤 Merging header elements...");
+            //   console.log("📤 Merging header elements...");
             this.convertHTMLToComponents(headerSource, headerModel);
           }
         }
@@ -567,8 +530,6 @@ function subreportPlugin(editor) {
         if (contentSource && contentTarget) {
           const contentModel = this.findComponentByEl(pageModel, contentTarget);
           if (contentModel) {
-            console.log("📤 Merging content elements...");
-            // Insert before subreport block
             const subreportModel = this.model;
             const subreportIndex = contentModel.components().indexOf(subreportModel);
             this.convertHTMLToComponents(contentSource, contentModel, subreportIndex);
@@ -579,12 +540,9 @@ function subreportPlugin(editor) {
         if (footerSource && footerTarget) {
           const footerModel = this.findComponentByEl(pageModel, footerTarget);
           if (footerModel) {
-            console.log("📤 Merging footer elements...");
             this.convertHTMLToComponents(footerSource, footerModel);
           }
         }
-
-        console.log("✅ Page merge completed!");
       },
 
       findPageModel(pageEl) {
@@ -604,19 +562,15 @@ function subreportPlugin(editor) {
         return null;
       },
 
-      // Around line 450 in subreportPlugin.js - UPDATE this method:
       convertHTMLToComponents(htmlElement, parentModel, insertIndex = -1) {
         const children = Array.from(htmlElement.children);
 
         children.forEach((child, idx) => {
           const componentDef = this.htmlElementToComponent(child);
           if (componentDef) {
-            // ✅ Mark ALL components from subreport
             componentDef.attributes = componentDef.attributes || {};
             componentDef.attributes['data-subreport-content'] = 'true';
             componentDef.attributes['data-subreport-source'] = this.model.getId();
-
-            // ✅ Make components droppable and moveable
             componentDef.droppable = false;
             componentDef.draggable = false;
             componentDef.copyable = false;
@@ -627,26 +581,20 @@ function subreportPlugin(editor) {
             } else {
               parentModel.components().add(componentDef);
             }
-
-            console.log(`✅ Added subreport child component: ${componentDef.tagName || 'unknown'}`);
           }
         });
       },
 
       htmlElementToComponent(element) {
-        // Convert HTML element to GrapeJS component definition
         const tagName = element.tagName.toLowerCase();
         const classes = Array.from(element.classList);
         const attributes = {};
-
-        // Copy attributes
         Array.from(element.attributes).forEach(attr => {
           if (attr.name !== 'class' && attr.name !== 'style') {
             attributes[attr.name] = attr.value;
           }
         });
 
-        // Extract inline styles
         const style = {};
         if (element.style.cssText) {
           element.style.cssText.split(';').forEach(rule => {
@@ -664,7 +612,6 @@ function subreportPlugin(editor) {
           style,
         };
 
-        // Handle different element types
         if (tagName === 'table') {
           componentDef.type = 'table';
         } else if (tagName === 'img') {
@@ -678,7 +625,6 @@ function subreportPlugin(editor) {
           componentDef.content = element.innerHTML;
         }
 
-        // Recursively convert children if not a text element
         if (element.children.length > 0 && !['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span'].includes(tagName)) {
           componentDef.components = Array.from(element.children).map(child =>
             this.htmlElementToComponent(child)
@@ -693,7 +639,6 @@ function subreportPlugin(editor) {
       extractSubreportHTML(htmlText) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, "text/html");
-        console.log("doc", doc)
         const styles = [];
         doc.querySelectorAll("style, link[rel='stylesheet']").forEach(tag => {
           styles.push(tag.outerHTML);
@@ -701,7 +646,6 @@ function subreportPlugin(editor) {
 
         const bodyEl = doc.querySelector("body");
         let innerContent = bodyEl ? bodyEl.innerHTML.trim() : htmlText.trim();
-        console.log("innercontent", innerContent)
 
         const hasHeaderOrFooter = !!doc.querySelector(".header-wrapper, .footer-wrapper");
 
@@ -727,7 +671,6 @@ function subreportPlugin(editor) {
                 newStyle.textContent = cssText;
                 newStyle.setAttribute("data-subreport-hash", styleHash);
                 head.appendChild(newStyle);
-                console.log(`✅ Style ${idx + 1} injected`);
               }
             } else if (styleNode.tagName === "LINK") {
               const href = styleNode.getAttribute("href");
@@ -736,7 +679,6 @@ function subreportPlugin(editor) {
                 newLink.rel = "stylesheet";
                 newLink.href = href;
                 head.appendChild(newLink);
-                console.log(`✅ Stylesheet linked: ${href}`);
               }
             }
           }
@@ -749,7 +691,6 @@ function subreportPlugin(editor) {
         const wrapper = tempDoc.getElementById("__tmp_wrapper__");
         if (!wrapper) return innerHTML;
 
-        // Unwrap page-container and page-content
         const unwrapTargets = wrapper.querySelectorAll(".page-container, .page-content");
         unwrapTargets.forEach(el => {
           const parent = el.parentNode;
@@ -758,7 +699,6 @@ function subreportPlugin(editor) {
           parent.replaceChild(frag, el);
         });
 
-        // Remove IDs from wrapper elements
         const idRemoveClasses = [
           "header-wrapper", "page-header-element", "content-wrapper",
           "main-content-area", "footer-wrapper", "page-footer-element"
@@ -778,6 +718,4 @@ function subreportPlugin(editor) {
     attributes: { class: "fa fa-copy" },
     content: { type: "subreport" },
   });
-
-  console.log("✅ Subreport Plugin (Components Approach) loaded successfully.");
 }

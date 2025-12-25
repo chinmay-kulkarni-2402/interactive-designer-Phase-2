@@ -7255,28 +7255,6 @@
                         enableTTS = 'No';
                       }
 
-                      // //START API CODE
-                      // editor.Modal.setTitle('Export Template');
-                      // editor.Modal.setContent(`<div class="new-table-form">
-                      // <div style="padding: 10px 0px;">
-                      //   <label for="templateName">Template Name</label> 
-                      // </div>
-                      // <div>  
-                      //   <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
-                      // </div>  
-                      // <input id="download-template-file" class="popupaddbtn" type="button" value="Save" data-component-id="c1006">
-                      // </div>
-                      // </div>
-                      // `); 
-                      // editor.Modal.open();   
-                      // console.log(googleTranslater,'googleTranslater');
-                      // console.log(enableTTS,'enableTTS');
-
-                      // var downTemp = document.getElementById("download-template-file");
-                      // downTemp.addEventListener("click", downloadTemplate, true); 
-
-                      // //END API CODE
-
                       var data = `<!doctype html><html lang="en"><head><meta charset="utf-8">
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
             <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
@@ -7615,7 +7593,6 @@
                         currentUtterance.volume = 1;
                         
                         currentUtterance.onstart = function() {
-                          console.log('TTS started');
                         };
                         
                         currentUtterance.onend = function() {
@@ -7623,11 +7600,9 @@
                           customReadMode = false;
                           ttsToggle.classList.remove('active');
                           ttsStatus.textContent = 'TTS';
-                          console.log('TTS ended');
                         };
                         
                         currentUtterance.onerror = function(event) {
-                          console.error('TTS error:', event);
                           stopReading();
                         };
                         
@@ -7838,7 +7813,6 @@
                       };
                       
                       currentUtterance.onerror = function(event) {
-                        console.error('TTS error:', event);
                         setTimeout(() => {
                           speakChunks(chunks, index + 1, voice);
                         }, 500);
@@ -8058,66 +8032,6 @@ window.addEventListener('load', function() {
                           }
                       </script>` +
                         "</html>";
-
-                      function downloadTemplate() {
-                        const templateName = document.getElementById("templateNameField").value;
-                        if (templateName === '' || templateName === null || templateName === undefined) {
-                          alert('Template Name Required.');
-                          return false
-                        }
-                        const apiUrl = 'http://192.168.0.188:8081/api/uploadFile';
-                        // const apiUrl = 'http://localhost:9998/uploadFile'; 
-                        const formData = new FormData();
-                        formData.append('name', templateName);
-                        const downloadableHtmlNew = new Blob([downloadableHtml], { type: 'text/html' });
-                        formData.append('editableHtml', downloadableHtmlNew, 'downloadableHtml.html');
-                        const editableHtmlNew = new Blob([editableHtml], { type: 'text/html' });
-                        formData.append('downloadableHtml', editableHtmlNew, 'editableHtml.html');
-                        // console.log(downloadableHtml,'downloadableHtmlNew');
-                        //  console.log(editableHtml,'editableHtmlNew');
-
-                        // Send the data to the API using the Fetch API
-                        fetch(apiUrl, {
-                          method: 'POST',
-                          body: formData,
-                        })
-                          .then(response => response.json())
-                          .then(data => {
-                            console.log('API Response:', data);
-                            alert("Template added successfully.");
-                            document.getElementById("templateNameField").value = "";
-                            editor.Modal.close();
-                          })
-                          .catch(error => {
-                            console.error('Error:', error);
-                          });
-
-                        //   fetch(apiUrl, {
-                        //     method: 'POST',
-                        //     body: formData,
-                        //     // mode: 'no-cors'
-                        // })
-                        // .then(response => {
-                        //     if (!response.ok) {
-                        //         throw new Error('Network response was not ok');
-                        //     }
-                        //     return response.json();
-                        // })
-                        // .then(data => {
-                        //     console.log('API Response:', data);
-                        //     alert("Template added successfully.");
-                        //     document.getElementById("templateNameField").value = "";
-                        //     editor.Modal.close();
-                        // })
-                        // .catch(error => {
-                        //     console.error('Error:', error);
-                        // });
-
-
-                      }
-                      //API END Here
-
-
                       return data;
                     },
                   },
@@ -8235,7 +8149,6 @@ window.addEventListener('load', function() {
                 }
               });
 
-            // Add button to GrapesJS top panel
             e.on("load", () => {
               const devicesPanel = e.Panels.getPanel("devices-c");
 
@@ -8252,30 +8165,117 @@ window.addEventListener('load', function() {
                 }]);
               }
             });
-            // Add this NEW command right after the main export command closes
+
+            // ===== IndexedDB helpers (local to this file) =====
+            const DB_NAME = "TemplateEditorDB";
+            const DB_VERSION = 1;
+            const STORE_NAME = "pages";
+
+            function openDB() {
+              return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = e => {
+                  const db = e.target.result;
+                  if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                  }
+                };
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+              });
+            }
+
+            async function clearFromIndexedDB(key) {
+              const db = await openDB();
+              return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                tx.objectStore(STORE_NAME).clear();
+                tx.oncomplete = () => resolve(true);
+                tx.onerror = () => reject(tx.error);
+              });
+            }
+
             e.Commands.add('save-template-to-api', {
               run: function (editor, sender, opts) {
                 var iframe = document.querySelector('#editor iframe');
                 var common_json = JSON.parse(localStorage.getItem("common_json"));
                 let exportedJsonData = common_json ? JSON.stringify([common_json]) : '[]';
 
-                // Build downloadable HTML
+                let pageSetupSettings = null;
+                try {
+                  const pageSetupManager =
+                    editor.PageSetupManager ||
+                    window.pageSetupManager ||
+                    editor.getModel?.()?.PageSetupManager ||
+                    (editor.model && editor.model.PageSetupManager);
+
+                  if (pageSetupManager && typeof pageSetupManager.exportPageSettings === 'function') {
+                    pageSetupSettings = pageSetupManager.exportPageSettings();
+                  } else {
+                  }
+                } catch (err) {
+                  console.error('❌ Error exporting page setup settings:', err);
+                }
+                let slideshowSettings = null;
+                try {
+                  if (window.transitions && Object.keys(window.transitions).length > 0) {
+                    slideshowSettings = {
+                      transitions: window.transitions || {},
+                      thumbnailNames: window.thumbnailNames || {},
+                      slideshowSoundPath: window.slideshowSoundPath || null,
+                      slideMusic: {}
+                    };
+
+                    Object.keys(window.transitions).forEach(slideIndex => {
+                      const trans = window.transitions[slideIndex];
+                      if (trans.hasMusic && trans.musicFile) {
+                        slideshowSettings.slideMusic[slideIndex] = {
+                          musicFile: trans.musicFile,
+                          musicLoop: trans.musicLoop
+                        };
+                      }
+                    });
+                  }
+                } catch (err) {
+                  console.error('⚠️ Slideshow settings export failed, skipping');
+                  slideshowSettings = null;
+                }
+
                 var htmlContent = editor.getHtml();
+
+                htmlContent = htmlContent.replace(
+                  /var\s+jsonData1\s*=\s*[\s\S]*?;\s*/gi,
+                  ''
+                );
+
                 var cssContent = editor.getCss();
 
                 var downloadableHtml = `<!doctype html><html lang="en"><head>
-<meta charset="utf-8">
-<style>${cssContent}</style>
-</head><body>
-<div id="AllBodyData">${htmlContent}</div>
-<script>var jsonData1 = ${exportedJsonData};</script>
-<script>${editor.getJs()}</script>
-</body></html>`;
+                  <meta charset="utf-8">
+                  <style>${cssContent}</style>
+                  </head><body>
+                  <div id="AllBodyData">${htmlContent}</div>
+                  <script>
+                  var jsonData1 = ${exportedJsonData};
+                  </script>
+                  <script>${editor.getJs()}</script>
+                  </body></html>`;
 
                 var editableHtml = `<html><head><style>${cssContent}</style></head>
-${htmlContent}
-<script>${editor.getJs()}</script>
-</html>`;
+                  ${htmlContent}
+                  <script>
+                  var jsonData1 = ${exportedJsonData};
+                  ${pageSetupSettings ? `
+                  window.pageSetupSettings = ${JSON.stringify(pageSetupSettings)};
+                  ` : ``}
+                  ${slideshowSettings ? `
+                  window.slideshowSettings = ${JSON.stringify(slideshowSettings)};
+                  ` : ``}
+                  </script>
+                  <script>${editor.getJs()}</script>
+                  </html>`;
 
                 // Check localStorage for edit mode
                 const editTemplateId = localStorage.getItem('editTemplateId');
@@ -8284,28 +8284,27 @@ ${htmlContent}
                 let checkboxHTML = '';
                 if (editTemplateId && editTemplateName) {
                   checkboxHTML = `
-        <div style="padding: 10px 0px;">
-          <label>
-            <input type="checkbox" id="replaceOriginalCheckbox" checked> Replace Original
-          </label>
-        </div>
-      `;
+                      <div style="padding: 10px 0px;">
+                        <label>
+                          <input type="checkbox" id="replaceOriginalCheckbox" checked> Replace Original
+                        </label>
+                      </div>
+                    `;
                 }
 
-                // Show modal
                 editor.Modal.setTitle('Save Template');
                 editor.Modal.setContent(`
-      <div class="new-table-form">
-        <div style="padding: 10px 0px;">
-          <label for="templateName">Template Name</label> 
-        </div>
-        <div>  
-          <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
-        </div>  
-        ${checkboxHTML}
-        <input id="save-template-btn" class="popupaddbtn" type="button" value="Save">
-      </div>
-    `);
+                  <div class="new-table-form">
+                    <div style="padding: 10px 0px;">
+                      <label for="templateName">Template Name</label> 
+                    </div>
+                    <div>  
+                      <input type="text" class="form-control" value="" name="templateName" id="templateNameField" placeholder="Enter Template Name">
+                    </div>  
+                    ${checkboxHTML}
+                    <input id="save-template-btn" class="popupaddbtn" type="button" value="Save">
+                  </div>
+                `);
                 editor.Modal.open();
 
                 setTimeout(function () {
@@ -8313,7 +8312,6 @@ ${htmlContent}
                   const templateInput = document.getElementById("templateNameField");
                   const replaceCheckbox = document.getElementById("replaceOriginalCheckbox");
 
-                  // If checkbox exists, handle change
                   if (replaceCheckbox) {
                     const setTemplateValue = () => {
                       if (replaceCheckbox.checked) {
@@ -8325,9 +8323,7 @@ ${htmlContent}
                       }
                     };
 
-                    // Set initial state based on default checked
                     setTemplateValue();
-
                     replaceCheckbox.addEventListener('change', setTemplateValue);
                   }
 
@@ -8339,47 +8335,38 @@ ${htmlContent}
                         return;
                       }
 
-                      // Determine API URL
-                      let apiUrl = 'http://192.168.0.188:8081/api/uploadFile';
+                      const apiUrl = `${API_BASE_URL}/uploadFile`;
                       if (replaceCheckbox && replaceCheckbox.checked && editTemplateId) {
-                        apiUrl += `/${editTemplateId}`; // edit mode
+                        apiUrl += `/${editTemplateId}`;
                       }
 
                       const formData = new FormData();
                       formData.append('name', templateName);
-                      formData.append('editableHtml', new Blob([downloadableHtml], { type: 'text/html' }), 'downloadableHtml.html');
-                      formData.append('downloadableHtml', new Blob([editableHtml], { type: 'text/html' }), 'editableHtml.html');
+                      formData.append('downloadableHtml', new Blob([downloadableHtml], { type: 'text/html' }), 'downloadableHtml.html');
+                      formData.append('editableHtml', new Blob([editableHtml], { type: 'text/html' }), 'editableHtml.html');
 
-                      // Log FormData entries (optional)
-                      console.log('---- FormData Entries ----');
-                      for (let [key, value] of formData.entries()) {
-                        if (value instanceof Blob) {
-                          console.log(`${key}: [Blob]`, {
-                            name: value.name,
-                            type: value.type,
-                            size: value.size,
-                          });
-                          value.text().then(text => console.log(`📄 ${key} content preview:\n`, text.slice(0, 500)));
-                        } else {
-                          console.log(`${key}:`, value);
-                        }
+                      if (pageSetupSettings) {
+                        formData.append('pageSetupSettings', JSON.stringify(pageSetupSettings));
                       }
-                      console.log('--------------------------');
 
                       fetch(apiUrl, {
                         method: 'POST',
                         body: formData,
                       })
                         .then(response => response.json())
-                        .then(data => {
-                          console.log('API Response:', data);
-                          alert("Template saved successfully.");
+                        .then(async data => {
+                          alert("Template saved successfully with page setup settings.");
 
-                          // Cleanup localStorage if in edit mode
+                          // ✅ CLEAR INDEXEDDB AFTER SUCCESSFUL SAVE 
+                          try {
+                            await clearFromIndexedDB('pages');
+                          } catch (err) {
+                            console.error('❌ Failed to clear Saved template for editing:', err);
+                          }
+
                           if (replaceCheckbox && replaceCheckbox.checked) {
                             localStorage.removeItem('editTemplateName');
                             localStorage.removeItem('editTemplateId');
-                            sessionStorage.removeItem('single-page');
                           }
 
                           templateInput.value = "";
@@ -8387,8 +8374,8 @@ ${htmlContent}
                           editor.Modal.close();
                           window.location.reload();
                         })
+
                         .catch(error => {
-                          console.error('Error:', error);
                           alert("Error saving template.");
                         });
                     };

@@ -2,10 +2,10 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = t())
     : "function" == typeof define && define.amd
-    ? define([], t)
-    : "object" == typeof exports
-    ? (exports["code-editor-component"] = t())
-    : (e["code-editor-component"] = t());
+      ? define([], t)
+      : "object" == typeof exports
+        ? (exports["code-editor-component"] = t())
+        : (e["code-editor-component"] = t());
 })(window, function () {
   return (function (e) {
     var t = {};
@@ -32,8 +32,8 @@
         var i = Object.create(null);
         if (
           (n.r(i),
-          Object.defineProperty(i, "default", { enumerable: !0, value: e }),
-          2 & t && "string" != typeof e)
+            Object.defineProperty(i, "default", { enumerable: !0, value: e }),
+            2 & t && "string" != typeof e)
         )
           for (var r in e)
             n.d(
@@ -49,11 +49,11 @@
         var t =
           e && e.__esModule
             ? function () {
-                return e.default;
-              }
+              return e.default;
+            }
             : function () {
-                return e;
-              };
+              return e;
+            };
         return n.d(t, "a", t), t;
       }),
       (n.o = function (e, t) {
@@ -68,11 +68,11 @@
         return (
           t in e
             ? Object.defineProperty(e, t, {
-                value: n,
-                enumerable: !0,
-                configurable: !0,
-                writable: !0,
-              })
+              value: n,
+              enumerable: !0,
+              configurable: !0,
+              writable: !0,
+            })
             : (e[t] = n),
           e
         );
@@ -116,14 +116,14 @@
         p = u
           ? "calc"
           : ["", "-webkit-", "-moz-", "-o-"]
-              .filter(function (e) {
-                var t = d.createElement("div");
-                return (
-                  (t.style.cssText = "width:" + e + "calc(9px)"),
-                  !!t.style.length
-                );
-              })
-              .shift() + "calc",
+            .filter(function (e) {
+              var t = d.createElement("div");
+              return (
+                (t.style.cssText = "width:" + e + "calc(9px)"),
+                !!t.style.length
+              );
+            })
+            .shift() + "calc",
         f = function (e) {
           return "string" == typeof e || e instanceof String;
         },
@@ -186,8 +186,8 @@
             O = Array.isArray(w)
               ? w
               : c.map(function () {
-                  return w;
-                }),
+                return w;
+              }),
             z = m(t, "expandToMin", !1),
             P = m(t, "gutterSize", 10),
             j = m(t, "gutterAlign", "center"),
@@ -232,13 +232,13 @@
               r = a[this.b];
             this.dragging &&
               ((n = H(e) - this.start + (this._b - this.dragOffset)),
-              k > 1 && (n = Math.round(n / k) * k),
-              n <= i.minSize + x + this._b
-                ? (n = i.minSize + this._b)
-                : n >= this.size - (r.minSize + x + this._c) &&
+                k > 1 && (n = Math.round(n / k) * k),
+                n <= i.minSize + x + this._b
+                  ? (n = i.minSize + this._b)
+                  : n >= this.size - (r.minSize + x + this._c) &&
                   (n = this.size - (r.minSize + this._c)),
-              A.call(this, n),
-              m(t, "onDrag", h)(R()));
+                A.call(this, n),
+                m(t, "onDrag", h)(R()));
           }
           function U() {
             var e = a[this.a].element,
@@ -258,9 +258,9 @@
               return 0 === n
                 ? null
                 : (n -=
-                    "horizontal" === L
-                      ? parseFloat(t.paddingLeft) + parseFloat(t.paddingRight)
-                      : parseFloat(t.paddingTop) + parseFloat(t.paddingBottom));
+                  "horizontal" === L
+                    ? parseFloat(t.paddingLeft) + parseFloat(t.paddingRight)
+                    : parseFloat(t.paddingTop) + parseFloat(t.paddingBottom));
             })(p);
             if (null === t) return e;
             if (
@@ -282,13 +282,13 @@
             return 0 === n
               ? e
               : r.map(function (e, r) {
-                  var s = e;
-                  if (n > 0 && i[r] - n > 0) {
-                    var o = Math.min(n, i[r] - n);
-                    (n -= o), (s = e - o);
-                  }
-                  return (s / t) * 100;
-                });
+                var s = e;
+                if (n > 0 && i[r] - n > 0) {
+                  var o = Math.min(n, i[r] - n);
+                  (n -= o), (s = e - o);
+                }
+                return (s / t) * 100;
+              });
           }
           function I() {
             var e = a[this.a].element,
@@ -358,7 +358,7 @@
               (s = "right"),
               (o = "clientWidth"))
             : "vertical" === L &&
-              ((n = "height"),
+            ((n = "height"),
               (i = "clientY"),
               (r = "top"),
               (s = "bottom"),
@@ -385,8 +385,8 @@
                   direction: L,
                   parent: p,
                 })._b = g(P, t - 1 == 0, !1, j)),
-                (i._c = g(P, !1, t === c.length - 1, j)),
-                "row-reverse" === E || "column-reverse" === E)
+                  (i._c = g(P, !1, t === c.length - 1, j)),
+                  "row-reverse" === E || "column-reverse" === E)
               ) {
                 var s = i.a;
                 (i.a = i.b), (i.b = s);
@@ -440,7 +440,7 @@
                       ? i.parent.removeChild(i.gutter)
                       : (i.gutter.removeEventListener("mousedown", i._a),
                         i.gutter.removeEventListener("touchstart", i._a)),
-                    !0 !== e)
+                      !0 !== e)
                   ) {
                     var r = D(n, i.a.size, i._b);
                     Object.keys(r).forEach(function (e) {
@@ -468,321 +468,321 @@
         return n;
       }
       var w = (function () {
-          function e(t, n) {
-            o()(this, e),
-              (this.editor = t),
-              (this.$ = t.$),
-              (this.pfx = t.getConfig("stylePrefix")),
-              (this.opts = n),
-              (this.canvas = this.findWithinEditor(
-                ".".concat(this.pfx, "cv-canvas")
+        function e(t, n) {
+          o()(this, e),
+            (this.editor = t),
+            (this.$ = t.$),
+            (this.pfx = t.getConfig("stylePrefix")),
+            (this.opts = n),
+            (this.canvas = this.findWithinEditor(
+              ".".concat(this.pfx, "cv-canvas")
+            )),
+            (this.panelViews = n.appendTo
+              ? this.$(n.appendTo)
+              : this.findWithinEditor(
+                ".".concat(this.pfx, "pn-").concat(n.panelId)
               )),
-              (this.panelViews = n.appendTo
-                ? this.$(n.appendTo)
-                : this.findWithinEditor(
-                    ".".concat(this.pfx, "pn-").concat(n.panelId)
-                  )),
-              (this.isShowing = !0);
-          }
-          return (
-            c()(e, [
-              {
-                key: "findPanel",
-                value: function () {
-                  var e = this.editor.Panels,
-                    t = this.opts.panelId;
-                  return e.getPanel(t) || e.addPanel({ id: t });
-                },
+            (this.isShowing = !0);
+        }
+        return (
+          c()(e, [
+            {
+              key: "findPanel",
+              value: function () {
+                var e = this.editor.Panels,
+                  t = this.opts.panelId;
+                return e.getPanel(t) || e.addPanel({ id: t });
               },
-              {
-                key: "findWithinEditor",
-                value: function (e) {
-                  return this.$(e, this.editor.getEl());
-                },
+            },
+            {
+              key: "findWithinEditor",
+              value: function (e) {
+                return this.$(e, this.editor.getEl());
               },
-              {
-                key: "buildCodeEditor",
-                value: function (e) {
-                  var t = this.editor,
-                    n = this.opts;
-                  return t.CodeManager.createViewer(
-                    (function (e) {
-                      for (var t = 1; t < arguments.length; t++) {
-                        var n = null != arguments[t] ? arguments[t] : {};
-                        t % 2
-                          ? S(Object(n), !0).forEach(function (t) {
-                              r()(e, t, n[t]);
-                            })
-                          : Object.getOwnPropertyDescriptors
+            },
+            {
+              key: "buildCodeEditor",
+              value: function (e) {
+                var t = this.editor,
+                  n = this.opts;
+                return t.CodeManager.createViewer(
+                  (function (e) {
+                    for (var t = 1; t < arguments.length; t++) {
+                      var n = null != arguments[t] ? arguments[t] : {};
+                      t % 2
+                        ? S(Object(n), !0).forEach(function (t) {
+                          r()(e, t, n[t]);
+                        })
+                        : Object.getOwnPropertyDescriptors
                           ? Object.defineProperties(
-                              e,
-                              Object.getOwnPropertyDescriptors(n)
-                            )
+                            e,
+                            Object.getOwnPropertyDescriptors(n)
+                          )
                           : S(Object(n)).forEach(function (t) {
-                              Object.defineProperty(
-                                e,
-                                t,
-                                Object.getOwnPropertyDescriptor(n, t)
-                              );
-                            });
-                      }
-                      return e;
-                    })(
-                      {
-                        codeName: "html" === e ? "htmlmixed" : "css",
-                        theme: "hopscotch",
-                        readOnly: 0,
-                        autoBeautify: 1,
-                        autoCloseTags: 1,
-                        autoCloseBrackets: 1,
-                        styleActiveLine: 1,
-                        smartIndent: 1,
-                      },
-                      n.codeViewOptions
-                    )
-                  );
-                },
+                            Object.defineProperty(
+                              e,
+                              t,
+                              Object.getOwnPropertyDescriptor(n, t)
+                            );
+                          });
+                    }
+                    return e;
+                  })(
+                    {
+                      codeName: "html" === e ? "htmlmixed" : "css",
+                      theme: "hopscotch",
+                      readOnly: 0,
+                      autoBeautify: 1,
+                      autoCloseTags: 1,
+                      autoCloseBrackets: 1,
+                      styleActiveLine: 1,
+                      smartIndent: 1,
+                    },
+                    n.codeViewOptions
+                  )
+                );
               },
-              {
-                key: "buildSection",
-                value: function (e, t) {
-                  var n = this.$,
-                    i = this.pfx,
-                    r = this.opts,
-                    s = n("<section></section>"),
-                    o = "html" === e ? r.htmlBtnText : r.cssBtnText,
-                    a =
-                      r.cleanCssBtn && "css" === e
-                        ? '<button class="cp-delete-'
-                            .concat(e, " ")
-                            .concat(i, 'btn-prim">')
-                            .concat(r.cleanCssBtnText, "</button>")
-                        : "";
-                  s.append(
-                    n(
-                      '\n            <div class="codepanel-separator">\n                <div class="codepanel-label">'
-                        .concat(
-                          e,
-                          '</div>\n                <div class="cp-btn-container">\n                    '
-                        )
-                        .concat(
-                          a,
-                          '\n                    <button class="cp-apply-'
-                        )
+            },
+            {
+              key: "buildSection",
+              value: function (e, t) {
+                var n = this.$,
+                  i = this.pfx,
+                  r = this.opts,
+                  s = n("<section></section>"),
+                  o = "html" === e ? r.htmlBtnText : r.cssBtnText,
+                  a =
+                    r.cleanCssBtn && "css" === e
+                      ? '<button class="cp-delete-'
                         .concat(e, " ")
                         .concat(i, 'btn-prim">')
-                        .concat(
-                          o,
-                          "</button>\n                </div>\n            </div>"
-                        )
-                    )
-                  );
-                  var c = t.getElement();
-                  return (
-                    (c.style.height = "calc(100% - 30px)"),
-                    s.append(c),
-                    this.codePanel.append(s),
-                    s.get(0)
-                  );
-                },
+                        .concat(r.cleanCssBtnText, "</button>")
+                      : "";
+                s.append(
+                  n(
+                    '\n            <div class="codepanel-separator">\n                <div class="codepanel-label">'
+                      .concat(
+                        e,
+                        '</div>\n                <div class="cp-btn-container">\n                    '
+                      )
+                      .concat(
+                        a,
+                        '\n                    <button class="cp-apply-'
+                      )
+                      .concat(e, " ")
+                      .concat(i, 'btn-prim">')
+                      .concat(
+                        o,
+                        "</button>\n                </div>\n            </div>"
+                      )
+                  )
+                );
+                var c = t.getElement();
+                return (
+                  (c.style.height = "calc(100% - 30px)"),
+                  s.append(c),
+                  this.codePanel.append(s),
+                  s.get(0)
+                );
               },
-              {
-                key: "buildCodePanel",
-                value: function () {
-                  var e = this,
-                    t = this.$,
-                    n = this.editor,
-                    i = this.opts.panelId ? this.findPanel() : 0;
-                  (this.codePanel = t("<div></div>")),
-                    this.codePanel.addClass("code-panel"),
-                    (this.htmlCodeEditor = this.buildCodeEditor("html")),
-                    (this.cssCodeEditor = this.buildCodeEditor("css"));
-                  var r = [
-                    this.buildSection("html", this.htmlCodeEditor),
-                    this.buildSection("css", this.cssCodeEditor),
-                  ];
-                  i &&
-                    !this.opts.appendTo &&
-                    i
-                      .set("appendContent", this.codePanel)
-                      .trigger("change:appendContent"),
-                    this.opts.appendTo &&
-                      t(this.opts.appendTo).append(this.codePanel),
-                    this.updateEditorContents(),
-                    this.codePanel
-                      .find(".cp-apply-html")
-                      .on("click", this.updateHtml.bind(this)),
-                    this.codePanel
-                      .find(".cp-apply-css")
-                      .on("click", this.updateCss.bind(this)),
-                    this.opts.cleanCssBtn &&
-                      this.codePanel
-                        .find(".cp-delete-css")
-                        .on("click", this.deleteSelectedCss.bind(this)),
-                    E(r, {
-                      direction: "vertical",
-                      sizes: [50, 50],
-                      minSize: 100,
-                      gutterSize: 1,
-                      onDragEnd: this.refreshEditors.bind(this),
-                    }),
-                    n.on("component:update", function (t) {
-                      return e.updateEditorContents();
-                    }),
-                    n.on("stop:preview", function () {
-                      e.isShowing &&
-                        !e.opts.preserveWidth &&
-                        e.canvas.css("width", e.opts.openState.cv);
-                    });
-                },
-              },
-              {
-                key: "showCodePanel",
-                value: function () {
-                  (this.isShowing = !0),
-                    this.updateEditorContents(),
-                    this.codePanel.css("display", "block"),
-                    setTimeout(this.refreshEditors.bind(this), 320),
-                    this.opts.preserveWidth ||
-                      (this.panelViews.css("width", this.opts.openState.pn),
-                      this.canvas.css("width", this.opts.openState.cv));
-                },
-              },
-              {
-                key: "hideCodePanel",
-                value: function () {
-                  this.codePanel && this.codePanel.css("display", "none"),
-                    (this.isShowing = !1),
-                    this.opts.preserveWidth ||
-                      (this.panelViews.css("width", this.opts.closedState.pn),
-                      this.canvas.css("width", this.opts.closedState.cv));
-                },
-              },
-              {
-                key: "refreshEditors",
-                value: function () {
-                  this.htmlCodeEditor.refresh(), this.cssCodeEditor.refresh();
-                },
-              },
-              {
-                key: "updateHtml",
-                value: function (e) {
-                  null == e || e.preventDefault();
-                  var t = this.editor,
-                    n = this.component,
-                    i = this.htmlCodeEditor.getContent().trim();
-                  if (i && i !== this.previousHtmlCode) {
-                    this.previousHtmlCode = i;
-                    var r = "";
-                    this.cssCodeEditor
-                      .getContent()
-                      .split("}\n")
-                      .filter(function (e) {
-                        return Boolean(e.trim());
-                      })
-                      .map(function (e) {
-                        if (!/}$/.test(e)) return "".concat(e, "}");
-                      })
-                      .forEach(function (e) {
-                        /^#/.test(e) && (r += e);
-                      }),
-                      (i += "<style>".concat(r, "</style>")),
-                      !n || "wrapper" === n.attributes.type
-                        ? t.setComponents(i)
-                        : t.select(n.replaceWith(i));
-                  }
-                },
-              },
-              {
-                key: "updateCss",
-                value: function (e) {
-                  null == e || e.preventDefault();
-                  var t = this.cssCodeEditor.getContent().trim();
-                  t &&
-                    t !== this.previousCssCode &&
-                    ((this.previousCssCode = t), this.editor.Css.addRules(t));
-                },
-              },
-              {
-                key: "deleteSelectedCss",
-                value: function (e) {
-                  var t = this;
-                  null == e || e.preventDefault(),
-                    this.cssCodeEditor.editor
-                      .getSelections()
-                      .forEach(function (e) {
-                        return t.parseRemove(e);
-                      }),
-                    this.cssCodeEditor.editor.deleteH();
-                },
-              },
-              {
-                key: "parseRemove",
-                value: function (e) {
-                  var t = this.editor;
-                  t.Css.remove(this.getRules(t.Parser.parseCss(e)));
-                },
-              },
-              {
-                key: "getRules",
-                value: function (e) {
-                  var t =
-                      arguments.length > 1 && void 0 !== arguments[1]
-                        ? arguments[1]
-                        : {},
-                    n = this.editor,
-                    i = n.Selectors;
-                  return e.map(function (e) {
-                    var r = i.get(e.selectors),
-                      s = e.state,
-                      o = e.selectorsAdd,
-                      a = t.atRuleType,
-                      c = t.atRuleParams;
-                    return (
-                      r && n.Css.get(r, s, c, { selectorsAdd: o, atRule: a })
-                    );
+            },
+            {
+              key: "buildCodePanel",
+              value: function () {
+                var e = this,
+                  t = this.$,
+                  n = this.editor,
+                  i = this.opts.panelId ? this.findPanel() : 0;
+                (this.codePanel = t("<div></div>")),
+                  this.codePanel.addClass("code-panel"),
+                  (this.htmlCodeEditor = this.buildCodeEditor("html")),
+                  (this.cssCodeEditor = this.buildCodeEditor("css"));
+                var r = [
+                  this.buildSection("html", this.htmlCodeEditor),
+                  this.buildSection("css", this.cssCodeEditor),
+                ];
+                i &&
+                  !this.opts.appendTo &&
+                  i
+                    .set("appendContent", this.codePanel)
+                    .trigger("change:appendContent"),
+                  this.opts.appendTo &&
+                  t(this.opts.appendTo).append(this.codePanel),
+                  this.updateEditorContents(),
+                  this.codePanel
+                    .find(".cp-apply-html")
+                    .on("click", this.updateHtml.bind(this)),
+                  this.codePanel
+                    .find(".cp-apply-css")
+                    .on("click", this.updateCss.bind(this)),
+                  this.opts.cleanCssBtn &&
+                  this.codePanel
+                    .find(".cp-delete-css")
+                    .on("click", this.deleteSelectedCss.bind(this)),
+                  E(r, {
+                    direction: "vertical",
+                    sizes: [50, 50],
+                    minSize: 100,
+                    gutterSize: 1,
+                    onDragEnd: this.refreshEditors.bind(this),
+                  }),
+                  n.on("component:update", function (t) {
+                    return e.updateEditorContents();
+                  }),
+                  n.on("stop:preview", function () {
+                    e.isShowing &&
+                      !e.opts.preserveWidth &&
+                      e.canvas.css("width", e.opts.openState.cv);
                   });
-                },
               },
-              {
-                key: "updateEditorContents",
-                value: function () {
-                  this.isShowing &&
-                    ((this.component = this.editor.getSelected()),
+            },
+            {
+              key: "showCodePanel",
+              value: function () {
+                (this.isShowing = !0),
+                  this.updateEditorContents(),
+                  this.codePanel.css("display", "block"),
+                  setTimeout(this.refreshEditors.bind(this), 320),
+                  this.opts.preserveWidth ||
+                  (this.panelViews.css("width", this.opts.openState.pn),
+                    this.canvas.css("width", this.opts.openState.cv));
+              },
+            },
+            {
+              key: "hideCodePanel",
+              value: function () {
+                this.codePanel && this.codePanel.css("display", "none"),
+                  (this.isShowing = !1),
+                  this.opts.preserveWidth ||
+                  (this.panelViews.css("width", this.opts.closedState.pn),
+                    this.canvas.css("width", this.opts.closedState.cv));
+              },
+            },
+            {
+              key: "refreshEditors",
+              value: function () {
+                this.htmlCodeEditor.refresh(), this.cssCodeEditor.refresh();
+              },
+            },
+            {
+              key: "updateHtml",
+              value: function (e) {
+                null == e || e.preventDefault();
+                var t = this.editor,
+                  n = this.component,
+                  i = this.htmlCodeEditor.getContent().trim();
+                if (i && i !== this.previousHtmlCode) {
+                  this.previousHtmlCode = i;
+                  var r = "";
+                  this.cssCodeEditor
+                    .getContent()
+                    .split("}\n")
+                    .filter(function (e) {
+                      return Boolean(e.trim());
+                    })
+                    .map(function (e) {
+                      if (!/}$/.test(e)) return "".concat(e, "}");
+                    })
+                    .forEach(function (e) {
+                      /^#/.test(e) && (r += e);
+                    }),
+                    (i += "<style>".concat(r, "</style>")),
+                    !n || "wrapper" === n.attributes.type
+                      ? t.setComponents(i)
+                      : t.select(n.replaceWith(i));
+                }
+              },
+            },
+            {
+              key: "updateCss",
+              value: function (e) {
+                null == e || e.preventDefault();
+                var t = this.cssCodeEditor.getContent().trim();
+                t &&
+                  t !== this.previousCssCode &&
+                  ((this.previousCssCode = t), this.editor.Css.addRules(t));
+              },
+            },
+            {
+              key: "deleteSelectedCss",
+              value: function (e) {
+                var t = this;
+                null == e || e.preventDefault(),
+                  this.cssCodeEditor.editor
+                    .getSelections()
+                    .forEach(function (e) {
+                      return t.parseRemove(e);
+                    }),
+                  this.cssCodeEditor.editor.deleteH();
+              },
+            },
+            {
+              key: "parseRemove",
+              value: function (e) {
+                var t = this.editor;
+                t.Css.remove(this.getRules(t.Parser.parseCss(e)));
+              },
+            },
+            {
+              key: "getRules",
+              value: function (e) {
+                var t =
+                  arguments.length > 1 && void 0 !== arguments[1]
+                    ? arguments[1]
+                    : {},
+                  n = this.editor,
+                  i = n.Selectors;
+                return e.map(function (e) {
+                  var r = i.get(e.selectors),
+                    s = e.state,
+                    o = e.selectorsAdd,
+                    a = t.atRuleType,
+                    c = t.atRuleParams;
+                  return (
+                    r && n.Css.get(r, s, c, { selectorsAdd: o, atRule: a })
+                  );
+                });
+              },
+            },
+            {
+              key: "updateEditorContents",
+              value: function () {
+                this.isShowing &&
+                  ((this.component = this.editor.getSelected()),
                     this.component &&
-                      (this.htmlCodeEditor.setContent(
-                        this.getComponentHtml(this.component)
-                      ),
+                    (this.htmlCodeEditor.setContent(
+                      this.getComponentHtml(this.component)
+                    ),
                       this.cssCodeEditor.setContent(
                         this.editor.CodeManager.getCode(this.component, "css", {
                           cssc: this.editor.Css,
                         })
                       )));
-                },
               },
-              {
-                key: "getComponentHtml",
-                value: function (e) {
-                  var t = this.pfx,
-                    n = this.opts,
-                    i = "",
-                    r = e.getEl();
-                  !n.clearData && r.classList.remove("".concat(t, "selected"));
-                  var s = n.clearData
-                    ? e.toHTML()
-                    : "wrapper" === e.attributes.type
+            },
+            {
+              key: "getComponentHtml",
+              value: function (e) {
+                var t = this.pfx,
+                  n = this.opts,
+                  i = "",
+                  r = e.getEl();
+                !n.clearData && r.classList.remove("".concat(t, "selected"));
+                var s = n.clearData
+                  ? e.toHTML()
+                  : "wrapper" === e.attributes.type
                     ? r.innerHTML
                     : r.outerHTML;
-                  !n.clearData && r.classList.add("".concat(t, "selected")),
-                    (i += s);
-                  var o = n.editJs ? e.getScriptString() : "";
-                  return (i += o ? "<script>".concat(o, "</script>") : "");
-                },
+                !n.clearData && r.classList.add("".concat(t, "selected")),
+                  (i += s);
+                var o = n.editJs ? e.getScriptString() : "";
+                return (i += o ? "<script>".concat(o, "</script>") : "");
               },
-            ]),
-            e
-          );
-        })(),
+            },
+          ]),
+          e
+        );
+      })(),
         O = function (e, t) {
           var n = e.Commands,
             i = null;
@@ -818,11 +818,11 @@
           var n = null != arguments[t] ? arguments[t] : {};
           t % 2
             ? z(Object(n), !0).forEach(function (t) {
-                r()(e, t, n[t]);
-              })
+              r()(e, t, n[t]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(n))
-            : z(Object(n)).forEach(function (t) {
+              ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(n))
+              : z(Object(n)).forEach(function (t) {
                 Object.defineProperty(
                   e,
                   t,
@@ -834,7 +834,7 @@
       }
       t.default = function (e) {
         var t =
-            arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
+          arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
           n = P(
             P(
               {},

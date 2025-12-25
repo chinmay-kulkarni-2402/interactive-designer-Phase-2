@@ -1,14 +1,14 @@
-function customTabWithNav(editor) {    
-    editor.on('block:drag:stop', (block) => {  
-        if(block.get('type') === 'nav-tabs'){  
-          var ccid = block.ccid;  
-          const iframe = editor.getContainer().querySelector('iframe'); 
-          const contentWindow = iframe.contentWindow; 
-          const iframeDocument = contentWindow.document; 
-          const head = iframeDocument.head;   
-          const body = iframeDocument.body;  
-          const style = document.createElement('style'); 
-          style.innerHTML = ` 
+function customTabWithNav(editor) {
+  editor.on('block:drag:stop', (block) => {
+    if (block.get('type') === 'nav-tabs') {
+      var ccid = block.ccid;
+      const iframe = editor.getContainer().querySelector('iframe');
+      const contentWindow = iframe.contentWindow;
+      const iframeDocument = contentWindow.document;
+      const head = iframeDocument.head;
+      const body = iframeDocument.body;
+      const style = document.createElement('style');
+      style.innerHTML = ` 
            #main-nav-div .hamburger-menu {
             display: none !important;
             text-align: right;
@@ -34,10 +34,10 @@ function customTabWithNav(editor) {
              width:98%;
           }  
           } 
-          `;  
-            head.appendChild(style);  
-            const script = document.createElement('script'); 
-            script.innerHTML = ` 
+          `;
+      head.appendChild(style);
+      const script = document.createElement('script');
+      script.innerHTML = ` 
             var hamburgerMenu = document.getElementById("hamburgerMenu");  
             var tabContainer = document.querySelectorAll('#main-nav-div .tab-container'); 
             hamburgerMenu.addEventListener("click", function() {  
@@ -58,8 +58,8 @@ function customTabWithNav(editor) {
               }  
             } 
            window.addEventListener('resize', updateView); 
-            `  
-            body.appendChild(script);  
-        }  
-    });  
+            `
+      body.appendChild(script);
+    }
+  });
 } 

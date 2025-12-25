@@ -12,7 +12,6 @@ function customImage(editor) {
         const src = this.get('src');
         if (!el || !src) return;
 
-        // Wait a tick for GrapesJS DOM to stabilize
         setTimeout(() => {
           const parentEl = el.parentElement;
           if (!parentEl) return;
@@ -26,12 +25,10 @@ function customImage(editor) {
             const naturalHeight = img.height;
             const aspectRatio = naturalHeight / naturalWidth;
 
-            // Determine if image fits naturally
             const fitsWithinParent =
               naturalWidth <= parentWidth && naturalHeight <= parentHeight;
 
             if (fitsWithinParent) {
-              // ✅ Keep original image size
               this.setStyle({
                 width: `${naturalWidth}px`,
                 height: `${naturalHeight}px`,
@@ -41,7 +38,6 @@ function customImage(editor) {
                 maxHeight: '100%',
               });
             } else {
-              // ⚙️ Scale down proportionally based on whichever dimension overflows more
               const widthRatio = parentWidth / naturalWidth;
               const heightRatio = parentHeight / naturalHeight;
               const scale = Math.min(widthRatio, heightRatio, 1);
@@ -58,13 +54,11 @@ function customImage(editor) {
                 maxHeight: '100%',
               });
             }
-
-            // Store aspect ratio for later (optional)
             this.set('aspectRatio', aspectRatio);
           };
 
           img.src = src;
-        }, 50); // slight delay helps when dropped into header/footer
+        }, 50);
       },
     },
 

@@ -1,4 +1,3 @@
-/*! v - 0.20.3 */
 
 !(function (t, e) {
   "object" == typeof exports && "object" == typeof module
@@ -18704,7 +18703,7 @@
             },
             hideHighlighter: function (t) {
               this.canvas.getHighlighter(t).style.opacity = 0;
-              
+
             },
             onClick: function (t) {
               t.stopPropagation(), t.preventDefault();
@@ -18773,7 +18772,7 @@
             },
             showHighlighter: function (t) {
               this.canvas.getHighlighter(t).style.opacity = "";
-            
+
             },
             initResize: function (t) {
               var e,
@@ -38477,7 +38476,7 @@
                         l < this.lastMaxHeight)
                     )
                       (this.getGlobalToolsEl().style.opacity = 0),
-                      
+
                         this.showGlobalTools(),
                         n.scrollTo(0, l);
                     requestAnimationFrame(this.autoscroll);
@@ -44944,9 +44943,6 @@
                   {
                     key: "initialize",
                     value: function (t, e) {
-                      // if (this.get("type") == "video") {
-                      //   window.open("https://www.google.com");
-                      // }
                       (this.em = e.em),
 
                         this.get("src") && this.parseFromSrc(),
@@ -45255,7 +45251,6 @@
             };
           }
           Gt.isComponent = function (t) {
-            // alert(t.tagName);
             var e = "",
               n = t.tagName,
               r = t.src,
@@ -47116,7 +47111,7 @@
                   uploadTitle: "Drop files here or click to upload",
                   customAssets: true,
                 },
-                
+
                 blockManager: { labels: {}, categories: {} },
                 domComponents: {
                   names: {
@@ -47155,7 +47150,7 @@
                       "export-template": "View code",
                       "open-sm": "Open Style Manager",
                       "open-tm": "Settings",
-                      "open-layers": "Open Layer Manager",
+                      "open-layers": "Open Report Explorer",
                       "open-blocks": "Open Blocks",
                     },
                   },
@@ -49538,7 +49533,7 @@
             c = "open-blocks",
             u = "fullscreen",
             p = "preview";
-            
+
           const f = {
             stylePrefix: "pn-",
             defaults: [

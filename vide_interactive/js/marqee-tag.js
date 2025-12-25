@@ -33,7 +33,6 @@ function marqueTag(editor) {
     iframeDoc.head.appendChild(styleEl);
   });
 
-  // Speed range trait
   editor.TraitManager.addType("speed-range", {
     createInput({ trait }) {
       const el = document.createElement("div");

@@ -2,34 +2,34 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = t())
     : "function" == typeof define && define.amd
-    ? define([], t)
-    : "object" == typeof exports
-    ? (exports["custom-code-component"] = t())
-    : (e["custom-code-component"] = t());
+      ? define([], t)
+      : "object" == typeof exports
+        ? (exports["custom-code-component"] = t())
+        : (e["custom-code-component"] = t());
 })(
   "undefined" != typeof globalThis
     ? globalThis
     : "undefined" != typeof window
-    ? window
-    : this,
+      ? window
+      : this,
   () =>
     (() => {
       "use strict";
       var e = {
-          d: (t, o) => {
-            for (var n in o)
-              e.o(o, n) &&
-                !e.o(t, n) &&
-                Object.defineProperty(t, n, { enumerable: !0, get: o[n] });
-          },
-          o: (e, t) => Object.prototype.hasOwnProperty.call(e, t),
-          r: (e) => {
-            "undefined" != typeof Symbol &&
-              Symbol.toStringTag &&
-              Object.defineProperty(e, Symbol.toStringTag, { value: "Module" }),
-              Object.defineProperty(e, "__esModule", { value: !0 });
-          },
+        d: (t, o) => {
+          for (var n in o)
+            e.o(o, n) &&
+              !e.o(t, n) &&
+              Object.defineProperty(t, n, { enumerable: !0, get: o[n] });
         },
+        o: (e, t) => Object.prototype.hasOwnProperty.call(e, t),
+        r: (e) => {
+          "undefined" != typeof Symbol &&
+            Symbol.toStringTag &&
+            Object.defineProperty(e, Symbol.toStringTag, { value: "Module" }),
+            Object.defineProperty(e, "__esModule", { value: !0 });
+        },
+      },
         t = {};
       e.r(t), e.d(t, { default: () => d });
       var o = "custom-code-plugin__code",
@@ -239,7 +239,7 @@
                     var n = o.target || e.getSelected();
                     (this.target = n),
                       (null == n ? void 0 : n.get("editable")) &&
-                        this.showCustomCode(n, o);
+                      this.showCustomCode(n, o);
                   },
                   stop: function (e) {
                     e.Modal.close();
@@ -255,8 +255,8 @@
                     ),
                       this.getCodeViewer().setContent(a);
                   },
-                  getPreContent: function () {},
-                  getPostContent: function () {},
+                  getPreContent: function () { },
+                  getPostContent: function () { },
                   getContent: function () {
                     var t = this.getCodeViewer(),
                       o = document.createElement("div"),
@@ -298,16 +298,16 @@
                   getCodeViewer: function () {
                     return (
                       this.codeViewer ||
-                        (this.codeViewer = e.CodeManager.createViewer(
-                          a(
-                            {
-                              codeName: "htmlmixed",
-                              theme: "hopscotch",
-                              readOnly: 0,
-                            },
-                            r
-                          )
-                        )),
+                      (this.codeViewer = e.CodeManager.createViewer(
+                        a(
+                          {
+                            codeName: "htmlmixed",
+                            theme: "hopscotch",
+                            readOnly: 0,
+                          },
+                          r
+                        )
+                      )),
                       this.codeViewer
                     );
                   },

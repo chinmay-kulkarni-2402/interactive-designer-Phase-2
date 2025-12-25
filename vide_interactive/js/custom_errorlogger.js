@@ -1,18 +1,13 @@
 function initNotificationsPlugin(editor) {
-    console.log("🔔 Initializing Notifications Plugin...");
     if (editor.Notifications) {
-        console.log("✅ Notifications Plugin already initialized");
         return editor.Notifications;
     }
 
-    // ====================== API configuration ======================
-    const API_BASE_URL = 'http://192.168.0.188:8081';
     const API_ENDPOINTS = {
         logError: `${API_BASE_URL}/jsonLog`,
         fetchLogs: `${API_BASE_URL}/jsonLog`
     };
 
-    // ====================== Plugin configuration ======================
     const notificationConfig = {
         timeout: 3000,
         maxNotifications: 5,
@@ -30,7 +25,6 @@ function initNotificationsPlugin(editor) {
         }
     };
 
-    // ====================== Container & styles ======================
     let notificationContainer = document.getElementById('gjs-notifications-container');
     if (!notificationContainer) {
         notificationContainer = document.createElement('div');
@@ -89,12 +83,10 @@ function initNotificationsPlugin(editor) {
     `;
     document.head.appendChild(style);
 
-    // ---- XLSX loader (top-level, once) ----
     function ensureXlsxLoaded() {
         return new Promise((resolve, reject) => {
             if (window.XLSX) return resolve(window.XLSX);
             const s = document.createElement('script');
-            // Use a CDN you allow inside your network; adjust if needed
             s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
             s.onload = () => resolve(window.XLSX);
             s.onerror = () => reject(new Error('Failed to load XLSX library'));
@@ -114,10 +106,8 @@ function initNotificationsPlugin(editor) {
         return 'info';
     }
 
-    // ====================== API helpers ======================
     async function logToBackend({ level, message }) {
         try {
-            // Clean up control characters from message
             const cleanMessage = typeof message === 'string'
                 ? message.replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
                 : String(message);
@@ -134,10 +124,10 @@ function initNotificationsPlugin(editor) {
             });
 
             if (!response.ok) {
-                console.error('Failed to log to backend:', response.statusText);
+                console.error('Failed to log');
             }
         } catch (error) {
-            console.error('Error logging to backend:', error);
+            console.error('Error logging');
         }
     }
 
@@ -147,26 +137,21 @@ function initNotificationsPlugin(editor) {
             let url = API_ENDPOINTS.fetchLogs;
             if (fromDate && toDate) url += `?from=${fromDate}&to=${toDate}`;
 
-            const response = await fetch(url /*, { mode: 'cors' } if needed */);
+            const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch logs');
 
             const data = await response.json();
 
-            // Accept common shapes: array, {logs: [...]}, {data: [...]}
             if (Array.isArray(data)) return data;
             if (data && Array.isArray(data.logs)) return data.logs;
             if (data && Array.isArray(data.data)) return data.data;
-
-            console.warn('Unexpected logs payload shape:', data);
             return [];
         } catch (error) {
-            console.error('Error fetching logs:', error);
+            console.error('Error fetching logs');
             throw error;
         }
     }
 
-
-    // ====================== UI helpers ======================
     function createNotificationElement(notification) {
         const { type, message, id } = notification;
         const icon = notificationConfig.icons[type] || notificationConfig.icons.info;
@@ -190,13 +175,9 @@ function initNotificationsPlugin(editor) {
         return notifEl;
     }
 
-    // ======================
-    // Deduplication for notifications (to prevent double display)
-    // ======================
-    const DEDUPE_WINDOW = 700; // ms
+    const DEDUPE_WINDOW = 700;
     if (!notificationContainer._recentNotifications) notificationContainer._recentNotifications = {};
     function makeKey(type, message) {
-        // shorten message for key (avoid extremely long keys)
         const msg = (typeof message === 'string') ? message.slice(0, 1000) : String(message).slice(0, 1000);
         return `${type}|${msg}`;
     }
@@ -207,11 +188,9 @@ function initNotificationsPlugin(editor) {
             const now = Date.now();
             const last = notificationContainer._recentNotifications[key] || 0;
             if (now - last < DEDUPE_WINDOW) {
-                console.debug('notifications:dedupe: suppressed duplicate', key);
                 return false;
             }
             notificationContainer._recentNotifications[key] = now;
-            // cleanup after some time
             setTimeout(() => {
                 const ts = notificationContainer._recentNotifications[key];
                 if (ts && (Date.now() - ts) > (DEDUPE_WINDOW * 2)) {
@@ -233,16 +212,13 @@ function initNotificationsPlugin(editor) {
         } = notification;
 
         if (!message) {
-            console.warn('Notification message is required');
             return;
         }
 
-        // Dedupe quick identical messages to stop double display (type + short message)
         if (!shouldAllowNotification(type, message)) {
             return null;
         }
 
-        // mirror to backend with level + context (centralized single place)
         logToBackend({ level: type, message, context });
 
         const id = Date.now() + Math.random();
@@ -316,7 +292,6 @@ function initNotificationsPlugin(editor) {
         return today.toISOString().split('T')[0];
     }
 
-    // ====================== Logs modal (renders level correctly) ======================
     function renderNotificationLogs(logs, currentPage, totalPages) {
         if (logs.length === 0) {
             return '<div style="text-align: center; padding: 40px; color: #999;">No notifications found</div>';
@@ -365,103 +340,63 @@ function initNotificationsPlugin(editor) {
         let toDate = getTodayDate();
         let selectedLevel = 'all';
 
-        const showLoadingState = () => {
-            const modalContent = `
-<div class="date-filter-container">
-  <div class="date-filter-group">
-    <label class="date-filter-label">From Date</label>
-    <input type="date" id="filter-from-date" class="date-filter-input" value="${fromDate}">
-  </div>
-  <div class="date-filter-group">
-    <label class="date-filter-label">To Date</label>
-    <input type="date" id="filter-to-date" class="date-filter-input" value="${toDate}">
-  </div>
-  <button id="submit-filter-btn" class="date-filter-button submit">Submit</button>
-  <button id="reset-filter-btn" class="date-filter-button reset">Reset</button>
-  <button id="export-excel-btn" class="date-filter-button submit">Export Excel</button>
-</div>`;
-            editor.Modal.setContent(modalContent);
-        };
-
-        const showErrorState = (errorMsg) => {
-            const modalContent = `
-<div class="date-filter-container">
-  <div class="date-filter-group">
-    <label class="date-filter-label">From Date</label>
-    <input type="date" id="filter-from-date" class="date-filter-input" value="${fromDate}">
-  </div>
-  <div class="date-filter-group">
-    <label class="date-filter-label">To Date</label>
-    <input type="date" id="filter-to-date" class="date-filter-input" value="${toDate}">
-  </div>
-  <button id="submit-filter-btn" class="date-filter-button submit">Submit</button>
-  <button id="reset-filter-btn" class="date-filter-button reset">Reset</button>
-</div>
-<div class="error-message">${errorMsg}</div>`;
-            editor.Modal.setContent(modalContent);
-            attachFilterEventListeners();
-        };
-
         const renderModal = () => {
-            // 1) derive filtered array based on selectedLevel
             const filteredLogs = selectedLevel === 'all'
                 ? allLogs
                 : allLogs.filter(l => normalizeLevel(l.type || l.level || 'info') === selectedLevel);
-
-            // 2) pagination uses filteredLogs
             const totalPages = Math.ceil(filteredLogs.length / notificationConfig.recordsPerPage);
             const notificationsList = renderNotificationLogs(filteredLogs, currentPage, totalPages);
 
             const modalContent = `
-<div class="date-filter-container">
-  <div class="date-filter-group">
-    <label class="date-filter-label">From Date</label>
-    <input type="date" id="filter-from-date" class="date-filter-input" value="${fromDate}">
-  </div>
-  <div class="date-filter-group">
-    <label class="date-filter-label">To Date</label>
-    <input type="date" id="filter-to-date" class="date-filter-input" value="${toDate}">
-  </div>
+                <div class="date-filter-container">
+                <div class="date-filter-group">
+                    <label class="date-filter-label">From Date</label>
+                    <input type="date" id="filter-from-date" class="date-filter-input" value="${fromDate}">
+                </div>
+                <div class="date-filter-group">
+                    <label class="date-filter-label">To Date</label>
+                    <input type="date" id="filter-to-date" class="date-filter-input" value="${toDate}">
+                </div>
 
-  <!-- NEW: Level filter -->
-  <div class="date-filter-group">
-    <label class="date-filter-label">Level</label>
-    <select id="level-filter-select" class="date-filter-input">
-      <option value="all" ${selectedLevel === 'all' ? 'selected' : ''}>All</option>
-      <option value="info" ${selectedLevel === 'info' ? 'selected' : ''}>Info</option>
-      <option value="warning" ${selectedLevel === 'warning' ? 'selected' : ''}>Warning</option>
-      <option value="error" ${selectedLevel === 'error' ? 'selected' : ''}>Error</option>
-      <option value="success" ${selectedLevel === 'success' ? 'selected' : ''}>Success</option>
-      <option value="debug" ${selectedLevel === 'debug' ? 'selected' : ''}>Debug</option>
-      <option value="event" ${selectedLevel === 'event' ? 'selected' : ''}>Event</option>
-    </select>
-  </div>
+                <!-- NEW: Level filter -->
+                <div class="date-filter-group">
+                    <label class="date-filter-label">Level</label>
+                    <select id="level-filter-select" class="date-filter-input">
+                    <option value="all" ${selectedLevel === 'all' ? 'selected' : ''}>All</option>
+                    <option value="info" ${selectedLevel === 'info' ? 'selected' : ''}>Info</option>
+                    <option value="warning" ${selectedLevel === 'warning' ? 'selected' : ''}>Warning</option>
+                    <option value="error" ${selectedLevel === 'error' ? 'selected' : ''}>Error</option>
+                    <option value="success" ${selectedLevel === 'success' ? 'selected' : ''}>Success</option>
+                    <option value="debug" ${selectedLevel === 'debug' ? 'selected' : ''}>Debug</option>
+                    <option value="event" ${selectedLevel === 'event' ? 'selected' : ''}>Event</option>
+                    </select>
+                </div>
 
-  <button id="submit-filter-btn" class="date-filter-button submit">Submit</button>
-  <button id="reset-filter-btn" class="date-filter-button reset">Reset</button>
-  <button id="export-excel-btn" class="date-filter-button submit">Export Excel</button>
-</div>
+                <button id="submit-filter-btn" class="date-filter-button submit">Submit</button>
+                <button id="reset-filter-btn" class="date-filter-button reset">Reset</button>
+                <button id="export-excel-btn" class="date-filter-button submit">Export Excel</button>
+                </div>
 
-<div style="max-height: 400px; overflow-y: auto; padding: 10px;">
-  ${notificationsList}
-</div>
+                <div style="max-height: 400px; overflow-y: auto; padding: 10px;">
+                ${notificationsList}
+                </div>
 
-${totalPages > 1 ? `
-  <div class="pagination-container">
-    <button id="prev-page-btn" class="pagination-button" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
-    <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
-    <button id="next-page-btn" class="pagination-button" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
-  </div>` : ''}
+                ${totalPages > 1 ? `
+                <div class="pagination-container">
+                    <button id="prev-page-btn" class="pagination-button" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+                    <span class="pagination-info">Page ${currentPage} of ${totalPages}</span>
+                    <button id="next-page-btn" class="pagination-button" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+                </div>` : ''}
 
-<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; text-align: center;">
-  <div style="font-size: 12px; color: #666;">
-    Total: ${filteredLogs.length} notification${filteredLogs.length !== 1 ? 's' : ''}
-  </div>
-</div>`;
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; text-align: center;">
+                <div style="font-size: 12px; color: #666;">
+                    Total: ${filteredLogs.length} notification${filteredLogs.length !== 1 ? 's' : ''}
+                </div>
+                </div>`;
 
             editor.Modal.setContent(modalContent);
-            attachEventListeners(filteredLogs, totalPages); // pass filtered state down
-            attachExportEventListener(filteredLogs);        // export what you see
+            attachEventListeners(filteredLogs, totalPages);
+            attachExportEventListener(filteredLogs);
         };
 
 
@@ -474,15 +409,10 @@ ${totalPages > 1 ? `
 
                 if (submitBtn) {
                     submitBtn.addEventListener('click', async () => {
-                        // read current UI values
                         const nextFrom = fromDateInput.value && fromDateInput.value.trim();
                         const nextTo = toDateInput.value && toDateInput.value.trim();
-
-                        // update state
                         fromDate = nextFrom || '';
                         toDate = nextTo || '';
-
-
                         currentPage = 1;
                         await loadLogs();
                     });
@@ -490,16 +420,12 @@ ${totalPages > 1 ? `
 
                 if (resetBtn) {
                     resetBtn.addEventListener('click', async () => {
-                        // clear state
                         fromDate = '';
                         toDate = '';
-
-                        // clear UI inputs so fields are visually blank
                         if (fromDateInput) fromDateInput.value = '';
                         if (toDateInput) toDateInput.value = '';
-
                         currentPage = 1;
-                        await loadLogs(); // fetches ALL logs because fetchLogsFromBackend only adds ?from&to when both exist
+                        await loadLogs();
                     });
                 }
             }, 100);
@@ -518,9 +444,9 @@ ${totalPages > 1 ? `
                 }
 
                 try {
-                    await ensureXlsxLoaded(); // <-- ensure XLSX is available
+                    await ensureXlsxLoaded();
                 } catch (e) {
-                    console.error("❌ XLSX load failed:", e);
+                    console.error("XLSX load failed:");
                     alert("Excel library failed to load. Please check network/CDN or include xlsx.full.min.js.");
                     return;
                 }
@@ -539,14 +465,13 @@ ${totalPages > 1 ? `
                     XLSX.utils.book_append_sheet(wb, ws, "Notifications");
                     const filename = `notifications_${getTodayDate()}.xlsx`;
                     XLSX.writeFile(wb, filename);
-                    console.log(`✅ Excel exported: ${filename}`);
+                    console.log(`Excel exported: ${filename}`);
                 } catch (err) {
-                    console.error("❌ Excel export failed:", err);
-                    alert("Failed to export Excel. Check console for details.");
+                    console.error("Excel export failed:");
+                    alert("Failed to export Excel");
                 }
             });
         }
-
 
         const attachEventListeners = (filteredLogs, totalPages) => {
             setTimeout(() => {
@@ -572,7 +497,6 @@ ${totalPages > 1 ? `
                     });
                 }
 
-                // NEW: level filter change re-renders from page 1
                 if (levelSelect) {
                     levelSelect.addEventListener('change', () => {
                         selectedLevel = levelSelect.value || 'all';
@@ -584,7 +508,6 @@ ${totalPages > 1 ? `
                 attachFilterEventListeners();
             }, 100);
         };
-
 
         const loadLogs = async () => {
             try {
@@ -605,7 +528,6 @@ ${totalPages > 1 ? `
         await loadLogs();
     }
 
-    // ====================== Commands & UI wiring ======================
     editor.Commands.add('toggle-notifications', { run(ed) { showNotificationsModal(ed); } });
     editor.Commands.add('notifications:add', { run(ed, s, opts = {}) { addNotification(opts); } });
     editor.Commands.add('notifications:remove', { run(ed, s, opts = {}) { if (opts.id) removeNotification(opts.id); } });
@@ -634,7 +556,6 @@ ${totalPages > 1 ? `
         }
     }, 100);
 
-    // ====================== Expose editor API ======================
     editor.Notifications = {
         add: addNotification,
         remove: removeNotification,
@@ -643,17 +564,14 @@ ${totalPages > 1 ? `
         get: (id) => notifications.find(n => n.id === id)
     };
 
-    // ====================== DesignerLogger (UI-only; console hooks will call into it) ======================
     (function exposeDesignerLogger() {
         let DEFAULT_CONTEXT = {};
         const emit = (level, message, ctx = {}) => {
             const merged = Object.assign({}, DEFAULT_CONTEXT, ctx);
-            // mirror to UI only; avoid calling logToBackend here so backend shipping stays centralized in addNotification
             try {
                 editor.Notifications.add({ type: level, message: (typeof message === 'string' ? message : JSON.stringify(message, null, 2)), context: merged, timeout: level === 'error' ? 0 : notificationConfig.timeout });
             } catch (e) {
-                // fallback to console if notifications system not available
-                try { console.log(`[DesignerLogger:${level}]`, message, merged); } catch (err) {}
+                try { console.log(`[DesignerLogger:${level}]`, message, merged); } catch (err) { }
             }
         };
 
@@ -675,49 +593,42 @@ ${totalPages > 1 ? `
             setDefaultContext(ctx) { DEFAULT_CONTEXT = ctx || {}; }
         };
 
-        // make globally reachable
         window.DesignerLogger = api;
 
-        // ----------------------
-        // Hook console.warn and console.error (preserve originals) — only hook once
-        // ----------------------
         try {
             if (!window.__designerLogger_consoleHooked) {
                 window.__designerLogger_consoleHooked = true;
-                const origError = console.error && console.error.bind(console) || function () {};
-                const origWarn = console.warn && console.warn.bind(console) || function () {};
+                const origError = console.error && console.error.bind(console) || function () { };
+                const origWarn = console.warn && console.warn.bind(console) || function () { };
 
                 console.error = function (...args) {
-                    try { origError.apply(console, args); } catch (e) {}
+                    try { origError.apply(console, args); } catch (e) { }
                     try {
                         const combined = args.map(a => {
                             if (a instanceof Error) return `${a.message}\n${a.stack || ''}`;
                             try { return typeof a === 'string' ? a : JSON.stringify(a); } catch (e) { return String(a); }
                         }).join(' ');
-                        // call DesignerLogger.error (UI-only) — addNotification will handle backend shipping and dedupe
                         window.DesignerLogger.error(combined, { source: 'console.error' });
-                    } catch (e) { /* swallow */ }
+                    } catch (e) {}
                 };
 
                 console.warn = function (...args) {
-                    try { origWarn.apply(console, args); } catch (e) {}
+                    try { origWarn.apply(console, args); } catch (e) { }
                     try {
                         const combined = args.map(a => {
                             if (a instanceof Error) return `${a.message}\n${a.stack || ''}`;
                             try { return typeof a === 'string' ? a : JSON.stringify(a); } catch (e) { return String(a); }
                         }).join(' ');
                         window.DesignerLogger.warn(combined, { source: 'console.warn' });
-                    } catch (e) { /* swallow */ }
+                    } catch (e) {}
                 };
             }
         } catch (e) {
-            console.warn('Failed to hook console:', e);
+            console.warn('Failed to hook console:');
         }
     })();
 
-    console.log("✅ Notifications Plugin initialized successfully");
     return { add: addNotification, remove: removeNotification, clear: clearNotifications };
 }
 
-// Make it globally available
 window.initNotificationsPlugin = initNotificationsPlugin;

@@ -1,11 +1,21 @@
 function jsontablecustom(editor) {
+    editor.on('load', () => {
+  const canvasDoc = editor.Canvas.getDocument();
+  const style = canvasDoc.createElement('style');
+  style.innerHTML = `
+    table.dataTable thead th,
+    table.dataTable thead td {
+      border-bottom: none !important;
+    }
+  `;
+  canvasDoc.head.appendChild(style);
+});
 
     editor.on('load', () => {
         const iframe = editor.getContainer().querySelector('iframe');
         if (iframe && iframe.contentDocument) {
             const head = iframe.contentDocument.head;
 
-            // Add DataTables CSS and JS
             const datatableCSS = document.createElement('link');
             datatableCSS.rel = 'stylesheet';
             datatableCSS.href = 'https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css';
@@ -16,12 +26,10 @@ function jsontablecustom(editor) {
             buttonsCSS.href = 'https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css';
             head.appendChild(buttonsCSS);
 
-            // Add formula parser script
             const formulaScript = document.createElement('script');
             formulaScript.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
             head.appendChild(formulaScript);
 
-            // Add jQuery and DataTables scripts if not already present
             const jqueryScript = document.createElement('script');
             jqueryScript.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
             head.appendChild(jqueryScript);
@@ -52,16 +60,12 @@ function jsontablecustom(editor) {
         }
     });
 
-    // Add highlighting function from custom table
     function applyHighlighting(tableId, conditions, highlightColor) {
         try {
             const canvasBody = editor.Canvas.getBody();
             const table = canvasBody.querySelector(`#${tableId}`);
             if (!table) return;
-
             const wrapper = editor.DomComponents.getWrapper();
-
-            // Always clear previous highlights
             const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
             prev.forEach(td => {
                 td.style.backgroundColor = '';
@@ -80,20 +84,17 @@ function jsontablecustom(editor) {
                 }
             });
 
-            // Only apply new highlights if conditions exist
             if (conditions && conditions.length > 0) {
                 const bodyCells = table.querySelectorAll('tbody td');
                 bodyCells.forEach(td => {
                     const div = td.querySelector('div');
                     const val = div ? div.textContent.trim() : td.textContent.trim();
 
-                    // Check if any condition matches
                     const shouldHighlight = conditions.some(condition =>
                         evaluateCondition(val, condition)
                     );
 
                     if (shouldHighlight) {
-                        // Apply all highlight styles
                         td.setAttribute('data-highlighted', 'true');
 
                         const id = td.id;
@@ -102,7 +103,6 @@ function jsontablecustom(editor) {
                             if (comp) {
                                 const styles = {
                                     'background-color': bgColor,
-                                    'border': '1px solid #000',
                                     'box-sizing': 'border-box',
                                 };
                                 if (textColor) styles.color = textColor;
@@ -117,7 +117,7 @@ function jsontablecustom(editor) {
             }
 
         } catch (err) {
-            console.warn('Error applying highlighting:', err);
+            console.warn('Error applying highlighting:');
         }
     }
     function evaluateCondition(cellValue, condition) {
@@ -315,7 +315,7 @@ function jsontablecustom(editor) {
                     {
                         type: 'select',
                         name: 'json-file-index',
-                        label: 'JSON File',
+                        label: 'DataSource File',
                         options: [],
                         changeProp: 1,
                     },
@@ -333,9 +333,8 @@ function jsontablecustom(editor) {
                         label: 'Preview Column',
                         options: [{ value: "", name: "First enter DataSource path" }],
                         changeProp: 1,
-                        // Update this section
                         attributes: {
-                            style: 'display: block;'  // Hidden by default
+                            style: 'display: block;'
                         }
                     },
                     {
@@ -345,8 +344,14 @@ function jsontablecustom(editor) {
                         placeholder: 'Enter preview value',
                         changeProp: 1,
                         attributes: {
-                            style: 'display: block;'  // Hidden by default
+                            style: 'display: block;'
                         }
+                    },
+                    {
+                        type: 'checkbox',
+                        name: 'hide-data',
+                        label: 'Hide Data (Silent Mode)',
+                        changeProp: 1,
                     },
                     {
                         type: 'button',
@@ -356,7 +361,6 @@ function jsontablecustom(editor) {
                         full: true,
                         command: 'open-table-settings-modal'
                     },
-                    // Add highlighting traits from custom table
                     {
                         type: 'button',
                         name: 'manage-table-styles',
@@ -405,76 +409,52 @@ function jsontablecustom(editor) {
                 'summarize-group': false,
                 'page-break': false,
                 'summary-percentage': 'none',
-                'merge-group-cells': false,
+    'repeat-headers-before-summary': false,
                 'group-header-inplace': true,
                 'hide-subtotal-single-row': false,
                 'show-summary-only': false,
                 'keep-group-hierarchy': false,
                 'running-totals': [],
+                'show-summary-headers': false,
                 'grand-total': true,
                 'grand-total-label': '',
                 'summary-label': ''
             },
 
             init() {
-                console.log('🎬 JSON Table init() called for component:', this.cid);
-
-                // ✅ Flag to prevent event handlers from interfering during restoration
                 this._isRestoring = true;
                 try {
                     const attrs = this.getAttributes ? this.getAttributes() : {};
                     const encoded = attrs && attrs['data-json-state'];
 
                     if (encoded) {
-                        console.log('📦 Found data-json-state, restoring...');
                         const parsed = JSON.parse(decodeURIComponent(encoded));
-
-                        console.log('📊 Restoring state:', {
-                            hasHeaders: !!parsed.headers,
-                            hasData: !!parsed.data,
-                            dataRows: parsed.data?.length || 0,
-                            headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
-                        });
-
-                        // ✅ NEW: Check if this is a continuation table
                         const isContinuation = attrs['data-continuation-table'] === 'true';
                         const rowsKept = parseInt(attrs['data-rows-kept']) || 0;
 
                         if (isContinuation && rowsKept > 0) {
-                            console.log(`🔄 Continuation table detected: ${rowsKept} rows were kept on previous page`);
-
-                            // ✅ Check if header should be removed based on user preference
                             const copyHeader = attrs['data-copy-header'];
                             if (copyHeader === 'false') {
-                                console.log('🗑️ Header should be removed from this continuation table');
-                                // Set flag to remove header after table is built
                                 this.set('_remove-header-on-build', true, { silent: true });
                             }
-
-                            // Data has already been sliced in the state, just use it as-is
-                            console.log(`📝 Using modified state with ${parsed.data?.length || 0} rows for continuation`);
                         }
 
-                        // ✅ Restore ALL state including base tables
                         this.set('table-headers', parsed.headers || null, { silent: true });
                         this.set('table-data', parsed.data || null, { silent: true });
                         this.set('custom-headers', parsed.headers || null, { silent: true });
                         this.set('custom-data', parsed.data || null, { silent: true });
                         this.set('table-styles-applied', parsed.styles || null, { silent: true });
                         this.set('highlight-conditions', parsed.highlights || null, { silent: true });
-
-                        // ... rest of restoration code ...
                     }
                 } catch (e) {
-                    console.warn('⚠️ json-table init rehydrate failed', e);
                     this._isRestoring = false;
                 }
-                // -- per-instance refresh for JSON File trait (no global flag) --
+
                 const refreshJsonFileTrait = () => {
                     const trait = this.getTrait('json-file-index');
                     if (!trait) return;
 
-                    const opts = getJsonFileOptions(); // reads fresh from localStorage
+                    const opts = getJsonFileOptions();
                     trait.set('options', opts);
 
                     if (!opts.length) {
@@ -514,35 +494,20 @@ function jsontablecustom(editor) {
                     }
                 };
 
-                // 1) immediately populate for this instance (new OR restored)
                 refreshJsonFileTrait();
 
-                // 2) listen for add/delete updates for THIS instance
                 const onFilesUpdated = () => refreshJsonFileTrait();
                 window.addEventListener('common-json-files-updated', onFilesUpdated);
-
-                // 3) clean up when this component is removed
                 this.once('remove', () => {
                     window.removeEventListener('common-json-files-updated', onFilesUpdated);
                 });
 
-                // ✅ CRITICAL: Restore state IMMEDIATELY before anything else
                 try {
                     const attrs = this.getAttributes ? this.getAttributes() : {};
                     const encoded = attrs && attrs['data-json-state'];
 
                     if (encoded) {
-                        console.log('📦 Found data-json-state, restoring...');
                         const parsed = JSON.parse(decodeURIComponent(encoded));
-
-                        console.log('📊 Restoring state:', {
-                            hasHeaders: !!parsed.headers,
-                            hasData: !!parsed.data,
-                            dataRows: parsed.data?.length || 0,
-                            headerCount: parsed.headers ? Object.keys(parsed.headers).length : 0
-                        });
-
-                        // ✅ Restore ALL state including base tables
                         this.set('table-headers', parsed.headers || null, { silent: true });
                         this.set('table-data', parsed.data || null, { silent: true });
                         this.set('custom-headers', parsed.headers || null, { silent: true });
@@ -562,7 +527,7 @@ function jsontablecustom(editor) {
                             this.set('search', parsed.meta.search || 'no', { silent: true });
                             this.set('file-download', parsed.meta.fileDownload || '', { silent: true });
                         }
-                        // Update container class based on table type
+
                         const tableType = this.get('table-type') || 'standard';
                         const currentClass = this.getAttributes().class || 'json-table-container';
                         const baseClass = 'json-table-container';
@@ -570,39 +535,24 @@ function jsontablecustom(editor) {
                             class: `${baseClass} ${tableType}`
                         });
 
-                        // ✅ CRITICAL: Set show-placeholder based on data presence
                         const hasValidData = parsed.headers && parsed.data &&
                             (Array.isArray(parsed.data) ? parsed.data.length > 0 : true);
 
                         this.set('show-placeholder', !hasValidData, { silent: true });
-
-                        console.log('✅ State restored in init():', {
-                            showPlaceholder: this.get('show-placeholder'),
-                            hasCustomHeaders: !!this.get('custom-headers'),
-                            hasCustomData: !!this.get('custom-data')
-                        });
-
-                        // Clear restoring flag before rebuild
                         this._isRestoring = false;
 
-                        // Rebuild HTML with restored state after a short delay
                         setTimeout(() => {
-                            console.log('🔨 Triggering updateTableHTML from init()');
                             this.updateTableHTML();
                         }, 0);
-
-                        // ✅ Exit early for restored components (skip normal init)
                         return;
                     } else {
-                        console.log('ℹ️ No data-json-state found, this is a new component');
                         this._isRestoring = false;
                     }
                 } catch (e) {
-                    console.warn('⚠️ json-table init rehydrate failed', e);
+                    console.warn('⚠️ json-table init rehydrate failed');
                     this._isRestoring = false;
                 }
 
-                // 🔹 Continue with normal initialization for NEW components only
                 this.on('change:json-file-index', () => {
                     if (this._isRestoring) return;
                     this.set('json-path', '');
@@ -655,7 +605,6 @@ function jsontablecustom(editor) {
                     if (this._isRestoring) return;
                     const tableType = this.get('table-type');
 
-                    // Show/hide filter traits based on table type
                     setTimeout(() => {
                         const filterColumnTrait = this.getTrait('filter-column');
                         const filterValueTrait = this.getTrait('filter-value');
@@ -725,15 +674,30 @@ function jsontablecustom(editor) {
                         this.updateTableHTML();
                     }
                 });
+                this.on('change:hide-data', () => {
+                    if (this._isRestoring) return;
+
+                    const hideData = this.get('hide-data');
+                    this.set('show-placeholder', hideData);
+
+                    if (hideData) {
+                        this.updateTableHTML();
+                    } else {
+                        this.updateTableHTML();
+                    }
+                });
+
 
                 this.on('change:grouping-fields change:summary-fields change:sort-order change:top-n change:summarize-group change:merge-group-cells change:show-summary-only change:grand-total', () => {
                     if (this._isRestoring) return;
                     this.applyGroupingAndSummary();
                 });
 
-                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align', () => {
+                this.on('change:name change:footer change:pagination change:page-length change:search change:caption change:caption-align change:file-download', () => {
                     if (this._isRestoring) return;
-                    this.updateDataTableSettings();
+                    setTimeout(() => {
+                        this.updateDataTableSettings();
+                    }, 100);
                 });
 
                 this.on('change:highlight-conditions change:highlight-color', () => {
@@ -749,20 +713,17 @@ function jsontablecustom(editor) {
                 this.set('show-placeholder', true);
                 this.updateTableHTML();
 
-                // --- Preserve component data before Code panel open ---
                 editor.on('component:update', (component) => {
                     if (component.get('type') === 'json-table') {
                         const jsonPath = component.get('json-path');
                         const customData = component.get('custom-data');
                         const customHeaders = component.get('custom-headers');
-
                         if (jsonPath) component.set('_preserved_json_path', jsonPath);
                         if (customData) component.set('_preserved_custom_data', customData);
                         if (customHeaders) component.set('_preserved_custom_headers', customHeaders);
                     }
                 });
 
-                // --- Restore after Code editor Apply ---
                 editor.on('run:core:open-code:after', () => {
                     const wrapper = editor.DomComponents.getWrapper();
                     const jsonTables = wrapper.find('[data-gjs-type="json-table"]');
@@ -770,7 +731,6 @@ function jsontablecustom(editor) {
                         const preservedPath = table.get('_preserved_json_path');
                         const preservedData = table.get('_preserved_custom_data');
                         const preservedHeaders = table.get('_preserved_custom_headers');
-
                         if (preservedPath) table.set('json-path', preservedPath);
                         if (preservedData) table.set('custom-data', preservedData);
                         if (preservedHeaders) table.set('custom-headers', preservedHeaders);
@@ -787,7 +747,6 @@ function jsontablecustom(editor) {
                     }, 500);
                 });
 
-                // --- rehydrate all json-table components after Code panel Apply ---
                 try {
                     const ed = this.em && this.em.get ? this.em.get('Editor') : this.em;
                     if (ed && !ed.__jsonTableCodeHydrateBound) {
@@ -818,9 +777,7 @@ function jsontablecustom(editor) {
                         });
 
                         ed.on('stop:core:open-code', () => {
-                            console.log('🔄 Code editor closed - components will restore via init()');
                             setTimeout(() => {
-                                console.log('✅ Rehydration should be complete');
                                 const jsonTables = ed.getWrapper().findType('json-table');
                                 jsonTables.forEach(cmp => {
                                     const tableElement = cmp.view?.el?.querySelector('.json-data-table');
@@ -836,27 +793,22 @@ function jsontablecustom(editor) {
                         });
                     }
                 } catch (e) {
-                    console.warn('json-table rehydrate binding failed', e);
+                    console.warn('json-table rehydrate binding failed');
                 }
             },
 
             triggerAutoPagination() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
-
                 const canvasDoc = editor.Canvas.getDocument();
                 const tableElement = canvasDoc.getElementById(tableId);
                 if (!tableElement) return;
-
-                // Find the page containing this table
                 const pageContainer = tableElement.closest('.page-container');
                 if (!pageContainer) return;
-
                 const pageIndex = parseInt(pageContainer.getAttribute('data-page-index'));
                 if (isNaN(pageIndex)) return;
-
-                // Trigger pagination check for this page
                 const pageSetupManager = editor.get?.('PageSetupManager');
+
                 if (pageSetupManager && pageSetupManager.checkPageForOverflow) {
                     setTimeout(() => {
                         pageSetupManager.checkPageForOverflow(pageIndex);
@@ -866,11 +818,9 @@ function jsontablecustom(editor) {
             applyTableStyles() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
-
                 const canvasDoc = editor.Canvas.getDocument();
                 const tableElement = canvasDoc.getElementById(tableId);
                 if (!tableElement) return;
-
                 const borderStyle = this.get('table-border-style') || 'solid';
                 const borderWidth = this.get('table-border-width') || '1';
                 const borderColor = this.get('table-border-color') || '#000000';
@@ -880,30 +830,22 @@ function jsontablecustom(editor) {
                 const fontFamily = this.get('table-font-family') || 'Arial, sans-serif';
                 const textAlign = this.get('table-text-align') || 'left';
                 const verticalAlign = this.get('table-vertical-align') || 'middle';
-
-                // Convert opacity to rgba
                 const opacity = parseInt(borderOpacity) / 100;
                 const rgbBorder = hexToRgb(borderColor);
                 const borderColorWithOpacity = `rgba(${rgbBorder.r}, ${rgbBorder.g}, ${rgbBorder.b}, ${opacity})`;
-
-                // Apply to GrapesJS components directly
                 const wrapper = editor.DomComponents.getWrapper();
                 const tableComp = wrapper.find(`#${tableId}`)[0];
 
                 if (tableComp) {
-                    // Apply styles to table component
                     tableComp.addStyle({
                         'background-color': bgColor,
                         'border-collapse': 'collapse',
                     });
 
-                    // Find all cell components (td, th)
                     const cells = tableComp.find('td, th');
                     cells.forEach(cellComp => {
-                        // Determine border style - handle "none" option
                         const borderValue = borderStyle === 'none' ? 'none' : `${borderWidth}px ${borderStyle} ${borderColorWithOpacity}`;
 
-                        // Apply styles to cell component
                         cellComp.addStyle({
                             'border': borderValue,
                             'color': textColor,
@@ -914,7 +856,6 @@ function jsontablecustom(editor) {
                             'text-align': textAlign,
                         });
 
-                        // Apply alignment to cell content div for proper vertical centering
                         const cellContent = cellComp.find('div')[0] || cellComp.find('.cell-content')[0];
                         if (cellContent) {
                             cellContent.addStyle({
@@ -931,7 +872,6 @@ function jsontablecustom(editor) {
                     });
                 }
 
-                // Store table styles for later reference
                 this.set('table-styles-applied', {
                     borderStyle, borderWidth, borderColor, borderOpacity,
                     bgColor, textColor, fontFamily, textAlign, verticalAlign
@@ -942,22 +882,39 @@ function jsontablecustom(editor) {
             updateDataTableSettings() {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
-
                 const canvasDoc = editor.Canvas.getDocument();
                 const tableElement = canvasDoc.getElementById(tableId);
-
                 if (!tableElement) return;
-
-                // Destroy and recreate DataTable with new settings
                 if (canvasDoc.defaultView.$ && canvasDoc.defaultView.$.fn.DataTable.isDataTable(tableElement)) {
                     const dt = canvasDoc.defaultView.$(tableElement).DataTable();
                     dt.destroy();
-
-                    // Reinitialize with new settings
-                    setTimeout(() => {
-                        this.initializeDataTable(tableId);
-                    }, 100);
                 }
+
+                const pagination = this.get('pagination') || 'no';
+                const pageLength = this.get('page-length') || 10;
+                const search = this.get('search') || 'no';
+                const fileDownload = this.get('file-download') || '';
+                const headers = this.get('custom-headers') || this.get('table-headers') || {};
+                const colCount = Object.keys(headers).length;
+
+                setTimeout(() => {
+                    const scriptContent = this.createDataTableScript(
+                        tableId,
+                        pagination,
+                        pageLength,
+                        search,
+                        fileDownload,
+                        colCount
+                    );
+
+                    const scriptEl = canvasDoc.createElement('script');
+                    scriptEl.textContent = scriptContent.content;
+                    canvasDoc.body.appendChild(scriptEl);
+
+                    setTimeout(() => {
+                        scriptEl.remove();
+                    }, 1000);
+                }, 100);
             },
             loadFilteredData() {
                 const filterColumn = this.get('filter-column');
@@ -970,15 +927,12 @@ function jsontablecustom(editor) {
                     return;
                 }
 
-                // Handle "none" option - load all data without filtering
                 if (filterColumn === "none") {
                     const allData = [...originalData];
 
                     this.set('custom-headers', { ...originalHeaders });
                     this.set('custom-data', allData);
                     this.set('show-placeholder', false);
-
-                    // Clear filter value when none is selected
                     this.set('filter-value', '');
                     const filterValueTrait = this.getTrait('filter-value');
                     if (filterValueTrait) {
@@ -986,11 +940,9 @@ function jsontablecustom(editor) {
                     }
 
                     this.updateTableHTML();
-                    console.log(`Loaded all ${allData.length} rows without filtering`);
                     return;
                 }
 
-                // Regular filtering logic
                 if (!filterColumn || !filterValue || filterColumn === '') {
                     console.warn('Cannot load data: missing filter criteria');
                     return;
@@ -999,10 +951,8 @@ function jsontablecustom(editor) {
                 let filteredData;
 
                 if (filterValue === '=') {
-                    // Load all data for this column
                     filteredData = [...originalData];
                 } else {
-                    // Filter data based on column and value (case-insensitive partial match)
                     filteredData = originalData.filter(row => {
                         const cellValue = String(row[filterColumn] || '').toLowerCase();
                         const searchValue = String(filterValue).toLowerCase();
@@ -1010,12 +960,9 @@ function jsontablecustom(editor) {
                     });
                 }
 
-                // Set the filtered data as custom data
                 this.set('custom-headers', { ...originalHeaders });
                 this.set('custom-data', filteredData);
                 this.set('show-placeholder', false);
-
-                // Preserve filter values in the traits
                 const filterColumnTrait = this.getTrait('filter-column');
                 const filterValueTrait = this.getTrait('filter-value');
 
@@ -1027,10 +974,6 @@ function jsontablecustom(editor) {
                 }
 
                 this.updateTableHTML();
-
-                console.log(`Loaded ${filteredData.length} rows based on filter: ${filterColumn} contains "${filterValue}"`);
-
-                // Show message if no results
                 if (filteredData.length === 0) {
                     alert('No data matches the filter criteria');
                 }
@@ -1039,7 +982,6 @@ function jsontablecustom(editor) {
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const data = this.get('custom-data') || this.get('table-data') || [];
 
-                // Create new ordered headers
                 const reorderedHeaders = {};
                 newColumnOrder.forEach(columnKey => {
                     if (headers[columnKey]) {
@@ -1047,7 +989,6 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Create new ordered data
                 const reorderedData = data.map(row => {
                     const newRow = {};
                     newColumnOrder.forEach(columnKey => {
@@ -1058,7 +999,6 @@ function jsontablecustom(editor) {
                     return newRow;
                 });
 
-                // Update the component
                 this.set('custom-headers', reorderedHeaders);
                 this.set('custom-data', reorderedData);
                 this.updateTableHTML();
@@ -1068,7 +1008,6 @@ function jsontablecustom(editor) {
                     const jsonPath = this.get('json-path');
                     const fileIndex = this.get('json-file-index') || '0';
                     if (!jsonPath || jsonPath.trim() === "") {
-                        // Reset filter options when no path
                         const filterTrait = this.getTrait('filter-column');
                         if (filterTrait) {
                             const options = [{ value: "", name: "First enter DataSource path" }];
@@ -1077,7 +1016,6 @@ function jsontablecustom(editor) {
                         return;
                     }
 
-                    // Parse jsonPath to extract language and subpath
                     const pathParts = jsonPath.split('.');
                     let selectedLanguage = localStorage.getItem('language') || 'english';
                     let subPath = jsonPath;
@@ -1128,10 +1066,9 @@ function jsontablecustom(editor) {
 
                     const objectKeys = Object.keys(tableData.heading);
 
-                    // Update the filter column trait options with "none" option
                     const filterTrait = this.getTrait('filter-column');
                     if (filterTrait) {
-                        const currentValue = this.get('filter-column'); // Preserve current selection
+                        const currentValue = this.get('filter-column');
                         const options = [
                             { value: "", name: "Select Column to Filter & Load Data" },
                             { value: "none", name: "None (Load All Data)" },
@@ -1142,23 +1079,20 @@ function jsontablecustom(editor) {
                         ];
                         filterTrait.set('options', options);
 
-                        // Preserve the current selection if it exists
                         if (currentValue && currentValue !== '') {
                             filterTrait.set('value', currentValue);
                         }
                     }
 
-                    console.log('Filter column options updated:', objectKeys.length, 'columns available');
 
                 } catch (error) {
-                    console.log('Error updating filter options:', error);
+                    console.log('Error updating filter options:');
                     const filterTrait = this.getTrait('filter-column');
                     if (filterTrait) {
                         const options = [{ value: "", name: "Error loading columns" }];
                         filterTrait.set('options', options);
                     }
                 }
-                // Show filter traits for standard tables
                 setTimeout(() => {
                     const tableType = this.get('table-type') || 'standard';
                     if (tableType === 'standard') {
@@ -1208,10 +1142,7 @@ function jsontablecustom(editor) {
                     if (!tableData || !tableData.heading) {
                         return;
                     }
-
                     const objectKeys = Object.keys(tableData.heading);
-
-                    // Update the running total column trait options
                     const runningTotalTrait = this.getTrait('running-total-column');
                     if (runningTotalTrait) {
                         const options = [
@@ -1224,16 +1155,12 @@ function jsontablecustom(editor) {
                         runningTotalTrait.set('options', options);
                     }
                 } catch (error) {
-                    console.log('Error updating running total options:', error);
+                    console.log('Error updating running total options:');
                 }
             },
             updateRunningTotals() {
                 const selectedColumns = this.get('selected-running-total-columns') || [];
-
-                // Remove all existing running total columns
                 this.removeAllRunningTotalColumns();
-
-                // Add running totals for selected columns
                 selectedColumns.forEach(column => {
                     this.addSingleRunningTotalColumn(column);
                 });
@@ -1244,8 +1171,6 @@ function jsontablecustom(editor) {
             removeAllRunningTotalColumns() {
                 const data = this.get('custom-data') || this.get('table-data') || [];
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
-
-                // Remove running total columns from headers
                 const updatedHeaders = {};
                 Object.keys(headers).forEach(key => {
                     if (!key.endsWith('_running_total')) {
@@ -1253,7 +1178,6 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Remove running total columns from data
                 const updatedData = data.map(row => {
                     const newRow = {};
                     Object.keys(row).forEach(key => {
@@ -1271,8 +1195,6 @@ function jsontablecustom(editor) {
             addSingleRunningTotalColumn(selectedColumn) {
                 const data = this.get('custom-data') || this.get('table-data') || [];
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
-
-                // Check if the selected column contains numeric data
                 const isNumericColumn = data.every(row => {
                     const value = row[selectedColumn];
                     return value === '' || value === null || value === undefined || !isNaN(parseFloat(value));
@@ -1283,11 +1205,8 @@ function jsontablecustom(editor) {
                     return;
                 }
 
-                // Add running total column to headers
                 const newColumnKey = `${selectedColumn}_running_total`;
                 const newColumnName = `${headers[selectedColumn]} (Running Total)`;
-
-                // Insert running total column right after the original column
                 const headerKeys = Object.keys(headers);
                 const originalIndex = headerKeys.indexOf(selectedColumn);
                 const newHeaders = {};
@@ -1299,7 +1218,6 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Calculate running totals and add to data
                 let runningTotal = 0;
                 const updatedData = data.map(row => {
                     const value = parseFloat(row[selectedColumn]) || 0;
@@ -1323,13 +1241,10 @@ function jsontablecustom(editor) {
             addRunningTotalColumn() {
                 const selectedColumn = this.get('running-total-column');
                 const enableRunningTotal = this.get('enable-running-total');
-
                 if (!selectedColumn || !enableRunningTotal) return;
-
                 const data = this.get('custom-data') || this.get('table-data') || [];
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
 
-                // Check if the selected column contains numeric data
                 const isNumericColumn = data.every(row => {
                     const value = row[selectedColumn];
                     return value === '' || value === null || value === undefined || !isNaN(parseFloat(value));
@@ -1343,21 +1258,16 @@ function jsontablecustom(editor) {
 
                 const runningTotalColumns = this.get('running-total-columns') || [];
 
-                // Check if running total already exists for this column
                 if (runningTotalColumns.includes(selectedColumn)) {
-                    return; // Already exists
+                    return;
                 }
 
-                // Add to running total columns list
                 runningTotalColumns.push(selectedColumn);
                 this.set('running-total-columns', runningTotalColumns);
 
-                // Add running total column to headers
                 const newColumnKey = `${selectedColumn}_running_total`;
                 const newColumnName = `${headers[selectedColumn]} (Running Total)`;
                 const updatedHeaders = { ...headers };
-
-                // Insert running total column right after the original column
                 const headerKeys = Object.keys(headers);
                 const originalIndex = headerKeys.indexOf(selectedColumn);
                 const newHeaders = {};
@@ -1369,14 +1279,12 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Calculate running totals and add to data
                 let runningTotal = 0;
                 const updatedData = data.map(row => {
                     const value = parseFloat(row[selectedColumn]) || 0;
                     runningTotal += value;
 
                     const newRow = { ...row };
-                    // Insert running total column in the correct position
                     const newRowOrdered = {};
                     Object.keys(newHeaders).forEach(key => {
                         if (key === newColumnKey) {
@@ -1396,18 +1304,14 @@ function jsontablecustom(editor) {
             removeRunningTotalColumns() {
                 const runningTotalColumns = this.get('running-total-columns') || [];
                 if (runningTotalColumns.length === 0) return;
-
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const data = this.get('custom-data') || this.get('table-data') || [];
-
-                // Remove running total columns from headers
                 const updatedHeaders = { ...headers };
                 runningTotalColumns.forEach(originalColumn => {
                     const runningTotalKey = `${originalColumn}_running_total`;
                     delete updatedHeaders[runningTotalKey];
                 });
 
-                // Remove running total columns from data
                 const updatedData = data.map(row => {
                     const newRow = { ...row };
                     runningTotalColumns.forEach(originalColumn => {
@@ -1444,22 +1348,18 @@ function jsontablecustom(editor) {
                 this.setHighlightConditions(conditions);
             },
 
-            // Add highlighting change handler
             handleHighlightChange() {
                 const tableElement = this.view.el.querySelector('.json-data-table');
                 if (!tableElement || !tableElement.id) return;
-
                 const tableId = tableElement.id;
                 const conditions = this.getHighlightConditions();
                 const color = this.get('highlight-color');
-
                 applyHighlighting(tableId, conditions, color);
                 editor.trigger('component:update', this);
                 this.updateDataJsonState();
             },
 
             initializeDefaultTable() {
-                // Don't set default data, just show placeholder
                 this.set('custom-headers', null);
                 this.set('custom-data', null);
                 this.set('show-placeholder', true);
@@ -1499,7 +1399,6 @@ function jsontablecustom(editor) {
                         const selectedFile = fileNames[parseInt(fileIndex) - 1];
                         const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
                         if (!jsonString) {
-                            console.error(`JSON file not found: common_json_${selectedFile}`);
                             this.set('show-placeholder', true);
                             this.updateTableHTML();
                             return;
@@ -1515,7 +1414,6 @@ function jsontablecustom(editor) {
                     } else {
                         const commonJsonString = localStorage.getItem('common_json');
                         if (!commonJsonString) {
-                            console.error('Common JSON not found in localStorage');
                             this.set('show-placeholder', true);
                             this.updateTableHTML();
                             return;
@@ -1545,7 +1443,6 @@ function jsontablecustom(editor) {
                         tableData = str;
                     }
 
-                    // CROSSTAB MODE - Direct rendering
                     if (tableType === 'crosstab' && tableData.type === 'crosstab') {
                         const tableResult = this.buildCrosstabTable(tableData);
                         this.set('table-headers', tableResult.headers);
@@ -1554,12 +1451,9 @@ function jsontablecustom(editor) {
                         this.set('custom-data', tableResult.data);
                         this.set('show-placeholder', false);
                         this.updateTableHTML();
-
-                        console.log('Crosstab table rendered directly');
                         return;
                     }
 
-                    // STANDARD MODE - Store headers, wait for filter
                     if (tableData && tableData.heading && tableData.data) {
                         this.set('table-headers', tableData.heading);
                         this.set('table-data', tableData.data);
@@ -1569,15 +1463,13 @@ function jsontablecustom(editor) {
                         this.updateTableHTML();
                         this.updateFilterColumnOptions();
                         this.updateRunningTotalColumnOptions();
-
-                        console.log('Headers loaded. Apply filter to load data.');
                     } else {
                         console.error('Invalid table data structure: missing heading or data');
                         this.set('show-placeholder', true);
                         this.updateTableHTML();
                     }
                 } catch (error) {
-                    console.error('Error parsing DataSource path:', error);
+                    console.error('Error parsing DataSource path:');
                     this.set('show-placeholder', true);
                     this.updateTableHTML();
                 }
@@ -1586,7 +1478,6 @@ function jsontablecustom(editor) {
             parseCrosstabData() {
                 const jsonPath = this.get('json-path');
                 const fileIndex = this.get('json-file-index') || '0';
-
                 if (!jsonPath) return null;
 
                 try {
@@ -1622,7 +1513,7 @@ function jsontablecustom(editor) {
 
                     return crosstabData;
                 } catch (error) {
-                    console.error('Error parsing crosstab data:', error);
+                    console.error('Error parsing crosstab data:');
                     return null;
                 }
             },
@@ -1631,44 +1522,33 @@ function jsontablecustom(editor) {
                 const columnHeaders = crosstabData.columnHeaders || [];
                 const rows = crosstabData.rows || [];
                 const structure = crosstabData.structure || {};
-
-                // Store crosstab structure for rendering
                 this.set('crosstab-structure', {
                     columnHeaders,
                     rows,
                     structure
                 });
 
-                // Create flat headers for GrapesJS component structure
                 const headers = {};
                 const rowHeaderCount = structure.rowHeaderLevels || 1;
 
-                // Add row header columns
                 for (let i = 0; i < rowHeaderCount; i++) {
                     headers[`row_header_${i}`] = `Row Header ${i + 1}`;
                 }
 
-                // Count data columns from first row
                 const dataColCount = rows.length > 0 && rows[0].cells ? rows[0].cells.length : 0;
                 for (let i = 0; i < dataColCount; i++) {
                     headers[`data_col_${i}`] = `Column ${i + 1}`;
                 }
 
-                // Create flat data structure
                 const tableData = rows.map((row, rowIdx) => {
                     const dataRow = {};
-
-                    // Check if rowHeaders exists, handle both 'headers' and 'rowHeaders' property names
                     const rowHeadersData = row.rowHeaders || row.headers || [];
-
-                    // Add row headers
                     rowHeadersData.forEach((header, idx) => {
                         if (!header.skip) {
                             dataRow[`row_header_${idx}`] = header.value || '';
                         }
                     });
 
-                    // Add data cells - handle undefined cells array
                     const cellsData = row.cells || [];
                     cellsData.forEach((cell, idx) => {
                         dataRow[`data_col_${idx}`] = cell;
@@ -1686,19 +1566,12 @@ function jsontablecustom(editor) {
             addCrosstabTableWithMerges(tableComponent, tableId) {
                 const crosstabStructure = this.get('crosstab-structure');
                 if (!crosstabStructure) return;
-
                 const { columnHeaders, rows, structure } = crosstabStructure;
-
-                // Add column headers with merges
                 const theadComponent = tableComponent.components().add({
                     type: 'default',
                     tagName: 'thead',
-                    style: {
-                        'border': '1px solid #000'
-                    }
                 });
 
-                // Render each level of column headers
                 columnHeaders.forEach((headerRow, levelIdx) => {
                     const headerRowComponent = theadComponent.components().add({
                         type: 'default',
@@ -1706,7 +1579,7 @@ function jsontablecustom(editor) {
                     });
 
                     headerRow.forEach((header, colIdx) => {
-                        if (header.skip) return; // Skip cells that are part of a merge
+                        if (header.skip) return;
 
                         const attributes = {
                             id: `${tableId}-colheader-${levelIdx}-${colIdx}`
@@ -1726,11 +1599,9 @@ function jsontablecustom(editor) {
                             'font-family': tableStyles.fontFamily,
                             'background-color': tableStyles.bgColor
                         } : {
-                            'border': '1px solid #000',
+                            'border': '2px solid #0000',
                             'font-weight': 'bold'
                         };
-
-                        const alignStyles = tableStyles ? `display: flex; align-items: ${tableStyles.verticalAlign === 'top' ? 'flex-start' : tableStyles.verticalAlign === 'bottom' ? 'flex-end' : 'center'}; justify-content: ${tableStyles.textAlign === 'left' ? 'flex-start' : tableStyles.textAlign === 'right' ? 'flex-end' : 'center'}; min-height: 100%; width: 100%;` : '';
 
                         headerRowComponent.components().add({
                             type: 'json-table-cell',
@@ -1747,7 +1618,6 @@ function jsontablecustom(editor) {
                     });
                 });
 
-                // Add table body with merged row headers
                 const tbodyComponent = tableComponent.components().add({
                     type: 'default',
                     tagName: 'tbody'
@@ -1757,15 +1627,18 @@ function jsontablecustom(editor) {
                     const rowComponent = tbodyComponent.components().add({
                         type: 'default',
                         tagName: 'tr',
+                        classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
                         style: {
-                            'background-color': rowIdx % 2 === 0 ? '#ffffff' : '#f8f9fa'
+                            'background-color': isSummary ? '#f8f9fa' :
+                                isGrandTotal ? '#e8f5e9' :
+                                    rowIndex ? '#ffffff' : '#f8f9fa',
+                            'font-weight': (isSummary || isGrandTotal) ? 'bold' : 'normal'
                         }
                     });
 
-                    // Add row headers with merges
                     const rowHeadersData = row.rowHeaders || row.headers || [];
                     rowHeadersData.forEach((header, headerIdx) => {
-                        if (header.skipFirst) return; // Skip if this header cell is merged from previous row
+                        if (header.skipFirst) return;
 
                         const attributes = {
                             id: `${tableId}-rowheader-${rowIdx}-${headerIdx}`,
@@ -1785,13 +1658,12 @@ function jsontablecustom(editor) {
                             attributes,
                             style: {
                                 'padding': '8px',
-                                'border': '1px solid #000',
+                                'border': '2px solid #0000',
                                 'font-weight': 'bold',
                             }
                         });
                     });
 
-                    // Add data cells
                     row.cells.forEach((cellValue, cellIdx) => {
                         const cellId = `${tableId}-cell-${rowIdx}-${cellIdx}`;
 
@@ -1807,7 +1679,7 @@ function jsontablecustom(editor) {
                             },
                             style: {
                                 'padding': '8px',
-                                'border': '1px solid #000'
+                                'border': '2px solid #0000'
                             }
                         });
                     });
@@ -1816,7 +1688,6 @@ function jsontablecustom(editor) {
 
             calculateColumnStructure(columnHeaders) {
                 const leafColumns = [];
-
                 function traverse(headers, path = []) {
                     if (headers.length === 0) {
                         leafColumns.push({ fullPath: [...path] });
@@ -1926,15 +1797,10 @@ function jsontablecustom(editor) {
             addColumn() {
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const data = this.get('custom-data') || this.get('table-data') || [];
-
                 const columnCount = Object.keys(headers).length;
                 const newColumnKey = `col${columnCount + 1}`;
                 const newColumnName = `New Column ${columnCount + 1}`;
-
-                // Add new header
                 const updatedHeaders = { ...headers, [newColumnKey]: newColumnName };
-
-                // Add new column to all rows
                 const updatedData = data.map(row => ({
                     ...row,
                     [newColumnKey]: 'New Data'
@@ -1947,9 +1813,7 @@ function jsontablecustom(editor) {
 
             removeRow() {
                 const data = this.get('custom-data') || this.get('table-data') || [];
-
-                if (data.length <= 1) return; // Don't remove if only one row
-
+                if (data.length <= 1) return;
                 const updatedData = data.slice(0, -1);
                 this.set('custom-data', updatedData);
                 this.updateTableHTML();
@@ -1958,17 +1822,11 @@ function jsontablecustom(editor) {
             removeColumn() {
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
                 const data = this.get('custom-data') || this.get('table-data') || [];
-
                 const headerKeys = Object.keys(headers);
-                if (headerKeys.length <= 1) return; // Don't remove if only one column
-
+                if (headerKeys.length <= 1) return;
                 const lastKey = headerKeys[headerKeys.length - 1];
-
-                // Remove from headers
                 const updatedHeaders = { ...headers };
                 delete updatedHeaders[lastKey];
-
-                // Remove from data
                 const updatedData = data.map(row => {
                     const newRow = { ...row };
                     delete newRow[lastKey];
@@ -1986,22 +1844,17 @@ function jsontablecustom(editor) {
                 const selectedRunningTotalColumns = this.get('selected-running-total-columns') || [];
 
                 if (updatedData[rowIndex]) {
-                    // Update the data model
                     updatedData[rowIndex] = { ...updatedData[rowIndex], [columnKey]: newValue };
 
                     const cellId = `cell-${rowIndex}-${columnKey}`;
                     this.set('custom-data', updatedData);
                     this.set(`cell-content-${cellId}`, newValue);
-
-                    // Update only the specific cell in the DOM
                     this.updateSingleCell(rowIndex, columnKey, newValue);
 
-                    // Check if this column has a running total and recalculate only that
                     if (selectedRunningTotalColumns.includes(columnKey)) {
                         this.recalculateRunningTotalsForColumn(columnKey);
                     }
 
-                    // ✅ NEW: Update the data-json-state attribute immediately
                     this.updateDataJsonState();
                 }
             },
@@ -2009,7 +1862,6 @@ function jsontablecustom(editor) {
             updateSingleCell(rowIndex, columnKey, newValue) {
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
-
                 const canvasDoc = editor.Canvas.getDocument();
                 const cellId = `${tableId}-cell-${rowIndex}-${columnKey}`;
                 const cellElement = canvasDoc.getElementById(cellId);
@@ -2017,12 +1869,11 @@ function jsontablecustom(editor) {
                 if (cellElement) {
                     cellElement.textContent = newValue;
 
-                    // Update DataTable cell if it exists
                     if (canvasDoc.defaultView.$ && canvasDoc.defaultView.$.fn.DataTable.isDataTable(`#${tableId}`)) {
                         const dt = canvasDoc.defaultView.$(`#${tableId}`).DataTable();
                         const cell = dt.cell(cellElement);
                         if (cell) {
-                            cell.data(newValue).draw(false); // false = don't redraw entire table
+                            cell.data(newValue).draw(false);
                         }
                     }
                 }
@@ -2032,7 +1883,6 @@ function jsontablecustom(editor) {
                 const data = this.get('custom-data') || [];
                 const runningTotalKey = `${columnKey}_running_total`;
 
-                // Recalculate running total for this column
                 let runningTotal = 0;
                 const updatedData = data.map(row => {
                     const value = parseFloat(row[columnKey]) || 0;
@@ -2052,11 +1902,7 @@ function jsontablecustom(editor) {
                 const updatedHeaders = { ...headers, [columnKey]: newValue };
                 this.set('custom-headers', updatedHeaders);
                 this.set(`header-content-${columnKey}`, newValue);
-
-                // Update only the specific header in DOM
                 this.updateSingleHeader(columnKey, newValue);
-
-                // DO NOT call updateTableHTML() here
             },
 
             updateSingleHeader(columnKey, newValue) {
@@ -2075,10 +1921,8 @@ function jsontablecustom(editor) {
             addDataTableSortingFeatures(tableId) {
                 const canvasDoc = editor.Canvas.getDocument();
                 const tableElement = canvasDoc.getElementById(tableId);
-
                 if (!tableElement || !canvasDoc.defaultView.$) return;
 
-                // Add sort arrows to headers
                 const headers = tableElement.querySelectorAll('thead th');
                 headers.forEach((header, index) => {
                     if (!header.querySelector('.sort-arrow')) {
@@ -2092,7 +1936,6 @@ function jsontablecustom(editor) {
                             float: right;
                         `;
 
-                        // Prevent header cell editing when clicking arrow
                         sortArrow.addEventListener('click', (e) => {
                             e.stopPropagation();
                             e.preventDefault();
@@ -2100,13 +1943,11 @@ function jsontablecustom(editor) {
                             const dt = canvasDoc.defaultView.$(tableElement).DataTable();
                             const currentOrder = dt.order();
 
-                            // Toggle sort order: none -> asc -> desc -> none
                             let newOrder = [index, 'asc'];
                             if (currentOrder.length && currentOrder[0][0] === index) {
                                 if (currentOrder[0][1] === 'asc') {
                                     newOrder = [index, 'desc'];
                                 } else {
-                                    // Clear sorting
                                     dt.order([]).draw();
                                     return;
                                 }
@@ -2123,7 +1964,6 @@ function jsontablecustom(editor) {
             setCellStyle(rowIndex, columnKey, styles) {
                 const cellStyles = this.get('cell-styles') || {};
                 const cellKey = `${rowIndex}-${columnKey}`;
-
                 cellStyles[cellKey] = { ...cellStyles[cellKey], ...styles };
                 this.set('cell-styles', cellStyles);
                 this.updateTableHTML();
@@ -2188,20 +2028,40 @@ function jsontablecustom(editor) {
             },
 
             updateTableHTML() {
-                console.log('🔨 updateTableHTML called');
-
-                // Log current state
                 const headers = this.get('custom-headers');
                 const data = this.get('custom-data');
-                console.log('📋 Current state:', {
-                    hasHeaders: !!headers,
-                    hasData: !!data,
-                    headerCount: headers ? Object.keys(headers).length : 0,
-                    dataRows: data?.length || 0,
-                    showPlaceholder: this.get('show-placeholder')
-                });
+                const hideData = this.get('hide-data');
 
-                // --- persist component state so Code panel Apply can rehydrate ---
+                if (hideData && headers && data) {
+                    const _stateForDom = {
+                        headers: headers || this.get('table-headers') || null,
+                        data: data || this.get('table-data') || null,
+                        styles: this.get('table-styles-applied') || null,
+                        highlights: this.get('highlight-conditions') || null,
+                        filter: {
+                            column: this.get('filter-column') || null,
+                            value: this.get('filter-value') || null
+                        },
+                        meta: {
+                            tableType: this.get('table-type') || 'standard',
+                            caption: this.get('caption') || 'no',
+                            pageLength: this.get('page-length') || 10,
+                            pagination: this.get('pagination') || 'no',
+                            search: this.get('search') || 'no',
+                            fileDownload: this.get('file-download') || ''
+                        }
+                    };
+
+                    this.addAttributes({
+                        'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
+                    });
+
+                    this.components().reset();
+
+                    this.addPlaceholderComponent();
+                    return;
+                }
+
                 const _stateForDom = (() => {
                     return {
                         headers: this.get('custom-headers') || this.get('table-headers') || null,
@@ -2223,16 +2083,9 @@ function jsontablecustom(editor) {
                     };
                 })();
 
-                console.log('💾 Saving state to DOM:', {
-                    hasHeaders: !!_stateForDom.headers,
-                    hasData: !!_stateForDom.data,
-                    stateSize: JSON.stringify(_stateForDom).length
-                });
-
                 this.addAttributes({
                     'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
                 });
-                // ----------------------------------------------------------------
 
                 const name = this.get('name') || 'Table';
                 const title = this.get('title') || '';
@@ -2245,29 +2098,17 @@ function jsontablecustom(editor) {
                 const fileDownload = this.get('file-download') || '';
                 const showPlaceholder = this.get('show-placeholder');
 
-                // Generate unique table ID
-                const tableId = this.cid ? `json-table-${this.cid}` : `json-table-${Math.random().toString(36).substr(2, 9)}`;
+                const tableId = this.cid
+                    ? `json-table-${this.cid}`
+                    : `json-table-${Math.random().toString(36).substr(2, 9)}`;
 
-                console.log('🆔 Table ID:', tableId);
+                this.components().reset();
 
-                // Clear existing components but preserve the main container
-                const existingComponents = this.components();
-                existingComponents.reset();
-
-                // Handle placeholder state
                 if (showPlaceholder || !headers || !data) {
-                    console.log('📝 Showing placeholder because:', {
-                        showPlaceholder,
-                        noHeaders: !headers,
-                        noData: !data
-                    });
                     this.addPlaceholderComponent();
                     return;
                 }
 
-                console.log('✅ Building table with', data.length, 'rows and', Object.keys(headers).length, 'columns');
-
-                // Add main wrapper component
                 const wrapperComponent = this.components().add({
                     type: 'default',
                     tagName: 'div',
@@ -2275,12 +2116,11 @@ function jsontablecustom(editor) {
                     classes: ['json-table-wrapper'],
                     style: {
                         'width': '99.5%',
-                        'padding-top': '10px',      // Added
-                        'padding-bottom': '10px'    // Added
+                        'padding-top': '10px',
+                        'padding-bottom': '10px'
                     }
                 });
 
-                // Add title if present
                 if (title) {
                     wrapperComponent.components().add({
                         type: 'text',
@@ -2292,7 +2132,20 @@ function jsontablecustom(editor) {
                     });
                 }
 
-                // Add the main table component - THIS IS KEY: it remains a GrapesJS component
+const repeatHeadersBeforeSummary = this.get('repeat-headers-before-summary') || false;
+const groupingFields = this.get('grouping-fields') || [];
+const summarizeGroup = this.get('summarize-group') || false;
+
+// Check if we should use card layout
+if (repeatHeadersBeforeSummary && summarizeGroup && groupingFields.length > 0) {
+    // Use custom-data if available, otherwise use the passed data
+    const displayData = this.get('custom-data') || data;
+    
+    if (displayData && displayData.length > 0) {
+        this.addCardStyleLayout(wrapperComponent, headers, displayData, tableId);
+        return;
+    }
+}
                 const tableComponent = wrapperComponent.components().add({
                     type: 'default',
                     tagName: 'table',
@@ -2304,13 +2157,10 @@ function jsontablecustom(editor) {
                     style: {
                         'width': '100%',
                         'border-collapse': 'collapse',
-                        'border': '1px solid #ddd',
                         'font-family': 'Arial, sans-serif',
                         'my-input-json': this.get('json-path') || ''
                     }
                 });
-
-                // Add caption if enabled
                 if (caption === 'yes' && name) {
                     tableComponent.components().add({
                         type: 'text',
@@ -2325,32 +2175,18 @@ function jsontablecustom(editor) {
                     });
                 }
 
-                // Check if this is a crosstab table
                 const isCrosstab = this.get('crosstab-structure') !== undefined;
 
                 if (isCrosstab) {
-                    console.log('🔁 Crosstab table detected, using merged rendering');
                     this.addCrosstabTableWithMerges(tableComponent, tableId);
                 } else {
-                    console.log('📊 Rendering standard table (no merges)');
                     this.addTableHeader(tableComponent, headers, tableId);
                     this.addTableBody(tableComponent, headers, data, tableId);
                 }
 
-                // Add footer if enabled (for standard tables only)
                 if (!isCrosstab && footer === 'yes') {
-                    console.log('🦶 Adding table footer');
                     this.addTableFooter(tableComponent, headers);
                 }
-
-                // Add DataTables initialization script AFTER the GrapesJS components are created
-                console.log('⚙️ Adding DataTables script with settings:', {
-                    pagination,
-                    pageLength,
-                    search,
-                    fileDownload,
-                    columns: Object.keys(headers).length
-                });
 
                 const datatableScript = this.createDataTableScript(
                     tableId,
@@ -2362,27 +2198,19 @@ function jsontablecustom(editor) {
                 );
                 wrapperComponent.components().add(datatableScript);
 
-                // Apply highlighting and formulas after DOM is ready
                 setTimeout(() => {
                     const conditions = this.getHighlightConditions();
                     const color = this.get('highlight-color');
                     if (conditions && conditions.length > 0) {
-                        console.log('✨ Applying conditional highlighting:', { count: conditions.length, color });
                         applyHighlighting(tableId, conditions, color);
                     } else {
-                        console.log('⚪ No highlight conditions found.');
                     }
-
-                    // Enable formula editing on the GrapesJS components
-                    console.log('🧮 Enabling formula editing on components for', tableId);
                     this.enableFormulaEditingOnComponents(tableId);
                 }, 500);
 
-                // ✅ Remove header if this is a continuation table without header preference
                 if (this.get('_remove-header-on-build')) {
                     setTimeout(() => {
                         try {
-                            // Try to resolve editor instance reliably
                             const ed = (typeof editor !== 'undefined' && editor) ? editor : (this.em && this.em.get ? this.em.get('Editor') : this.em);
                             const canvasDoc = ed && ed.Canvas ? ed.Canvas.getDocument() : (document); // fallback to global document if necessary
                             const tableElement = canvasDoc.getElementById(tableId);
@@ -2390,15 +2218,13 @@ function jsontablecustom(editor) {
                                 const thead = tableElement.querySelector('thead');
                                 if (thead) {
                                     thead.remove();
-                                    console.log('🗑️ Removed header from continuation table in updateTableHTML');
                                 } else {
-                                    console.log('ℹ️ No thead found to remove for', tableId);
                                 }
                             } else {
-                                console.warn('⚠️ Could not find table element to remove header:', tableId);
+                                console.warn('⚠️ Could not find table element to remove header:');
                             }
                         } catch (err) {
-                            console.warn('⚠️ Error while attempting to remove header from continuation table:', err);
+                            console.warn('⚠️ Error while attempting to remove header from continuation table:');
                         } finally {
                             this.set('_remove-header-on-build', false, { silent: true });
                         }
@@ -2406,9 +2232,7 @@ function jsontablecustom(editor) {
                 }
             },
 
-
             updateDataJsonState() {
-                // Update the data-json-state attribute with current state
                 const _stateForDom = {
                     headers: this.get('custom-headers') || this.get('table-headers') || null,
                     data: this.get('custom-data') || this.get('table-data') || null,
@@ -2431,8 +2255,6 @@ function jsontablecustom(editor) {
                 this.addAttributes({
                     'data-json-state': encodeURIComponent(JSON.stringify(_stateForDom))
                 });
-
-                console.log('💾 Updated data-json-state after edit');
             },
 
             applyGroupingAndSummary() {
@@ -2441,44 +2263,26 @@ function jsontablecustom(editor) {
                 const summaryFields = this.get('summary-fields') || [];
                 const data = this.get('table-data') || [];
 
-                console.log('🔧 applyGroupingAndSummary called:', {
-                    groupingFields: groupingFields.length,
-                    summarizeGroup,
-                    summaryFields: summaryFields.length,
-                    dataRows: data.length
-                });
-
-                // ✅ If no grouping fields, reset to original data
                 if (groupingFields.length === 0) {
-                    console.log('✅ No grouping fields - resetting to original data');
                     const groupedData = this.groupData(data, 0);
-                    console.log(" grouping 0 groupdata", groupedData)
                     this.set('custom-data', groupedData);
                     this.set('show-placeholder', false);
                     this.updateTableHTML();
                     return;
                 }
 
-                // ✅ If summarize is enabled but no summary fields, show warning
                 if (summarizeGroup && summaryFields.length === 0) {
-                    console.warn('⚠️ Summarize enabled but no summary fields selected');
+                    console.warn('Summarize enabled but no summary fields selected');
                     alert('Please add at least one summary field before enabling "Summarize Group"');
                     this.set('summarize-group', false);
                     return;
                 }
 
-                // Apply grouping logic
                 const groupedData = this.groupData(data, groupingFields);
-                console.log(" added grouping groupdata", groupedData)
-
-                // console.log('📊 Grouped data result:', groupedData.length, 'rows');
-
-                // Update custom data with processed data (including page breaks)
                 this.set('custom-data', groupedData);
                 this.set('show-placeholder', false);
                 this.updateTableHTML();
 
-                // ✅ TRIGGER AUTOPAGINATION AFTER GROUPING
                 setTimeout(() => {
                     this.triggerAutoPagination();
                 }, 500);
@@ -2493,18 +2297,13 @@ function jsontablecustom(editor) {
                 const canvasDoc = editor.Canvas.getDocument();
                 const tableElement = canvasDoc.getElementById(tableId);
                 if (!tableElement) return null;
-
-                // Check if inside section-content
                 const sectionContent = tableElement.closest('.section-content');
                 if (sectionContent) return sectionContent;
-
-                // Check if inside main-content-area
                 const mainContent = tableElement.closest('.main-content-area');
                 if (mainContent) return mainContent;
 
                 return null;
             },
-            // REPLACE the entire grouping section around line 2950:
 
             groupData(data, groupingFields) {
                 if (!groupingFields || groupingFields.length === 0) return data;
@@ -2524,25 +2323,23 @@ function jsontablecustom(editor) {
                 const mergeGroupCells = this.get('merge-group-cells') || false;
                 const hideSubtotalSingleRow = this.get('hide-subtotal-single-row') || false;
 
-                // ✅ NEW: Get summary-at-field setting
                 const summaryAtField = this.get('summary-at-field') || '';
-                const summaryAtIndex = summaryAtField ?
-                    groupingFields.findIndex(f => f.key === summaryAtField) :
-                    groupingFields.length - 1; // Default to last grouping field
+                const summaryAtIndex = summaryAtField
+                    ? groupingFields.findIndex(f => f.key === summaryAtField)
+                    : groupingFields.length - 1;
 
-                console.log(`📊 Summary will display at field index: ${summaryAtIndex} (${groupingFields[summaryAtIndex]?.name || 'last'})`);
-
-                // Group data by ALL grouping fields
                 let processedData = data;
-
                 const namedGroups = this.get('named-groups') || {};
                 const defineNamedGroup = this.get('define-named-group') || false;
 
                 if (defineNamedGroup && namedGroups[groupingFields[0].key]) {
-                    processedData = this.applyNamedGroups(data, groupingFields[0].key, namedGroups[groupingFields[0].key]);
+                    processedData = this.applyNamedGroups(
+                        data,
+                        groupingFields[0].key,
+                        namedGroups[groupingFields[0].key]
+                    );
                 }
 
-                // Create hierarchical grouping structure
                 processedData.forEach(row => {
                     if (!row || typeof row !== 'object') return;
 
@@ -2562,7 +2359,6 @@ function jsontablecustom(editor) {
                     return data;
                 }
 
-                // Sort groups
                 let sortedGroupKeys = Object.keys(grouped);
                 if (sortOrder === 'ascending') {
                     sortedGroupKeys.sort();
@@ -2570,7 +2366,6 @@ function jsontablecustom(editor) {
                     sortedGroupKeys.sort().reverse();
                 }
 
-                // Apply Top/N filtering
                 if (topN !== 'none' && topN !== 'sort-all' && topNValue > 0) {
                     if (topN === 'top') {
                         sortedGroupKeys = sortedGroupKeys.slice(0, topNValue);
@@ -2579,9 +2374,6 @@ function jsontablecustom(editor) {
                     }
                 }
 
-                console.log(`Top N Filter: ${topN}, Value: ${topNValue}, Groups shown: ${sortedGroupKeys.length}`);
-
-                // Flatten back to array with group markers
                 const result = [];
                 const selectedSummaryFields = this.get('summary-fields') || [];
 
@@ -2593,22 +2385,24 @@ function jsontablecustom(editor) {
                             const summaryRow = this.createSummaryRow(group.rows, groupKey);
                             summaryRow._isSummary = true;
                             summaryRow._groupIndex = groupIndex;
-                            // ✅ Mark summary cells to skip merging
-                            Object.keys(this.get('custom-headers') || this.get('table-headers') || {}).forEach(key => {
-                                summaryRow[`_skip_merge_${key}`] = true;
+
+                            groupingFields.forEach(field => {
+                                if (group.rows.length > 0) {
+                                    summaryRow[field.key] = group.rows[0][field.key];
+                                }
                             });
+
                             result.push(summaryRow);
                         } else if (this.get('keep-group-hierarchy')) {
                             const firstRow = { ...group.rows[0] };
                             firstRow._groupIndex = groupIndex;
                             result.push(firstRow);
                         }
-                    } else {
-                        // Add all rows in group
+                    }
+                    else {
                         group.rows.forEach((row, rowIdx) => {
                             const newRow = { ...row };
 
-                            // Mark first row of group for potential merging
                             if (mergeGroupCells && rowIdx === 0) {
                                 newRow._groupStart = true;
                                 newRow._groupSize = group.rows.length;
@@ -2620,38 +2414,37 @@ function jsontablecustom(editor) {
 
                             result.push(newRow);
 
-                            // ✅ NEW: Check if we should add summary at this level
                             const shouldAddSummaryHere =
                                 summarizeGroup &&
                                 selectedSummaryFields.length > 0 &&
                                 !(hideSubtotalSingleRow && group.rows.length === 1) &&
-                                rowIdx === group.rows.length - 1; // Last row of group
+                                rowIdx === group.rows.length - 1;
 
                             if (shouldAddSummaryHere) {
-                                // Check if next group has different value at summary-at-field level
                                 const nextGroupKey = sortedGroupKeys[groupIndex + 1];
                                 let shouldShowSummary = true;
 
                                 if (nextGroupKey && summaryAtIndex < groupingFields.length) {
                                     const currentValues = group.values;
                                     const nextValues = grouped[nextGroupKey].values;
-
-                                    // Compare values up to and including summaryAtIndex
                                     shouldShowSummary = currentValues[summaryAtIndex] !== nextValues[summaryAtIndex];
-
-                                    console.log(`Comparing at index ${summaryAtIndex}: "${currentValues[summaryAtIndex]}" vs "${nextValues[summaryAtIndex]}" = ${shouldShowSummary}`);
                                 }
 
                                 if (shouldShowSummary) {
-                                    console.log(`➕ Adding summary row for group ${groupIndex}`);
                                     const summaryRow = this.createSummaryRow(group.rows, groupKey);
                                     summaryRow._isSummary = true;
                                     summaryRow._groupIndex = groupIndex;
 
-                                    // ✅ Mark summary cells to skip merging
-                                    Object.keys(this.get('custom-headers') || this.get('table-headers') || {}).forEach(key => {
-                                        summaryRow[`_skip_merge_${key}`] = true;
+                                    groupingFields.forEach(field => {
+                                        if (group.rows.length > 0) {
+                                            summaryRow[field.key] = group.rows[0][field.key];
+                                        }
                                     });
+
+                                    Object.keys(this.get('custom-headers') || this.get('table-headers') || {})
+                                        .forEach(key => {
+                                            summaryRow[`_skip_merge_${key}`] = true;
+                                        });
 
                                     result.push(summaryRow);
                                 }
@@ -2660,15 +2453,49 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Add grand total if enabled
                 if (this.get('grand-total')) {
                     const grandTotalRow = this.createGrandTotalRow(
-                        showSummaryOnly ? result.filter(r => !r._isSummary) : result.filter(r => !r._isSummary && !r._isGrandTotal)
+                        showSummaryOnly
+                            ? result.filter(r => !r._isSummary)
+                            : result.filter(r => !r._isSummary && !r._isGrandTotal)
                     );
                     grandTotalRow._isGrandTotal = true;
                     result.push(grandTotalRow);
                 }
 
+                const selectedSummaryFieldsForHeaders = this.get('summary-fields') || [];
+                if (selectedSummaryFieldsForHeaders.length > 0) {
+                    const baseHeaders = this.get('table-headers') || {};
+                    const updatedHeaders = { ...baseHeaders };
+
+                    const columnSummaryCounts = {};
+                    selectedSummaryFieldsForHeaders.forEach(field => {
+                        columnSummaryCounts[field.key] =
+                            (columnSummaryCounts[field.key] || 0) + 1;
+                    });
+
+                    Object.keys(columnSummaryCounts).forEach(columnKey => {
+                        const count = columnSummaryCounts[columnKey];
+                        if (count > 1) {
+                            const functions = selectedSummaryFieldsForHeaders
+                                .filter(f => f.key === columnKey)
+                                .map(f => f.function);
+
+                            for (let i = 1; i < count; i++) {
+                                const newKey = `${columnKey}_summary_${i}`;
+                                const funcName =
+                                    functions[i].charAt(0).toUpperCase() +
+                                    functions[i].slice(1);
+                                updatedHeaders[newKey] =
+                                    `${baseHeaders[columnKey]} (${funcName})`;
+                            }
+                        }
+                    });
+
+                    this.set('custom-headers', updatedHeaders);
+                }
+
+                console.log(`✅ Final result: ${result.length} rows (including summaries)`);
                 return result;
             },
 
@@ -2676,146 +2503,280 @@ function jsontablecustom(editor) {
                 return data.map(row => {
                     const currentValue = row[fieldKey];
 
-                    // Find which named group this value belongs to
                     for (const group of namedGroupsConfig) {
                         if (group.values.includes(currentValue)) {
                             return {
                                 ...row,
-                                [fieldKey]: group.name // Replace with group name
+                                [fieldKey]: group.name
                             };
                         }
                     }
 
-                    // If no named group found, keep original value
                     return row;
                 });
             },
 
             createSummaryRow(groupRows, groupKey) {
-                const summaryFields = this.get('summary-fields') || []; // ✅ Use saved summary fields
+                const summaryFields = this.get('summary-fields') || [];
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
-                const summaryLabel = this.get('summary-label') || 'Subtotal';
+                const groupingFields = this.get('grouping-fields') || [];
 
                 const summaryRow = {};
 
-                // Initialize with empty values
                 Object.keys(headers).forEach(key => {
                     summaryRow[key] = '';
                 });
 
-                // Set label in first column
-                const firstKey = Object.keys(headers)[0];
-                summaryRow[firstKey] = summaryLabel;
-
-                // ✅ Only calculate summaries if fields are defined
-                if (summaryFields.length > 0) {
-                    summaryFields.forEach(field => {
-                        const values = groupRows.map(row => parseFloat(row[field.key]) || 0);
-
-                        switch (field.function) {
-                            case 'sum':
-                                summaryRow[field.key] = values.reduce((a, b) => a + b, 0).toFixed(2);
-                                break;
-                            case 'average':
-                                summaryRow[field.key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
-                                break;
-                            case 'count':
-                                summaryRow[field.key] = values.length;
-                                break;
-                            case 'min':
-                                summaryRow[field.key] = Math.min(...values).toFixed(2);
-                                break;
-                            case 'max':
-                                summaryRow[field.key] = Math.max(...values).toFixed(2);
-                                break;
-                        }
+                if (groupingFields.length > 0 && groupRows.length > 0) {
+                    groupingFields.forEach(field => {
+                        summaryRow[field.key] = groupRows[0][field.key] || '';
                     });
                 }
 
+                const columnSummaries = {};
+
+                summaryFields.forEach((field) => {
+                    if (!columnSummaries[field.key]) {
+                        columnSummaries[field.key] = [];
+                    }
+                    columnSummaries[field.key].push(field);
+                });
+
+                Object.keys(columnSummaries).forEach(columnKey => {
+                    const summariesForColumn = columnSummaries[columnKey];
+
+                    summariesForColumn.forEach((field, index) => {
+
+                        let result;
+
+                        switch (field.function) {
+                            case 'last':
+                                for (let i = groupRows.length - 1; i >= 0; i--) {
+                                    const val = groupRows[i][field.key];
+                                    if (val !== '' && val !== null && val !== undefined) {
+                                        result = val;
+                                        break;
+                                    }
+                                }
+                                if (!result && groupRows.length > 0) {
+                                    result = groupRows[groupRows.length - 1][field.key] || '';
+                                }
+                                break;
+
+                            case 'first':
+                                for (let i = 0; i < groupRows.length; i++) {
+                                    const val = groupRows[i][field.key];
+                                    if (val !== '' && val !== null && val !== undefined) {
+                                        result = val;
+                                        break;
+                                    }
+                                }
+                                if (!result && groupRows.length > 0) {
+                                    result = groupRows[0][field.key] || '';
+                                }
+                                break;
+
+                            case 'count':
+                                const nonEmptyValues = groupRows.filter(row => {
+                                    const val = row[field.key];
+                                    return val !== '' && val !== null && val !== undefined;
+                                });
+                                result = nonEmptyValues.length;
+                                break;
+
+                            case 'sum':
+                                const values = groupRows.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                result = values.reduce((a, b) => a + b, 0).toFixed(2);
+                                break;
+
+                            case 'average':
+                                const avgValues = groupRows.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                const sum = avgValues.reduce((a, b) => a + b, 0);
+                                result = (sum / avgValues.length).toFixed(2);
+                                break;
+
+                            case 'min':
+                                const minValues = groupRows.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                result = Math.min(...minValues).toFixed(2);
+                                break;
+
+                            case 'max':
+                                const maxValues = groupRows.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                result = Math.max(...maxValues).toFixed(2);
+                                break;
+
+                            default:
+                                result = '';
+                        }
+
+                        if (index === 0) {
+                            summaryRow[columnKey] = result;
+                        } else {
+                            const newColumnKey = `${columnKey}_summary_${index}`;
+                            summaryRow[newColumnKey] = result;
+                        }
+                    });
+                });
+
                 return summaryRow;
             },
+            createSummaryHeaderRow(summaryFields, headers) {
+                const summaryHeaderRow = {};
+                const groupingFields = this.get('grouping-fields') || [];
 
+                Object.keys(headers).forEach(key => {
+                    summaryHeaderRow[key] = '';
+                });
+
+                const columnMetrics = {};
+
+                summaryFields.forEach(field => {
+                    if (!columnMetrics[field.key]) {
+                        columnMetrics[field.key] = [];
+                    }
+                    columnMetrics[field.key].push(field.function);
+                });
+
+                Object.keys(headers).forEach(key => {
+                    if (columnMetrics[key] && columnMetrics[key].length > 1) {
+                        summaryHeaderRow[key] = columnMetrics[key].map(fn =>
+                            fn.charAt(0).toUpperCase() + fn.slice(1)
+                        ).join(' | ');
+                    } else if (columnMetrics[key] && columnMetrics[key].length === 1) {
+                        summaryHeaderRow[key] = columnMetrics[key][0].charAt(0).toUpperCase() + columnMetrics[key][0].slice(1);
+                    }
+                });
+
+                if (groupingFields.length > 0) {
+                    const firstGroupKey = groupingFields[0].key;
+                    summaryHeaderRow[firstGroupKey] = 'Summary';
+                }
+
+                return summaryHeaderRow;
+            },
             createGrandTotalRow(data) {
                 const summaryFields = this.get('summary-fields') || [];
                 const headers = this.get('custom-headers') || this.get('table-headers') || {};
-                const grandTotalLabel = this.get('grand-total-label') || 'Grand Total';
-
+                const groupingFields = this.get('grouping-fields') || [];
                 const grandTotalRow = {};
 
                 Object.keys(headers).forEach(key => {
                     grandTotalRow[key] = '';
                 });
 
-                const firstKey = Object.keys(headers)[0];
-                grandTotalRow[firstKey] = grandTotalLabel;
+                if (groupingFields.length > 0) {
+                    const firstGroupKey = groupingFields[0].key;
+                    const label = this.get('grand-total-label') || 'Grand Total';
+                    grandTotalRow[firstGroupKey] = label;
+                }
 
-                // Check which columns are numeric (similar to running total logic)
-                const numericColumns = {};
-                Object.keys(headers).forEach(key => {
-                    const isStrictlyNumeric = data.every(row => {
-                        let value = row[key];
-                        if (value === '' || value === null || value === undefined) return true;
-                        value = String(value).trim();
-                        if (/^\(.*\)$/.test(value)) {
-                            value = '-' + value.slice(1, -1);
-                        }
-                        value = value.replace(/[$£€₹,\s]/g, '');
-                        if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
-                            value = value.replace(/\./g, '').replace(',', '.');
-                        }
-                        const numValue = Number(value);
-                        return typeof numValue === 'number' && !isNaN(numValue);
-                    });
+                const columnSummaries = {};
 
-                    if (isStrictlyNumeric && data.some(row => row[key] !== '' && row[key] !== null && row[key] !== undefined)) {
-                        numericColumns[key] = true;
+                summaryFields.forEach((field) => {
+                    if (!columnSummaries[field.key]) {
+                        columnSummaries[field.key] = [];
                     }
+                    columnSummaries[field.key].push(field);
                 });
 
-                // Calculate grand totals for numeric columns
-                Object.keys(numericColumns).forEach(key => {
-                    const values = data.map(row => {
-                        let value = row[key];
-                        if (value === '' || value === null || value === undefined) return 0;
-                        value = String(value).trim();
-                        if (/^\(.*\)$/.test(value)) {
-                            value = '-' + value.slice(1, -1);
+                Object.keys(columnSummaries).forEach(columnKey => {
+                    const summariesForColumn = columnSummaries[columnKey];
+
+                    summariesForColumn.forEach((field, index) => {
+                        let result;
+
+                        switch (field.function) {
+                            case 'last':
+                                for (let i = data.length - 1; i >= 0; i--) {
+                                    const val = data[i][field.key];
+                                    if (val !== '' && val !== null && val !== undefined) {
+                                        result = val;
+                                        break;
+                                    }
+                                }
+                                break;
+
+                            case 'first':
+                                for (let i = 0; i < data.length; i++) {
+                                    const val = data[i][field.key];
+                                    if (val !== '' && val !== null && val !== undefined) {
+                                        result = val;
+                                        break;
+                                    }
+                                }
+                                break;
+
+                            case 'count':
+                                const nonEmpty = data.filter(row => {
+                                    const val = row[field.key];
+                                    return val !== '' && val !== null && val !== undefined;
+                                });
+                                result = nonEmpty.length;
+                                break;
+
+                            case 'sum':
+                                const values = data.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                result = values.reduce((a, b) => a + b, 0).toFixed(2);
+                                break;
+
+                            case 'average':
+                                const avgVals = data.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                const sum = avgVals.reduce((a, b) => a + b, 0);
+                                result = (sum / avgVals.length).toFixed(2);
+                                break;
+
+                            case 'min':
+                                const minVals = data.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                result = Math.min(...minVals).toFixed(2);
+                                break;
+
+                            case 'max':
+                                const maxVals = data.map(row => {
+                                    const val = String(row[field.key] || '0').replace(/,/g, '');
+                                    return parseFloat(val) || 0;
+                                });
+                                result = Math.max(...maxVals).toFixed(2);
+                                break;
+
+                            default:
+                                result = '';
                         }
-                        value = value.replace(/[$£€₹,\s]/g, '');
-                        if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
-                            value = value.replace(/\./g, '').replace(',', '.');
+
+                        if (index === 0) {
+                            grandTotalRow[columnKey] = result;
+                        } else {
+                            const newColumnKey = `${columnKey}_summary_${index}`;
+                            grandTotalRow[columnKey] = result;
                         }
-                        return parseFloat(value) || 0;
                     });
-
-                    // Apply summary function if defined, otherwise use sum
-                    const summaryField = summaryFields.find(f => f.key === key);
-                    const func = summaryField ? summaryField.function : 'sum';
-
-                    switch (func) {
-                        case 'sum':
-                            grandTotalRow[key] = values.reduce((a, b) => a + b, 0).toFixed(2);
-                            break;
-                        case 'average':
-                            grandTotalRow[key] = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
-                            break;
-                        case 'count':
-                            grandTotalRow[key] = values.length;
-                            break;
-                        case 'min':
-                            grandTotalRow[key] = Math.min(...values).toFixed(2);
-                            break;
-                        case 'max':
-                            grandTotalRow[key] = Math.max(...values).toFixed(2);
-                            break;
-                    }
                 });
 
+                console.log('✅ Grand total row created:', grandTotalRow);
                 return grandTotalRow;
             },
 
             processSummary(data, summaryFields) {
-                // Additional processing if needed
                 return data;
             },
             createDataTableScript(tableId, pagination, pageLength, search, fileDownload, colCount) {
@@ -2829,25 +2790,22 @@ function jsontablecustom(editor) {
                     title: '${this.get('name') || 'Table'}',
                     customize: function(win) {
                         const table = $(win.document.body).find('table');
-                        table.addClass('json-data-table');  // Ensure class is added for any matching styles
+                        table.addClass('json-data-table');
                         table.css({
                             'border-collapse': 'collapse',
-                            'border': '2px solid #000',
                             'width': '100%'
                         });
                         table.find('th, td').css({
-                            'border': '1px solid #000',
                             'padding': '8px',
                             'text-align': 'left'
                         });
                         table.find('th').css({
-                            'background-color': '#f8f9fa',
+                            'background-color': '#ffff',
                             'font-weight': 'bold'
                         });
                         table.find('td').css({
-                            'background-color': '#fff'
+                            'background-color': '#ffff'
                         });
-                        // Hide any unnecessary elements in print
                         $(win.document.body).find('.dt-buttons, .dataTables_info').remove();
                     }
                 }`;
@@ -2856,11 +2814,29 @@ function jsontablecustom(editor) {
                         }
                     }).join(',') + ']';
                 }
+
                 const scriptContent = `
                 (function() {
                     function initTable() {
-                        if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
-                            setTimeout(initTable, 100);
+
+                        if (typeof $ === 'undefined') {
+                            const jqueryScript = document.createElement('script');
+                            jqueryScript.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+                            jqueryScript.onload = () => setTimeout(initTable, 100);
+                            document.head.appendChild(jqueryScript);
+                            return;
+                        }
+                        
+                        if (typeof $.fn.DataTable === 'undefined') {
+                            const dtCSS = document.createElement('link');
+                            dtCSS.rel = 'stylesheet';
+                            dtCSS.href = 'https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css';
+                            document.head.appendChild(dtCSS);
+                            
+                            const dtScript = document.createElement('script');
+                            dtScript.src = 'https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js';
+                            dtScript.onload = () => setTimeout(initTable, 100);
+                            document.head.appendChild(dtScript);
                             return;
                         }
                         
@@ -2870,7 +2846,6 @@ function jsontablecustom(editor) {
                             return;
                         }
                         
-                        // Store formula data before DataTable initialization
                         const formulaCells = tableElement.querySelectorAll('[data-formula]');
                         const formulaData = Array.from(formulaCells).map(cell => ({
                             cell: cell,
@@ -2879,7 +2854,6 @@ function jsontablecustom(editor) {
                             id: cell.id || cell.getAttribute('data-row') + '-' + cell.getAttribute('data-column-key')
                         }));
                         
-                        // Destroy existing DataTable if it exists
                         if ($.fn.DataTable.isDataTable(tableElement)) {
                             $(tableElement).DataTable().destroy();
                         }
@@ -2890,7 +2864,7 @@ function jsontablecustom(editor) {
                             dom: 'Bfrtip',
                             paging: ${pagination === 'yes'},
                             info: ${pagination === 'yes'},
-                            lengthChange: true,
+                            lengthChange: ${pagination === 'yes'},
                             pageLength: ${pageLength},
                             fixedHeader: false,
                             scrollX: ${colCount > 5},
@@ -2898,9 +2872,8 @@ function jsontablecustom(editor) {
                             searching: ${search === 'yes'},
                             buttons: ${downloadBtn},
                             ordering: false,
-                            order: [], 
+                            order: [],
                             drawCallback: function() {
-                                // Restore formula data after DataTable draw
                                 setTimeout(() => {
                                     formulaData.forEach(data => {
                                         const cell = document.getElementById(data.id) ||
@@ -2917,7 +2890,6 @@ function jsontablecustom(editor) {
                                         }
                                     });
                                     
-                                    // Trigger custom event to re-enable formulas
                                     const event = new CustomEvent('datatableRedrawn', {
                                         detail: { tableId: '${tableId}', formulaData: formulaData }
                                     });
@@ -2940,11 +2912,29 @@ function jsontablecustom(editor) {
                                 }
                             } : false
                         };
+                        
+                        try {
+                            const dataTable = $(tableElement).DataTable(dtOptions);
+                            
+                            const initEvent = new CustomEvent('datatableInitialized', {
+                                detail: { tableId: '${tableId}' }
+                            });
+                            document.dispatchEvent(initEvent);
+
+                        } catch (error) {
+                            console.error('Failed to initialize DataTable:', error);
+                        }
                     }
                     
-                    initTable();
+
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', initTable);
+                    } else {
+                        initTable();
+                    }
                 })();
                 `;
+
                 return {
                     type: 'default',
                     tagName: 'script',
@@ -2955,22 +2945,16 @@ function jsontablecustom(editor) {
                 };
             },
 
-
-            // 3. ADD this function to enable formulas on GrapesJS components:
-
             enableFormulaEditingOnComponents(tableId) {
-                // Listen for DataTable redraws
                 document.addEventListener('datatableRedrawn', (e) => {
                     if (e.detail.tableId === tableId) {
                         this.attachFormulaHandlersToComponents(tableId);
-                        // Re-attach handlers after DataTable operations
                         setTimeout(() => {
                             this.reattachAllCellHandlers(tableId);
                         }, 150);
                     }
                 });
 
-                // Listen for DataTable initialization
                 document.addEventListener('datatableInitialized', (e) => {
                     if (e.detail.tableId === tableId) {
                         setTimeout(() => {
@@ -2979,24 +2963,18 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Initial attachment
                 this.attachFormulaHandlersToComponents(tableId);
             },
-
-            // 4. ADD this function to attach formula handlers to GrapesJS components:
 
             attachFormulaHandlersToComponents(tableId) {
                 const canvasDoc = editor.Canvas.getDocument();
                 const canvasWindow = canvasDoc.defaultView;
-
-                // ✅ Use or create global parser with custom formulas
                 let parser = canvasWindow.globalFormulaParser;
 
                 if (!parser && canvasWindow.formulaParser) {
                     parser = new canvasWindow.formulaParser.Parser();
                     canvasWindow.globalFormulaParser = parser;
 
-                    // Register custom formulas
                     if (parser.setFunction) {
                         parser.setFunction('PERCENT', function (params) {
                             if (params.length !== 2) return '#N/A';
@@ -3033,14 +3011,12 @@ function jsontablecustom(editor) {
                     return;
                 }
 
-                // Set up parser callbacks
                 parser.on('callCellValue', function (cellCoord, done) {
                     let col = cellCoord.column.index;
                     let row = cellCoord.row.index;
                     let tableElem = canvasDoc.getElementById(tableId);
                     let cell = tableElem?.rows[row]?.cells[col];
                     if (cell) {
-                        // Check for calculated value first, then formula, then text
                         let val = cell.getAttribute('data-calculated-value') ||
                             cell.getAttribute('data-formula') ||
                             cell.innerText;
@@ -3062,7 +3038,6 @@ function jsontablecustom(editor) {
                 parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
                     let tableElem = canvasDoc.getElementById(tableId);
                     let values = [];
-
                     let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
                     let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
                     let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
@@ -3093,7 +3068,6 @@ function jsontablecustom(editor) {
                     done(values);
                 });
 
-                // Find table cells in GrapesJS component tree and attach handlers
                 const tableComponent = this.components().find(comp => {
                     return comp.find(`#${tableId}`).length > 0;
                 });
@@ -3101,7 +3075,6 @@ function jsontablecustom(editor) {
                 if (tableComponent) {
                     const actualTable = tableComponent.find('table')[0];
                     if (actualTable) {
-                        // Find all cell components (td, th)
                         const cellComponents = actualTable.find('td, th');
 
                         cellComponents.forEach(cellComp => {
@@ -3114,19 +3087,14 @@ function jsontablecustom(editor) {
                 }
             },
 
-
-            // 5. ADD this function to attach formula handlers to individual cells:
-
             attachCellFormulaHandler(cellComponent, cellElement, parser) {
-                // Skip if already has handlers
                 if (cellElement.hasAttribute('data-formula-enabled')) {
                     return;
                 }
 
                 cellElement.setAttribute('data-formula-enabled', 'true');
-
                 cellElement.contentEditable = 'true';
-                const cellContent = cellElement; // Use the cell itself instead of a div
+                const cellContent = cellElement;
 
                 const handleFocus = () => {
                     const formula = cellElement.getAttribute('data-formula');
@@ -3161,18 +3129,14 @@ function jsontablecustom(editor) {
                             const formulaContent = val.substring(1).trim();
                             if (!formulaContent) throw new Error('Empty formula');
 
-                            // ✅ Use the global parser with custom formulas instead of local parser
                             const canvasWindow = cellElement.ownerDocument.defaultView;
                             let formulaParser = canvasWindow.globalFormulaParser;
 
-                            // If global parser doesn't exist, create it and register custom formulas
                             if (!formulaParser && canvasWindow.formulaParser) {
                                 formulaParser = new canvasWindow.formulaParser.Parser();
                                 canvasWindow.globalFormulaParser = formulaParser;
 
-                                // Register custom formulas on this parser instance
                                 if (formulaParser.setFunction) {
-                                    // PERCENT
                                     formulaParser.setFunction('PERCENT', function (params) {
                                         if (params.length !== 2) return '#N/A';
                                         const base = parseFloat(params[0]);
@@ -3181,7 +3145,6 @@ function jsontablecustom(editor) {
                                         return base * (percent / 100);
                                     });
 
-                                    // ABSOLUTE
                                     formulaParser.setFunction('ABSOLUTE', function (params) {
                                         if (params.length !== 1) return '#N/A';
                                         const num = parseFloat(params[0]);
@@ -3189,7 +3152,6 @@ function jsontablecustom(editor) {
                                         return Math.abs(num);
                                     });
 
-                                    // NUMTOWORDS
                                     if (canvasWindow.numberToWords && canvasWindow.numberToWords.toWords) {
                                         formulaParser.setFunction('NUMTOWORDS', function (params) {
                                             if (params.length !== 1) return '#N/A';
@@ -3230,7 +3192,7 @@ function jsontablecustom(editor) {
                                 }
                             }
                         } catch (error) {
-                            console.warn('Formula parsing error:', error);
+                            console.warn('Formula parsing error:');
                             cellContent.textContent = '#ERROR';
                             cellElement.classList.add('formula-error');
                             cellElement.setAttribute('data-calculated-value', '#ERROR');
@@ -3247,7 +3209,6 @@ function jsontablecustom(editor) {
                     }
                 };
 
-                // Rest of the function remains the same...
                 const handleKeydown = (e) => {
                     if (e.key === 'Tab') {
                         e.preventDefault();
@@ -3284,14 +3245,11 @@ function jsontablecustom(editor) {
                 cellElement._cellContent = cellContent;
             },
 
-            // Add this new method right after attachCellFormulaHandler:
             reattachAllCellHandlers(tableId) {
                 const canvasDoc = editor.Canvas.getDocument();
                 const parser = canvasDoc.defaultView.formulaParser ? new canvasDoc.defaultView.formulaParser.Parser() : null;
-
                 if (!parser) return;
 
-                // Set up parser callbacks again
                 parser.on('callCellValue', function (cellCoord, done) {
                     let col = cellCoord.column.index;
                     let row = cellCoord.row.index;
@@ -3350,7 +3308,6 @@ function jsontablecustom(editor) {
                     done(values);
                 });
 
-                // Re-enable all cells
                 const tableElement = canvasDoc.getElementById(tableId);
                 if (tableElement) {
                     const allCells = tableElement.querySelectorAll('td, th');
@@ -3358,7 +3315,6 @@ function jsontablecustom(editor) {
                         if (!cell.hasAttribute('data-formula-enabled')) {
                             this.attachCellFormulaHandler(null, cell, parser);
                         } else {
-                            // Re-ensure contentEditable for existing cells
                             const cellContent = cell.querySelector('div') || cell;
                             cellContent.contentEditable = 'true';
                         }
@@ -3372,19 +3328,25 @@ function jsontablecustom(editor) {
                 const filterColumn = this.get('filter-column');
                 const filterValue = this.get('filter-value');
                 const tableType = this.get('table-type') || 'standard';
+                const hideData = this.get('hide-data');
+
+                const message = hideData && tableHeaders ?
+                    'Data loaded in hidden mode' :
+                    '';
 
                 this.components().add({
                     type: 'default',
-                    tagName: 'json-table',
+                    tagName: 'div',
                     selectable: false,
                     classes: ['json-table-placeholder'],
                     content: `
-            <h3 style="margin: 0 0 10px 0; color: #495057;">JSON Table</h3>
-        `,
+                        <h3 style="margin: 0 0 10px 0; color: #495057;">DataSource Table</h3>
+                        <p style="margin: 0; color: #6c757d;">${message}</p>
+                    `,
                     style: {
                         'width': '100%',
                         'min-height': '70px',
-                        'padding': '15px 15px 10px 15px', // Changed: Added top and bottom padding
+                        'padding': '15px 15px 10px 15px',
                         'display': 'flex',
                         'flex-direction': 'column',
                         'align-items': 'center',
@@ -3392,7 +3354,9 @@ function jsontablecustom(editor) {
                         'color': '#6c757d',
                         'text-align': 'center',
                         'font-family': 'Arial, sans-serif',
-                        'cursor': 'pointer'
+                        'cursor': 'pointer',
+                        'background': hideData ? '#fff9e6' : 'transparent',
+                        'border': hideData ? '2px dashed #ffc107' : 'none'
                     }
                 });
             },
@@ -3462,8 +3426,7 @@ function jsontablecustom(editor) {
                     type: 'default',
                     tagName: 'thead',
                     style: {
-                        'background-color': '#f8f9fa',
-                        'border': '1px solid #000'
+                        'background-color': '#ffff',
                     }
                 });
 
@@ -3484,7 +3447,6 @@ function jsontablecustom(editor) {
                         'background-color': tableStyles.bgColor,
                     } : {
                         'padding': '8px',
-                        'border': '1px solid #000000ff',
                         'font-weight': 'bold'
                     };
 
@@ -3543,9 +3505,9 @@ function jsontablecustom(editor) {
 
                 const jsonPath = this.get('json-path') || '';
                 const runningTotals = this.get('running-totals') || [];
-
+    const repeatHeadersBeforeSummary = this.get('repeat-headers-before-summary') || false;
+                const groupingFields = this.get('grouping-fields') || [];
                 data.forEach((row, rowIndex) => {
-                    // âœ… CHECK FOR PAGE BREAK ROW
                     if (row._isPageBreak) {
                         const pageBreakRow = tbodyComponent.components().add({
                             type: 'default',
@@ -3572,122 +3534,122 @@ function jsontablecustom(editor) {
                                 'padding': '0',
                                 'border': 'none'
                             },
-                            content: `<div class="page-break" data-page-break="true" style="
-                width: 100%;
-                height: 30px;
-                background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%);
-                border: 2px dashed #ff4757;
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 10px 0;
-                position: relative;
-                cursor: move;
-            ">
-                <span class="page-break-label" style="
-                    color: white;
-                    font-size: 12px;
-                    font-weight: bold;
-                    letter-spacing: 1px;
-                ">PAGE BREAK (Auto-inserted after group)</span>
-            </div>`
+                            content: `<div class="page-break" data-page-break="true" style="width: 100%; height: 30px; background: linear-gradient(90deg, #ff6b6b 0%, #ff8e8e 50%, #ff6b6b 100%); border: 2px dashed #ff4757; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin: 10px 0; position: relative; cursor: move;"><span class="page-break-label" style="color: white; font-size: 12px; font-weight: bold; letter-spacing: 1px;">PAGE BREAK (Auto-inserted after group)</span></div>`
                         });
                         return;
                     }
 
-                    // NORMAL ROW RENDERING
                     const isSummary = row._isSummary;
                     const isGrandTotal = row._isGrandTotal;
-                    const isGroupStart = row._groupStart;
-                    const groupSize = row._groupSize || 1;
-                    const mergeGroupCells = this.get('merge-group-cells') || false;
 
-                    // âœ… SPECIAL HANDLING FOR SUMMARY ROWS WITH MERGED CELLS
-                    if (isSummary && mergeGroupCells) {
+                    if (isSummary || isGrandTotal) {
+                                    if (
+  repeatHeadersBeforeSummary &&
+  isSummary &&
+  rowIndex !== 0
+) {
+                const headerRowComponent = tbodyComponent.components().add({
+                    type: 'default',
+                    tagName: 'tr',
+                    classes: ['summary-header-row'],
+                    style: {
+                        'font-weight': 'bold'
+                    }
+                });
+
+                Object.keys(headers).forEach(key => {
+                    const headerId = `${tableId}-summary-header-${rowIndex}-${key}`;
+                    const tableStyles = this.get('table-styles-applied');
+                    const cellStyles = tableStyles ? {
+                        'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
+                        'color': tableStyles.textColor,
+                        'font-family': tableStyles.fontFamily,
+                        'background-color': tableStyles.bgColor,
+                    } : {
+                        'padding': '8px',
+                        'font-weight': 'bold'
+                    };
+
+                    headerRowComponent.components().add({
+                        type: 'json-table-cell',
+                        tagName: 'th',
+                        content: headers[key],
+                        selectable: false,
+                        attributes: {
+                            id: headerId,
+                            'data-summary-header': 'true'
+                        },
+                        style: {
+                            ...cellStyles,
+                            'text-align': 'left',
+                            'box-sizing': 'border-box',
+                        }
+                    });
+                });
+            }
                         const summaryRowComponent = tbodyComponent.components().add({
                             type: 'default',
                             tagName: 'tr',
-                            classes: ['summary-row'],
+                            classes: [isGrandTotal ? 'grand-total-row' : 'summary-row'],
                             style: {
-                                'background-color': '#f0f8ff',
-                                'font-weight': 'bold'
+                                'font-weight': 'bold',
                             }
                         });
 
-                        // âœ… Add merged cell spanning all grouping columns
-                        const groupingFields = this.get('grouping-fields') || [];
-                        const summaryFields = this.get('summary-fields') || [];
+                        Object.keys(headers).forEach(key => {
+                            const cellId = `${tableId}-summary-${rowIndex}-${key}`;
+                            const displayValue = row[key] !== undefined && row[key] !== null ? row[key] : '';
 
-                        if (groupingFields.length > 0) {
-                            const firstGroupKey = groupingFields[0].key;
-                            const summaryLabel = this.get('summary-label') || 'Subtotal';
+                            const tableStyles = this.get('table-styles-applied');
+                            const cellStyles = tableStyles ? {
+                                'border': `${tableStyles.borderWidth}px ${tableStyles.borderStyle} ${tableStyles.borderColor}`,
+                                'color': tableStyles.textColor,
+                                'font-family': tableStyles.fontFamily
+                            } : {
+                                'padding': '8px',
+                            };
 
                             summaryRowComponent.components().add({
                                 type: 'json-table-cell',
                                 tagName: 'td',
-                                content: summaryLabel,
-                                selectable: true,
+                                content: displayValue,
+                                selectable: false,
                                 attributes: {
-                                    'colspan': groupingFields.length.toString(),
-                                    'data-summary-label': 'true'
+                                    id: cellId,
+                                    'data-summary': 'true',
+                                    'data-row': rowIndex.toString(),
+                                    'data-column-key': key
                                 },
                                 style: {
-                                    'padding': '8px',
-                                    'border': '1px solid #000',
-                                    'font-weight': 'bold',
-                                    'background-color': '#e3f2fd'
+                                    ...cellStyles,
+                                    'padding': '10px 8px',
+                                    'text-align': 'left',
+                                    'box-sizing': 'border-box',
                                 }
                             });
-
-                            // âœ… Add empty cells for non-summary columns
-                            Object.keys(headers).slice(groupingFields.length).forEach(key => {
-                                const isSummaryColumn = summaryFields.some(sf => sf.key === key);
-                                const displayValue = isSummaryColumn ? (row[key] || '') : '';
-
-                                summaryRowComponent.components().add({
-                                    type: 'json-table-cell',
-                                    tagName: 'td',
-                                    content: displayValue,
-                                    selectable: true,
-                                    attributes: {
-                                        'data-summary-cell': 'true',
-                                        'data-column-key': key
-                                    },
-                                    style: {
-                                        'padding': '8px',
-                                        'border': '1px solid #000',
-                                        'font-weight': isSummaryColumn ? 'bold' : 'normal',
-                                        'background-color': '#e3f2fd'
-                                    }
-                                });
-                            });
-                        }
-                        return; // Skip normal row rendering for merged summary rows
+                        });
+                        return;
                     }
 
-                    // NORMAL ROW (NON-MERGED SUMMARY OR REGULAR DATA)
+                    const isGroupStart = row._groupStart;
+                    const groupSize = row._groupSize || 1;
+
                     const rowComponent = tbodyComponent.components().add({
                         type: 'default',
                         tagName: 'tr',
                         classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
                         style: {
-                            'background-color': isSummary ? '#f0f8ff' :
-                                isGrandTotal ? '#e8f5e9' :
-                                    rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa',
-                            'font-weight': (isSummary || isGrandTotal) ? 'bold' : 'normal'
+                            'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'
                         }
                     });
 
                     Object.keys(headers).forEach(key => {
-                        // Check if this cell should be skipped due to rowspan
                         if (row[`_skip_${key}`]) {
                             return;
                         }
 
                         const cellId = `${tableId}-cell-${rowIndex}-${key}`;
                         const displayValue = row[key] || '';
-
                         const isRunningTotal = key.endsWith('_running_total');
                         const rtConfig = isRunningTotal ? runningTotals.find(rt => `${rt.columnKey}_running_total` === key) : null;
                         const tableStyles = this.get('table-styles-applied');
@@ -3699,24 +3661,7 @@ function jsontablecustom(editor) {
                             'background-color': tableStyles.bgColor,
                         } : {
                             'padding': '8px',
-                            'border': '1px solid #000'
                         };
-
-                        if (isRunningTotal && rtConfig) {
-                            appliedCellStyles = {
-                                ...appliedCellStyles,
-                            };
-                        }
-
-                        const alignStyles = tableStyles ? {
-                            display: 'flex',
-                            alignItems: tableStyles.verticalAlign === 'top' ? 'flex-start' :
-                                tableStyles.verticalAlign === 'bottom' ? 'flex-end' : 'center',
-                            justifyContent: tableStyles.textAlign === 'left' ? 'flex-start' :
-                                tableStyles.textAlign === 'right' ? 'flex-end' : 'center',
-                            minHeight: '100%',
-                            width: '100%'
-                        } : { textAlign: 'left' };
 
                         const attributes = {
                             id: cellId,
@@ -3729,22 +3674,16 @@ function jsontablecustom(editor) {
                             attributes['data-running-total'] = 'true';
                         }
 
-                        // Add rowspan if this cell should be merged
-                        // Add rowspan if this cell should be merged
-                        if (isGroupStart && row[`_merge_${key}`]) {
+                        if (isGroupStart && row[`_merge_${key}`] && mergeGroupCells) {
                             if (row[`_skip_merge_${key}`]) {
-                                // Don't add rowspan for this cell
                                 return;
                             }
-                            // Calculate actual rowspan considering nested groups
+
                             let actualRowspan = 1;
-                            const groupingFields = this.get('grouping-fields') || [];
                             const currentFieldIndex = groupingFields.findIndex(f => f.key === key);
 
                             if (currentFieldIndex >= 0) {
-                                // For first-level grouping fields, count consecutive rows with same value
                                 for (let i = rowIndex + 1; i < data.length; i++) {
-                                    // ✅ UPDATED: Stop counting if next row is summary or has skip flag
                                     if (data[i]._isSummary || data[i][`_skip_merge_${key}`]) {
                                         break;
                                     }
@@ -3755,13 +3694,11 @@ function jsontablecustom(editor) {
                                     }
                                 }
                             } else {
-                                // For non-grouping columns, use the provided groupSize
                                 actualRowspan = groupSize;
                             }
 
                             attributes.rowspan = actualRowspan.toString();
 
-                            // Mark following rows to skip this column
                             for (let i = 1; i < actualRowspan; i++) {
                                 if (data[rowIndex + i] && !data[rowIndex + i]._isSummary) {
                                     data[rowIndex + i][`_skip_${key}`] = true;
@@ -3773,9 +3710,9 @@ function jsontablecustom(editor) {
                             type: 'json-table-cell',
                             tagName: 'td',
                             selectable: true,
-                            contenteditable: !(isSummary || isGrandTotal || isRunningTotal),
+                            contenteditable: !isRunningTotal,
                             content: displayValue,
-                            classes: ['json-table-cell', 'cell-content', (isSummary || isGrandTotal || isRunningTotal) ? 'readonly-cell' : 'editable-cell'],
+                            classes: ['json-table-cell', 'cell-content', isRunningTotal ? 'readonly-cell' : 'editable-cell'],
                             attributes: {
                                 ...attributes,
                                 'data-gjs-draggable': 'false'
@@ -3784,7 +3721,6 @@ function jsontablecustom(editor) {
                                 ...appliedCellStyles,
                                 'position': 'relative',
                                 'width': 'auto',
-
                                 'box-sizing': 'border-box',
                                 'my-input-json': `${jsonPath}.data[${rowIndex}].${key}`,
                             }
@@ -3792,7 +3728,105 @@ function jsontablecustom(editor) {
                     });
                 });
             },
+addCardStyleLayout(wrapperComponent, headers, data, tableId) {
+    console.log('🎴 Card Layout - Input data:', data.length, 'rows');
+    
+    const groupingFields = this.get('grouping-fields') || [];
+    const showSummaryOnly = this.get('show-summary-only') || false;
+    
+    // Determine what data to display
+    let dataRows;
+    if (showSummaryOnly) {
+        dataRows = data.filter(row => !row._isGrandTotal);
+    } else {
+        dataRows = data.filter(row => !row._isSummary && !row._isGrandTotal);
+    }
+    
+    console.log('🎴 Card Layout - Data rows after filter:', dataRows.length);
+    
+    if (dataRows.length === 0) {
+        console.warn('No data rows available for card layout');
+        this.addPlaceholderComponent();
+        return;
+    }
 
+    const tableStyles = this.get('table-styles-applied') || {};
+    const columnsPerRow = 3; // Number of header-value pairs per row
+
+    // Add title if exists
+    const title = this.get('title') || '';
+    if (title) {
+        wrapperComponent.components().add({
+            type: 'text',
+            tagName: 'h3',
+            content: title
+        });
+    }
+
+    // If there are grouping fields, group the data
+    if (groupingFields.length > 0) {
+        const groupField = groupingFields[0].key;
+        const groups = {};
+        
+        dataRows.forEach((row, idx) => {
+            const groupValue = row[groupField] || 'Unknown';
+            if (!groups[groupValue]) {
+                groups[groupValue] = {
+                    rows: [],
+                    summaryRow: null,
+                    groupIndex: row._groupIndex !== undefined ? row._groupIndex : idx
+                };
+            }
+            groups[groupValue].rows.push(row);
+            
+            if (row._isSummary) {
+                groups[groupValue].summaryRow = row;
+            }
+        });
+
+        console.log('🎴 Card Layout - Created groups:', Object.keys(groups).length);
+
+        // Create a card for each group
+        Object.keys(groups).forEach((groupValue) => {
+            const groupInfo = groups[groupValue];
+            const groupData = groupInfo.rows;
+            const groupIndex = groupInfo.groupIndex;
+            
+            createGroupCard(
+                wrapperComponent, 
+                groupValue, 
+                groupData, 
+                groupIndex, 
+                headers, 
+                tableId, 
+                tableStyles, 
+                columnsPerRow,
+                showSummaryOnly,
+                groupInfo.summaryRow,
+                this
+            );
+        });
+    } else {
+        // No grouping - create cards for all data
+        console.log('🎴 Card Layout - No grouping, creating cards for all records');
+        
+        dataRows.forEach((record, recordIndex) => {
+            createRecordCard(
+                wrapperComponent,
+                record,
+                recordIndex,
+                headers,
+                tableId,
+                0,
+                tableStyles,
+                columnsPerRow,
+                dataRows.length
+            );
+        });
+    }
+
+    console.log('🎴 Card Layout - Successfully created all cards');
+},
 
             addTableFooter(tableComponent, headers) {
                 const tfootComponent = tableComponent.components().add({
@@ -3836,7 +3870,6 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Page length selector
                 const pageLengthContainer = paginationComponent.components().add({
                     type: 'default',
                     tagName: 'div',
@@ -3851,7 +3884,6 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Add options
                 [10, 25, 50, 100].forEach(value => {
                     selectComponent.components().add({
                         type: 'option',
@@ -3865,14 +3897,12 @@ function jsontablecustom(editor) {
                     content: ' entries'
                 });
 
-                // Pagination controls
                 const controlsContainer = paginationComponent.components().add({
                     type: 'default',
                     tagName: 'div',
                     classes: ['pagination-controls']
                 });
 
-                // Previous button
                 controlsContainer.components().add({
                     type: 'button',
                     classes: ['page-btn'],
@@ -3891,7 +3921,6 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Page info
                 controlsContainer.components().add({
                     type: 'text',
                     classes: ['page-info'],
@@ -3901,7 +3930,6 @@ function jsontablecustom(editor) {
                     }
                 });
 
-                // Next button
                 controlsContainer.components().add({
                     type: 'button',
                     classes: ['page-btn'],
@@ -3921,18 +3949,14 @@ function jsontablecustom(editor) {
                 });
             },
 
-
-            // Method to update specific cells without rebuilding entire table
             updateSpecificCells(updates) {
-                // updates = [{ rowIndex, columnKey, newValue }, ...]
                 const tableId = this.cid ? `json-table-${this.cid}` : null;
                 if (!tableId) return;
 
                 updates.forEach(({ rowIndex, columnKey, newValue }) => {
                     const cellId = `${tableId}-cell-${rowIndex}-${columnKey}`;
 
-                    // Find the component by traversing the component tree
-                    const tableComponent = this.components().at(0); // Main wrapper
+                    const tableComponent = this.components().at(0);
                     const tableElement = tableComponent.components().find(comp =>
                         comp.get('tagName') === 'table'
                     );
@@ -3954,7 +3978,7 @@ function jsontablecustom(editor) {
                                 if (columnIndex >= 0) {
                                     const targetCell = cells.at(columnIndex);
                                     if (targetCell) {
-                                        const cellContent = targetCell.components().at(0); // The div with cell-content class
+                                        const cellContent = targetCell.components().at(0);
                                         if (cellContent) {
                                             cellContent.set('content', newValue);
                                         }
@@ -3966,7 +3990,6 @@ function jsontablecustom(editor) {
                 });
             },
 
-            // Method to add/remove rows dynamically
             addRowDynamic() {
                 const headers = this.get('custom-headers') || this.get('table-headers');
                 const data = this.get('custom-data') || this.get('table-data') || [];
@@ -3981,8 +4004,7 @@ function jsontablecustom(editor) {
                 const updatedData = [...data, newRow];
                 this.set('custom-data', updatedData);
 
-                // Add the new row component instead of rebuilding entire table
-                const tableComponent = this.components().at(0); // Main wrapper
+                const tableComponent = this.components().at(0);
                 const tableElement = tableComponent.components().find(comp =>
                     comp.get('tagName') === 'table'
                 );
@@ -4007,7 +4029,7 @@ function jsontablecustom(editor) {
                     tagName: 'tr',
                     classes: [rowIndex % 2 === 0 ? 'even-row' : 'odd-row'],
                     style: {
-                        'background-color': rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                        'background-color': '#ffffff'
                     }
                 });
 
@@ -4030,7 +4052,6 @@ function jsontablecustom(editor) {
                         },
                         style: {
                             'padding': '0',
-                            'border': '1px solid #000',
                             'cursor': 'pointer',
                             'position': 'relative',
                             ...cellStyles
@@ -4045,17 +4066,13 @@ function jsontablecustom(editor) {
                         style: {
                             'margin': '10px',
                             'width': 'auto',
-
                             'box-sizing': 'border-content-box'
                         }
                     });
                 });
             }
-
-
         },
 
-        // Add these event handlers to the view's events object
         view: {
             events: {
                 'input .table-search': 'handleSearch',
@@ -4067,30 +4084,21 @@ function jsontablecustom(editor) {
             },
 
             handleCellClick(e) {
-                console.log("singleclick started");
                 e.preventDefault();
                 e.stopPropagation();
 
                 const cell = e.target.closest('td, th');
                 if (!cell) return;
 
-                // Remove selection from all cells
                 const allCells = this.el.querySelectorAll('td, th');
                 allCells.forEach(c => {
-                    c.className = ""; // remove everything
+                    c.className = "";
                 });
 
-                // Apply ONLY these two classes
                 cell.className = "i_designer_selected i_designer-selected";
-
-                console.log("✅ final cell classes:", cell.className);
             },
-            // Outside click = clear selection
 
-
-            // Editing start
             startCellEditing(cell, cellContent) {
-                console.log("editor cell editing stared")
                 cell.classList.remove('i_designer_hovered');
                 const isHeader = cellContent.classList.contains('editable-header');
 
@@ -4110,10 +4118,8 @@ function jsontablecustom(editor) {
                 input.select();
             },
 
-            // Editing stop
             stopCellEditing(cell) {
                 const cellContent = cell.querySelector('.cell-content');
-                console.log("cellllcontentttt", cellContent)
                 const input = cell.querySelector('.cell-input, .header-input');
                 if (!input || !cellContent) return;
 
@@ -4122,25 +4128,20 @@ function jsontablecustom(editor) {
                 const isHeader = cell.classList.contains('editable-header');
                 const newValue = input.value;
 
-                // Clean up editing
                 cell.removeChild(input);
 
-                // Update data
                 if (isHeader) {
                     this.model.updateHeaderData(columnKey, newValue);
                     cellContent.innerHTML = newValue;
                 } else {
-                    console.log("stopcell editing, updatedata called")
                     this.model.updateCellData(parseInt(rowIndex), columnKey, newValue);
                 }
-
-                console.log("✅ Final classes for cell:", cell.className, "value:", newValue);
             }
 
         }
 
     });
-    // Define json-table-cell component type
+
     editor.DomComponents.addType('json-table-cell', {
         isComponent: el => {
             if (!el || !el.getAttribute) return false;
@@ -4167,13 +4168,12 @@ function jsontablecustom(editor) {
             onRender() {
                 const el = this.el;
                 if (el) {
-                    el.style.userSelect = 'text';  // Allow text selection
-                    el.style.cursor = 'text';      // Show text cursor
+                    el.style.userSelect = 'text';
+                    el.style.cursor = 'text';
 
-                    // Prevent GrapesJS drag behavior on mousedown
                     el.addEventListener('mousedown', (e) => {
                         if (e.target.contentEditable === 'true' || e.target.closest('[contenteditable="true"]')) {
-                            e.stopPropagation();  // Stop event from reaching GrapesJS drag handler
+                            e.stopPropagation();
                         }
                     }, true);
                 }
@@ -4181,9 +4181,8 @@ function jsontablecustom(editor) {
         }
     });
 
-    // Add the component to blocks panel
     editor.BlockManager.add('json-table', {
-        label: 'JSON Table',
+        label: 'DataSource Table',
         category: 'Extra',
         content: {
             type: 'json-table'
@@ -4193,7 +4192,6 @@ function jsontablecustom(editor) {
     </svg>`
     });
 
-    // Enhanced export handling for proper content preservation
     editor.Commands.add('open-table-condition-manager-json-table', {
         run(editor) {
             const selected = editor.getSelected();
@@ -4321,171 +4319,101 @@ function jsontablecustom(editor) {
         }
     });
 
-    //     editor.Commands.add('open-running-total-manager', {
-    //         run(editor) {
-    //             const selected = editor.getSelected();
-    //             if (!selected || selected.get('type') !== 'json-table') return;
-
-    //             const headers = selected.get('custom-headers') || selected.get('table-headers') || {};
-    //             const data = selected.get('custom-data') || selected.get('table-data') || [];
-    //             const selectedColumns = selected.get('selected-running-total-columns') || [];
-
-    //             // Filter headers to only show columns that have at least some numeric data
-    //             const numericHeaders = {};
-    //             Object.entries(headers).forEach(([key, name]) => {
-    //                 // Check if column has at least some numeric values (not all empty/null/text)
-    //                 const hasNumericData = data.some(row => {
-    //                     const value = row[key];
-    //                     return value !== '' && value !== null && value !== undefined && !isNaN(parseFloat(value));
-    //                 });
-
-    //                 if (hasNumericData) {
-    //                     numericHeaders[key] = name;
-    //                 }
-    //             });
-
-    //             // Check if there are any columns with numeric data
-    //             if (Object.keys(numericHeaders).length === 0) {
-    //                 alert('No columns with numeric data available for running totals.');
-    //                 return;
-    //             }
-
-    //             const modalContent = `
-    // <div class="running-total-manager" style="padding: 20px; max-width: 500px;">
-
-    //     <div class="column-checkboxes" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
-    //         ${Object.entries(numericHeaders).map(([key, name]) => `
-    //             <div style="margin-bottom: 10px;">
-    //                 <label style="display: flex; align-items: center; cursor: pointer;">
-    //                     <input type="checkbox" value="${key}" ${selectedColumns.includes(key) ? 'checked' : ''} 
-    //                            style="margin-right: 10px; width: 16px; height: 16px;">
-    //                     <span>${name}</span>
-    //                 </label>
-    //             </div>
-    //         `).join('')}
-    //     </div>
-
-    //     <div style="text-align: right; margin-top: 20px;">
-    //         <button id="cancel-running-totals" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
-    //         <button id="apply-running-totals" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply</button>
-    //     </div>
-    // </div>`;
-
-    //             const modal = editor.Modal;
-    //             modal.setTitle('Running Total');
-    //             modal.setContent(modalContent);
-    //             modal.open();
-
-    //             setTimeout(() => {
-    //                 document.getElementById('cancel-running-totals').addEventListener('click', () => {
-    //                     editor.Modal.close();
-    //                 });
-
-    //                 document.getElementById('apply-running-totals').addEventListener('click', () => {
-    //                     const checkboxes = document.querySelectorAll('.column-checkboxes input[type="checkbox"]:checked');
-    //                     const selectedColumns = Array.from(checkboxes).map(cb => cb.value);
-
-    //                     selected.set('selected-running-total-columns', selectedColumns);
-    //                     editor.Modal.close();
-    //                 });
-    //             }, 100);
-    //         }
-    //     });
     editor.Commands.add('open-table-style-manager', {
         run(editor) {
             const selected = editor.getSelected();
             if (!selected || selected.get('type') !== 'json-table') return;
 
             const modalContent = `
-<div class="table-style-manager" style="padding: 20px; max-width: 600px;">
-    
-    <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-        <h4 style="margin-top: 0;">Border Settings</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Style:</label>
-                <select id="border-style" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="none">None</option>
-                    <option value="solid">Solid</option>
-                    <option value="double">Double</option>
-                    <option value="dashed">Dashed</option>
-                    <option value="dotted">Dotted</option>
-                    <option value="groove">Groove</option>
-                    <option value="ridge">Ridge</option>
-                    <option value="inset">Inset</option>
-                    <option value="outset">Outset</option>
-                </select>
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Width (px):</label>
-                <input type="number" id="border-width" min="0" max="10" value="1" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Color:</label>
-                <input type="color" id="border-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Opacity (%):</label>
-                <input type="range" id="border-opacity" min="0" max="100" value="100" style="width: 100%;">
-                <span id="opacity-value">100%</span>
-            </div>
-        </div>
-    </div>
+            <div class="table-style-manager" style="padding: 20px; max-width: 600px;">
+                
+                <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                    <h4 style="margin-top: 0;">Border Settings</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Style:</label>
+                            <select id="border-style" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="none">None</option>
+                                <option value="solid">Solid</option>
+                                <option value="double">Double</option>
+                                <option value="dashed">Dashed</option>
+                                <option value="dotted">Dotted</option>
+                                <option value="groove">Groove</option>
+                                <option value="ridge">Ridge</option>
+                                <option value="inset">Inset</option>
+                                <option value="outset">Outset</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Width (px):</label>
+                            <input type="number" id="border-width" min="0" max="10" value="1" style="width: 94%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Color:</label>
+                            <input type="color" id="border-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Border Opacity (%):</label>
+                            <input type="range" id="border-opacity" min="0" max="100" value="100" style="width: 100%;">
+                            <span id="opacity-value">100%</span>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-        <h4 style="margin-top: 0;">Colors & Font</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
-                <input type="color" id="bg-color" value="#ffffff" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
-                <input type="color" id="text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
-                <select id="font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="Arial, sans-serif">Arial</option>
-                    <option value="Verdana, sans-serif">Verdana</option>
-                    <option value="'Times New Roman', serif">Times New Roman</option>
-                    <option value="Georgia, serif">Georgia</option>
-                    <option value="'Courier New', monospace">Courier New</option>
-                    <option value="Tahoma, sans-serif">Tahoma</option>
-                    <option value="Helvetica, sans-serif">Helvetica</option>
-                </select>
-            </div>
-        </div>
-    </div>
+                <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                    <h4 style="margin-top: 0;">Colors & Font</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Background Color:</label>
+                            <input type="color" id="bg-color" value="#ffffff" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Text Color:</label>
+                            <input type="color" id="text-color" value="#000000" style="width: 100%; height: 40px; border: none; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Font Family:</label>
+                            <select id="font-family" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="Arial, sans-serif">Arial</option>
+                                <option value="Verdana, sans-serif">Verdana</option>
+                                <option value="'Times New Roman', serif">Times New Roman</option>
+                                <option value="Georgia, serif">Georgia</option>
+                                <option value="'Courier New', monospace">Courier New</option>
+                                <option value="Tahoma, sans-serif">Tahoma</option>
+                                <option value="Helvetica, sans-serif">Helvetica</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
-        <h4 style="margin-top: 0;">Alignment</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Horizontal Align:</label>
-                <select id="text-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
-                </select>
-            </div>
-            <div>
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Vertical Align:</label>
-                <select id="vertical-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="top">Top</option>
-                    <option value="middle">Middle</option>
-                    <option value="bottom">Bottom</option>
-                </select>
-            </div>
-        </div>
-    </div>
+                <div class="style-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                    <h4 style="margin-top: 0;">Alignment</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Horizontal Align:</label>
+                            <select id="text-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Vertical Align:</label>
+                            <select id="vertical-align" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="top">Top</option>
+                                <option value="middle">Middle</option>
+                                <option value="bottom">Bottom</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-    <div style="text-align: right;">
-        <button id="reset-styles" style="background: #ffc107; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Reset to Default</button>
-        <button id="cancel-styles" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
-        <button id="apply-styles" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Styles</button>
-    </div>
-</div>`;
+                <div style="text-align: right;">
+                    <button id="reset-styles" style="background: #ffc107; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Reset to Default</button>
+                    <button id="cancel-styles" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
+                    <button id="apply-styles" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Apply Styles</button>
+                </div>
+            </div>`;
 
             const modal = editor.Modal;
             modal.setTitle('Customize Table Styles');
@@ -4509,299 +4437,300 @@ function jsontablecustom(editor) {
             }));
 
             const modalContent = `
-<div class="table-settings-modal" style="width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
-    <!-- Navbar -->
-    <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
-        <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
-        <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
-        <button class="nav-tab" data-tab="running-total" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Running Total</button>
-        <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
-    </div>
-
-    <!-- Tab Content -->
-    <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
-        <!-- Settings Tab -->
-        <div id="settings-tab" class="tab-pane active">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
-                            <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
-                            <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
-                        </div>
-                    </fieldset>
-
-                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
-                            <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
-                            <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
-                        </div>
-                    </fieldset>
+            <div class="table-settings-modal" style="width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
+                <!-- Navbar -->
+                <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
+                    <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
+                    <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
+                    <button class="nav-tab" data-tab="running-total" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Running Total</button>
+                    <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
                 </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
+                    <!-- Settings Tab -->
+                    <div id="settings-tab" class="tab-pane active">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                                    <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
+                                    <div style="margin-bottom: 15px;">
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
+                                        <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
+                                        <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
+                                    </div>
+                                </fieldset>
+
+                                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                                    <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
+                                    <div style="margin-bottom: 15px;">
+                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
+                                        <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
+                                        <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
+                                    </div>
+                                </fieldset>
+                            </div>
+                            
+                            <div>
+                                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                                    <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
+                                    <div id="column-reorder-section">
+                                        <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+                                            <!-- Will be populated dynamically -->
+                                        </div>
+                                        <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+                                            <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                                                Reset to Original
+                                            </button>
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </div>
+                        </div>
+                    </div>
+
+            <!-- Grouping & Summary Tab -->
+            <div id="grouping-tab" class="tab-pane" style="display: none;">
+            <!-- Main Grid Layout -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- LEFT: Available Fields -->
+                <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4 style="margin: 0;">Available Fields</h4>
+                    <div style="display: flex; gap: 5px;">
+                    <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+                    <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+                    </div>
+                </div>
+                <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+                    <!-- Dynamically populated -->
+                </div>
+                </div>
+
+                <!-- RIGHT: Selected Grouping Fields -->
+                <div>
+                <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Grouping Fields</h4>
+                <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
+                    <p style="color: #999; text-align: center;">No fields selected</p>
+                </div>
+                </div>
+            </div>
+
+            <!-- Summary Fields Section -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- LEFT: Available Fields -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0;">Available Fields for Summary</h4>
+                        <div style="display: flex; gap: 5px;">
+                            <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+                            <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+                        </div>
+                    </div>
+                    <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- RIGHT: Selected Summary Fields with Add Button -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0;">Summary Configuration</h4>
+                    </div>
+                    
+                    <!-- Summary Function Selector -->
+                    <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Function:</label>
+                            <select id="summary-function" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
+                                <option value="sum">Sum</option>
+                                <option value="average">Average</option>
+                                <option value="count">Count</option>
+                                <option value="min">Min</option>
+                                <option value="max">Max</option>
+                                <option value="first">First</option>
+                                <option value="last">Last</option>
+                            </select>
+                        <button id="add-summary-field" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                            + Add Summary
+                        </button>
+                    </div>
+                    
+                    <!-- Active Summary Fields List -->
+                    <div>
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Active Summaries:</label>
+                        <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 100px; max-height: 150px; overflow-y: auto; padding: 5px;">
+                            <p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grouping Options Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <!-- Sort & Top N -->
+                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+                <legend style="font-weight: bold; padding: 0 10px;">Sort & Filter</legend>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Sort Order:</label>
+                    <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="ascending">Ascending</option>
+                    <option value="descending">Descending</option>
+                    <option value="original">Original Order</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Top N:</label>
+                    <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="none">None</option>
+                    <option value="top">Top N Groups</option>
+                    <option value="bottom">Bottom N Groups</option>
+                    <option value="sort-all">Sort All (No Limit)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">N Value:</label>
+                    <input type="number" id="top-n-value" value="10" min="1" style="width: calc(100% - 16px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                </fieldset>
+
+                <!-- Group Options -->
+                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+                <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
+                    <span style="font-weight: bold;">Summarize Group</span>
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+    <input type="checkbox" id="repeat-headers-before-summary" style="margin-right: 8px;">
+    <span style="font-weight: bold;">Repeat Headers Before Summary</span>
+</label>
+            <label style="display: none; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="page-break" style="margin-right: 8px;">
+                    <span style="font-weight: bold;">Page Break After Group</span>
+                </label> 
+            </fieldset>
+                </div>
+
+                <!-- Named Groups Section -->
+                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                    <legend style="font-weight: bold; padding: 0 10px;">Named Groups</legend>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
+                    <input type="checkbox" id="define-named-group" style="margin-right: 8px; width: 16px; height: 16px;">
+                    <span style="font-size: 13px;">Define Named Group</span>
+                    </label>
+                    <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; width: 100%; font-size: 13px;">Configure Named Groups</button>
+                </fieldset>
+                </div>
+                </div>
+
+                <!-- Running Total Tab (UPDATED) -->
+                <div id="running-total-tab" class="tab-pane" style="display: none;">
+                <div style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; max-height: 500px; overflow: hidden; padding: 10px;">
+                    
+                    <!-- Left: Column Selection + Active Running Totals -->
+                    <div style="display: flex; flex-direction: column; gap: 20px; overflow: hidden; max-height: 500px;">
+                    
+                    <!-- Select Columns -->
+                    <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
+                        <div id="running-total-columns" style="overflow-y: auto; max-height: 200px;">
+                        <!-- Will be populated with numeric columns -->
+                        </div>
+                    </div>
+
+                    <!-- Active Running Totals -->
+                    <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
+                        <div id="rt-active-list" style="min-height: 100px; max-height: 200px; overflow-y: auto;">
+                        <p style="color: #999; text-align: center;">No running totals configured</p>
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- Right: Configuration Panel -->
+                    <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 5px 15px 0px 15px; min-height: 200px;overflow-y: auto; max-height: 400px;">
+                        <p style="color: #666; text-align: center;">Select a column to configure running total</p>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+                            <!-- Options Tab (existing content) -->
+                <!-- Options Tab -->
+                <div id="options-tab" class="tab-pane" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                        <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                            <legend style="font-weight: bold;">Display Options</legend>
+                                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                                    <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
+                                    <span>Group Header In-place</span>
+                                </label>
+                                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                                    <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
+                                    <span>Hide Subtotal for Single Row</span>
+                                </label>
+                            </fieldset>
+                        </div>
+                        <div>
+                            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                                <legend style="font-weight: bold;">Total Options</legend>
+                                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                                    <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
+                                    <span>Show Grand Total</span>
+                                </label>
+                                <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                                <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </fieldset>
+                        </div>
+                    </div>
                 
-                <div>
-                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
-                        <div id="column-reorder-section">
-                            <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
-                                <!-- Will be populated dynamically -->
-                            </div>
-                            <div style="margin-top: 10px; display: flex; justify-content: space-between;">
-                                <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
-                                    Reset to Original
-                                </button>
-                            </div>
-                        </div>
-                    </fieldset>
+            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                <legend style="font-weight: bold;">Grouping Type</legend>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;"> <!-- ✅ Added checked -->
+                    <span>Show All Records</span>
+                </label>
+                <label style="display: flex; align-items: center;">
+                    <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
+                    <span>Show Summary Only</span>
+                </label>
+                <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
+                    <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
+                    <span>Keep Group Hierarchy</span>
+                </label>
+            </fieldset>
+                
+            </div>
+                    </div>
+
+                    <!-- Footer Buttons -->
+                    <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
+                        <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                        <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-<!-- Grouping & Summary Tab -->
-<div id="grouping-tab" class="tab-pane" style="display: none;">
-  <!-- Main Grid Layout -->
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-    <!-- LEFT: Available Fields -->
-    <div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h4 style="margin: 0;">Available Fields</h4>
-        <div style="display: flex; gap: 5px;">
-          <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
-          <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
-        </div>
-      </div>
-      <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
-        <!-- Dynamically populated -->
-      </div>
-    </div>
-
-    <!-- RIGHT: Selected Grouping Fields -->
-    <div>
-      <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Grouping Fields</h4>
-      <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
-        <p style="color: #999; text-align: center;">No fields selected</p>
-      </div>
-    </div>
-  </div>
-
-<!-- Summary Fields Section -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-    <!-- LEFT: Available Fields -->
-    <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h4 style="margin: 0;">Available Fields for Summary</h4>
-            <div style="display: flex; gap: 5px;">
-                <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
-                <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
-            </div>
-        </div>
-        <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
-            <!-- Dynamically populated -->
-        </div>
-    </div>
-
-    <!-- RIGHT: Selected Summary Fields with Add Button -->
-    <div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h4 style="margin: 0;">Summary Configuration</h4>
-        </div>
-        
-        <!-- Summary Function Selector -->
-        <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;">
-            <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Function:</label>
-            <select id="summary-function" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
-                <option value="sum">Sum</option>
-                <option value="average">Average</option>
-                <option value="count">Count</option>
-                <option value="min">Min</option>
-                <option value="max">Max</option>
-            </select>
-            <button id="add-summary-field" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                + Add Summary
-            </button>
-        </div>
-        
-        <!-- Active Summary Fields List -->
-        <div>
-            <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Active Summaries:</label>
-            <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 100px; max-height: 150px; overflow-y: auto; padding: 5px;">
-                <p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-  <!-- Grouping Options Grid -->
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-    <!-- Sort & Top N -->
-    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
-      <legend style="font-weight: bold; padding: 0 10px;">Sort & Filter</legend>
-      <div style="margin-bottom: 15px;">
-        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Sort Order:</label>
-        <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-          <option value="ascending">Ascending</option>
-          <option value="descending">Descending</option>
-          <option value="original">Original Order</option>
-        </select>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Top N:</label>
-        <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-          <option value="none">None</option>
-          <option value="top">Top N Groups</option>
-          <option value="bottom">Bottom N Groups</option>
-          <option value="sort-all">Sort All (No Limit)</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">N Value:</label>
-        <input type="number" id="top-n-value" value="10" min="1" style="width: calc(100% - 16px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-      </div>
-    </fieldset>
-
-    <!-- Group Options -->
-    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
-    <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-        <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
-        <span style="font-weight: bold;">Summarize Group</span>
-    </label>
-  <label style="display: none; align-items: center; margin-bottom: 10px;">
-        <input type="checkbox" id="page-break" style="margin-right: 8px;">
-        <span style="font-weight: bold;">Page Break After Group</span>
-    </label> 
-    <label style="display: flex; align-items: center;">
-        <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
-        <span style="font-weight: bold;">Merge Group Header Cells</span>
-    </label>
-    </fieldset>
-    </div>
-
-    <!-- Named Groups Section -->
-    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-        <legend style="font-weight: bold; padding: 0 10px;">Named Groups</legend>
-        <label style="display: flex; align-items: center; margin-bottom: 10px; cursor: pointer;">
-        <input type="checkbox" id="define-named-group" style="margin-right: 8px; width: 16px; height: 16px;">
-        <span style="font-size: 13px;">Define Named Group</span>
-        </label>
-        <button id="open-named-group" disabled style="padding: 8px 15px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 4px; cursor: not-allowed; width: 100%; font-size: 13px;">Configure Named Groups</button>
-    </fieldset>
-    </div>
-    </div>
-
-    <!-- Running Total Tab (UPDATED) -->
-    <div id="running-total-tab" class="tab-pane" style="display: none;">
-    <div style="display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; max-height: 500px; overflow: hidden; padding: 10px;">
-        
-        <!-- Left: Column Selection + Active Running Totals -->
-        <div style="display: flex; flex-direction: column; gap: 20px; overflow: hidden; max-height: 500px;">
-        
-        <!-- Select Columns -->
-        <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Select Columns:</label>
-            <div id="running-total-columns" style="overflow-y: auto; max-height: 200px;">
-            <!-- Will be populated with numeric columns -->
-            </div>
-        </div>
-
-        <!-- Active Running Totals -->
-        <div style="flex: 1; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">Active Running Totals:</label>
-            <div id="rt-active-list" style="min-height: 100px; max-height: 200px; overflow-y: auto;">
-            <p style="color: #999; text-align: center;">No running totals configured</p>
-            </div>
-        </div>
-        </div>
-
-        <!-- Right: Configuration Panel -->
-        <div style="display: flex; flex-direction: column; gap: 15px;">
-        <div id="rt-config-panel" style="border: 1px solid #ddd; border-radius: 4px; padding: 5px 15px 0px 15px; min-height: 200px;overflow-y: auto; max-height: 400px;">
-            <p style="color: #666; text-align: center;">Select a column to configure running total</p>
-        </div>
-        </div>
-    </div>
-    </div>
-
-                <!-- Options Tab (existing content) -->
-    <!-- Options Tab -->
-    <div id="options-tab" class="tab-pane" style="display: none;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-            <div>
-            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                <legend style="font-weight: bold;">Display Options</legend>
-                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
-                        <span>Group Header In-place</span>
-                    </label>
-                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
-                        <span>Hide Subtotal for Single Row</span>
-                    </label>
-                </fieldset>
-            </div>
-            <div>
-                <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                    <legend style="font-weight: bold;">Total Options</legend>
-                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
-                        <span>Show Grand Total</span>
-                    </label>
-                    <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
-                    <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                </fieldset>
-            </div>
-        </div>
-    
-<fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-    <legend style="font-weight: bold;">Grouping Type</legend>
-    <label style="display: flex; align-items: center; margin-bottom: 10px;">
-        <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;"> <!-- ✅ Added checked -->
-        <span>Show All Records</span>
-    </label>
-    <label style="display: flex; align-items: center;">
-        <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
-        <span>Show Summary Only</span>
-    </label>
-    <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
-        <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
-        <span>Keep Group Hierarchy</span>
-    </label>
-</fieldset>
-    
-</div>
-        </div>
-
-        <!-- Footer Buttons -->
-        <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
-            <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
-            <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
-        </div>
-    </div>
-    `;
+                `;
             const modal = editor.Modal;
             modal.setTitle('Table Settings');
             modal.setContent(modalContent);
             modal.open();
 
             setTimeout(() => {
-                // Populate available fields
                 const availableFieldsDiv = document.getElementById('available-fields');
                 let groupingHTML = availableFields.map(field => `
-        <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
-            <input type="checkbox" class="field-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('grouping-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
-            <span>${field.name}</span>
-        </div>
-    `).join('');
+                    <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+                        <input type="checkbox" class="field-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('grouping-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+                        <span>${field.name}</span>
+                    </div>
+                `).join('');
                 if (!availableFields.length) {
                     groupingHTML = '<p style="color: #999; text-align: center; font-size: 12px">No fields available</p>';
                 }
@@ -4810,11 +4739,11 @@ function jsontablecustom(editor) {
                 // Populate available summary fields
                 const availableSummaryFieldsDiv = document.getElementById('available-summary-fields');
                 let summaryHTML = availableFields.map(field => `
-        <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
-            <input type="checkbox" class="summary-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('summary-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
-            <span>${field.name}</span>
-        </div>
-    `).join('');
+                    <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+                        <input type="checkbox" class="summary-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(selected.get('summary-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+                        <span>${field.name}</span>
+                    </div>
+                `).join('');
                 if (!availableFields.length) {
                     summaryHTML = '<p style="color: #999; text-align: center; font-size:12px;">No fields available</p>';
                 }
@@ -4824,14 +4753,238 @@ function jsontablecustom(editor) {
             }, 100);
         }
     });
+// Helper function to create a group card
+function createGroupCard(wrapperComponent, groupValue, groupData, groupIndex, headers, tableId, tableStyles, columnsPerRow, showSummaryOnly, summaryRow, component) {
+    console.log(`🎴 Creating card for group "${groupValue}" with ${groupData.length} records`);
+    
+    // Group Container
+    const cardComponent = wrapperComponent.components().add({
+        type: 'default',
+        tagName: 'div',
+        classes: ['group-card'],
+        attributes: {
+            id: `${tableId}-group-${groupIndex}`
+        }
+    });
 
+    // Group Title
+    cardComponent.components().add({
+        type: 'text',
+        tagName: 'div',
+        content: groupValue,
+        classes: ['group-card-title'],
+        attributes: {
+            id: `${tableId}-group-title-${groupIndex}`
+        }
+    });
+
+    // Create cards for each record in the group
+    groupData.forEach((record, recordIndex) => {
+        if (!showSummaryOnly && record._isSummary) {
+            return;
+        }
+        
+        createRecordCard(
+            cardComponent,
+            record,
+            recordIndex,
+            headers,
+            tableId,
+            groupIndex,
+            tableStyles,
+            columnsPerRow,
+            groupData.length
+        );
+    });
+    
+// Add summary information if available
+if (summaryRow && !showSummaryOnly) {
+    const summaryWrapper = cardComponent.components().add({
+        type: 'default',
+        tagName: 'div',
+        classes: ['group-summary'],
+        attributes: {
+            id: `${tableId}-group-summary-${groupIndex}`
+        }
+    });
+    
+    const summaryFields = component.get('summary-fields') || [];
+    let summaryContent = '';
+    
+    // Group summary fields by column to show multiple functions per column
+    const columnSummaries = {};
+    summaryFields.forEach(field => {
+        if (!columnSummaries[field.key]) {
+            columnSummaries[field.key] = [];
+        }
+        columnSummaries[field.key].push(field);
+    });
+    
+    // Display all summaries including multiple functions per column
+    Object.keys(columnSummaries).forEach(columnKey => {
+        const summaries = columnSummaries[columnKey];
+        summaries.forEach((field, index) => {
+            // Determine the actual key in the summary row
+            let valueKey = columnKey;
+            if (index > 0) {
+                valueKey = `${columnKey}_summary_${index}`;
+            }
+            
+            const value = summaryRow[valueKey];
+            if (value !== undefined && value !== null && value !== '') {
+                const functionName = field.function.charAt(0).toUpperCase() + field.function.slice(1);
+                summaryContent += `${field.name} (${functionName}): ${value}<br>`;
+            }
+        });
+    });
+    
+    if (summaryContent) {
+        summaryWrapper.components().add({
+            type: 'text',
+            tagName: 'div',
+            content: summaryContent
+        });
+    }
+}
+}
+
+function createRecordCard(parentComponent, record, recordIndex, headers, tableId, groupIndex, tableStyles, columnsPerRow, totalRecords) {
+    // Create wrapper for this record
+    const recordWrapper = parentComponent.components().add({
+        type: 'default',
+        tagName: 'div',
+        classes: ['record-card'],
+        attributes: {
+            id: `${tableId}-record-${groupIndex}-${recordIndex}`
+        }
+    });
+
+    // Create table for this record
+    const tableComponent = recordWrapper.components().add({
+        type: 'default',
+        tagName: 'table',
+        classes: ['card-style-table'],
+        attributes: {
+            id: `${tableId}-card-table-${groupIndex}-${recordIndex}`,
+            width: '100%'
+        },
+        style: {
+            'width': '100%',
+            'border-collapse': 'collapse'
+        }
+    });
+
+    const tbodyComponent = tableComponent.components().add({
+        type: 'default',
+        tagName: 'tbody'
+    });
+
+    // UPDATED: Don't filter out summary columns - include ALL columns from headers
+    const headerEntries = Object.entries(headers).filter(([key]) => 
+        !key.endsWith('_running_total') && // Still exclude running totals
+        !key.startsWith('_') // Still exclude internal fields
+    );
+    // Now includes: column_summary_1, column_summary_2, etc.
+    
+    const totalFields = headerEntries.length;
+    
+    // Calculate how many rows we need
+    const rowsNeeded = Math.ceil(totalFields / columnsPerRow);
+
+    // Create rows with header-value pairs
+    for (let rowNum = 0; rowNum < rowsNeeded; rowNum++) {
+        const headerRowComponent = tbodyComponent.components().add({
+            type: 'default',
+            tagName: 'tr',
+            classes: ['card-header-row']
+        });
+
+        const valueRowComponent = tbodyComponent.components().add({
+            type: 'default',
+            tagName: 'tr',
+            classes: ['card-value-row']
+        });
+
+        // Add cells for this row
+        for (let col = 0; col < columnsPerRow; col++) {
+            const fieldIndex = rowNum * columnsPerRow + col;
+            
+            if (fieldIndex < totalFields) {
+                const [key, headerText] = headerEntries[fieldIndex];
+                const cellValue = record[key] !== undefined && record[key] !== null ? String(record[key]) : '';
+
+                const cellStyles = tableStyles ? {
+                    'border': `${tableStyles.borderWidth || 1}px ${tableStyles.borderStyle || 'solid'} ${tableStyles.borderColor || '#000'}`,
+                    'font-family': tableStyles.fontFamily || 'Arial, sans-serif',
+                    'color': tableStyles.textColor || '#000',
+                    'background-color': tableStyles.bgColor || '#fff'
+                } : {
+                    'border': '1px solid #000'
+                };
+
+                // Header cell
+                headerRowComponent.components().add({
+                    type: 'json-table-cell',
+                    tagName: 'th',
+                    content: headerText,
+                    attributes: {
+                        id: `${tableId}-card-header-${groupIndex}-${recordIndex}-${key}`
+                    },
+                    style: {
+                        ...cellStyles,
+                        'padding': '8px',
+                        'text-align': 'left',
+                        'font-weight': 'bold'
+                    }
+                });
+
+                // Value cell
+                valueRowComponent.components().add({
+                    type: 'json-table-cell',
+                    tagName: 'td',
+                    content: cellValue,
+                    attributes: {
+                        id: `${tableId}-card-value-${groupIndex}-${recordIndex}-${key}`,
+                        'data-row': recordIndex.toString(),
+                        'data-column-key': key,
+                        'contenteditable': 'false'
+                    },
+                    style: {
+                        ...cellStyles,
+                        'padding': '8px',
+                        'text-align': 'left'
+                    }
+                });
+            } else {
+                // Empty cells
+                headerRowComponent.components().add({
+                    type: 'json-table-cell',
+                    tagName: 'th',
+                    content: '',
+                    style: {
+                        'border': 'none',
+                        'padding': '8px'
+                    }
+                });
+
+                valueRowComponent.components().add({
+                    type: 'json-table-cell',
+                    tagName: 'td',
+                    content: '',
+                    style: {
+                        'border': 'none',
+                        'padding': '8px'
+                    }
+                });
+            }
+        }
+    }
+}
     function initializeTableSettingsModal(component, availableFields) {
         let selectedGroupingFields = component.get('grouping-fields') || [];
         let selectedSummaryFields = component.get('summary-fields') || [];
-        // ✅ CHECK TABLE TYPE FIRST - BEFORE ANY EVENT LISTENERS
         const tableType = component.get('table-type') || 'standard';
 
-        // ✅ HIDE TABS IMMEDIATELY FOR CROSSTAB
         if (tableType === 'crosstab') {
             const settingsTab = document.querySelector('.nav-tab[data-tab="settings"]');
             const runningTotalTab = document.querySelector('.nav-tab[data-tab="running-total"]');
@@ -4839,9 +4992,9 @@ function jsontablecustom(editor) {
             if (settingsTab) settingsTab.style.display = 'none';
             if (runningTotalTab) runningTotalTab.style.display = 'none';
         }
+
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', function () {
-                // Remove active class and styles from all tabs
                 document.querySelectorAll('.nav-tab').forEach(t => {
                     t.classList.remove('active');
                     t.style.background = 'transparent';
@@ -4849,38 +5002,34 @@ function jsontablecustom(editor) {
                     t.style.fontWeight = 'normal';
                 });
 
-                // Hide all tab panes
                 document.querySelectorAll('.tab-pane').forEach(p => {
                     p.style.display = 'none';
                 });
 
-                // Activate clicked tab
                 this.classList.add('active');
                 this.style.background = 'white';
                 this.style.borderBottom = '3px solid #007bff';
                 this.style.fontWeight = 'bold';
-
-                // Show corresponding tab pane
                 const tabId = this.getAttribute('data-tab') + '-tab';
                 const tabPane = document.getElementById(tabId);
                 if (tabPane) {
                     tabPane.style.display = 'block';
                 }
 
-                // Initialize running total tab if needed
                 if (this.getAttribute('data-tab') === 'running-total') {
                     initializeRunningTotalTab(component);
                 }
             });
         });
-        // ✅ AUTO-SWITCH TO GROUPING TAB IF CROSSTAB
+
         if (tableType === 'crosstab') {
             setTimeout(() => {
                 document.querySelector('.nav-tab[data-tab="grouping"]')?.click();
             }, 50);
         }
+
         initializeInlineColumnReorder(component);
-        // Populate Running Total columns - STRICT numeric check
+
         const headers = component.get('custom-headers') || component.get('table-headers') || {};
         const data = component.get('custom-data') || component.get('table-data') || [];
         const selectedColumns = component.get('selected-running-total-columns') || [];
@@ -4893,24 +5042,16 @@ function jsontablecustom(editor) {
                 let value = row[key];
                 if (value === '' || value === null || value === undefined) return true;
 
-                // Convert to string and trim spaces
                 value = String(value).trim();
-
-                // Handle accounting-style negatives: (123.45) → -123.45
                 if (/^\(.*\)$/.test(value)) {
                     value = '-' + value.slice(1, -1);
                 }
 
-                // Remove currency symbols and spaces
                 value = value.replace(/[$£€₹,\s]/g, '');
-
-                // Detect if it’s a European-style number (comma as decimal)
-                // e.g., "1200,50" → "1200.50"
                 if (/^-?\d+(\.\d{3})*,\d+$/.test(value)) {
                     value = value.replace(/\./g, '').replace(',', '.');
                 }
 
-                // Check if final cleaned string is a valid number
                 const numValue = Number(value);
                 return typeof numValue === 'number' && !isNaN(numValue);
             });
@@ -4923,174 +5064,54 @@ function jsontablecustom(editor) {
             }
         });
 
-
         if (Object.keys(numericHeaders).length === 0) {
             runningTotalContainer.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No columns with purely numeric data available</p>';
         } else {
             runningTotalContainer.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
-        <div style="margin-bottom: 8px;">
-            <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" value="${key}" ${selectedColumns.includes(key) ? 'checked' : ''} 
-                       class="running-total-checkbox" style="margin-right: 8px; width: 16px; height: 16px;">
-                <span>${name}</span>
-            </label>
-        </div>
-    `).join('');
+            <div style="margin-bottom: 8px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" value="${key}" ${selectedColumns.includes(key) ? 'checked' : ''} 
+                           class="running-total-checkbox" style="margin-right: 8px; width: 16px; height: 16px;">
+                    <span>${name}</span>
+                </label>
+            </div>
+        `).join('');
         }
 
-        // --- NEW: Insert "Display Summary At" fieldset into Grouping & Summary tab dynamically ---
-        (function insertSummaryAtFieldset() {
-            // Only insert once
-            if (document.getElementById('summary-at-field')) return;
-
-            // Find grouping tab pane and locate a good insertion point
-            const groupingTab = document.getElementById('grouping-tab');
-            if (!groupingTab) return;
-
-            // Create fieldset
-            const fs = document.createElement('fieldset');
-            fs.style.border = '1px solid #ddd';
-            fs.style.padding = '15px';
-            fs.style.borderRadius = '4px';
-            fs.style.marginBottom = '20px';
-
-            fs.innerHTML = `
-            <legend style="font-weight: bold; padding: 0 10px;">Display Summary At</legend>
-            <div style="margin-bottom: 10px;">
-                <label style="font-weight: bold; display: block; margin-bottom: 8px;">
-                    Show subtotals when this field changes:
-                </label>
-                <select id="summary-at-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="">Select grouping field...</option>
-                </select>
-                <p style="font-size: 11px; color: #666; margin-top: 5px; font-style: italic;">
-                    Choose which grouping level should trigger subtotal rows
-                </p>
+        const availableFieldsDiv = document.getElementById('available-fields');
+        let groupingHTML = availableFields.map(field => `
+            <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+                <input type="checkbox" class="field-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(component.get('grouping-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+                <span>${field.name}</span>
             </div>
-        `;
+        `).join('');
 
-            // Insert the fieldset BEFORE the Group Options fieldset (if found), otherwise append near groupingTab top
-            const groupOptionsFs = Array.from(groupingTab.querySelectorAll('fieldset')).find(f => {
-                return f.querySelector('#summarize-group') || f.querySelector('#merge-group-cells') || f.querySelector('#page-break');
-            });
+        if (!availableFields.length) {
+            groupingHTML = '<p style="color: #999; text-align: center; font-size: 12px">No fields available</p>';
+        }
+        availableFieldsDiv.innerHTML = groupingHTML;
+        const availableSummaryFieldsDiv = document.getElementById('available-summary-fields');
+        let summaryHTML = availableFields.map(field => `
+            <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+                <input type="checkbox" class="summary-checkbox" style="margin-right: 8px; width: 16px; height: 16px;" ${(component.get('summary-fields') || []).some(f => f.key === field.key) ? 'checked' : ''}>
+                <span>${field.name}</span>
+            </div>
+        `).join('');
 
-            if (groupOptionsFs) {
-                groupOptionsFs.parentElement.insertBefore(fs, groupOptionsFs);
-            } else {
-                // fallback: append to groupingTab
-                groupingTab.insertBefore(fs, groupingTab.firstChild);
-            }
-        })();
-        // --- END INSERT ---
-
-        // === GROUPING & SUMMARY TAB HANDLERS ===
-
+        if (!availableFields.length) {
+            summaryHTML = '<p style="color: #999; text-align: center; font-size:12px;">No fields available</p>';
+        }
+        availableSummaryFieldsDiv.innerHTML = summaryHTML;
         const savedGroupingFields = component.get('grouping-fields') || [];
         const savedSummaryFields = component.get('summary-fields') || [];
-
         selectedGroupingFields = [...savedGroupingFields];
-        selectedSummaryFields = [...savedSummaryFields]; // Add this
-        updateSelectedFields();
-        updateSummaryFieldsList(); // Add this function call
-
-        // --- NEW: updateSummaryAtDropdown definition ---
-        function updateSummaryAtDropdown() {
-            const summaryAtField = document.getElementById('summary-at-field');
-            if (!summaryAtField) return;
-
-            // Clear existing options except the placeholder
-            summaryAtField.innerHTML = '<option value="">Select grouping field...</option>';
-
-            selectedGroupingFields.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field.key;
-                option.textContent = field.name;
-                summaryAtField.appendChild(option);
-            });
-
-            // Set saved value
-            const savedSummaryAt = component.get('summary-at-field') || '';
-            summaryAtField.value = savedSummaryAt;
-
-            // Disable when no grouping fields or no summary fields
-            summaryAtField.disabled = selectedGroupingFields.length === 0 || selectedSummaryFields.length === 0;
-            summaryAtField.style.background = summaryAtField.disabled ? '#f0f0f0' : 'white';
-        }
-
-        // Call initially
-        updateSummaryAtDropdown();
-
-        // --- OVERRIDE updateSelectedFields to refresh "summary-at" dropdown whenever grouping changes ---
-        const originalUpdateSelectedFields = window.updateSelectedFields || null;
-        // We expect updateSelectedFields to be declared later in the same scope — if it is, we'll wrap it after declaration.
-        // To be robust, override the function reference in this scope after its declaration below.
-        // (We'll patch it later by replacing the function object in this scope.)
-
-        // Summary field add button handler
-        document.getElementById('add-summary-field').addEventListener('click', function () {
-            const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
-            const summaryFunction = document.getElementById('summary-function').value;
-
-            if (summaryCheckboxes.length === 0) {
-                alert('Please select at least one field for summary');
-                return;
-            }
-
-            let addedCount = 0;
-            summaryCheckboxes.forEach(checkbox => {
-                const fieldItem = checkbox.closest('.field-item');
-                const fieldKey = fieldItem.getAttribute('data-key');
-                const fieldName = fieldItem.querySelector('span').textContent;
-
-                // Check if already added with same function
-                const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
-                if (!exists) {
-                    selectedSummaryFields.push({
-                        key: fieldKey,
-                        name: fieldName,
-                        function: summaryFunction
-                    });
-                    addedCount++;
-                }
-
-                // Uncheck after adding
-                checkbox.checked = false;
-            });
-
-            // ✅ Always update the list
-            updateSummaryFieldsList();
-            // Update summary-at dropdown state (may enable it now)
-            updateSummaryAtDropdown();
-
-            if (addedCount > 0) {
-                console.log(`Added ${addedCount} summary field(s)`);
-            }
-        });
-
-        // Sort summary fields
-        document.getElementById('sort-summary-asc').addEventListener('click', () => {
-            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
-            items.sort((a, b) => a.textContent.localeCompare(b.textContent));
-            const container = document.getElementById('available-summary-fields');
-            container.innerHTML = '';
-            items.forEach(item => container.appendChild(item));
-        });
-
-        document.getElementById('sort-summary-desc').addEventListener('click', () => {
-            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
-            items.sort((a, b) => b.textContent.localeCompare(a.textContent));
-            const container = document.getElementById('available-summary-fields');
-            container.innerHTML = '';
-            items.forEach(item => container.appendChild(item));
-        });
-
-        // Load other saved options with null checks
+        selectedSummaryFields = [...savedSummaryFields];
         const sortOrder = document.getElementById('sort-order');
         const topN = document.getElementById('top-n');
         const topNValue = document.getElementById('top-n-value');
         const summarizeGroup = document.getElementById('summarize-group');
         const pageBreak = document.getElementById('page-break');
-        const mergeGroupCells = document.getElementById('merge-group-cells');
+const repeatHeadersBeforeSummary = document.getElementById('repeat-headers-before-summary');
         const groupHeaderInplace = document.getElementById('group-header-inplace');
         const hideSubtotalSingleRow = document.getElementById('hide-subtotal-single-row');
         const keepGroupHierarchy = document.getElementById('keep-group-hierarchy');
@@ -5101,11 +5122,11 @@ function jsontablecustom(editor) {
         if (sortOrder) sortOrder.value = component.get('sort-order') || 'ascending';
         if (topN) topN.value = component.get('top-n') || 'none';
         if (topNValue) topNValue.value = component.get('top-n-value') || '10';
-        if (summarizeGroup) {
-            summarizeGroup.checked = component.get('summarize-group') === true; // ✅ Fixed strict comparison
-        }
+        if (summarizeGroup) summarizeGroup.checked = component.get('summarize-group') === true;
         if (pageBreak) pageBreak.checked = component.get('page-break') === true;
-        if (mergeGroupCells) mergeGroupCells.checked = component.get('merge-group-cells') === true;
+if (repeatHeadersBeforeSummary) {
+    repeatHeadersBeforeSummary.checked = component.get('repeat-headers-before-summary') === true;
+}
         if (groupHeaderInplace) groupHeaderInplace.checked = component.get('group-header-inplace') !== false;
         if (hideSubtotalSingleRow) hideSubtotalSingleRow.checked = component.get('hide-subtotal-single-row') === true;
         if (keepGroupHierarchy) keepGroupHierarchy.checked = component.get('keep-group-hierarchy') === true;
@@ -5113,7 +5134,6 @@ function jsontablecustom(editor) {
         if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
         if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
 
-        // ✅ Load grouping type correctly
         if (component.get('show-summary-only') === true) {
             const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
             if (summaryRadio) {
@@ -5130,19 +5150,147 @@ function jsontablecustom(editor) {
                 }
             }
         }
-        // Top N value enable/disable logic
-        // ✅ Top N value enable/disable logic - Fixed
+
+        function updateSummaryHeadersCheckbox() {
+            const showSummaryHeadersCheckbox = document.getElementById('show-summary-headers');
+            const summaryHeadersHint = document.getElementById('summary-headers-hint');
+            if (!showSummaryHeadersCheckbox) return;
+            const hasGrouping = selectedGroupingFields.length > 0;
+    const isRepeatHeadersEnabled = document.getElementById('repeat-headers-before-summary')?.checked || false;
+            const isShowSummaryOnlyOff = document.querySelector('input[name="grouping-type"]:checked')?.value !== 'summary';
+            const columnSummaryCounts = {};
+            selectedSummaryFields.forEach(field => {
+                columnSummaryCounts[field.key] = (columnSummaryCounts[field.key] || 0) + 1;
+            });
+            const hasMultipleSummaries = Object.values(columnSummaryCounts).some(count => count > 1);
+    const shouldEnable = hasGrouping && isRepeatHeadersEnabled && isShowSummaryOnlyOff && hasMultipleSummaries; 
+            showSummaryHeadersCheckbox.disabled = !shouldEnable;
+            showSummaryHeadersCheckbox.style.opacity = shouldEnable ? '1' : '0.5';
+            showSummaryHeadersCheckbox.parentElement.querySelector('span').style.color = shouldEnable ? '#000' : '#999';
+
+            if (summaryHeadersHint) {
+                summaryHeadersHint.style.display = shouldEnable ? 'block' : 'none';
+            }
+
+            if (!shouldEnable) {
+                showSummaryHeadersCheckbox.checked = false;
+            }
+        }
+
+        function updateSelectedFields() {
+            const selectedFieldsDiv = document.getElementById('selected-fields');
+
+            if (!selectedFieldsDiv) {
+                return;
+            }
+
+            if (selectedGroupingFields.length === 0) {
+                selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
+            } else {
+                selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
+                    <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                        <span>${field.name}</span>
+                        <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+                    </div>
+                `).join('');
+
+                const groupingFieldDisplay = document.getElementById('grouping-field-display');
+                if (groupingFieldDisplay && selectedGroupingFields.length > 0) {
+                    groupingFieldDisplay.innerHTML = `<span style="color: #000;">${selectedGroupingFields[0].name}</span>`;
+                }
+
+                selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
+                        const fieldKey = selectedGroupingFields[idx].key;
+                        selectedGroupingFields.splice(idx, 1);
+
+                        const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
+                        if (availableCheckbox) availableCheckbox.checked = false;
+
+                        updateSelectedFields();
+                        updateSummaryAtDropdown();
+                        updateSummaryHeadersCheckbox();
+                    });
+                });
+            }
+
+            try {
+                updateSummaryAtDropdown();
+                updateSummaryHeadersCheckbox();
+            } catch (e) {
+                console.warn('Failed to update dropdowns:', e);
+            }
+        }
+
+        function updateSummaryFieldsList() {
+            const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
+
+            if (!selectedSummaryFieldsDiv) {
+                console.warn('Selected summary fields div not found');
+                return;
+            }
+
+            if (selectedSummaryFields.length === 0) {
+                selectedSummaryFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
+                updateSummaryAtDropdown();
+                updateSummaryHeadersCheckbox();
+                return;
+            }
+
+            selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields.map((field, idx) => `
+                <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="flex: 1;">
+                        <strong style="font-size: 13px;">${field.name}</strong>
+                        <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
+                    </div>
+                    <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+                </div>
+            `).join('');
+
+            selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const idx = parseInt(this.getAttribute('data-index'));
+                    selectedSummaryFields.splice(idx, 1);
+                    updateSummaryFieldsList();
+                    updateSummaryAtDropdown();
+                    updateSummaryHeadersCheckbox();
+                });
+            });
+        }
+
+        function updateSummaryAtDropdown() {
+            const summaryAtField = document.getElementById('summary-at-field');
+            if (!summaryAtField) return;
+            summaryAtField.innerHTML = '<option value="">Select grouping field...</option>';
+            selectedGroupingFields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.key;
+                option.textContent = field.name;
+                summaryAtField.appendChild(option);
+            });
+
+            const savedSummaryAt = component.get('summary-at-field') || '';
+            summaryAtField.value = savedSummaryAt;
+
+            summaryAtField.disabled = selectedGroupingFields.length === 0 || selectedSummaryFields.length === 0;
+            summaryAtField.style.background = summaryAtField.disabled ? '#f0f0f0' : 'white';
+        }
+
+        updateSelectedFields();
+        updateSummaryFieldsList();
+        updateSummaryAtDropdown();
+        updateSummaryHeadersCheckbox();
+
         document.getElementById('top-n').addEventListener('change', function () {
             const topNValue = document.getElementById('top-n-value');
-            const isEnabled = this.value === 'top' || this.value === 'bottom'; // ✅ Only enable for top/bottom
-
+            const isEnabled = this.value === 'top' || this.value === 'bottom';
             topNValue.disabled = !isEnabled;
             topNValue.style.background = isEnabled ? 'white' : '#f0f0f0';
             topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
             topNValue.style.opacity = isEnabled ? '1' : '0.6';
         });
 
-        // ✅ Trigger on load to set initial state
         setTimeout(() => {
             const topNSelect = document.getElementById('top-n');
             const topNValue = document.getElementById('top-n-value');
@@ -5154,7 +5302,7 @@ function jsontablecustom(editor) {
             topNValue.style.cursor = isEnabled ? 'text' : 'not-allowed';
             topNValue.style.opacity = isEnabled ? '1' : '0.6';
         }, 100);
-        // Grand Total checkbox - Enable/disable labels
+
         document.getElementById('grand-total').addEventListener('change', function () {
             const grandTotalLabel = document.getElementById('grand-total-label');
             const isEnabled = this.checked;
@@ -5162,7 +5310,7 @@ function jsontablecustom(editor) {
             grandTotalLabel.disabled = !isEnabled;
             grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
         });
-        // Grouping field selection
+
         document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function () {
                 const fieldItem = this.closest('.field-item');
@@ -5172,100 +5320,62 @@ function jsontablecustom(editor) {
                 if (this.checked) {
                     selectedGroupingFields.push({ key: fieldKey, name: fieldName });
                     updateSelectedFields();
-                    // updateSummaryAtDropdown will be called by the wrapped updateSelectedFields
                 }
             });
         });
 
-        function updateSelectedFields() {
-            const selectedFieldsDiv = document.getElementById('selected-fields');
+        document.getElementById('add-summary-field').addEventListener('click', function () {
+            const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
+            const summaryFunction = document.getElementById('summary-function').value;
 
-            // Add null check
-            if (!selectedFieldsDiv) {
-                console.warn('Selected fields div not found');
+            if (summaryCheckboxes.length === 0) {
+                alert('Please select at least one field for summary');
                 return;
             }
 
-            if (selectedGroupingFields.length === 0) {
-                selectedFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px;">No fields selected</p>';
-            } else {
-                selectedFieldsDiv.innerHTML = selectedGroupingFields.map((field, idx) => `
-            <div class="field-item selected" data-key="${field.key}" data-index="${idx}" style="padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-                <span>${field.name}</span>
-                <button class="remove-grouping-field" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-            </div>
-        `).join('');
+            let addedCount = 0;
+            summaryCheckboxes.forEach(checkbox => {
+                const fieldItem = checkbox.closest('.field-item');
+                const fieldKey = fieldItem.getAttribute('data-key');
+                const fieldName = fieldItem.querySelector('span').textContent;
 
-                // Update grouping field display if it exists
-                const groupingFieldDisplay = document.getElementById('grouping-field-display');
-                if (groupingFieldDisplay && selectedGroupingFields.length > 0) {
-                    groupingFieldDisplay.innerHTML = `<span style="color: #000;">${selectedGroupingFields[0].name}</span>`;
+                const exists = selectedSummaryFields.some(f => f.key === fieldKey && f.function === summaryFunction);
+                if (!exists) {
+                    selectedSummaryFields.push({
+                        key: fieldKey,
+                        name: fieldName,
+                        function: summaryFunction
+                    });
+                    addedCount++;
                 }
 
-                // Add remove functionality
-                selectedFieldsDiv.querySelectorAll('.remove-grouping-field').forEach(btn => {
-                    btn.addEventListener('click', function () {
-                        const idx = parseInt(this.closest('.field-item').getAttribute('data-index'));
-                        const fieldKey = selectedGroupingFields[idx].key;
-                        selectedGroupingFields.splice(idx, 1);
-                        updateSelectedFields();
-
-                        const availableCheckbox = document.querySelector(`#available-fields .field-item[data-key="${fieldKey}"] .field-checkbox`);
-                        if (availableCheckbox) availableCheckbox.checked = false;
-                    });
-                });
-            }
-
-            // After updating selected fields, also refresh "summary-at" dropdown
-            try {
-                updateSummaryAtDropdown();
-            } catch (e) {
-                console.warn('Failed to update summary-at dropdown:', e);
-            }
-        }
-
-        // Add this new function for summary fields
-        // ✅ Fixed updateSummaryFieldsList function
-        function updateSummaryFieldsList() {
-            const selectedSummaryFieldsDiv = document.getElementById('selected-summary-fields');
-
-            if (!selectedSummaryFieldsDiv) {
-                console.warn('Selected summary fields div not found');
-                return;
-            }
-
-            if (selectedSummaryFields.length === 0) {
-                selectedSummaryFieldsDiv.innerHTML = '<p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>';
-                // Ensure summary-at gets disabled
-                updateSummaryAtDropdown();
-                return;
-            }
-
-            selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields.map((field, idx) => `
-        <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-            <div style="flex: 1;">
-                <strong style="font-size: 13px;">${field.name}</strong>
-                <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
-            </div>
-            <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-        </div>
-    `).join('');
-
-            // ✅ Add remove functionality
-            selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const idx = parseInt(this.getAttribute('data-index'));
-                    selectedSummaryFields.splice(idx, 1);
-                    updateSummaryFieldsList();
-                    // refresh summary-at dropdown state
-                    updateSummaryAtDropdown();
-                });
+                checkbox.checked = false;
             });
 
-            console.log('Summary fields list updated:', selectedSummaryFields.length);
-        }
+            updateSummaryFieldsList();
+            updateSummaryAtDropdown();
+            updateSummaryHeadersCheckbox();
 
-        // Sort buttons
+            if (addedCount > 0) {
+            }
+        });
+
+        document.getElementById('sort-summary-asc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+            items.sort((a, b) => a.textContent.localeCompare(b.textContent));
+            const container = document.getElementById('available-summary-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
+        document.getElementById('sort-summary-desc').addEventListener('click', () => {
+            const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
+            items.sort((a, b) => b.textContent.localeCompare(a.textContent));
+            const container = document.getElementById('available-summary-fields');
+            container.innerHTML = '';
+            items.forEach(item => container.appendChild(item));
+        });
+
         document.getElementById('sort-asc').addEventListener('click', () => {
             const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
             items.sort((a, b) => a.textContent.localeCompare(b.textContent));
@@ -5282,14 +5392,11 @@ function jsontablecustom(editor) {
             items.forEach(item => container.appendChild(item));
         });
 
-        // Define Named Group checkbox
         document.getElementById('define-named-group').addEventListener('change', function () {
             const btn = document.getElementById('open-named-group');
-            const list = document.getElementById('named-groups-list');
             btn.disabled = !this.checked;
             btn.style.cursor = this.checked ? 'pointer' : 'not-allowed';
             btn.style.background = this.checked ? 'white' : '#f0f0f0';
-            list.style.display = this.checked ? 'block' : 'none';
         });
 
         document.getElementById('open-named-group').addEventListener('click', function () {
@@ -5303,8 +5410,13 @@ function jsontablecustom(editor) {
             const groupField = selectedGroupingFields[0];
             showNamedGroupModal(component, groupField);
         });
-
-        // Grouping type radio buttons - Enable/disable Keep Group Hierarchy
+document.getElementById('repeat-headers-before-summary')?.addEventListener('change', function() {
+    updateSummaryHeadersCheckbox();
+    // Visual feedback
+    if (this.checked) {
+        console.log('Card-style layout will be applied when settings are saved');
+    }
+});
         document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
             radio.addEventListener('change', function () {
                 const keepHierarchy = document.getElementById('keep-group-hierarchy');
@@ -5316,75 +5428,52 @@ function jsontablecustom(editor) {
                 if (!isSummaryOnly) {
                     keepHierarchy.checked = false;
                 }
+
+                updateSummaryHeadersCheckbox();
             });
         });
 
-        // Cancel button
+        document.getElementById('merge-group-cells')?.addEventListener('change', updateSummaryHeadersCheckbox);
         document.getElementById('cancel-settings').addEventListener('click', () => {
             editor.Modal.close();
         });
 
-        // Apply button - FIX: Save selectedSummaryFields
-        // Update the apply-settings event listener in the 'open-table-settings-modal' command
         document.getElementById('apply-settings').addEventListener('click', () => {
-            console.log('📝 Applying settings...');
 
-            // Validate grouping before applying
             if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
                 alert('Please select at least one grouping field before adding summaries');
                 return;
             }
 
-            // ✅ Check if summarize is enabled but no summary fields
             const summarizeChecked = document.getElementById('summarize-group').checked;
             if (summarizeChecked && selectedSummaryFields.length === 0) {
                 alert('Please add at least one summary field when "Summarize Group" is enabled');
                 return;
             }
 
-            // Save grouping fields
             component.set('grouping-fields', selectedGroupingFields);
-
-            // Save summary fields
             component.set('summary-fields', selectedSummaryFields);
-
-            console.log('💾 Saved settings:', {
-                groupingFields: selectedGroupingFields.length,
-                summaryFields: selectedSummaryFields.length
-            });
-
-            // Save sort options
             component.set('sort-order', document.getElementById('sort-order').value);
             component.set('top-n', document.getElementById('top-n').value);
             component.set('top-n-value', parseInt(document.getElementById('top-n-value').value) || 10);
 
-            // ✅ NEW: Save summary-at-field setting
             const summaryAtFieldEl = document.getElementById('summary-at-field');
             if (summaryAtFieldEl) {
                 component.set('summary-at-field', summaryAtFieldEl.value);
-                console.log('💾 Saved summary-at-field:', summaryAtFieldEl.value);
             }
 
-            // Save display options
-            component.set('merge-group-cells', document.getElementById('merge-group-cells').checked);
+    component.set('repeat-headers-before-summary', document.getElementById('repeat-headers-before-summary').checked);
             component.set('summarize-group', document.getElementById('summarize-group').checked);
             component.set('hide-subtotal-single-row', document.getElementById('hide-subtotal-single-row').checked);
             component.set('page-break', document.getElementById('page-break').checked);
-
-            // Save display mode
             const showSummaryOnly = document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
             component.set('show-summary-only', showSummaryOnly);
             component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
-
-            // Save totals & labels
             component.set('grand-total', document.getElementById('grand-total').checked);
             component.set('grand-total-label', document.getElementById('grand-total-label').value);
             component.set('summary-label', document.getElementById('summary-label').value);
-
-            // Save named groups
             component.set('define-named-group', document.getElementById('define-named-group').checked);
 
-            // Create loader
             const loader = document.createElement('div');
             loader.id = 'settings-loader';
             loader.style.position = 'fixed';
@@ -5399,31 +5488,22 @@ function jsontablecustom(editor) {
             loader.style.zIndex = '10000';
             loader.innerHTML = '<div style="padding: 20px; background: white; border: 1px solid #ddd; border-radius: 8px;">Applying Table settings...</div>';
             document.body.appendChild(loader);
-
             editor.Modal.close();
 
-            // ✅ Always apply grouping/summary after settings change (handles reset when empty)
             setTimeout(() => {
-                console.log('🔄 Applying grouping...');
                 component.applyGroupingAndSummary();
-
-                // ✅ Save running totals if configured
                 const runningTotals = component.get('running-totals') || [];
                 if (runningTotals.length > 0) {
-                    console.log('💾 Applying running totals:', runningTotals.length);
                     applyRunningTotalsToTable(component);
                 }
 
-                // Remove loader
                 document.getElementById('settings-loader').remove();
-
-                // Show success message
                 alert('Settings applied successfully!');
             }, 100);
         });
 
-        // Ensure summary-at dropdown is updated if grouping fields were initially present
         updateSummaryAtDropdown();
+        updateSummaryHeadersCheckbox();
     }
 
     function initializeRunningTotalTab(component) {
@@ -5431,7 +5511,6 @@ function jsontablecustom(editor) {
         const data = component.get('custom-data') || component.get('table-data') || [];
         const runningTotals = component.get('running-totals') || [];
 
-        // Filter numeric columns
         const numericHeaders = {};
         Object.entries(headers).forEach(([key, name]) => {
             if (key.endsWith('_running_total')) return;
@@ -5453,7 +5532,6 @@ function jsontablecustom(editor) {
             }
         });
 
-        // Populate column list
         const columnList = document.getElementById('running-total-columns');
         if (Object.keys(numericHeaders).length === 0) {
             columnList.innerHTML = '<p style="color: #999; text-align: center; padding: 10px;">No numeric columns available</p>';
@@ -5461,13 +5539,12 @@ function jsontablecustom(editor) {
         }
 
         columnList.innerHTML = Object.entries(numericHeaders).map(([key, name]) => `
-        <div class="rt-column-item" data-key="${key}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;">
-            <input type="checkbox" class="rt-checkbox" style="margin-right: 8px; opacity: 1; cursor: pointer; width: 16px; height: 16px;">
-            <span>${name}</span>
-        </div>
-    `).join('');
+            <div class="rt-column-item" data-key="${key}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;">
+                <input type="checkbox" class="rt-checkbox" style="margin-right: 8px; opacity: 1; cursor: pointer; width: 16px; height: 16px;">
+                <span>${name}</span>
+            </div>
+        `).join('');
 
-        // Add change handlers
         document.querySelectorAll('.rt-checkbox').forEach(item => {
             item.addEventListener('change', function () {
                 const parentItem = this.closest('.rt-column-item');
@@ -5475,7 +5552,6 @@ function jsontablecustom(editor) {
                 const columnName = numericHeaders[columnKey];
 
                 if (this.checked) {
-                    // Uncheck and disable others
                     document.querySelectorAll('.rt-checkbox').forEach(cb => {
                         if (cb !== this) {
                             cb.checked = false;
@@ -5485,15 +5561,12 @@ function jsontablecustom(editor) {
                     showRunningTotalConfig(component, columnKey, columnName, runningTotals);
                 } else {
                     document.getElementById('rt-config-panel').innerHTML = '<p style="color: #666; text-align: center;">Select a column to configure running total</p>';
-                    // Enable others
                     document.querySelectorAll('.rt-checkbox').forEach(cb => {
                         cb.disabled = false;
                     });
                 }
             });
         });
-
-        // Show active running totals
         updateActiveRunningTotalsList(component, numericHeaders);
     }
 
@@ -5510,20 +5583,20 @@ function jsontablecustom(editor) {
 
         const columnList = document.getElementById('column-list-inline');
         columnList.innerHTML = columnKeys.map(key => `
-        <div class="column-item-inline" data-key="${key}" draggable="true" style="
-            margin: 2px; 
-            padding: 12px 15px; 
-            border-radius: 3px; 
-            cursor: move; 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.2s ease;
-        ">
-            <span style="font-weight: 500;">${headers[key]}</span>
-            <span style="color: #666; font-size: 12px;">≡≡≡</span>
-        </div>
-    `).join('');
+            <div class="column-item-inline" data-key="${key}" draggable="true" style="
+                margin: 2px; 
+                padding: 12px 15px; 
+                border-radius: 3px; 
+                cursor: move; 
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                transition: all 0.2s ease;
+            ">
+                <span style="font-weight: 500;">${headers[key]}</span>
+                <span style="color: #666; font-size: 12px;">≡≡≡</span>
+            </div>
+        `).join('');
 
         let draggedElement = null;
 
@@ -5566,14 +5639,11 @@ function jsontablecustom(editor) {
                     } else {
                         this.parentNode.insertBefore(draggedElement, this);
                     }
-
-                    // Auto-apply reorder
                     applyColumnReorder(component);
                 }
             });
         });
 
-        // Reset button
         document.getElementById('reset-order').addEventListener('click', function () {
             component.reorderColumns(originalOrder);
             initializeInlineColumnReorder(component);
@@ -5587,121 +5657,6 @@ function jsontablecustom(editor) {
         const newOrder = Array.from(currentItems).map(item => item.getAttribute('data-key'));
         component.reorderColumns(newOrder);
     }
-
-    // function showRunningTotalConfig(component, columnKey, columnName, runningTotals) {
-    //     const existing = runningTotals.find(rt => rt.columnKey === columnKey);
-
-    //     const configPanel = document.getElementById('rt-config-panel');
-    //     configPanel.innerHTML = `
-    //     <h4 style="margin-top: 0;">${columnName}</h4>
-
-    //     <!-- Summary -->
-    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; ">
-    //         <label style="font-weight: bold; display: block; margin-bottom: 5px;">Summary Field:</label>
-    //         <select id="rt-summary-field" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
-    //             <option value="sum" ${existing?.operation === 'sum' ? 'selected' : ''}>Sum</option>
-    //             <option value="count" ${existing?.operation === 'count' ? 'selected' : ''}>Count</option>
-    //             <option value="distinct-count" ${existing?.operation === 'distinct-count' ? 'selected' : ''}>Distinct Count</option>
-    //             <option value="average" ${existing?.operation === 'average' ? 'selected' : ''}>Average</option>
-    //             <option value="max" ${existing?.operation === 'max' ? 'selected' : ''}>Max</option>
-    //             <option value="min" ${existing?.operation === 'min' ? 'selected' : ''}>Min</option>
-    //             <option value="product" ${existing?.operation === 'product' ? 'selected' : ''}>Product</option>
-    //             <option value="std-dev" ${existing?.operation === 'std-dev' ? 'selected' : ''}>Std Deviation (Population)</option>
-    //             <option value="variance" ${existing?.operation === 'variance' ? 'selected' : ''}>Variance (Population)</option>
-    //             <option value="weighted-avg" ${existing?.operation === 'weighted-avg' ? 'selected' : ''}>Weighted Average</option>
-    //         </select>
-    //     </div>
-
-    //     <!-- Evaluate -->
-    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
-    //         <label style="font-weight: bold; display: block; margin-bottom: 10px;">Evaluate:</label>
-    //         <label style="display: flex; align-items: center; margin-bottom: 8px;">
-    //             <input type="radio" name="rt-evaluate" value="for-each-record" ${!existing || existing.evaluate === 'for-each-record' ? 'checked' : ''} style="margin-right: 8px;">
-    //             <span>For each record</span>
-    //         </label>
-    //         <label style="display: flex; align-items: center;">
-    //             <input type="radio" name="rt-evaluate" value="on-change-of" ${existing?.evaluate === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
-    //             <span>On change of</span>
-    //         </label>
-    //         <select id="rt-evaluate-field" ${existing?.evaluate !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.evaluate !== 'on-change-of' ? '#f0f0f0' : 'white'};">
-    //             ${getGroupingFieldsOptions(component, existing?.evaluateField)}
-    //         </select>
-    //     </div>
-
-    //     <!-- Reset -->
-    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
-    //         <label style="font-weight: bold; display: block; margin-bottom: 10px;">Reset:</label>
-    //         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
-    //             <label style="display: flex; align-items: center;">
-    //                 <input type="radio" name="rt-reset" value="never" ${!existing || existing.reset === 'never' ? 'checked' : ''} style="margin-right: 8px;">
-    //                 <span>Never</span>
-    //             </label>
-    //             <label style="display: flex; align-items: center;">
-    //                 <input type="radio" name="rt-reset" value="on-pagebreak" ${existing?.reset === 'on-pagebreak' ? 'checked' : ''} style="margin-right: 8px;">
-    //                 <span>On Pagebreak</span>
-    //             </label>
-    //         </div>
-    //         <label style="display: flex; align-items: center;">
-    //             <input type="radio" name="rt-reset" value="on-change-of" ${existing?.reset === 'on-change-of' ? 'checked' : ''} style="margin-right: 8px;">
-    //             <span>On change of</span>
-    //         </label>
-    //         <select id="rt-reset-field" ${existing?.reset !== 'on-change-of' ? 'disabled' : ''} style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; background: ${existing?.reset !== 'on-change-of' ? '#f0f0f0' : 'white'};">
-    //             ${getGroupingFieldsOptions(component, existing?.resetField)}
-    //         </select>
-    //     </div>
-
-    //     <!-- Styling -->
-    //     <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; display: none">
-    //         <label style="font-weight: bold; display: block; margin-bottom: 10px;">Styling:</label>
-    //         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-    //             <div>
-    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Background Color:</label>
-    //                 <input type="color" id="rt-bg-color" value="${existing?.bgColor || '#f0f8ff'}" style="width: 100%; height: 35px;">
-    //             </div>
-    //             <div>
-    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Text Color:</label>
-    //                 <input type="color" id="rt-text-color" value="${existing?.textColor || '#1976d2'}" style="width: 100%; height: 35px;">
-    //             </div>
-    //             <div>
-    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Family:</label>
-    //                 <select id="rt-font-family" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-    //                     <option value="">Default</option>
-    //                     <option value="Arial, sans-serif" ${existing?.fontFamily === 'Arial, sans-serif' ? 'selected' : ''}>Arial</option>
-    //                     <option value="'Courier New', monospace" ${existing?.fontFamily === "'Courier New', monospace" ? 'selected' : ''}>Courier New</option>
-    //                     <option value="Georgia, serif" ${existing?.fontFamily === 'Georgia, serif' ? 'selected' : ''}>Georgia</option>
-    //                     <option value="Verdana, sans-serif" ${existing?.fontFamily === 'Verdana, sans-serif' ? 'selected' : ''}>Verdana</option>
-    //                 </select>
-    //             </div>
-    //             <div>
-    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Font Size (px):</label>
-    //                 <input type="number" id="rt-font-size" value="${existing?.fontSize || 14}" min="8" max="72" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-    //             </div>
-    //             <div>
-    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Horizontal Align:</label>
-    //                 <select id="rt-h-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-    //                     <option value="left" ${existing?.hAlign === 'left' ? 'selected' : ''}>Left</option>
-    //                     <option value="center" ${existing?.hAlign === 'center' ? 'selected' : ''}>Center</option>
-    //                     <option value="right" ${existing?.hAlign === 'right' ? 'selected' : ''}>Right</option>
-    //                 </select>
-    //             </div>
-    //             <div>
-    //                 <label style="display: block; margin-bottom: 5px; font-size: 12px;">Vertical Align:</label>
-    //                 <select id="rt-v-align" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-    //                     <option value="top" ${existing?.vAlign === 'top' ? 'selected' : ''}>Top</option>
-    //                     <option value="middle" ${existing?.vAlign === 'middle' ? 'selected' : ''}>Middle</option>
-    //                     <option value="bottom" ${existing?.vAlign === 'bottom' ? 'selected' : ''}>Bottom</option>
-    //                 </select>
-    //             </div>
-    //         </div>
-    //     </div>
-
-
-    //     <!-- Action Buttons -->
-    //     <div style="display: flex; gap: 10px;">
-    //         ${existing ? `<button id="rt-remove-btn" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Running Total</button>` : ''}
-    //         <button id="rt-apply-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${existing ? 'Update' : 'Add'} Running Total</button>
-    //     </div>
-    // `;
 
     function showRunningTotalConfig(component, columnKey, columnName, runningTotals) {
         const existing = runningTotals.find(rt => rt.columnKey === columnKey);
@@ -5770,9 +5725,8 @@ function jsontablecustom(editor) {
                 ${existing ? `<button id="rt-remove-btn" style="flex: 1; padding: 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Running Total</button>` : ''}
                 <button id="rt-apply-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">${existing ? 'Update' : 'Add'} Running Total</button>
             </div>
-    `;
+         `;
 
-        // Add event listeners
         document.querySelectorAll('input[name="rt-evaluate"]').forEach(radio => {
             radio.addEventListener('change', function () {
                 const field = document.getElementById('rt-evaluate-field');
@@ -5860,17 +5814,17 @@ function jsontablecustom(editor) {
             return;
         }
         activeList.innerHTML = runningTotals.map(rt => `
-    <div class="rt-active-item" data-key="${rt.columnKey}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; justify-content: space-between; align-items: flex-start;">
-        <div>
-            <strong>${rt.columnName}</strong>
-            <div style="font-size: 12px; color: #666; margin-top: 3px;">
-                Operation: ${rt.operation} | Evaluate: ${rt.evaluate}
+            <div class="rt-active-item" data-key="${rt.columnKey}" style="padding: 8px; margin-bottom: 5px; border: 1px solid #ddd; border-radius: 4px; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <strong>${rt.columnName}</strong>
+                    <div style="font-size: 12px; color: #666; margin-top: 3px;">
+                        Operation: ${rt.operation} | Evaluate: ${rt.evaluate}
+                    </div>
+                </div>
+                <button class="rt-remove-active" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
             </div>
-        </div>
-        <button class="rt-remove-active" style="background: #dc3545; color: white; padding: 2px 6px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-    </div>
-`).join('');
-        // Add remove listeners
+        `).join('');
+
         activeList.querySelectorAll('.rt-remove-active').forEach(btn => {
             btn.addEventListener('click', function () {
                 const columnKey = this.closest('.rt-active-item').getAttribute('data-key');
@@ -5881,11 +5835,10 @@ function jsontablecustom(editor) {
 
     function applyRunningTotalsToTable(component) {
         const runningTotals = component.get('running-totals') || [];
-        const baseData = component.get('table-data') || [];  // ✅ Always use base data
+        const baseData = component.get('table-data') || [];
         const baseHeaders = component.get('table-headers') || {};
 
         if (runningTotals.length === 0) {
-            // No running totals - reset to base data
             component.set('custom-headers', null);
             component.set('custom-data', null);
             component.updateTableHTML();
@@ -5893,20 +5846,11 @@ function jsontablecustom(editor) {
         }
 
         if (baseData.length === 0) return;
-
-        // Start fresh with base headers and data
         const updatedHeaders = { ...baseHeaders };
-
-        // ✅ Create deep copy of base data
         let updatedData = baseData.map(row => ({ ...row }));
-
-        // Apply each running total
-        // Apply each running total
         runningTotals.forEach(rt => {
             const newColumnKey = `${rt.columnKey}_running_total`;
-            updatedHeaders[newColumnKey] = `${baseHeaders[rt.columnKey]} (RT)`;  // ✅ Use baseHeaders
-
-            // ✅ Initialize accumulators properly
+            updatedHeaders[newColumnKey] = `${baseHeaders[rt.columnKey]} (RT)`;
             let accumulator = 0;
             let count = 0;
             let distinctValues = new Set();
@@ -5914,7 +5858,6 @@ function jsontablecustom(editor) {
             let previousGroupValue = null;
             let sumForAverage = 0;
 
-            // ✅ Special initialization for certain operations
             if (rt.operation === 'product') {
                 accumulator = 1;
             } else if (rt.operation === 'min') {
@@ -5924,10 +5867,8 @@ function jsontablecustom(editor) {
             }
 
             updatedData = updatedData.map((row, idx) => {
-                // Check for reset conditions
                 if (rt.reset === 'on-change-of' && rt.resetField && idx > 0) {
                     if (row[rt.resetField] !== updatedData[idx - 1][rt.resetField]) {
-                        // ✅ Reset all accumulators
                         accumulator = rt.operation === 'product' ? 1 :
                             rt.operation === 'min' ? Infinity :
                                 rt.operation === 'max' ? -Infinity : 0;
@@ -5938,7 +5879,6 @@ function jsontablecustom(editor) {
                     }
                 }
 
-                // Check evaluate conditions
                 let shouldEvaluate = true;
                 if (rt.evaluate === 'on-change-of' && rt.evaluateField) {
                     shouldEvaluate = row[rt.evaluateField] !== previousGroupValue;
@@ -5963,13 +5903,13 @@ function jsontablecustom(editor) {
                             accumulator = distinctValues.size;
                             break;
                         case 'average':
-                            accumulator = sumForAverage / count;  // ✅ Use separate sum
+                            accumulator = sumForAverage / count;
                             break;
                         case 'max':
-                            accumulator = Math.max(accumulator, value);  // ✅ Cumulative max
+                            accumulator = Math.max(accumulator, value);
                             break;
                         case 'min':
-                            accumulator = Math.min(accumulator, value);  // ✅ Cumulative min
+                            accumulator = Math.min(accumulator, value);
                             break;
                         case 'product':
                             accumulator *= value;
@@ -5984,13 +5924,11 @@ function jsontablecustom(editor) {
                             accumulator = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / count;
                             break;
                         case 'weighted-avg':
-                            // ✅ Implement if you have weight column logic
-                            accumulator = sumForAverage / count;  // Fallback to average
+                            accumulator = sumForAverage / count;
                             break;
                     }
                 }
 
-                // ✅ Format based on operation type
                 let formattedValue;
                 if (rt.operation === 'count' || rt.operation === 'distinct-count') {
                     formattedValue = accumulator.toString();
@@ -6008,7 +5946,6 @@ function jsontablecustom(editor) {
         component.updateTableHTML();
     }
     function initializeTableStyleManager(component) {
-        // Load current values
         const borderStyle = document.getElementById('border-style');
         const borderWidth = document.getElementById('border-width');
         const borderColor = document.getElementById('border-color');
@@ -6031,15 +5968,12 @@ function jsontablecustom(editor) {
         if (verticalAlign) verticalAlign.value = component.get('table-vertical-align') || 'middle';
         if (topNValue) topNValue.value = component.get('top-n-value') || '10';
 
-
-        // Opacity slider
         const opacitySlider = document.getElementById('border-opacity');
         const opacityValue = document.getElementById('opacity-value');
         opacitySlider.addEventListener('input', function () {
             opacityValue.textContent = this.value + '%';
         });
 
-        // Apply button
         document.getElementById('apply-styles').addEventListener('click', function () {
             component.set('table-border-style', document.getElementById('border-style').value);
             component.set('table-border-width', document.getElementById('border-width').value);
@@ -6055,7 +5989,6 @@ function jsontablecustom(editor) {
             editor.Modal.close();
         });
 
-        // Reset button
         document.getElementById('reset-styles').addEventListener('click', function () {
             document.getElementById('border-style').value = 'solid';
             document.getElementById('border-width').value = '1';
@@ -6070,7 +6003,6 @@ function jsontablecustom(editor) {
             if (opacityValue) opacityValue.textContent = '100%';
         });
 
-        // Cancel button
         document.getElementById('cancel-styles').addEventListener('click', function () {
             editor.Modal.close();
         });
@@ -6087,21 +6019,15 @@ function jsontablecustom(editor) {
         const conditionsList = document.getElementById('conditions-list');
         const closeBtn = document.getElementById('close-manager-btn');
         const applyBtn = document.getElementById('apply-conditions-btn');
-
-        // Style controls
         const bgColorInput = document.getElementById('highlight-bg-color');
         const textColorInput = document.getElementById('highlight-text-color');
         const fontFamilySelect = document.getElementById('highlight-font-family');
-
-        // Load current values
         bgColorInput.value = component.get('highlight-color') || '#ffff99';
         textColorInput.value = component.get('highlight-text-color') || '#000000';
         fontFamilySelect.value = component.get('highlight-font-family') || '';
         const fontSizeInput = document.getElementById('highlight-font-size');
         fontSizeInput.value = component.get('highlight-font-size') || '14';
 
-
-        // Handle condition type change
         conditionTypeSelect.addEventListener('change', function () {
             const selectedType = this.value;
             const isTextCondition = ['contains', 'starts-with', 'ends-with', 'exact', 'once-if'].includes(selectedType);
@@ -6121,7 +6047,6 @@ function jsontablecustom(editor) {
             }
         });
 
-        // Add condition
         addConditionBtn.addEventListener('click', function () {
             const type = conditionTypeSelect.value;
             if (!type) {
@@ -6160,8 +6085,6 @@ function jsontablecustom(editor) {
             component.set('highlight-text-color', textColorInput.value);
             component.set('highlight-font-family', fontFamilySelect.value);
             refreshConditionsList(component);
-
-            // Reset form
             conditionTypeSelect.value = '';
             conditionValueInput.value = '';
             minValueInput.value = '';
@@ -6172,12 +6095,10 @@ function jsontablecustom(editor) {
             caseSensitiveCheckbox.parentElement.style.display = 'none';
         });
 
-        // Close modal
         closeBtn.addEventListener('click', function () {
             editor.Modal.close();
         });
 
-        // Apply changes and close
         applyBtn.addEventListener('click', function () {
             component.set('highlight-color', bgColorInput.value);
             component.set('highlight-text-color', textColorInput.value);
@@ -6187,7 +6108,6 @@ function jsontablecustom(editor) {
             editor.Modal.close();
         });
 
-        // Refresh conditions list
         function refreshConditionsList(component) {
             const conditions = component.getHighlightConditions();
 
@@ -6210,22 +6130,18 @@ function jsontablecustom(editor) {
                 }
 
                 html += `
-        <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-            <span>${conditionText}</span>
-            <button onclick="removeCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
-        </div>`;
-            });
-
+                    <div style="border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>${conditionText}</span>
+                        <button onclick="removeCondition(${index})" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
+                    </div>`;
+                        });
             conditionsList.innerHTML = html;
         }
 
-        // Global function for removing conditions
         window.removeCondition = function (index) {
             component.removeHighlightCondition(index);
             refreshConditionsList(component);
         };
-
-        // Initial load
         refreshConditionsList(component);
     }
 
@@ -6234,14 +6150,12 @@ function jsontablecustom(editor) {
             const selected = editor.getSelected();
             if (!selected || selected.get('type') !== 'json-table') return;
 
-            // Get file index from trait
             let fileIndex = selected.get('json-file-index') || '0';
             if (fileIndex === '0') {
                 alert('Please select a JSON file first');
                 return;
             }
 
-            // Get the selected file's JSON data
             const fileNames = (localStorage.getItem('common_json_files') || "").split(',').map(f => f.trim());
             const selectedFile = fileNames[parseInt(fileIndex) - 1];
             const jsonString = localStorage.getItem(`common_json_${selectedFile}`);
@@ -6252,32 +6166,29 @@ function jsontablecustom(editor) {
             }
 
             const commonJson = JSON.parse(jsonString);
-
-            // Show top-level keys (language options) first
             const topLevelKeys = Object.keys(commonJson);
 
             let modalContent = `
-        <div class="new-table-form">
-        <div style="padding-bottom:10px">
-            <input type="text" id="searchInput" placeholder="Search json">
-        </div>
-        <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-        `;
+                <div class="new-table-form">
+                <div style="padding-bottom:10px">
+                    <input type="text" id="searchInput" placeholder="Search json">
+                </div>
+                <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+                `;
 
             topLevelKeys.forEach(key => {
                 modalContent += `<div class="suggestion language-option" data-value="${key}" data-type="language">${key}</div>`;
             });
 
             modalContent += `
-      </div>
-    </div>
-  `;
+                </div>
+                </div>
+            `;
 
             editor.Modal.setTitle('Datasource Suggestion');
             editor.Modal.setContent(modalContent);
             editor.Modal.open();
 
-            // Add event listener to search input
             document.getElementById("searchInput").addEventListener("input", function () {
                 filterSuggestions(this.value);
             });
@@ -6289,7 +6200,6 @@ function jsontablecustom(editor) {
                     const dataType = this.getAttribute('data-type');
 
                     if (dataType === 'language') {
-                        // Show keys under selected language
                         showTableLanguageKeys(selectedValue, commonJson, selected);
                     }
                 });
@@ -6297,18 +6207,17 @@ function jsontablecustom(editor) {
         }
     });
 
-    // Add helper functions for table suggestion (place at the end, after commands)
     function showTableLanguageKeys(language, commonJson, selectedComponent) {
         const metaDataKeys = extractMetaDataKeys(commonJson[language]);
 
         let modalContent = `
-<div class="new-table-form">
-  <div style="padding-bottom:10px">
-    <button id="backBtn" style="margin-right: 10px;">← Back</button>
-    <input type="text" id="searchInput" placeholder="Search json">
-  </div>
-  <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
-`;
+            <div class="new-table-form">
+            <div style="padding-bottom:10px">
+                <button id="backBtn" style="margin-right: 10px;">← Back</button>
+                <input type="text" id="searchInput" placeholder="Search json">
+            </div>
+            <div class="suggestion-results" style="height: 200px; overflow: hidden; overflow-y: scroll;">
+            `;
 
         metaDataKeys.forEach(key => {
             const fullPath = `${language}.${key}`;
@@ -6316,42 +6225,32 @@ function jsontablecustom(editor) {
         });
 
         modalContent += `
-  </div>
-</div>
-`;
+            </div>
+            </div>
+            `;
 
         editor.Modal.setContent(modalContent);
 
-        // Back button functionality
         document.getElementById("backBtn").addEventListener("click", function () {
             editor.Commands.run('open-json-table-suggestion');
         });
 
-        // Search functionality
         document.getElementById("searchInput").addEventListener("input", function () {
             filterSuggestions(this.value);
         });
 
-        // Key selection (single for table)
         const suggestionItems = document.querySelectorAll('.suggestion');
         suggestionItems.forEach(item => {
             item.addEventListener('click', function () {
                 const selectedValue = this.getAttribute('data-value');
-                console.log('Setting DataSource path to:', selectedValue);
-
-                // Set the json-path value in the model
                 selectedComponent.set('json-path', selectedValue);
-
-                // Update the trait value and trigger re-render
                 const jsonPathTrait = selectedComponent.getTrait('json-path');
                 if (jsonPathTrait) {
                     jsonPathTrait.set('value', selectedValue);
-                    // Force trait view update
                     setTimeout(() => {
                         if (jsonPathTrait.view && jsonPathTrait.view.render) {
                             jsonPathTrait.view.render();
                         }
-                        // Also trigger the component's change event
                         selectedComponent.trigger('change:json-path');
                     }, 50);
                 }
@@ -6426,7 +6325,6 @@ function jsontablecustom(editor) {
         }
     });
 
-    // Keep remaining helper functions from original code
     function extractMetaDataKeys(obj, prefix = '') {
         let keys = [];
         for (const key in obj) {
@@ -6446,4 +6344,3 @@ function jsontablecustom(editor) {
         return keys;
     }
 }
-

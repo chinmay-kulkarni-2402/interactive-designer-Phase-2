@@ -3,7 +3,6 @@ function customSections(editor) {
     const iframe = editor.Canvas.getFrameEl();
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
 
-    // --- Inject visual styles into the editor frame ---
     const styleEl = iframeDoc.createElement("style");
     styleEl.innerHTML = `
       .gjs-editor-header,
@@ -77,13 +76,11 @@ function customSections(editor) {
     iframeDoc.head.appendChild(styleEl);
   });
 
-  // --- State ---
   let isDragging = false;
   let startX = 0;
   let startY = 0;
   let selectedComponent = null;
 
-  // --- Check if a component is inside a section ---
   function isInsideSection(component) {
     let parent = component.parent();
     while (parent) {
@@ -101,12 +98,10 @@ function customSections(editor) {
     return { isInside: false };
   }
 
-  // --- Attach move behavior (with persistent rebind) ---
   function attachMovableBehavior(component) {
     const el = component.getEl();
     if (!el) return;
 
-    // store moveMode state in dataset so it persists
     if (!el.dataset.moveMode) el.dataset.moveMode = "off";
 
     el.ondblclick = (e) => {
@@ -117,7 +112,7 @@ function customSections(editor) {
       if (mode === "on") {
         el.classList.add("movable-active");
         el.dataset.prevWidth = el.style.width || "";
-        el.style.width = el.offsetWidth + "px"; // lock width in px
+        el.style.width = el.offsetWidth + "px";
       } else {
         el.classList.remove("movable-active");
         if (el.dataset.prevWidth !== undefined)
@@ -143,15 +138,7 @@ function customSections(editor) {
       if (!parentEl) return;
 
       el.style.position = "absolute";
-
-      const style = window.getComputedStyle(el);
-      const parentRect = parentEl.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
-
-      // compute pixel offsets
-      const leftPx = parseFloat(style.left) || 0;
-      const topPx = parseFloat(style.top) || 0;
-
       startX = e.clientX - elRect.left;
       startY = e.clientY - elRect.top;
 
@@ -197,7 +184,6 @@ function customSections(editor) {
     };
   }
 
-  // --- Handle new component additions ---
   editor.on("component:add", (component) => {
     const sectionInfo = isInsideSection(component);
     if (sectionInfo.isInside) {
@@ -216,7 +202,6 @@ function customSections(editor) {
     }
   });
 
-  // --- Reattach move behavior on selection (every time) ---
   editor.on("component:selected", (component) => {
     const sectionInfo = isInsideSection(component);
     if (sectionInfo.isInside) {

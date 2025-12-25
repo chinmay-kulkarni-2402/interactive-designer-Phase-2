@@ -1,10 +1,7 @@
 
 function customTableOfContents(editor) {
   const domc = editor.DomComponents;
-
-  // ✅ Custom Heading component (H1-H7) - Final Version with multi-change fix
   domc.addType('custom-heading', {
-    // Recognize existing headings as custom-heading
     isComponent(el) {
       if (el.tagName && /^H[1-7]$/.test(el.tagName) && el.classList.contains('custom-heading')) {
         return { type: 'custom-heading' };
@@ -59,8 +56,6 @@ function customTableOfContents(editor) {
           : this.get('content') || 'New Heading';
 
         const existingId = this.view.el?.id;
-
-        // ✅ Replace DOM element with new heading tag
         if (this.view.el) {
           const newEl = document.createElement(newTag);
           newEl.className = 'custom-heading';
@@ -70,15 +65,11 @@ function customTableOfContents(editor) {
 
           this.view.el.parentNode.replaceChild(newEl, this.view.el);
           this.view.el = newEl;
-
-          // reattach listeners
           this.view.attachListeners(newEl);
         }
 
-        // ✅ Sync content, but don't reset tagName in model
         this.set('content', preservedContent, { silent: true });
 
-        // Refresh TOC
         setTimeout(() => editor.runCommand('generate-toc'), 100);
       },
     },
@@ -87,20 +78,13 @@ function customTableOfContents(editor) {
       onRender() {
         const model = this.model;
         const tag = this.el.tagName.toLowerCase();
-
-        // ✅ Keep trait dropdown in sync with actual DOM tag
         model.set('level', tag, { silent: true });
-
         this.el.setAttribute('contenteditable', 'true');
-
-        // Attach event listeners
         this.attachListeners(this.el);
       },
 
       attachListeners(el) {
         const model = this.model;
-
-        // Clean old listeners
         el.removeEventListener('blur', this.blurHandler);
         el.removeEventListener('input', this.inputHandler);
 
@@ -158,7 +142,6 @@ function customTableOfContents(editor) {
     },
   });
 
-  // ✅ Add Heading block with fa-heading icon
   editor.BlockManager.add('custom-heading', {
     label: 'Heading',
     category: 'Basic',
@@ -167,7 +150,6 @@ function customTableOfContents(editor) {
   });
 
 
-  // ✅ TOC Block Type
   domc.addType('toc-block', {
     model: {
       defaults: {
@@ -203,7 +185,6 @@ function customTableOfContents(editor) {
               { id: 'right', name: 'Right (default)' },
               { id: 'left', name: 'Left' }, { id: 'center', name: 'Center' }], changeProp: 1
           },
-          // ✅ Per-level spacing
           ...[1, 2, 3, 4, 5, 6, 7].map(l => ({
             type: 'number', name: `spacing-h${l}`, label: `Spacing H${l} (px)`, min: 0, max: 100, step: 2, changeProp: 1
           })),
@@ -254,28 +235,23 @@ function customTableOfContents(editor) {
     }
   });
 
-  // ✅ Add TOC block with fa-list icon
   editor.BlockManager.add('table-of-contents', {
     label: 'Table of Contents',
     category: 'Basic',
     content: { type: 'toc-block' },
-    media: '<i class="fa fa-list fa-2x"></i>', // Font Awesome list icon
+    media: '<i class="fa fa-list fa-2x"></i>',
   });
 
-  // ✅ Generate unique ID helper function
   function generateUniqueId(text, level, index) {
-    // Create a base ID from the text content
     const baseId = text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .substring(0, 50); // Limit length
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\s+/g, '-')
+      .substring(0, 50);
 
-    // Add level and index to ensure uniqueness
     return `${baseId}-h${level}-${index + 1}`;
   }
 
-  // ✅ Advanced TOC Generator with per-level spacing  
   editor.Commands.add('generate-toc', {
     run(editor) {
       const tocComp = editor.getWrapper().find('.toc-container')[0];
@@ -348,7 +324,6 @@ function customTableOfContents(editor) {
         tocComp.components().add(newListHtml, { parse: true });
       }
 
-      // ✅ Apply spacing
       const tocEl = tocComp.view.el;
       tocEl.querySelectorAll('li').forEach(li => {
         const lvl = parseInt(li.getAttribute('data-level')) || 1;
@@ -356,7 +331,6 @@ function customTableOfContents(editor) {
         li.style.margin = `${spacing}px 0`;
       });
 
-      // ✅ Reapply style classes (important!)
       const classes = tocComp.view.el.classList;
       classes.toggle('with-borders', tocComp.get('want-border'));
 
@@ -368,191 +342,9 @@ function customTableOfContents(editor) {
 
       classes.remove('toc-align-right', 'toc-align-left', 'toc-align-center');
       classes.add(`toc-align-${tocComp.get('page-align')}`);
-
-      console.log(`TOC generated with ${items.length} items`);
     },
   });
 
-
-
-  // ✅ Generate TOC command - Fixed ID generation for all heading levels
-  // editor.Commands.add('generate-toc', {
-  //   run(editor) {
-  //     const tocComp = editor.getWrapper().find('.toc-container')[0];
-  //     if (!tocComp) return;
-
-  //     const listType = tocComp.get('list-type') || 'ul';
-  //     const doc = editor.Canvas.getDocument();
-  //     const headings = doc.querySelectorAll('h1.custom-heading, h2.custom-heading, h3.custom-heading, h4.custom-heading, h5.custom-heading, h6.custom-heading, h7.custom-heading');
-  //     const items = [];
-
-  //     // Smart numbering system
-  //     const counters = [0, 0, 0, 0, 0, 0, 0]; // H1, H2, H3, H4, H5, H6, H7 counters
-
-  //     headings.forEach((el, i) => { 
-
-  //       const text = el.innerText.trim();
-  //       if (!text) return;
-
-  //       // Get heading level (1, 2, 3, 4, 5, 6, 7)
-  //       const level = parseInt(el.tagName.substring(1));
-  //         // Skip headings beyond selected level
-  //       const maxLevel = parseInt(tocComp.get('levels') || 7);
-  //       if (level > maxLevel) return;
-  //       // Generate unique ID - FIXED: Ensure all levels get proper IDs
-  //       let id = el.id;
-  //       if (!id || id === '') {
-  //         id = generateUniqueId(text, level, i);
-  //         el.setAttribute('id', id);
-  //         console.log(`Generated ID for ${el.tagName}: ${id}`); // Debug log
-  //       }
-
-  //       // Ensure ID is always set properly
-  //       if (el.getAttribute('id') !== id) {
-  //         el.setAttribute('id', id);
-  //       }
-
-  //       // Update counters with smart hierarchy
-  //       if (level === 1) {
-  //         counters[0]++; // Increment H1
-  //         counters[1] = 0; // Reset H2
-  //         counters[2] = 0; // Reset H3
-  //         counters[3] = 0; // Reset H4
-  //         counters[4] = 0; // Reset H5
-  //         counters[5] = 0; // Reset H6
-  //         counters[6] = 0; // Reset H7
-  //       } else if (level === 2) {
-  //         counters[1]++; // Increment H2
-  //         counters[2] = 0; // Reset H3
-  //         counters[3] = 0; // Reset H4
-  //         counters[4] = 0; // Reset H5
-  //         counters[5] = 0; // Reset H6
-  //         counters[6] = 0; // Reset H7
-  //       } else if (level === 3) {
-  //         counters[2]++; // Increment H3
-  //         counters[3] = 0; // Reset H4
-  //         counters[4] = 0; // Reset H5
-  //         counters[5] = 0; // Reset H6
-  //         counters[6] = 0; // Reset H7
-  //       } else if (level === 4) {
-  //         counters[3]++; // Increment H4
-  //         counters[4] = 0; // Reset H5
-  //         counters[5] = 0; // Reset H6
-  //         counters[6] = 0; // Reset H7
-  //       } else if (level === 5) {
-  //         counters[4]++; // Increment H5
-  //         counters[5] = 0; // Reset H6
-  //         counters[6] = 0; // Reset H7
-  //       } else if (level === 6) {
-  //         counters[5]++; // Increment H6
-  //         counters[6] = 0; // Reset H7
-  //       } else if (level === 7) {
-  //         counters[6]++; // Increment H7
-  //       }
-
-
-  //       // Generate smart numbering string
-  //       let numberString = '';
-  //       if (listType === 'ol') {
-  //         if (level === 1) {
-  //           numberString = `${counters[0]}.`;
-  //         } else if (level === 2) {
-  //           numberString = `${counters[0]}.${counters[1]}`;
-  //         } else if (level === 3) {
-  //           numberString = `${counters[0]}.${counters[1]}.${counters[2]}`;
-  //         } else if (level === 4) {
-  //           numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}`;
-  //         } else if (level === 5) {
-  //           numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}.${counters[4]}`;
-  //         } else if (level === 6) {
-  //           numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}.${counters[4]}.${counters[5]}`;
-  //         } else if (level === 7) {
-  //           numberString = `${counters[0]}.${counters[1]}.${counters[2]}.${counters[3]}.${counters[4]}.${counters[5]}.${counters[6]}`;
-  //         }
-  //       }
-
-
-  //       // Find page number
-  //       const pageEl = el.closest('.page-container');
-  //       const pageNum = pageEl ? parseInt(pageEl.getAttribute('data-page-index')) + 1 : i + 1;
-
-  //       // Create list item with proper level class and smart numbering
-  //       // FIXED: Ensure href is properly formatted for all levels
-  //       // For unordered list (ul):
-  //       if (listType === 'ul') {
-  //         items.push(`
-  //           <li class="level-${level}">
-  //             <a href="#${id}" data-target="${id}">
-  //               <span class="heading-text">${text}</span>
-  //               <span class="dots"></span>
-  //               <span class="page-num">${pageNum}</span>
-  //             </a>
-  //           </li>
-  //         `);
-  //       } else {
-  //         // For ordered list (ol):
-  //         items.push(`
-  //           <li class="level-${level}">
-  //             <span class="number">${numberString}</span>
-  //             <a href="#${id}" data-target="${id}">
-  //               <span class="heading-text">${text}</span>
-  //               <span class="dots"></span>
-  //               <span class="page-num">${pageNum}</span>
-  //             </a>
-  //           </li>
-  //         `);
-  //       }
-
-  //       console.log(`TOC item created for ${el.tagName} (${level}): href="#${id}"`); // Debug log
-  //     });
-
-  //     // Generate HTML content
-  //     const htmlContent = items.length > 0 ? items.join('') : '<li>No headings found</li>';
-
-  //     // Find existing list component and update it
-  //     const existingList = tocComp.components().find(c => 
-  //       c.get('tagName') === 'ul' || c.get('tagName') === 'ol'
-  //     );
-
-  //     if (existingList) {
-  //       // Remove existing list
-  //       existingList.remove();
-  //     }
-
-  //     // Add new list with correct type
-  //     const newListHtml = `<${listType}>${htmlContent}</${listType}>`;
-  //     const titleComp = tocComp.components().find(c => c.get('tagName') === 'h2');
-
-  //     if (titleComp) {
-  //       // Add after title
-  //       tocComp.components().add(newListHtml, { 
-  //         parse: true,
-  //         at: tocComp.components().indexOf(titleComp) + 1
-  //       });
-  //     } else {
-  //       // Add to end
-  //       tocComp.components().add(newListHtml, { parse: true });
-  //     }
-
-  //     // Force re-render and maintain border state
-  //     tocComp.view.render();
-
-  //     // Restore border state if it was enabled
-  //     const wantBorder = tocComp.get('want-border');
-  //     if (wantBorder) {
-  //       setTimeout(() => {
-  //         const tocContainer = tocComp.view?.el;
-  //         if (tocContainer && !tocContainer.classList.contains('with-borders')) {
-  //           tocContainer.classList.add('with-borders');
-  //         }
-  //       }, 50);
-  //     }
-
-  //     console.log(`TOC generated with ${items.length} items`); // Debug log
-  //   },
-  // });
-
-  // ✅ Auto-update TOC on heading changes
   editor.on('component:add', comp => {
     if (comp.get('type') === 'custom-heading') {
       setTimeout(() => editor.runCommand('generate-toc'), 200);
@@ -575,43 +367,30 @@ function customTableOfContents(editor) {
     }
   });
 
-  // ✅ Enhanced smooth scroll on export with better ID handling
   editor.on('export:html', ({ head, body }) => {
     const scrollScript = `
       <script>
         document.addEventListener('DOMContentLoaded', function () {
-          console.log('TOC scroll handler loaded');
           
           document.querySelectorAll('.table-of-contents a').forEach((link, index) => {
-            console.log('Setting up TOC link', index, 'href:', link.getAttribute('href'));
             
             link.addEventListener('click', function (e) {
               e.preventDefault();
               const targetId = this.getAttribute('href').substring(1);
               const target = document.getElementById(targetId);
-              
-              console.log('TOC link clicked:', targetId, 'Target found:', !!target);
-              
               if (target) {
                 target.scrollIntoView({ 
                   behavior: 'smooth',
                   block: 'start' 
                 });
-                
-                // Add visual feedback
+              
                 target.style.backgroundColor = '#ffffcc';
                 setTimeout(() => {
                   target.style.backgroundColor = '';
                 }, 2000);
               } else {
-                console.warn('Target element not found for ID:', targetId);
               }
             });
-          });
-          
-          // Debug: Log all heading IDs
-          document.querySelectorAll('h1.custom-heading, h2.custom-heading, h3.custom-heading, h4.custom-heading, h5.custom-heading, h6.custom-heading, h7.custom-heading').forEach((heading, index) => {
-            console.log('Heading', index, heading.tagName, 'ID:', heading.id, 'Text:', heading.textContent);
           });
         });
       </script>

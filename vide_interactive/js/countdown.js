@@ -2,34 +2,34 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = t())
     : "function" == typeof define && define.amd
-    ? define([], t)
-    : "object" == typeof exports
-    ? (exports["countdown-component"] = t())
-    : (n["countdown-component"] = t());
+      ? define([], t)
+      : "object" == typeof exports
+        ? (exports["countdown-component"] = t())
+        : (n["countdown-component"] = t());
 })(
   "undefined" != typeof globalThis
     ? globalThis
     : "undefined" != typeof window
-    ? window
-    : this,
+      ? window
+      : this,
   () =>
     (() => {
       "use strict";
       var n = {
-          d: (t, e) => {
-            for (var o in e)
-              n.o(e, o) &&
-                !n.o(t, o) &&
-                Object.defineProperty(t, o, { enumerable: !0, get: e[o] });
-          },
-          o: (n, t) => Object.prototype.hasOwnProperty.call(n, t),
-          r: (n) => {
-            "undefined" != typeof Symbol &&
-              Symbol.toStringTag &&
-              Object.defineProperty(n, Symbol.toStringTag, { value: "Module" }),
-              Object.defineProperty(n, "__esModule", { value: !0 });
-          },
+        d: (t, e) => {
+          for (var o in e)
+            n.o(e, o) &&
+              !n.o(t, o) &&
+              Object.defineProperty(t, o, { enumerable: !0, get: e[o] });
         },
+        o: (n, t) => Object.prototype.hasOwnProperty.call(n, t),
+        r: (n) => {
+          "undefined" != typeof Symbol &&
+            Symbol.toStringTag &&
+            Object.defineProperty(n, Symbol.toStringTag, { value: "Module" }),
+            Object.defineProperty(n, "__esModule", { value: !0 });
+        },
+      },
         t = {};
       n.r(t), n.d(t, { default: () => o });
       var e =
@@ -50,24 +50,24 @@
       const o = function (n, t) {
         void 0 === t && (t = {});
         var o = e(
-            {
-              id: "countdown",
-              label: "Countdown",
-              block: {},
-              props: {},
-              style: "",
-              styleAdditional: "",
-              startTime: "",
-              endText: "EXPIRED",
-              dateInputType: "date",
-              labelDays: "days",
-              labelHours: "hours",
-              labelMinutes: "minutes",
-              labelSeconds: "seconds",
-              classPrefix: "countdown",
-            },
-            t
-          ),
+          {
+            id: "countdown",
+            label: "Countdown",
+            block: {},
+            props: {},
+            style: "",
+            styleAdditional: "",
+            startTime: "",
+            endText: "EXPIRED",
+            dateInputType: "date",
+            labelDays: "days",
+            labelHours: "hours",
+            labelMinutes: "minutes",
+            labelSeconds: "seconds",
+            classPrefix: "countdown",
+          },
+          t
+        ),
           a = o.block,
           c = o.props,
           d = o.style,
@@ -121,11 +121,11 @@
                       return v.indexOf(n) < 0;
                     }));
                   var y = function (n, t, e, o) {
-                      (s.innerHTML = "".concat(n < 10 ? "0" + n : n)),
-                        (l.innerHTML = "".concat(t < 10 ? "0" + t : t)),
-                        (i.innerHTML = "".concat(e < 10 ? "0" + e : e)),
-                        (r.innerHTML = "".concat(o < 10 ? "0" + o : o));
-                    },
+                    (s.innerHTML = "".concat(n < 10 ? "0" + n : n)),
+                      (l.innerHTML = "".concat(t < 10 ? "0" + t : t)),
+                      (i.innerHTML = "".concat(e < 10 ? "0" + e : e)),
+                      (r.innerHTML = "".concat(o < 10 ? "0" + o : o));
+                  },
                     f = function () {
                       var n = new Date().getTime(),
                         t = a - n,
@@ -135,7 +135,7 @@
                         r = Math.floor((t % 6e4) / 1e3);
                       y(s, l, i, r),
                         t < 0 &&
-                          (clearInterval(o.__i_designerCountdownInterval),
+                        (clearInterval(o.__i_designerCountdownInterval),
                           (d.innerHTML = e),
                           (c.style.display = "none"),
                           (d.style.display = ""));

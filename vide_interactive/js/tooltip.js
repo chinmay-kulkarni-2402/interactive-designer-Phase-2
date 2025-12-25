@@ -2,34 +2,34 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = e())
     : "function" == typeof define && define.amd
-    ? define([], e)
-    : "object" == typeof exports
-    ? (exports["tooltip-component"] = e())
-    : (t["tooltip-component"] = e());
+      ? define([], e)
+      : "object" == typeof exports
+        ? (exports["tooltip-component"] = e())
+        : (t["tooltip-component"] = e());
 })(
   "undefined" != typeof globalThis
     ? globalThis
     : "undefined" != typeof window
-    ? window
-    : this,
+      ? window
+      : this,
   () =>
     (() => {
       "use strict";
       var t = {
-          d: (e, n) => {
-            for (var o in n)
-              t.o(n, o) &&
-                !t.o(e, o) &&
-                Object.defineProperty(e, o, { enumerable: !0, get: n[o] });
-          },
-          o: (t, e) => Object.prototype.hasOwnProperty.call(t, e),
-          r: (t) => {
-            "undefined" != typeof Symbol &&
-              Symbol.toStringTag &&
-              Object.defineProperty(t, Symbol.toStringTag, { value: "Module" }),
-              Object.defineProperty(t, "__esModule", { value: !0 });
-          },
+        d: (e, n) => {
+          for (var o in n)
+            t.o(n, o) &&
+              !t.o(e, o) &&
+              Object.defineProperty(e, o, { enumerable: !0, get: n[o] });
         },
+        o: (t, e) => Object.prototype.hasOwnProperty.call(t, e),
+        r: (t) => {
+          "undefined" != typeof Symbol &&
+            Symbol.toStringTag &&
+            Object.defineProperty(t, Symbol.toStringTag, { value: "Module" }),
+            Object.defineProperty(t, "__esModule", { value: !0 });
+        },
+      },
         e = {};
       t.r(e), t.d(e, { default: () => o });
       var n =
@@ -51,47 +51,47 @@
         var o;
         void 0 === e && (e = {});
         var a = n(
-            {
-              id: "tooltip",
-              labelTooltip: "Tooltip",
-              blockTooltip: {},
-              propsTooltip: {},
-              extendTraits: function (t) {
-                return t;
-              },
-              attrTooltip: "data-tooltip",
-              classTooltip: "tooltip-component",
-              style: "",
-              styleAdditional: "",
-              privateClasses: !0,
-              stylableTooltip: [
-                "background-color",
-                "padding",
-                "padding-top",
-                "padding-right",
-                "padding-bottom",
-                "padding-left",
-                "font-family",
-                "font-size",
-                "font-weight",
-                "letter-spacing",
-                "color",
-                "line-height",
-                "text-align",
-                "border-radius",
-                "border-top-left-radius",
-                "border-top-right-radius",
-                "border-bottom-left-radius",
-                "border-bottom-right-radius",
-                "border",
-                "border-width",
-                "border-style",
-                "border-color",
-              ],
-              showTooltipOnStyle: !0,
+          {
+            id: "tooltip",
+            labelTooltip: "Tooltip",
+            blockTooltip: {},
+            propsTooltip: {},
+            extendTraits: function (t) {
+              return t;
             },
-            e
-          ),
+            attrTooltip: "data-tooltip",
+            classTooltip: "tooltip-component",
+            style: "",
+            styleAdditional: "",
+            privateClasses: !0,
+            stylableTooltip: [
+              "background-color",
+              "padding",
+              "padding-top",
+              "padding-right",
+              "padding-bottom",
+              "padding-left",
+              "font-family",
+              "font-size",
+              "font-weight",
+              "letter-spacing",
+              "color",
+              "line-height",
+              "text-align",
+              "border-radius",
+              "border-top-left-radius",
+              "border-top-right-radius",
+              "border-bottom-left-radius",
+              "border-bottom-right-radius",
+              "border",
+              "border-width",
+              "border-style",
+              "border-color",
+            ],
+            showTooltipOnStyle: !0,
+          },
+          e
+        ),
           r = a.propsTooltip,
           l = a.classTooltip,
           i = a.style,
@@ -269,10 +269,10 @@
                           var a = t.getSelected();
                           (null == a ? void 0 : a.is(u)) &&
                             (a.addAttributes((((e = {})[y] = "true"), e)),
-                            t.once("style:target", function () {
-                              var t;
-                              a.addAttributes((((t = {})[y] = "false"), t));
-                            }));
+                              t.once("style:target", function () {
+                                var t;
+                                a.addAttributes((((t = {})[y] = "false"), t));
+                              }));
                         }
                       },
                     },

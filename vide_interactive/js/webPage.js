@@ -131,8 +131,6 @@
           l.add(i, function (e) {
             if (confirm(s)) {
               e.runCommand("core:canvas-clear");
-
-              // Dispatch a custom event
               document.dispatchEvent(new CustomEvent('canvasCleared'));
             }
           });

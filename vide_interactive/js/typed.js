@@ -2,10 +2,10 @@
   "object" == typeof exports && "object" == typeof module
     ? (module.exports = t())
     : "function" == typeof define && define.amd
-    ? define([], t)
-    : "object" == typeof exports
-    ? (exports["typed-component"] = t())
-    : (e["typed-component"] = t());
+      ? define([], t)
+      : "object" == typeof exports
+        ? (exports["typed-component"] = t())
+        : (e["typed-component"] = t());
 })(window, function () {
   return (function (e) {
     var t = {};
@@ -32,8 +32,8 @@
         var n = Object.create(null);
         if (
           (r.r(n),
-          Object.defineProperty(n, "default", { enumerable: !0, value: e }),
-          2 & t && "string" != typeof e)
+            Object.defineProperty(n, "default", { enumerable: !0, value: e }),
+            2 & t && "string" != typeof e)
         )
           for (var o in e)
             r.d(
@@ -49,11 +49,11 @@
         var t =
           e && e.__esModule
             ? function () {
-                return e.default;
-              }
+              return e.default;
+            }
             : function () {
-                return e;
-              };
+              return e;
+            };
         return r.d(t, "a", t), t;
       }),
       (r.o = function (e, t) {
@@ -68,11 +68,11 @@
         return (
           t in e
             ? Object.defineProperty(e, t, {
-                value: r,
-                enumerable: !0,
-                configurable: !0,
-                writable: !0,
-              })
+              value: r,
+              enumerable: !0,
+              configurable: !0,
+              writable: !0,
+            })
             : (e[t] = r),
           e
         );
@@ -100,11 +100,11 @@
           var r = null != arguments[t] ? arguments[t] : {};
           t % 2
             ? c(r, !0).forEach(function (t) {
-                o()(e, t, r[t]);
-              })
+              o()(e, t, r[t]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(r))
-            : c(r).forEach(function (t) {
+              ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(r))
+              : c(r).forEach(function (t) {
                 Object.defineProperty(
                   e,
                   t,
@@ -116,7 +116,7 @@
       }
       var a = function (e) {
         var t =
-            arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
+          arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
           r = e.DomComponents,
           n = Object.keys,
           o = {
@@ -143,8 +143,8 @@
             return "number" == typeof e
               ? "number"
               : "boolean" == typeof e
-              ? "checkbox"
-              : "text";
+                ? "checkbox"
+                : "text";
           },
           a = n(o)
             .filter(function (e) {
@@ -226,7 +226,7 @@
               onStringsChange: function (e, t) {
                 Array.isArray(t) ||
                   (this.set({ strings: t.split("\n") }),
-                  this.trigger("change:script"));
+                    this.trigger("change:script"));
               },
             },
           });
@@ -248,11 +248,11 @@
           var r = null != arguments[t] ? arguments[t] : {};
           t % 2
             ? i(r, !0).forEach(function (t) {
-                o()(e, t, r[t]);
-              })
+              o()(e, t, r[t]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(r))
-            : i(r).forEach(function (t) {
+              ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(r))
+              : i(r).forEach(function (t) {
                 Object.defineProperty(
                   e,
                   t,
@@ -263,27 +263,27 @@
         return e;
       }
       var u = function (e) {
-          var t =
-              arguments.length > 1 && void 0 !== arguments[1]
-                ? arguments[1]
-                : {},
-            r = e.BlockManager,
-            n = t.block;
-          n &&
-            r.add(
-              "typed",
-              p(
-                {
-                  label: "Typed",
-                  category:"Basic",
-                  media:
-                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><path d="M212.3 44l2.3 49.6h-6A60 60 0 00204 75c-3.2-6-7.5-10.5-12.9-13.3a44.9 44.9 0 00-21.1-4.3h-29.8V219c0 13 1.4 21 4.2 24.3 4 4.4 10 6.6 18.2 6.6h7.4v5.7H80.2V250h7.5c9 0 15.3-2.7 19-8.2 2.4-3.3 3.5-10.9 3.5-22.7V57.3H84.8a71 71 0 00-21.1 2.2 29 29 0 00-13.9 11.3 46.1 46.1 0 00-6.9 22.8H37L39.5 44h172.8zM245 22h18v256h-18z"/></svg>',
-                  content: { type: "typed" },
-                },
-                n
-              )
-            );
-        },
+        var t =
+          arguments.length > 1 && void 0 !== arguments[1]
+            ? arguments[1]
+            : {},
+          r = e.BlockManager,
+          n = t.block;
+        n &&
+          r.add(
+            "typed",
+            p(
+              {
+                label: "Typed",
+                category: "Basic",
+                media:
+                  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><path d="M212.3 44l2.3 49.6h-6A60 60 0 00204 75c-3.2-6-7.5-10.5-12.9-13.3a44.9 44.9 0 00-21.1-4.3h-29.8V219c0 13 1.4 21 4.2 24.3 4 4.4 10 6.6 18.2 6.6h7.4v5.7H80.2V250h7.5c9 0 15.3-2.7 19-8.2 2.4-3.3 3.5-10.9 3.5-22.7V57.3H84.8a71 71 0 00-21.1 2.2 29 29 0 00-13.9 11.3 46.1 46.1 0 00-6.9 22.8H37L39.5 44h172.8zM245 22h18v256h-18z"/></svg>',
+                content: { type: "typed" },
+              },
+              n
+            )
+          );
+      },
         f = function (e) {
           e.TraitManager.addType("typed-strings", {
             createInput: function (e) {
@@ -316,11 +316,11 @@
           var r = null != arguments[t] ? arguments[t] : {};
           t % 2
             ? l(r, !0).forEach(function (t) {
-                o()(e, t, r[t]);
-              })
+              o()(e, t, r[t]);
+            })
             : Object.getOwnPropertyDescriptors
-            ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(r))
-            : l(r).forEach(function (t) {
+              ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(r))
+              : l(r).forEach(function (t) {
                 Object.defineProperty(
                   e,
                   t,
@@ -332,7 +332,7 @@
       }
       t.default = function (e) {
         var t =
-            arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
+          arguments.length > 1 && void 0 !== arguments[1] ? arguments[1] : {},
           r = d(
             {},
             {

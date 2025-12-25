@@ -1,5 +1,3 @@
-// grapesjs-hide-on-print.js
-
 function grapesjsHideOnPrint(editor, opts = {}) {
   const TRAIT_NAME = opts.traitName || 'hideOnPrint';
   const CLASS_NAME = opts.className || 'hide-on-print';
@@ -33,7 +31,6 @@ function grapesjsHideOnPrint(editor, opts = {}) {
       component._hasHideOnPrintHandler = true;
     }
 
-    // Recurse through nested components
     component.get('components').forEach(child => applyTraitToComponent(child));
   };
 
@@ -41,7 +38,6 @@ function grapesjsHideOnPrint(editor, opts = {}) {
     const wrapper = editor.getWrapper();
     applyTraitToComponent(wrapper);
 
-    // Inject print CSS
     const style = `
       <style>
         @media print {
@@ -54,7 +50,6 @@ function grapesjsHideOnPrint(editor, opts = {}) {
     editor.addComponents(style);
   });
 
-  // Apply to all newly added components
   editor.on('component:add', component => {
     applyTraitToComponent(component);
   });

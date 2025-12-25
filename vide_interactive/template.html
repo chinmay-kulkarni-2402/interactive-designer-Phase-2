@@ -74,7 +74,7 @@
 
   <script>
     let allpage = [];
-    const apiBase = "http://192.168.0.188:8081/api";
+    const apiBase = "API_BASE_URL";
     const getAllUrl = `${apiBase}/getTemplate`;
     const deleteUrl = `${apiBase}/deleteTemplate/`;
     const getByIdUrl = `${apiBase}/getTemplate/`;
@@ -115,25 +115,57 @@
       });
     }
 
+    //IndexedDB Details
+
+    const DB_NAME = "TemplateEditorDB";
+    const DB_VERSION = 1;
+    const STORE_NAME = "pages";
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onupgradeneeded = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function saveToIndexedDB(key, value) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).put(value, key);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+
     // ✅ Edit template
     function editTemplate(id, name) {
+
       const url = getByIdUrl + id;
-      console.log("Edit API:", url);
 
       fetch(url)
         .then(response => response.json())
-        .then(data => {
-          console.log("Fetched template data:", data);
+        .then(async data => {
+         // console.log("Fetched template data:", data);
 
-          const htmlContent = data.EditableHtml;
-          sessionStorage.setItem('single-page', JSON.stringify(htmlContent));
+          await saveToIndexedDB("single-page", data.EditableHtml);
+
           localStorage.setItem('editTemplateId', data.id);
           localStorage.setItem('editTemplateName', data.name);
 
           window.location.href = "index.html";
         })
         .catch(error => {
-          console.error("Error fetching template for editing:", error);
           alert("Failed to load template for editing");
         });
     }
@@ -143,7 +175,6 @@
       if (!confirm("Are you sure you want to delete this template?")) return;
 
       const url = deleteUrl + id;
-      console.log("Delete API:", url);
 
       fetch(url, { method: "DELETE" })
         .then(response => {
@@ -153,7 +184,6 @@
           alert("Template deleted successfully");
         })
         .catch(error => {
-          console.error("Error deleting template:", error);
           alert("Error deleting template");
         });
     }

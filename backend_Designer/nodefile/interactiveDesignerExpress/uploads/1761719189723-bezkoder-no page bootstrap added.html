@@ -1,0 +1,5332 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/buttons/1.2.4/css/buttons.dataTables.min.css"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      #ieq9 {
+        padding: 10px;
+        background-color: #c37d7d;
+        border-radius: 15px 15px 15px 15px;
+        border: 5px double black;
+      }
+
+      #il0l {
+        border-top: 1px solid #000000;
+        width: 100%;
+        margin: 5px auto;
+        display: block;
+        padding: 2.5px;
+      }
+
+      #idgg {
+        color: black;
+        width: 257.1999988555908px;
+        height: 257px;
+      }
+
+      .navbar-div .hamburger-menu {
+        display: none !important;
+        text-align: right;
+        font-size: 30px;
+        padding: 10px;
+        color: #472e90;
+        cursor: pointer;
+      }
+
+      #i6kfw {
+        padding: 2px;
+        width: 100%;
+      }
+
+      #iqrwa {
+        width: 100%;
+        padding: 10px 0px;
+        margin-left: 0px;
+        background-color: #d08d8d;
+        border-radius: 15px 15px 15px 15px;
+        border: 5px solid black;
+      }
+
+      #iucnl {
+        min-height: 45px;
+        background-color: #54b1c4;
+      }
+
+      #i2zhs {
+        min-height: 45px;
+        background-color: #319f32;
+      }
+
+      #izy5u {
+        padding: 10px;
+      }
+
+      #ivmqe {
+        padding: 10px;
+      }
+
+      #iurwll {
+        height: 350px;
+      }
+
+      @media (max-width: 991px) {
+        .navbar-div .hamburger-menu {
+          display: block !important;
+        }
+
+        .navbar-div .tab-container,
+        .navbar-div .tab {
+          width: 99%;
+          text-align: center;
+        }
+
+        .navbar-div .tab-container {
+          display: none;
+        }
+      }
+
+      @media (max-width: 767px) {
+        .navbar-div .hamburger-menu {
+          display: block !important;
+        }
+
+        .navbar-div .tab-container,
+        .navbar-div .tab {
+          width: 98%;
+        }
+
+        .navbar-div .tab-container {
+          display: none;
+        }
+      }
+    </style>
+    <script
+      src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+      defer
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+      defer
+    ></script>
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js" defer></script>
+    <script
+      src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jszip/2.5.0/jszip.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/pdfmake.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.rawgit.com/bpampuch/pdfmake/0.1.24/build/vfs_fonts.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/buttons/1.2.4/js/buttons.html5.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/buttons/1.2.1/js/buttons.print.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/buttons/1.2.4/js/dataTables.buttons.min.js"
+      defer
+    ></script>
+    <script src="https://code.highcharts.com/stock/highstock.js" defer></script>
+    <script src="https://code.highcharts.com/highcharts-3d.js" defer></script>
+    <script src="https://code.highcharts.com/highcharts-more.js" defer></script>
+    <script src="https://code.highcharts.com/modules/data.js" defer></script>
+    <script
+      src="https://code.highcharts.com/modules/exporting.js"
+      defer
+    ></script>
+    <script
+      src="https://code.highcharts.com/modules/accessibility.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js"
+      defer
+    ></script>
+    <script
+      src="https://code.highcharts.com/modules/drilldown.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"
+      defer
+    ></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/hot-formula-parser@4.0.0/dist/formula-parser.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/html-to-rtf@2.1.0/app/browser/bundle.min.js"
+      defer
+    ></script>
+  </head>
+
+  <body>
+    <div>
+      <div id="ieq9">
+        <h3 data-start="3780" data-end="3811">
+          &nbsp;Summary of what changed:
+        </h3>
+        <ul data-start="3812" data-end="4081">
+          <li data-start="3812" data-end="3859">
+            <p data-start="3814" data-end="3859">
+              Removed the previous margin-cleaning logic.
+            </p>
+          </li>
+          <li data-start="3860" data-end="3981">
+            <p data-start="3862" data-end="3884">Added a new step that:</p>
+            <ul data-start="3887" data-end="3981">
+              <li data-start="3887" data-end="3935">
+                <p data-start="3889" data-end="3935">
+                  Finds all elements with the specified classes.
+                </p>
+              </li>
+              <li data-start="3938" data-end="3981">
+                <p data-start="3940" data-end="3981">
+                  Removes their
+                  <code data-start="3954" data-end="3958">id</code> attributes
+                  if present.
+                </p>
+              </li>
+            </ul>
+          </li>
+          <li data-start="3982" data-end="4013">
+            <p data-start="3984" data-end="4013">
+              Keeps your
+              <code data-start="3995" data-end="4000">css</code> untouched.
+            </p>
+          </li>
+          <li data-start="4014" data-end="4081">
+            <p data-start="4016" data-end="4081">
+              Rebuilds
+              <code data-start="4025" data-end="4036">finalHtml</code> using the
+              cleaned HTML and the original CSS.
+            </p>
+          </li>
+        </ul>
+      </div>
+      <div id="ieq9">
+        <h3 data-start="3780" data-end="3811">
+          &nbsp;Summary of what changed:
+        </h3>
+        <ul data-start="3812" data-end="4081">
+          <li data-start="3812" data-end="3859">
+            <p data-start="3814" data-end="3859">
+              Removed the previous margin-cleaning logic.
+            </p>
+          </li>
+          <li data-start="3860" data-end="3981">
+            <p data-start="3862" data-end="3884">Added a new step that:</p>
+            <ul data-start="3887" data-end="3981">
+              <li data-start="3887" data-end="3935">
+                <p data-start="3889" data-end="3935">
+                  Finds all elements with the specified classes.
+                </p>
+              </li>
+              <li data-start="3938" data-end="3981">
+                <p data-start="3940" data-end="3981">
+                  Removes their
+                  <code data-start="3954" data-end="3958">id</code> attributes
+                  if present.
+                </p>
+              </li>
+            </ul>
+          </li>
+          <li data-start="3982" data-end="4013">
+            <p data-start="3984" data-end="4013">
+              Keeps your
+              <code data-start="3995" data-end="4000">css</code> untouched.
+            </p>
+          </li>
+          <li data-start="4014" data-end="4081">
+            <p data-start="4016" data-end="4081">
+              Rebuilds
+              <code data-start="4025" data-end="4036">finalHtml</code> using the
+              cleaned HTML and the original CSS.
+            </p>
+          </li>
+        </ul>
+      </div>
+      <div id="ieq9">
+        <h3 data-start="3780" data-end="3811">
+          &nbsp;Summary of what changed:
+        </h3>
+        <ul data-start="3812" data-end="4081">
+          <li data-start="3812" data-end="3859">
+            <p data-start="3814" data-end="3859">
+              Removed the previous margin-cleaning logic.
+            </p>
+          </li>
+          <li data-start="3860" data-end="3981">
+            <p data-start="3862" data-end="3884">Added a new step that:</p>
+            <ul data-start="3887" data-end="3981">
+              <li data-start="3887" data-end="3935">
+                <p data-start="3889" data-end="3935">
+                  Finds all elements with the specified classes.
+                </p>
+              </li>
+              <li data-start="3938" data-end="3981">
+                <p data-start="3940" data-end="3981">
+                  Removes their
+                  <code data-start="3954" data-end="3958">id</code> attributes
+                  if present.
+                </p>
+              </li>
+            </ul>
+          </li>
+          <li data-start="3982" data-end="4013">
+            <p data-start="3984" data-end="4013">
+              Keeps your
+              <code data-start="3995" data-end="4000">css</code> untouched.
+            </p>
+          </li>
+          <li data-start="4014" data-end="4081">
+            <p data-start="4016" data-end="4081">
+              Rebuilds
+              <code data-start="4025" data-end="4036">finalHtml</code> using the
+              cleaned HTML and the original CSS.
+            </p>
+          </li>
+        </ul>
+      </div>
+      <div id="ieq9">
+        <h3 data-start="3780" data-end="3811">
+          &nbsp;Summary of what changed:
+        </h3>
+        <ul data-start="3812" data-end="4081">
+          <li data-start="3812" data-end="3859">
+            <p data-start="3814" data-end="3859">
+              Removed the previous margin-cleaning logic.
+            </p>
+          </li>
+          <li data-start="3860" data-end="3981">
+            <p data-start="3862" data-end="3884">Added a new step that:</p>
+            <ul data-start="3887" data-end="3981">
+              <li data-start="3887" data-end="3935">
+                <p data-start="3889" data-end="3935">
+                  Finds all elements with the specified classes.
+                </p>
+              </li>
+              <li data-start="3938" data-end="3981">
+                <p data-start="3940" data-end="3981">
+                  Removes their
+                  <code data-start="3954" data-end="3958">id</code> attributes
+                  if present.
+                </p>
+              </li>
+            </ul>
+          </li>
+          <li data-start="3982" data-end="4013">
+            <p data-start="3984" data-end="4013">
+              Keeps your
+              <code data-start="3995" data-end="4000">css</code> untouched.
+            </p>
+          </li>
+          <li data-start="4014" data-end="4081">
+            <p data-start="4016" data-end="4081">
+              Rebuilds
+              <code data-start="4025" data-end="4036">finalHtml</code> using the
+              cleaned HTML and the original CSS.
+            </p>
+          </li>
+        </ul>
+      </div>
+      <div id="ieq9">
+        <h3 data-start="3780" data-end="3811">
+          &nbsp;Summary of what changed:
+        </h3>
+        <ul data-start="3812" data-end="4081">
+          <li data-start="3812" data-end="3859">
+            <p data-start="3814" data-end="3859">
+              Removed the previous margin-cleaning logic.
+            </p>
+          </li>
+          <li data-start="3860" data-end="3981">
+            <p data-start="3862" data-end="3884">Added a new step that:</p>
+            <ul data-start="3887" data-end="3981">
+              <li data-start="3887" data-end="3935">
+                <p data-start="3889" data-end="3935">
+                  Finds all elements with the specified classes.
+                </p>
+              </li>
+              <li data-start="3938" data-end="3981">
+                <p data-start="3940" data-end="3981">
+                  Removes their
+                  <code data-start="3954" data-end="3958">id</code> attributes
+                  if present.
+                </p>
+              </li>
+            </ul>
+          </li>
+          <li data-start="3982" data-end="4013">
+            <p data-start="3984" data-end="4013">
+              Keeps your
+              <code data-start="3995" data-end="4000">css</code> untouched.
+            </p>
+          </li>
+          <li data-start="4014" data-end="4081">
+            <p data-start="4016" data-end="4081">
+              Rebuilds
+              <code data-start="4025" data-end="4036">finalHtml</code> using the
+              cleaned HTML and the original CSS.
+            </p>
+          </li>
+        </ul>
+      </div>
+      <div id="ieq9">
+        <h3 data-start="3780" data-end="3811">
+          &nbsp;Summary of what changed:
+        </h3>
+        <ul data-start="3812" data-end="4081">
+          <li data-start="3812" data-end="3859">
+            <p data-start="3814" data-end="3859">
+              Removed the previous margin-cleaning logic.
+            </p>
+          </li>
+          <li data-start="3860" data-end="3981">
+            <p data-start="3862" data-end="3884">Added a new step that:</p>
+            <ul data-start="3887" data-end="3981">
+              <li data-start="3887" data-end="3935">
+                <p data-start="3889" data-end="3935">
+                  Finds all elements with the specified classes.
+                </p>
+              </li>
+              <li data-start="3938" data-end="3981">
+                <p data-start="3940" data-end="3981">
+                  Removes their
+                  <code data-start="3954" data-end="3958">id</code> attributes
+                  if present.
+                </p>
+              </li>
+            </ul>
+          </li>
+          <li data-start="3982" data-end="4013">
+            <p data-start="3984" data-end="4013">
+              Keeps your
+              <code data-start="3995" data-end="4000">css</code> untouched.
+            </p>
+          </li>
+          <li data-start="4014" data-end="4081">
+            <p data-start="4016" data-end="4081">
+              Rebuilds
+              <code data-start="4025" data-end="4036">finalHtml</code> s the
+              cleaned HTML and the original CSS.
+            </p>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <hr id="il0l" />
+    <img
+      id="idgg"
+      src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjIiIGhlaWdodD0iMjIiIHZpZXdCb3g9IjAgMCAyMiAyMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE5LjE2NjcgMC41SDIuODMzMzNDMS41NSAwLjUgMC41IDEuNTUgMC41IDIuODMzMzNWMTkuMTY2N0MwLjUgMjAuNDUgMS41NSAyMS41IDIuODMzMzMgMjEuNUgxOS4xNjY3QzIwLjQ1IDIxLjUgMjEuNSAyMC40NSAyMS41IDE5LjE2NjdWMi44MzMzM0MyMS41IDEuNTUgMjAuNDUgMC41IDE5LjE2NjcgMC41Wk04LjA4MzMzIDEwLjQxNjdDOC4wODMzMyAxMS4zNSA3LjI2NjY3IDEyLjE2NjcgNi4zMzMzMyAxMi4xNjY3SDUuMTY2NjdWMTQuNUgzLjQxNjY3VjcuNUg2LjMzMzMzQzcuMjY2NjcgNy41IDguMDgzMzMgOC4zMTY2NyA4LjA4MzMzIDkuMjVWMTAuNDE2N1pNMTMuOTE2NyAxMi43NUMxMy45MTY3IDEzLjY4MzMgMTMuMSAxNC41IDEyLjE2NjcgMTQuNUg5LjI1VjcuNUgxMi4xNjY3QzEzLjEgNy41IDEzLjkxNjcgOC4zMTY2NyAxMy45MTY3IDkuMjVWMTIuNzVaTTE4LjU4MzMgOS4yNUgxNi44MzMzVjEwLjQxNjdIMTguNTgzM1YxMi4xNjY3SDE2LjgzMzNWMTQuNUgxNS4wODMzVjcuNUgxOC41ODMzVjkuMjVaTTExIDkuMjVIMTIuMTY2N1YxMi43NUgxMVY5LjI1Wk01LjE2NjY3IDkuMjVINi4zMzMzM1YxMC40MTY3SDUuMTY2NjdWOS4yNVoiIGZpbGw9IiMwMDYxQTEiLz4KPC9zdmc+Cg=="
+    />
+    <figure data-i_designer-type="custom_line_chart" id="i6kfw"></figure>
+    <div id="iqrwa" class="row">
+      <div id="iucnl" class="col-lg-6">
+        <div id="ivmqe">i am column 1</div>
+      </div>
+      <div id="i2zhs" class="col-lg-6">
+        <div id="izy5u">i am column 2</div>
+      </div>
+    </div>
+    <div>
+      <img
+  id="iurwll"
+  src="https://staticmap.openstreetmap.de/staticmap.php?center=28.6139,77.2090&zoom=5&size=800x350"
+  style="width:100%;height:350px;border:0;"
+  alt="OpenStreetMap"
+/>
+
+
+      <!-- <iframe frameborder="0" id="iurwll"
+            src="https://maps.google.com/maps?&amp;z=1&amp;t=q&amp;output=embed"></iframe> -->
+
+      <button type="button" class="btn btn-primary">Primary</button>
+      <button type="button" class="btn btn-secondary">Secondary</button>
+      <button type="button" class="btn btn-success">Success</button>
+      <button type="button" class="btn btn-danger">Danger</button>
+      <button type="button" class="btn btn-warning">Warning</button>
+      <button type="button" class="btn btn-info">Info</button>
+      <button type="button" class="btn btn-light">Light</button>
+      <button type="button" class="btn btn-dark">Dark</button>
+      <table
+        id="table471"
+        width="100%"
+        class="table table-striped table-bordered"
+      >
+        <thead>
+          <tr>
+            <th>
+              <div>Text</div>
+            </th>
+            <th>
+              <div>Text</div>
+            </th>
+            <th>
+              <div>Text</div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+            <td>
+              <div>Text</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <script>
+      (function () {
+        window.enableFormulaEditing = function (tableId) {
+          try {
+            if (!window.formulaParser || !window.formulaParser.Parser) {
+              console.warn("Formula parser not available");
+              return;
+            }
+
+            let parser = window.globalFormulaParser;
+
+            if (!parser) {
+              parser = new window.formulaParser.Parser();
+              window.globalFormulaParser = parser;
+
+              // Register custom formulas
+              parser.setFunction("PERCENT", function (params) {
+                if (params.length !== 2) return "#N/A";
+                const base = parseFloat(params[0]);
+                const percent = parseFloat(params[1]);
+                if (isNaN(base) || isNaN(percent)) return "#VALUE!";
+                const result = base * (percent / 100);
+                return Number.isInteger(result)
+                  ? result
+                  : parseFloat(result.toFixed(10));
+              });
+
+              if (window.numberToWords && window.numberToWords.toWords) {
+                parser.setFunction("NUMTOWORDS", function (params) {
+                  if (params.length !== 1) return "#N/A";
+                  const num = parseFloat(params[0]);
+                  if (isNaN(num)) return "#VALUE!";
+
+                  try {
+                    const integerPart = Math.floor(num);
+                    const decimalPart = num - integerPart;
+
+                    if (decimalPart === 0) {
+                      return window.numberToWords.toWords(integerPart);
+                    } else {
+                      const integerWords =
+                        window.numberToWords.toWords(integerPart);
+                      const decimalString = decimalPart
+                        .toFixed(10)
+                        .replace(/0+$/, "")
+                        .substring(2);
+                      return (
+                        integerWords +
+                        " point " +
+                        decimalString
+                          .split("")
+                          .map((d) => window.numberToWords.toWords(parseInt(d)))
+                          .join(" ")
+                      );
+                    }
+                  } catch (error) {
+                    return "#ERROR";
+                  }
+                });
+              }
+            }
+
+            // Enhanced parser with range support
+            parser.on("callCellValue", function (cellCoord, done) {
+              let col = cellCoord.column.index;
+              let row = cellCoord.row.index;
+              let tableElem = document.getElementById(tableId);
+              let cell = tableElem.rows[row]?.cells[col];
+              if (cell) {
+                let val = cell.getAttribute("data-formula") || cell.innerText;
+                if (val.startsWith("=")) {
+                  try {
+                    let res = parser.parse(val.substring(1));
+                    done(res.result);
+                  } catch {
+                    done("#ERROR");
+                  }
+                } else {
+                  done(parseFloat(val) || val);
+                }
+              } else {
+                done(null);
+              }
+            });
+
+            // Enhanced parser for range support (A1:A5)
+            parser.on(
+              "callRangeValue",
+              function (startCellCoord, endCellCoord, done) {
+                let tableElem = document.getElementById(tableId);
+                let values = [];
+
+                let startRow = Math.min(
+                  startCellCoord.row.index,
+                  endCellCoord.row.index
+                );
+                let endRow = Math.max(
+                  startCellCoord.row.index,
+                  endCellCoord.row.index
+                );
+                let startCol = Math.min(
+                  startCellCoord.column.index,
+                  endCellCoord.column.index
+                );
+                let endCol = Math.max(
+                  startCellCoord.column.index,
+                  endCellCoord.column.index
+                );
+
+                for (let row = startRow; row <= endRow; row++) {
+                  for (let col = startCol; col <= endCol; col++) {
+                    let cell = tableElem.rows[row]?.cells[col];
+                    if (cell) {
+                      let val =
+                        cell.getAttribute("data-formula") || cell.innerText;
+                      if (val.startsWith("=")) {
+                        try {
+                          let res = parser.parse(val.substring(1));
+                          values.push(res.result);
+                        } catch {
+                          values.push(0);
+                        }
+                      } else {
+                        values.push(parseFloat(val) || 0);
+                      }
+                    } else {
+                      values.push(0);
+                    }
+                  }
+                }
+                done(values);
+              }
+            );
+
+            // Attach cell listeners
+            const tableElem = document.getElementById(tableId);
+            if (!tableElem) return;
+
+            tableElem.querySelectorAll("td, th").forEach((cell) => {
+              if (cell.hasAttribute("data-formula-enabled")) return;
+
+              cell.contentEditable = "true";
+              cell.setAttribute("data-formula-enabled", "true");
+
+              cell.addEventListener("focus", function () {
+                let formula = this.getAttribute("data-formula");
+                if (formula) this.innerText = formula;
+              });
+
+              cell.addEventListener("blur", function () {
+                const cell = this;
+                let val = cell.innerText.trim();
+
+                if (val.startsWith("=")) {
+                  cell.setAttribute("data-formula", val);
+                  try {
+                    const formulaContent = val.substring(1).trim();
+                    if (!formulaContent) throw new Error("Empty formula");
+
+                    const res = parser.parse(formulaContent);
+                    if (res.error) throw new Error(res.error);
+
+                    cell.innerText =
+                      res.result !== undefined && res.result !== null
+                        ? res.result
+                        : "#ERROR";
+                    cell.classList.remove("formula-error");
+                  } catch (error) {
+                    console.warn("Formula parsing error:", error);
+                    cell.innerText = "#ERROR";
+                    cell.classList.add("formula-error");
+                  }
+                } else {
+                  cell.removeAttribute("data-formula");
+                  cell.innerText = val;
+                  cell.classList.remove("formula-error");
+                }
+              });
+
+              // Tab navigation
+              cell.addEventListener("keydown", function (e) {
+                if (e.key === "Tab") {
+                  e.preventDefault();
+                  const table = this.closest("table");
+                  const allCells = Array.from(table.querySelectorAll("td, th"));
+                  const currentIndex = allCells.indexOf(this);
+
+                  let nextIndex;
+                  if (e.shiftKey) {
+                    nextIndex =
+                      currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+                  } else {
+                    nextIndex =
+                      currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+                  }
+                  allCells[nextIndex].focus();
+                }
+              });
+            });
+          } catch (error) {
+            console.error("Error in enableFormulaEditing:", error);
+          }
+        };
+
+        // Wait for jQuery and DataTables to be available
+        function initTable() {
+          if (
+            typeof $ === "undefined" ||
+            typeof $.fn.DataTable === "undefined"
+          ) {
+            setTimeout(initTable, 100);
+            return;
+          }
+
+          const tableElement = document.getElementById("table471");
+          const isInPageSystem =
+            tableElement && tableElement.closest(".page-container");
+
+          // Configure DataTable options based on context
+          const dtOptions = {
+            dom: "Bfrtip",
+            paging: false,
+            info: false,
+            lengthChange: true,
+            fixedHeader: true,
+            scrollX: false,
+            fixedColumns: false,
+            searching: false,
+            buttons: [],
+            ordering: false,
+            order: [],
+            drawCallback: function () {
+              // ✅ Now enableFormulaEditing is available in iframe context
+              setTimeout(() => enableFormulaEditing("table471"), 100);
+
+              if (isInPageSystem) {
+                const wrapper = this.closest(".dataTables_wrapper");
+                if (wrapper) {
+                  wrapper.style.maxWidth = "100%";
+                  wrapper.style.overflow = "hidden";
+                }
+              }
+            },
+            responsive: isInPageSystem
+              ? {
+                  details: {
+                    display:
+                      $.fn.dataTable.Responsive.display.childRowImmediate,
+                    type: "none",
+                    target: "",
+                  },
+                }
+              : false,
+          };
+
+          $("#table471").DataTable(dtOptions);
+        }
+
+        initTable();
+      })();
+    </script>
+    <script>
+      var hamburgerMenu = document.getElementById("hamburgerMenu");
+      if (hamburgerMenu !== null) {
+        var tabContainer = document.querySelector(".tab-container");
+        hamburgerMenu.addEventListener("click", function () {
+          if (tabContainer.style.display === "block") {
+            tabContainer.style.display = "none";
+          } else {
+            tabContainer.style.display = "block";
+          }
+        });
+        function updateView() {
+          const viewportWidth = Math.max(
+            document.documentElement.clientWidth,
+            window.innerWidth || 0
+          );
+          const tabContainer = document.querySelector(".tab-container");
+          if (viewportWidth >= 991) {
+            tabContainer.style.display = "block";
+          } else {
+            tabContainer.style.display = "none";
+          }
+        }
+        window.addEventListener("resize", updateView);
+      }
+    </script>
+    <script>
+      var items = document.querySelectorAll("#i6kfw");
+      for (var i = 0, len = items.length; i < len; i++) {
+        (function () {
+          const initializeChart = () => {
+            const ctx = this.id;
+            const element = document.getElementById(ctx);
+
+            if (!element) {
+              console.warn("Chart container not found:", ctx);
+              return;
+            }
+
+            let chart_Title = "" || "Chart Title";
+            let chart_Title_align = "" || "left";
+            let JsonPath1 = "" || "";
+            let chartType = "bar" || "pie";
+            let chart_yAxis = "" || "Values";
+            let chart_layout = "" || "horizontal";
+            let swapAxis = "" === "true" || false;
+            let legendColors = "" || "";
+            let customColors = null;
+            if (legendColors && legendColors.trim()) {
+              customColors = legendColors
+                .split(",")
+                .map((color) => color.trim())
+                .filter(
+                  (color) =>
+                    color && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)
+                );
+
+              if (customColors.length === 0) {
+                customColors = null;
+              }
+            }
+
+            let language = "english";
+            let project_type = "developmentJsonType";
+            let str = null;
+            let seriesData = {};
+
+            try {
+              if (typeof localStorage !== "undefined") {
+                language = localStorage.getItem("language") || "english";
+                const common_json_data = JSON.parse(
+                  localStorage.getItem("common_json") || "null"
+                );
+                if (common_json_data && JsonPath1) {
+                  str =
+                    common_json_data[language] &&
+                    common_json_data[language][JsonPath1];
+                }
+              }
+
+              if (
+                typeof project_type2 !== "undefined" &&
+                project_type2 === "downloadedJsonType"
+              ) {
+                project_type = "downloadedJsonType";
+                if (
+                  typeof jsonData1 !== "undefined" &&
+                  jsonData1[0] &&
+                  JsonPath1
+                ) {
+                  str =
+                    jsonData1[0][language] && jsonData1[0][language][JsonPath1];
+                }
+              }
+
+              if (str) {
+                seriesData = eval(str);
+                if (!seriesData.series) {
+                  throw new Error("Series array not found");
+                }
+              }
+            } catch (e) {
+              console.warn(
+                "JSON path evaluation failed, using default data:",
+                e.message
+              );
+              seriesData = {};
+            }
+
+            let seriesData2 = {};
+            let chartAlign = chart_layout + "Align";
+
+            if (chartType === "pie") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      data: [
+                        {
+                          name: "Chrome",
+                          y: 70.67,
+                        },
+                        {
+                          name: "Edge",
+                          y: 14.77,
+                        },
+                        {
+                          name: "Firefox",
+                          y: 4.86,
+                        },
+                      ],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: chartType,
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                series: seriesData.series,
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>",
+                },
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                credits: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    colors: customColors,
+                    dataLabels: {
+                      enabled: false,
+                    },
+                    showInLegend: true,
+                    animation: false,
+                  },
+                },
+              };
+            }
+
+            if (chartType === "bar") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: [
+                      "Africa",
+                      "America",
+                      "Asia",
+                      "Europe",
+                      "Oceania",
+                    ],
+                  },
+                  series: [
+                    {
+                      name: "Year 1990",
+                      data: [631, 727, 3202, 721, 26],
+                    },
+                    {
+                      name: "Year 2000",
+                      data: [814, 841, 3714, 726, 31],
+                    },
+                    {
+                      name: "Year 2010",
+                      data: [1044, 944, 4170, 735, 40],
+                    },
+                    {
+                      name: "Year 2018",
+                      data: [1276, 1007, 4561, 746, 42],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: "bar",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                  title: {
+                    text: null,
+                  },
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                tooltip: {
+                  valueSuffix: " millions",
+                },
+                plotOptions: {
+                  bar: {
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "top",
+                  x: -40,
+                  y: 80,
+                  floating: true,
+                  borderWidth: 1,
+                  backgroundColor: "#FFFFFF",
+                  shadow: true,
+                },
+                credits: {
+                  enabled: false,
+                },
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "line") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Installation & Developers",
+                      data: [
+                        43934, 48656, 65165, 81827, 112143, 142383, 171533,
+                        165174, 155157, 161454, 154610,
+                      ],
+                    },
+                    {
+                      name: "Manufacturing",
+                      data: [
+                        24916, 37941, 29742, 29851, 32490, 30282, 38121, 36885,
+                        33726, 34243, 31050,
+                      ],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: "line",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                series: seriesData.series,
+                xAxis: {
+                  accessibility: {
+                    rangeDescription: "",
+                  },
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "middle",
+                },
+                plotOptions: {
+                  series: {
+                    label: {
+                      connectorAllowed: false,
+                    },
+                    pointStart: 2010,
+                    colors: customColors,
+                    animation: false,
+                  },
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout,
+                          align: "center",
+                          [chartAlign]: "bottom",
+                        },
+                      },
+                    },
+                  ],
+                },
+                colors: null,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "column") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ["Africa", "America", "Asia"],
+                  },
+                  series: [
+                    {
+                      name: "Year 1990",
+                      data: [631, 727, 3202],
+                    },
+                    {
+                      name: "Year 2000",
+                      data: [814, 841, 3714],
+                    },
+                    {
+                      name: "Year 2010",
+                      data: [1044, 944, 4170],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: "column",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                  title: {
+                    text: null,
+                  },
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis,
+                  },
+                  labels: {
+                    overflow: "justify",
+                  },
+                },
+                tooltip: {
+                  valueSuffix: " millions",
+                },
+                plotOptions: {
+                  column: {
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "top",
+                  x: -40,
+                  y: 80,
+                  floating: true,
+                  borderWidth: 1,
+                  backgroundColor: "#FFFFFF",
+                  shadow: true,
+                },
+                credits: {
+                  enabled: false,
+                },
+
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "stacked-column") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ["Arsenal", "Chelsea"],
+                  },
+                  series: [
+                    {
+                      name: "BPL",
+                      data: [3, 55],
+                    },
+                    {
+                      name: "FA Cup",
+                      data: [14, 8],
+                    },
+                    {
+                      name: "CL",
+                      data: [0, 2],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "column",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis,
+                  },
+                  stackLabels: {
+                    enabled: true,
+                    style: {
+                      fontWeight: "bold",
+                      color: "gray",
+                      textOutline: "none",
+                    },
+                  },
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "left",
+                  x: 70,
+                  verticalAlign: "top",
+                  y: 70,
+                  floating: true,
+                  backgroundColor: "white",
+                  borderColor: "#CCC",
+                  borderWidth: 1,
+                  shadow: false,
+                },
+                tooltip: {
+                  headerFormat: "<b>{point.x}</b><br/>",
+                  pointFormat:
+                    "{series.name}: {point.y}<br/>Total: {point.stackTotal}",
+                },
+                plotOptions: {
+                  column: {
+                    stacking: "normal",
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "stacked-bar") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ["2020/21", "2019/20", "2018/19"],
+                  },
+                  series: [
+                    {
+                      name: "Cristiano Ronaldo",
+                      data: [4, 4, 6],
+                    },
+                    {
+                      name: "Lionel Messi",
+                      data: [5, 3, 12],
+                    },
+                    {
+                      name: "Robert Lewandowski",
+                      data: [5, 15, 8],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "bar",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                legend: {
+                  reversed: true,
+                },
+                plotOptions: {
+                  series: {
+                    stacking: "normal",
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "drilldown_bar") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Browsers",
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: "Chrome",
+                          y: 61.04,
+                          drilldown: "Chrome",
+                        },
+                        {
+                          name: "Safari",
+                          y: 9.47,
+                          drilldown: "Safari",
+                        },
+                        {
+                          name: "Other",
+                          y: 11.02,
+                          drilldown: null,
+                        },
+                      ],
+                    },
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        name: "Chrome",
+                        id: "Chrome",
+                        data: [
+                          ["v97.0", 36.89],
+                          ["v96.0", 18.16],
+                          ["v95.0", 0.54],
+                        ],
+                      },
+                      {
+                        name: "Safari",
+                        id: "Safari",
+                        data: [
+                          ["v15.3", 0.1],
+                          ["v15.2", 2.01],
+                          ["v15.1", 2.29],
+                        ],
+                      },
+                    ],
+                  },
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "bar",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                xAxis: {
+                  type: "category",
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                tooltip: {
+                  valueSuffix: "",
+                },
+                plotOptions: {
+                  series: {
+                    borderWidth: 0,
+                    dataLabels: {
+                      enabled: true,
+                      format: "{point.y:.1f}%",
+                    },
+                    animation: false,
+                    colors: customColors,
+                  },
+                },
+                legend: {
+                  enabled: false,
+                },
+                credits: {
+                  enabled: false,
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown,
+              };
+            }
+
+            if (chartType === "drilldown_pie") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Browsers",
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: "Chrome",
+                          y: 61.04,
+                          drilldown: "Chrome",
+                        },
+                        {
+                          name: "Safari",
+                          y: 9.47,
+                          drilldown: "Safari",
+                        },
+                      ],
+                    },
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        name: "Chrome",
+                        id: "Chrome",
+                        data: [
+                          ["v97.0", 36.89],
+                          ["v96.0", 18.16],
+                          ["v95.0", 0.54],
+                        ],
+                      },
+                      {
+                        name: "Safari",
+                        id: "Safari",
+                        data: [
+                          ["v15.3", 0.1],
+                          ["v15.2", 2.01],
+                        ],
+                      },
+                    ],
+                  },
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>",
+                },
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                credits: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    dataLabels: {
+                      enabled: false,
+                    },
+                    colors: customColors,
+                    showInLegend: true,
+                    animation: false,
+                  },
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown,
+              };
+            }
+
+            if (chartType === "drilldown_line") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Things",
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: "Animals",
+                          y: 5,
+                          drilldown: "animals",
+                        },
+                        {
+                          name: "Fruits",
+                          y: 2,
+                          drilldown: "fruits",
+                        },
+                      ],
+                    },
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        id: "animals",
+                        data: [
+                          ["Cats", 4],
+                          ["Dogs", 2],
+                          ["Cows", 1],
+                        ],
+                      },
+                      {
+                        id: "fruits",
+                        data: [
+                          ["Apples", 4],
+                          ["Oranges", 2],
+                        ],
+                      },
+                    ],
+                  },
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "line",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown,
+                xAxis: {
+                  accessibility: {
+                    rangeDescription: "",
+                  },
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "middle",
+                },
+                plotOptions: {
+                  series: {
+                    label: {
+                      connectorAllowed: false,
+                    },
+                    pointStart: 2010,
+                    animation: false,
+                    colors: customColors,
+                  },
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout,
+                          align: "center",
+                          verticalAlign: "bottom",
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "donut") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Registrations",
+                      colorByPoint: true,
+                      innerSize: "75%",
+                      data: [
+                        { name: "EV", y: 23.9 },
+                        { name: "Hybrids", y: 12.6 },
+                        { name: "Diesel", y: 37.0 },
+                        { name: "Petrol", y: 26.4 },
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  animation: false,
+                  custom: {},
+                  events: {
+                    render() {
+                      const chart = this,
+                        series = chart.series[0];
+                      let customLabel = chart.options.chart.custom.label;
+
+                      if (!customLabel) {
+                        customLabel = chart.options.chart.custom.label =
+                          chart.renderer
+                            .label("Total<br/><strong>2 877 820</strong>")
+                            .css({
+                              color:
+                                "var(--highcharts-neutral-color-100, #000)",
+                              textAnchor: "middle",
+                            })
+                            .add();
+                      }
+
+                      const x = series.center[0] + chart.plotLeft;
+                      const y =
+                        series.center[1] +
+                        chart.plotTop -
+                        customLabel.attr("height") / 2;
+
+                      customLabel.attr({ x, y });
+
+                      customLabel.css({
+                        fontSize: `${series.center[2] / 12}px`,
+                      });
+                    },
+                  },
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.0f}%</b>",
+                },
+                legend: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  series: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    borderRadius: 8,
+                    colors: customColors,
+                    dataLabels: [
+                      {
+                        enabled: true,
+                        distance: 20,
+                        format: "{point.name}",
+                      },
+                      {
+                        enabled: true,
+                        distance: -15,
+                        format: "{point.percentage:.0f}%",
+                        style: {
+                          fontSize: "0.9em",
+                        },
+                      },
+                    ],
+                    showInLegend: true,
+                  },
+                },
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "scatter") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Basketball",
+                      marker: { symbol: "circle" },
+                      data: [
+                        [2.01, 98],
+                        [2.05, 104],
+                        [2.0, 95],
+                        [2.1, 110],
+                        [2.02, 102],
+                      ],
+                    },
+                    {
+                      name: "Triathlon",
+                      marker: { symbol: "triangle" },
+                      data: [
+                        [1.75, 65],
+                        [1.8, 70],
+                        [1.78, 68],
+                        [1.82, 72],
+                        [1.76, 67],
+                      ],
+                    },
+                    {
+                      name: "Volleyball",
+                      marker: { symbol: "square" },
+                      data: [
+                        [1.9, 85],
+                        [1.88, 82],
+                        [1.95, 90],
+                        [1.92, 88],
+                        [1.87, 84],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "scatter",
+                  animation: false,
+                  zooming: {
+                    type: "xy",
+                  },
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title || "Olympics athletes by height and weight",
+                  align: chart_Title_align || "center",
+                },
+                xAxis: {
+                  title: { text: "Height" },
+                  labels: { format: "{value} m" },
+                  startOnTick: true,
+                  endOnTick: true,
+                  showLastLabel: true,
+                },
+                yAxis: {
+                  title: { text: "Weight" },
+                  labels: { format: "{value} kg" },
+                },
+                legend: {
+                  enabled: true,
+                  layout: chart_layout || "vertical",
+                  align: "right",
+                  [chartAlign || "verticalAlign"]: "middle",
+                },
+                tooltip: {
+                  pointFormat: "Height: {point.x} m <br/> Weight: {point.y} kg",
+                },
+                plotOptions: {
+                  scatter: {
+                    marker: {
+                      radius: 2.5,
+                      symbol: "circle",
+                      states: {
+                        hover: {
+                          enabled: true,
+                          lineColor: "rgb(100,100,100)",
+                        },
+                      },
+                    },
+                    states: {
+                      hover: {
+                        marker: {
+                          enabled: false,
+                        },
+                      },
+                    },
+                    jitter: { x: 0.005 },
+                  },
+                  colors: customColors,
+                },
+
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "area") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Asia",
+                      data: [502, 635, 809, 947, 1402, 3634, 5268],
+                    },
+                    {
+                      name: "Africa",
+                      data: [106, 107, 111, 133, 221, 767, 1766],
+                    },
+                    {
+                      name: "Europe",
+                      data: [163, 203, 276, 408, 547, 729, 628],
+                    },
+                    {
+                      name: "America",
+                      data: [18, 31, 54, 156, 339, 818, 1201],
+                    },
+                    {
+                      name: "Oceania",
+                      data: [2, 2, 2, 6, 13, 30, 46],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "area",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    "Historic and Estimated Population Growth by Region",
+                  align: chart_Title_align || "center",
+                },
+                xAxis: {
+                  allowDecimals: false,
+                  labels: {
+                    formatter: function () {
+                      return this.value;
+                    },
+                  },
+                  accessibility: {
+                    rangeDescription: "Range: 1750 to 2050",
+                  },
+                  categories: [
+                    "1750",
+                    "1800",
+                    "1850",
+                    "1900",
+                    "1950",
+                    "2000",
+                    "2050",
+                  ],
+                },
+                yAxis: {
+                  title: {
+                    text: "Population (millions)",
+                  },
+                  labels: {
+                    formatter: function () {
+                      return this.value / 1000 + "B";
+                    },
+                  },
+                },
+                tooltip: {
+                  pointFormat:
+                    "{series.name} had <b>{point.y:,.0f}</b><br/> people in {point.category}",
+                },
+                plotOptions: {
+                  area: {
+                    stacking: "normal",
+                    lineColor: "#666666",
+                    lineWidth: 1,
+                    marker: {
+                      lineWidth: 1,
+                      lineColor: "#666666",
+                    },
+                  },
+                  colors: customColors,
+                },
+                legend: {
+                  layout: chart_layout || "vertical",
+                  align: "right",
+                  [chartAlign || "verticalAlign"]: "middle",
+                },
+
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "bubble") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      colorByPoint: true,
+                      data: [
+                        {
+                          x: 95,
+                          y: 95,
+                          z: 13.8,
+                          name: "BE",
+                          country: "Belgium",
+                        },
+                        {
+                          x: 86.5,
+                          y: 102.9,
+                          z: 14.7,
+                          name: "DE",
+                          country: "Germany",
+                        },
+                        {
+                          x: 80.8,
+                          y: 91.5,
+                          z: 15.8,
+                          name: "FI",
+                          country: "Finland",
+                        },
+                        {
+                          x: 80.4,
+                          y: 102.5,
+                          z: 12,
+                          name: "NL",
+                          country: "Netherlands",
+                        },
+                        {
+                          x: 80.3,
+                          y: 86.1,
+                          z: 11.8,
+                          name: "SE",
+                          country: "Sweden",
+                        },
+                        {
+                          x: 78.4,
+                          y: 70.1,
+                          z: 16.6,
+                          name: "ES",
+                          country: "Spain",
+                        },
+                        {
+                          x: 74.2,
+                          y: 68.5,
+                          z: 14.5,
+                          name: "FR",
+                          country: "France",
+                        },
+                        {
+                          x: 73.5,
+                          y: 83.1,
+                          z: 10,
+                          name: "NO",
+                          country: "Norway",
+                        },
+                        {
+                          x: 71,
+                          y: 93.2,
+                          z: 24.7,
+                          name: "UK",
+                          country: "United Kingdom",
+                        },
+                        {
+                          x: 69.2,
+                          y: 57.6,
+                          z: 10.4,
+                          name: "IT",
+                          country: "Italy",
+                        },
+                        {
+                          x: 68.6,
+                          y: 20,
+                          z: 16,
+                          name: "RU",
+                          country: "Russia",
+                        },
+                        {
+                          x: 65.5,
+                          y: 126.4,
+                          z: 35.3,
+                          name: "US",
+                          country: "United States",
+                        },
+                        {
+                          x: 65.4,
+                          y: 50.8,
+                          z: 28.5,
+                          name: "HU",
+                          country: "Hungary",
+                        },
+                        {
+                          x: 63.4,
+                          y: 51.8,
+                          z: 15.4,
+                          name: "PT",
+                          country: "Portugal",
+                        },
+                        {
+                          x: 64,
+                          y: 82.9,
+                          z: 31.3,
+                          name: "NZ",
+                          country: "New Zealand",
+                        },
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "bubble",
+                  animation: false,
+                  plotBorderWidth: 1,
+                  zooming: {
+                    type: "xy",
+                  },
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title || "Sugar and fat intake per country",
+                  align: chart_Title_align || "center",
+                },
+
+                accessibility: {
+                  point: {
+                    valueDescriptionFormat:
+                      "{index}. {point.name}, fat: {point.x}g, sugar: {point.y}g, obesity: {point.z}%.",
+                  },
+                },
+                xAxis: {
+                  gridLineWidth: 1,
+                  title: { text: "Daily fat intake" },
+                  labels: { format: "{value} gr" },
+                  plotLines: [
+                    {
+                      dashStyle: "dot",
+                      width: 2,
+                      value: 65,
+                      label: {
+                        rotation: 0,
+                        y: 15,
+                        style: { fontStyle: "italic" },
+                        text: "Safe fat intake 65g/day",
+                      },
+                      zIndex: 3,
+                    },
+                  ],
+                  accessibility: {
+                    rangeDescription: "Range: 60 to 100 grams.",
+                  },
+                },
+                yAxis: {
+                  startOnTick: false,
+                  endOnTick: false,
+                  title: { text: "Daily sugar intake" },
+                  labels: { format: "{value} gr" },
+                  maxPadding: 0.2,
+                  plotLines: [
+                    {
+                      dashStyle: "dot",
+                      width: 2,
+                      value: 50,
+                      label: {
+                        align: "right",
+                        style: { fontStyle: "italic" },
+                        text: "Safe sugar intake 50g/day",
+                        x: -10,
+                      },
+                      zIndex: 3,
+                    },
+                  ],
+                  accessibility: {
+                    rangeDescription: "Range: 0 to 160 grams.",
+                  },
+                },
+                legend: {
+                  enabled: false,
+                },
+                tooltip: {
+                  useHTML: true,
+                  headerFormat: "<table>",
+                  pointFormat:
+                    '<tr><th colspan="2"><h3>{point.country}</h3></th></tr>' +
+                    "<tr><th>Fat intake:</th><td>{point.x}g</td></tr>" +
+                    "<tr><th>Sugar intake:</th><td>{point.y}g</td></tr>" +
+                    "<tr><th>Obesity (adults):</th><td>{point.z}%</td></tr>",
+                  footerFormat: "</table>",
+                  followPointer: true,
+                },
+                plotOptions: {
+                  series: {
+                    dataLabels: {
+                      enabled: true,
+                      format: "{point.name}",
+                    },
+                  },
+                  colors: customColors,
+                },
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "spiderweb") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Allocated Budget",
+                      data: [43000, 19000, 60000, 35000, 17000, 10000],
+                      pointPlacement: "on",
+                    },
+                    {
+                      name: "Actual Spending",
+                      data: [50000, 39000, 42000, 31000, 26000, 14000],
+                      pointPlacement: "on",
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  polar: true,
+                  type: "line",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title || "Budget vs spending",
+                  x: -80,
+                  align: chart_Title_align || "center",
+                },
+
+                accessibility: {
+                  description:
+                    "A spiderweb chart compares the allocated budget against actual spending. Each spoke represents a department. The chart shows departments like Marketing and IT overspending the most.",
+                },
+                pane: {
+                  size: "80%",
+                },
+                xAxis: {
+                  categories: [
+                    "Sales",
+                    "Marketing",
+                    "Development",
+                    "Customer Support",
+                    "Information Technology",
+                    "Administration",
+                  ],
+                  tickmarkPlacement: "on",
+                  lineWidth: 0,
+                },
+                yAxis: {
+                  gridLineInterpolation: "polygon",
+                  lineWidth: 0,
+                  min: 0,
+                },
+                tooltip: {
+                  shared: true,
+                  pointFormat:
+                    '<span style="color:{series.color}">{series.name}: <b>${point.y:,.0f}</b><br/>',
+                },
+                legend: {
+                  layout: chart_layout || "vertical",
+                  align: "right",
+                  [chartAlign || "verticalAlign"]: "middle",
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        title: {
+                          x: 0,
+                        },
+                        legend: {
+                          align: "center",
+                          verticalAlign: "bottom",
+                          layout: "horizontal",
+                        },
+                        pane: {
+                          size: "70%",
+                        },
+                      },
+                    },
+                  ],
+                },
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "candlestick") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: "candlestick",
+                      name: "AAPL",
+                      data: [
+                        [Date.UTC(2024, 4, 1), 140.0, 145.0, 138.0, 143.0],
+                        [Date.UTC(2024, 4, 2), 143.0, 147.0, 141.0, 146.5],
+                        [Date.UTC(2024, 4, 3), 146.5, 150.0, 145.0, 148.0],
+                        [Date.UTC(2024, 4, 4), 148.0, 149.0, 144.0, 145.0],
+                        [Date.UTC(2024, 4, 5), 145.0, 146.0, 140.0, 142.0],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "candlestick",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title || "AAPL Stock Price (Demo)",
+                  align: chart_Title_align || "center",
+                },
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Stock Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  series: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        xAxis: {
+                          labels: {
+                            rotation: -45,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "candlestick-live") {
+              const symbol = "btcusdt";
+              const interval = "1m";
+
+              seriesData = {
+                series: [
+                  {
+                    type: "candlestick",
+                    name: "BTC/USDT",
+                    id: "live-series",
+                    data: [],
+                  },
+                ],
+              };
+
+              seriesData2 = {
+                chart: {
+                  type: "candlestick",
+                  events: {
+                    load: function () {
+                      const chart = this;
+                      const series = chart.get("live-series");
+
+                      fetch(
+                        `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`
+                      )
+                        .then((res) => res.json())
+                        .then((data) => {
+                          const ohlc = data.map((d) => [
+                            d[0],
+                            parseFloat(d[1]),
+                            parseFloat(d[2]),
+                            parseFloat(d[3]),
+                            parseFloat(d[4]),
+                          ]);
+                          series.setData(ohlc, true, false, false);
+                        });
+
+                      const ws = new WebSocket(
+                        `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`
+                      );
+
+                      ws.onmessage = function (event) {
+                        const msg = JSON.parse(event.data);
+                        const k = msg.k;
+
+                        const point = [
+                          k.t,
+                          parseFloat(k.o),
+                          parseFloat(k.h),
+                          parseFloat(k.l),
+                          parseFloat(k.c),
+                        ];
+
+                        const last = series.data[series.data.length - 1];
+                        if (last && last.x === point[0]) {
+                          last.update(
+                            {
+                              open: point[1],
+                              high: point[2],
+                              low: point[3],
+                              close: point[4],
+                            },
+                            true,
+                            false
+                          );
+                        } else {
+                          series.addPoint(
+                            point,
+                            true,
+                            series.data.length > 100
+                          );
+                        }
+                      };
+                    },
+                  },
+                },
+                title: {
+                  text: chart_Title || "Live BTC/USDT Candlestick Chart",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  candlestick: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "ohlc") {
+              seriesData = {
+                series: [
+                  {
+                    type: "ohlc",
+                    name: "Demo OHLC",
+                    id: "ohlc-static-series",
+                    data: [
+                      [Date.UTC(2023, 7, 1), 100, 110, 90, 105],
+                      [Date.UTC(2023, 7, 2), 105, 115, 95, 100],
+                      [Date.UTC(2023, 7, 3), 100, 108, 97, 107],
+                      [Date.UTC(2023, 7, 4), 107, 112, 102, 104],
+                      [Date.UTC(2023, 7, 5), 104, 118, 100, 117],
+                    ],
+                  },
+                ],
+              };
+
+              seriesData2 = {
+                chart: {
+                  type: "ohlc",
+                },
+                title: {
+                  text: chart_Title || "Static OHLC Chart",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  ohlc: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "ohlc-live") {
+              const symbol = "btcusdt";
+              const interval = "1m";
+
+              seriesData = {
+                series: [
+                  {
+                    type: "ohlc",
+                    name: "BTC/USDT",
+                    id: "live-ohlc-series",
+                    data: [],
+                  },
+                ],
+              };
+
+              seriesData2 = {
+                chart: {
+                  type: "ohlc",
+                  events: {
+                    load: function () {
+                      const chart = this;
+                      const series = chart.get("live-ohlc-series");
+
+                      fetch(
+                        `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`
+                      )
+                        .then((res) => res.json())
+                        .then((data) => {
+                          const ohlc = data.map((d) => [
+                            d[0],
+                            parseFloat(d[1]),
+                            parseFloat(d[2]),
+                            parseFloat(d[3]),
+                            parseFloat(d[4]),
+                          ]);
+                          series.setData(ohlc, true, false, false);
+                        });
+
+                      const ws = new WebSocket(
+                        `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`
+                      );
+
+                      ws.onmessage = function (event) {
+                        const msg = JSON.parse(event.data);
+                        const k = msg.k;
+
+                        const point = [
+                          k.t,
+                          parseFloat(k.o),
+                          parseFloat(k.h),
+                          parseFloat(k.l),
+                          parseFloat(k.c),
+                        ];
+
+                        const last = series.data[series.data.length - 1];
+                        if (last && last.x === point[0]) {
+                          last.update(
+                            {
+                              open: point[1],
+                              high: point[2],
+                              low: point[3],
+                              close: point[4],
+                            },
+                            true,
+                            false
+                          );
+                        } else {
+                          series.addPoint(
+                            point,
+                            true,
+                            series.data.length > 100
+                          );
+                        }
+                      };
+                    },
+                  },
+                },
+                title: {
+                  text: chart_Title || "Live BTC/USDT OHLC Chart",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  ohlc: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "line-column") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Precipitation",
+                      type: "column",
+                      yAxis: 1,
+                      data: [
+                        45.7, 37.0, 28.9, 17.1, 39.2, 18.9, 90.2, 78.5, 74.6,
+                        18.7, 17.1, 16.0,
+                      ],
+                      tooltip: {
+                        valueSuffix: " mm",
+                      },
+                    },
+                    {
+                      name: "Temperature",
+                      type: "spline",
+                      data: [
+                        -11.4, -9.5, -14.2, 0.2, 7.0, 12.1, 13.5, 13.6, 8.2,
+                        -2.8, -12.0, -15.5,
+                      ],
+                      tooltip: {
+                        valueSuffix: "°C",
+                      },
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  zooming: { type: "xy" },
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title || "Karasjok weather, 2023",
+                  align: chart_Title_align || "left",
+                },
+
+                xAxis: [
+                  {
+                    categories: [
+                      "Jan",
+                      "Feb",
+                      "Mar",
+                      "Apr",
+                      "May",
+                      "Jun",
+                      "Jul",
+                      "Aug",
+                      "Sep",
+                      "Oct",
+                      "Nov",
+                      "Dec",
+                    ],
+                    crosshair: true,
+                  },
+                ],
+                yAxis: [
+                  {
+                    labels: {
+                      format: "{value}°C",
+                    },
+                    title: {
+                      text: "Temperature",
+                    },
+                    lineColor: Highcharts.getOptions().colors[1],
+                    lineWidth: 2,
+                  },
+                  {
+                    title: {
+                      text: "Precipitation",
+                    },
+                    labels: {
+                      format: "{value} mm",
+                    },
+                    lineColor: Highcharts.getOptions().colors[0],
+                    lineWidth: 2,
+                    opposite: true,
+                  },
+                ],
+                tooltip: {
+                  shared: true,
+                },
+                legend: {
+                  align: chart_layout || "left",
+                  [chartAlign || "verticalAlign"]: "top",
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout || "horizontal",
+                          align: "center",
+                          verticalAlign: "bottom",
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "donut-3d") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Medals",
+                      data: [
+                        ["Norway", 16],
+                        ["Germany", 12],
+                        ["USA", 8],
+                        ["Sweden", 8],
+                        ["Netherlands", 8],
+                        ["ROC", 6],
+                        ["Austria", 7],
+                        ["Canada", 4],
+                        ["Japan", 3],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  options3d: {
+                    enabled: true,
+                    alpha: 45,
+                  },
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title || "Beijing 2022 gold medals by country",
+                  align: chart_Title_align || "center",
+                },
+
+                subtitle: {
+                  text: "3D donut in Highcharts",
+                },
+                plotOptions: {
+                  pie: {
+                    innerSize: 100,
+                    depth: 45,
+                    colors: customColors,
+                  },
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          enabled: false,
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "pie-3d") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: "pie",
+                      name: "Share",
+                      data: [
+                        ["Samsung", 23],
+                        ["Apple", 18],
+                        {
+                          name: "Xiaomi",
+                          y: 12,
+                          sliced: true,
+                          selected: true,
+                        },
+                        ["Oppo*", 9],
+                        ["Vivo", 8],
+                        ["Others", 30],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  options3d: {
+                    enabled: true,
+                    alpha: 45,
+                    beta: 0,
+                  },
+                  animation: false,
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    "Global smartphone shipments market share, Q1 2022",
+                  align: chart_Title_align || "center",
+                },
+
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>",
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    depth: 35,
+                    colors: customColors,
+                    dataLabels: {
+                      enabled: true,
+                      format: "{point.name}",
+                    },
+                  },
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          enabled: false,
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "column-3d") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: "column",
+                      data: [
+                        ["Toyota", 1795],
+                        ["Volkswagen", 1242],
+                        ["Volvo", 1074],
+                        ["Tesla", 832],
+                        ["Hyundai", 593],
+                        ["MG", 509],
+                        ["Skoda", 471],
+                        ["BMW", 442],
+                        ["Ford", 385],
+                        ["Nissan", 371],
+                      ],
+                      colorByPoint: true,
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "column",
+                  options3d: {
+                    enabled: true,
+                    alpha: 15,
+                    beta: 15,
+                    depth: 50,
+                    viewDistance: 25,
+                  },
+                  animation: false,
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    "Sold passenger cars in Norway by brand, May 2024",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "category",
+                },
+                yAxis: {
+                  title: {
+                    enabled: false,
+                  },
+                },
+                tooltip: {
+                  headerFormat: "<b>{point.key}</b><br>",
+                  pointFormat: "Cars sold: {point.y}",
+                },
+                legend: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  column: {
+                    depth: 25,
+                    colorByPoint: !customColors,
+                  },
+                  colors: customColors,
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        xAxis: {
+                          labels: {
+                            rotation: -45,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            try {
+              if (window.Highcharts) {
+                const existingChart = window.Highcharts.charts.find(
+                  (chart) =>
+                    chart && chart.container && chart.container.id === ctx
+                );
+                if (existingChart) {
+                  existingChart.destroy();
+                }
+
+                const chart = window.Highcharts.chart(ctx, seriesData2);
+
+                element.chartInstance = chart;
+
+                setTimeout(() => {
+                  if (chart && chart.reflow) {
+                    chart.reflow();
+                  }
+                }, 100);
+              }
+            } catch (error) {
+              console.error("Error creating Highcharts chart:", error);
+              element.innerHTML =
+                '<div style="padding: 20px; text-align: center; color: #666;">Chart could not be rendered</div>';
+            }
+          };
+
+          const loadHighcharts = () => {
+            return new Promise((resolve, reject) => {
+              if (window.Highcharts) {
+                resolve();
+                return;
+              }
+
+              const script = document.createElement("script");
+              script.src = "https://code.highcharts.com/11.4.8/highcharts.js";
+              script.onload = () => {
+                const drilldownScript = document.createElement("script");
+                drilldownScript.src =
+                  "https://code.highcharts.com/11.4.8/modules/drilldown.js";
+                drilldownScript.onload = resolve;
+                drilldownScript.onerror = resolve;
+                document.head.appendChild(drilldownScript);
+              };
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+          };
+
+          const init = async () => {
+            try {
+              await loadHighcharts();
+              if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", initializeChart);
+              } else {
+                setTimeout(initializeChart, 50);
+              }
+            } catch (error) {
+              console.error("Failed to load Highcharts:", error);
+            }
+          };
+
+          if (!this.highchartsInitialized) {
+            this.highchartsInitialized = true;
+            init();
+          }
+
+          this.on("removed", () => {
+            const element = document.getElementById(this.id);
+            if (element && element.chartInstance) {
+              element.chartInstance.destroy();
+              element.chartInstance = null;
+            }
+            this.highchartsInitialized = false;
+          });
+
+          if (typeof window !== "undefined") {
+            window.addEventListener("beforeprint", () => {
+              setTimeout(initializeChart, 3000);
+            });
+
+            window.addEventListener("afterprint", () => {
+              setTimeout(initializeChart, 3000);
+            });
+          }
+        }).bind(items[i])();
+      }
+    </script>
+    <script>
+      var hamburgerMenu = document.getElementById("hamburgerMenu");
+      if (hamburgerMenu !== null) {
+        var tabContainer = document.querySelector(".tab-container");
+        hamburgerMenu.addEventListener("click", function () {
+          if (tabContainer.style.display === "block") {
+            tabContainer.style.display = "none";
+          } else {
+            tabContainer.style.display = "block";
+          }
+        });
+        function updateView() {
+          const viewportWidth = Math.max(
+            document.documentElement.clientWidth,
+            window.innerWidth || 0
+          );
+          const tabContainer = document.querySelector(".tab-container");
+          if (viewportWidth >= 991) {
+            tabContainer.style.display = "block";
+          } else {
+            tabContainer.style.display = "none";
+          }
+        }
+        window.addEventListener("resize", updateView);
+      }
+    </script>
+    <script>
+      var items = document.querySelectorAll("#i6kfw");
+      for (var i = 0, len = items.length; i < len; i++) {
+        (function () {
+          const initializeChart = () => {
+            const ctx = this.id;
+            const element = document.getElementById(ctx);
+
+            if (!element) {
+              console.warn("Chart container not found:", ctx);
+              return;
+            }
+
+            let chart_Title = "" || "Chart Title";
+            let chart_Title_align = "" || "left";
+            let JsonPath1 = "" || "";
+            let chartType = "" || "pie";
+            let chart_yAxis = "" || "Values";
+            let chart_layout = "" || "horizontal";
+            let swapAxis = "" === "true" || false;
+            let legendColors = "" || "";
+            let customColors = null;
+            if (legendColors && legendColors.trim()) {
+              customColors = legendColors
+                .split(",")
+                .map((color) => color.trim())
+                .filter(
+                  (color) =>
+                    color && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color)
+                );
+
+              if (customColors.length === 0) {
+                customColors = null;
+              }
+            }
+
+            let language = "english";
+            let project_type = "developmentJsonType";
+            let str = null;
+            let seriesData = {};
+
+            try {
+              if (typeof localStorage !== "undefined") {
+                language = localStorage.getItem("language") || "english";
+                const common_json_data = JSON.parse(
+                  localStorage.getItem("common_json") || "null"
+                );
+                if (common_json_data && JsonPath1) {
+                  str =
+                    common_json_data[language] &&
+                    common_json_data[language][JsonPath1];
+                }
+              }
+
+              if (
+                typeof project_type2 !== "undefined" &&
+                project_type2 === "downloadedJsonType"
+              ) {
+                project_type = "downloadedJsonType";
+                if (
+                  typeof jsonData1 !== "undefined" &&
+                  jsonData1[0] &&
+                  JsonPath1
+                ) {
+                  str =
+                    jsonData1[0][language] && jsonData1[0][language][JsonPath1];
+                }
+              }
+
+              if (str) {
+                seriesData = eval(str);
+                if (!seriesData.series) {
+                  throw new Error("Series array not found");
+                }
+              }
+            } catch (e) {
+              console.warn(
+                "JSON path evaluation failed, using default data:",
+                e.message
+              );
+              seriesData = {};
+            }
+
+            let seriesData2 = {};
+            let chartAlign = chart_layout + "Align";
+
+            if (chartType === "pie") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      data: [
+                        {
+                          name: "Chrome",
+                          y: 70.67,
+                        },
+                        {
+                          name: "Edge",
+                          y: 14.77,
+                        },
+                        {
+                          name: "Firefox",
+                          y: 4.86,
+                        },
+                      ],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: chartType,
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                series: seriesData.series,
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>",
+                },
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                credits: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    colors: customColors,
+                    dataLabels: {
+                      enabled: false,
+                    },
+                    showInLegend: true,
+                    animation: false,
+                  },
+                },
+              };
+            }
+
+            if (chartType === "bar") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: [
+                      "Africa",
+                      "America",
+                      "Asia",
+                      "Europe",
+                      "Oceania",
+                    ],
+                  },
+                  series: [
+                    {
+                      name: "Year 1990",
+                      data: [631, 727, 3202, 721, 26],
+                    },
+                    {
+                      name: "Year 2000",
+                      data: [814, 841, 3714, 726, 31],
+                    },
+                    {
+                      name: "Year 2010",
+                      data: [1044, 944, 4170, 735, 40],
+                    },
+                    {
+                      name: "Year 2018",
+                      data: [1276, 1007, 4561, 746, 42],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: "bar",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                  title: {
+                    text: null,
+                  },
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                tooltip: {
+                  valueSuffix: " millions",
+                },
+                plotOptions: {
+                  bar: {
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "top",
+                  x: -40,
+                  y: 80,
+                  floating: true,
+                  borderWidth: 1,
+                  backgroundColor: "#FFFFFF",
+                  shadow: true,
+                },
+                credits: {
+                  enabled: false,
+                },
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "line") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Installation & Developers",
+                      data: [
+                        43934, 48656, 65165, 81827, 112143, 142383, 171533,
+                        165174, 155157, 161454, 154610,
+                      ],
+                    },
+                    {
+                      name: "Manufacturing",
+                      data: [
+                        24916, 37941, 29742, 29851, 32490, 30282, 38121, 36885,
+                        33726, 34243, 31050,
+                      ],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: "line",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                series: seriesData.series,
+                xAxis: {
+                  accessibility: {
+                    rangeDescription: "",
+                  },
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "middle",
+                },
+                plotOptions: {
+                  series: {
+                    label: {
+                      connectorAllowed: false,
+                    },
+                    pointStart: 2010,
+                    colors: customColors,
+                    animation: false,
+                  },
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout,
+                          align: "center",
+                          [chartAlign]: "bottom",
+                        },
+                      },
+                    },
+                  ],
+                },
+                colors: null,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "column") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ["Africa", "America", "Asia"],
+                  },
+                  series: [
+                    {
+                      name: "Year 1990",
+                      data: [631, 727, 3202],
+                    },
+                    {
+                      name: "Year 2000",
+                      data: [814, 841, 3714],
+                    },
+                    {
+                      name: "Year 2010",
+                      data: [1044, 944, 4170],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  plotBackgroundColor: null,
+                  plotBorderWidth: null,
+                  plotShadow: false,
+                  type: "column",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                  title: {
+                    text: null,
+                  },
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis,
+                  },
+                  labels: {
+                    overflow: "justify",
+                  },
+                },
+                tooltip: {
+                  valueSuffix: " millions",
+                },
+                plotOptions: {
+                  column: {
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "top",
+                  x: -40,
+                  y: 80,
+                  floating: true,
+                  borderWidth: 1,
+                  backgroundColor: "#FFFFFF",
+                  shadow: true,
+                },
+                credits: {
+                  enabled: false,
+                },
+
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "stacked-column") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ["Arsenal", "Chelsea"],
+                  },
+                  series: [
+                    {
+                      name: "BPL",
+                      data: [3, 55],
+                    },
+                    {
+                      name: "FA Cup",
+                      data: [14, 8],
+                    },
+                    {
+                      name: "CL",
+                      data: [0, 2],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "column",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis,
+                  },
+                  stackLabels: {
+                    enabled: true,
+                    style: {
+                      fontWeight: "bold",
+                      color: "gray",
+                      textOutline: "none",
+                    },
+                  },
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "left",
+                  x: 70,
+                  verticalAlign: "top",
+                  y: 70,
+                  floating: true,
+                  backgroundColor: "white",
+                  borderColor: "#CCC",
+                  borderWidth: 1,
+                  shadow: false,
+                },
+                tooltip: {
+                  headerFormat: "<b>{point.x}</b><br/>",
+                  pointFormat:
+                    "{series.name}: {point.y}<br/>Total: {point.stackTotal}",
+                },
+                plotOptions: {
+                  column: {
+                    stacking: "normal",
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "stacked-bar") {
+              if (!seriesData.series) {
+                seriesData = {
+                  xAxis: {
+                    categories: ["2020/21", "2019/20", "2018/19"],
+                  },
+                  series: [
+                    {
+                      name: "Cristiano Ronaldo",
+                      data: [4, 4, 6],
+                    },
+                    {
+                      name: "Lionel Messi",
+                      data: [5, 3, 12],
+                    },
+                    {
+                      name: "Robert Lewandowski",
+                      data: [5, 15, 8],
+                    },
+                  ],
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "bar",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+                xAxis: {
+                  categories: seriesData.xAxis.categories,
+                },
+                yAxis: {
+                  min: 0,
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                legend: {
+                  reversed: true,
+                },
+                plotOptions: {
+                  series: {
+                    stacking: "normal",
+                    dataLabels: {
+                      enabled: true,
+                    },
+                    animation: false,
+                  },
+                  colors: customColors,
+                },
+
+                series: seriesData.series,
+              };
+            }
+
+            if (chartType === "drilldown_bar") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Browsers",
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: "Chrome",
+                          y: 61.04,
+                          drilldown: "Chrome",
+                        },
+                        {
+                          name: "Safari",
+                          y: 9.47,
+                          drilldown: "Safari",
+                        },
+                        {
+                          name: "Other",
+                          y: 11.02,
+                          drilldown: null,
+                        },
+                      ],
+                    },
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        name: "Chrome",
+                        id: "Chrome",
+                        data: [
+                          ["v97.0", 36.89],
+                          ["v96.0", 18.16],
+                          ["v95.0", 0.54],
+                        ],
+                      },
+                      {
+                        name: "Safari",
+                        id: "Safari",
+                        data: [
+                          ["v15.3", 0.1],
+                          ["v15.2", 2.01],
+                          ["v15.1", 2.29],
+                        ],
+                      },
+                    ],
+                  },
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "bar",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                xAxis: {
+                  type: "category",
+                },
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                tooltip: {
+                  valueSuffix: "",
+                },
+                plotOptions: {
+                  series: {
+                    borderWidth: 0,
+                    dataLabels: {
+                      enabled: true,
+                      format: "{point.y:.1f}%",
+                    },
+                    animation: false,
+                    colors: customColors,
+                  },
+                },
+                legend: {
+                  enabled: false,
+                },
+                credits: {
+                  enabled: false,
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown,
+              };
+            }
+
+            if (chartType === "drilldown_pie") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Browsers",
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: "Chrome",
+                          y: 61.04,
+                          drilldown: "Chrome",
+                        },
+                        {
+                          name: "Safari",
+                          y: 9.47,
+                          drilldown: "Safari",
+                        },
+                      ],
+                    },
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        name: "Chrome",
+                        id: "Chrome",
+                        data: [
+                          ["v97.0", 36.89],
+                          ["v96.0", 18.16],
+                          ["v95.0", 0.54],
+                        ],
+                      },
+                      {
+                        name: "Safari",
+                        id: "Safari",
+                        data: [
+                          ["v15.3", 0.1],
+                          ["v15.2", 2.01],
+                        ],
+                      },
+                    ],
+                  },
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>",
+                },
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                credits: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    dataLabels: {
+                      enabled: false,
+                    },
+                    colors: customColors,
+                    showInLegend: true,
+                    animation: false,
+                  },
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown,
+              };
+            }
+
+            if (chartType === "drilldown_line") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Things",
+                      colorByPoint: true,
+                      data: [
+                        {
+                          name: "Animals",
+                          y: 5,
+                          drilldown: "animals",
+                        },
+                        {
+                          name: "Fruits",
+                          y: 2,
+                          drilldown: "fruits",
+                        },
+                      ],
+                    },
+                  ],
+                  drilldown: {
+                    series: [
+                      {
+                        id: "animals",
+                        data: [
+                          ["Cats", 4],
+                          ["Dogs", 2],
+                          ["Cows", 1],
+                        ],
+                      },
+                      {
+                        id: "fruits",
+                        data: [
+                          ["Apples", 4],
+                          ["Oranges", 2],
+                        ],
+                      },
+                    ],
+                  },
+                };
+              }
+              seriesData2 = {
+                chart: {
+                  type: "line",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                yAxis: {
+                  title: {
+                    text: chart_yAxis,
+                  },
+                },
+                series: seriesData.series,
+                drilldown: seriesData.drilldown,
+                xAxis: {
+                  accessibility: {
+                    rangeDescription: "",
+                  },
+                },
+                legend: {
+                  layout: chart_layout,
+                  align: "right",
+                  [chartAlign]: "middle",
+                },
+                plotOptions: {
+                  series: {
+                    label: {
+                      connectorAllowed: false,
+                    },
+                    pointStart: 2010,
+                    animation: false,
+                    colors: customColors,
+                  },
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout,
+                          align: "center",
+                          verticalAlign: "bottom",
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "donut") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Registrations",
+                      colorByPoint: true,
+                      innerSize: "75%",
+                      data: [
+                        { name: "EV", y: 23.9 },
+                        { name: "Hybrids", y: 12.6 },
+                        { name: "Diesel", y: 37.0 },
+                        { name: "Petrol", y: 26.4 },
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  animation: false,
+                  custom: {},
+                  events: {
+                    render() {
+                      const chart = this,
+                        series = chart.series[0];
+                      let customLabel = chart.options.chart.custom.label;
+
+                      if (!customLabel) {
+                        customLabel = chart.options.chart.custom.label =
+                          chart.renderer
+                            .label("Total<br/><strong>2 877 820</strong>")
+                            .css({
+                              color:
+                                "var(--highcharts-neutral-color-100, #000)",
+                              textAnchor: "middle",
+                            })
+                            .add();
+                      }
+
+                      const x = series.center[0] + chart.plotLeft;
+                      const y =
+                        series.center[1] +
+                        chart.plotTop -
+                        customLabel.attr("height") / 2;
+
+                      customLabel.attr({ x, y });
+
+                      customLabel.css({
+                        fontSize: `${series.center[2] / 12}px`,
+                      });
+                    },
+                  },
+                },
+                title: {
+                  text: chart_Title,
+                  align: chart_Title_align,
+                },
+
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.0f}%</b>",
+                },
+                legend: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  series: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    borderRadius: 8,
+                    colors: customColors,
+                    dataLabels: [
+                      {
+                        enabled: true,
+                        distance: 20,
+                        format: "{point.name}",
+                      },
+                      {
+                        enabled: true,
+                        distance: -15,
+                        format: "{point.percentage:.0f}%",
+                        style: {
+                          fontSize: "0.9em",
+                        },
+                      },
+                    ],
+                    showInLegend: true,
+                  },
+                },
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "scatter") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Basketball",
+                      marker: { symbol: "circle" },
+                      data: [
+                        [2.01, 98],
+                        [2.05, 104],
+                        [2.0, 95],
+                        [2.1, 110],
+                        [2.02, 102],
+                      ],
+                    },
+                    {
+                      name: "Triathlon",
+                      marker: { symbol: "triangle" },
+                      data: [
+                        [1.75, 65],
+                        [1.8, 70],
+                        [1.78, 68],
+                        [1.82, 72],
+                        [1.76, 67],
+                      ],
+                    },
+                    {
+                      name: "Volleyball",
+                      marker: { symbol: "square" },
+                      data: [
+                        [1.9, 85],
+                        [1.88, 82],
+                        [1.95, 90],
+                        [1.92, 88],
+                        [1.87, 84],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "scatter",
+                  animation: false,
+                  zooming: {
+                    type: "xy",
+                  },
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title || "Olympics athletes by height and weight",
+                  align: chart_Title_align || "center",
+                },
+                xAxis: {
+                  title: { text: "Height" },
+                  labels: { format: "{value} m" },
+                  startOnTick: true,
+                  endOnTick: true,
+                  showLastLabel: true,
+                },
+                yAxis: {
+                  title: { text: "Weight" },
+                  labels: { format: "{value} kg" },
+                },
+                legend: {
+                  enabled: true,
+                  layout: chart_layout || "vertical",
+                  align: "right",
+                  [chartAlign || "verticalAlign"]: "middle",
+                },
+                tooltip: {
+                  pointFormat: "Height: {point.x} m <br/> Weight: {point.y} kg",
+                },
+                plotOptions: {
+                  scatter: {
+                    marker: {
+                      radius: 2.5,
+                      symbol: "circle",
+                      states: {
+                        hover: {
+                          enabled: true,
+                          lineColor: "rgb(100,100,100)",
+                        },
+                      },
+                    },
+                    states: {
+                      hover: {
+                        marker: {
+                          enabled: false,
+                        },
+                      },
+                    },
+                    jitter: { x: 0.005 },
+                  },
+                  colors: customColors,
+                },
+
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "area") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Asia",
+                      data: [502, 635, 809, 947, 1402, 3634, 5268],
+                    },
+                    {
+                      name: "Africa",
+                      data: [106, 107, 111, 133, 221, 767, 1766],
+                    },
+                    {
+                      name: "Europe",
+                      data: [163, 203, 276, 408, 547, 729, 628],
+                    },
+                    {
+                      name: "America",
+                      data: [18, 31, 54, 156, 339, 818, 1201],
+                    },
+                    {
+                      name: "Oceania",
+                      data: [2, 2, 2, 6, 13, 30, 46],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "area",
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    "Historic and Estimated Population Growth by Region",
+                  align: chart_Title_align || "center",
+                },
+                xAxis: {
+                  allowDecimals: false,
+                  labels: {
+                    formatter: function () {
+                      return this.value;
+                    },
+                  },
+                  accessibility: {
+                    rangeDescription: "Range: 1750 to 2050",
+                  },
+                  categories: [
+                    "1750",
+                    "1800",
+                    "1850",
+                    "1900",
+                    "1950",
+                    "2000",
+                    "2050",
+                  ],
+                },
+                yAxis: {
+                  title: {
+                    text: "Population (millions)",
+                  },
+                  labels: {
+                    formatter: function () {
+                      return this.value / 1000 + "B";
+                    },
+                  },
+                },
+                tooltip: {
+                  pointFormat:
+                    "{series.name} had <b>{point.y:,.0f}</b><br/> people in {point.category}",
+                },
+                plotOptions: {
+                  area: {
+                    stacking: "normal",
+                    lineColor: "#666666",
+                    lineWidth: 1,
+                    marker: {
+                      lineWidth: 1,
+                      lineColor: "#666666",
+                    },
+                  },
+                  colors: customColors,
+                },
+                legend: {
+                  layout: chart_layout || "vertical",
+                  align: "right",
+                  [chartAlign || "verticalAlign"]: "middle",
+                },
+
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "bubble") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      colorByPoint: true,
+                      data: [
+                        {
+                          x: 95,
+                          y: 95,
+                          z: 13.8,
+                          name: "BE",
+                          country: "Belgium",
+                        },
+                        {
+                          x: 86.5,
+                          y: 102.9,
+                          z: 14.7,
+                          name: "DE",
+                          country: "Germany",
+                        },
+                        {
+                          x: 80.8,
+                          y: 91.5,
+                          z: 15.8,
+                          name: "FI",
+                          country: "Finland",
+                        },
+                        {
+                          x: 80.4,
+                          y: 102.5,
+                          z: 12,
+                          name: "NL",
+                          country: "Netherlands",
+                        },
+                        {
+                          x: 80.3,
+                          y: 86.1,
+                          z: 11.8,
+                          name: "SE",
+                          country: "Sweden",
+                        },
+                        {
+                          x: 78.4,
+                          y: 70.1,
+                          z: 16.6,
+                          name: "ES",
+                          country: "Spain",
+                        },
+                        {
+                          x: 74.2,
+                          y: 68.5,
+                          z: 14.5,
+                          name: "FR",
+                          country: "France",
+                        },
+                        {
+                          x: 73.5,
+                          y: 83.1,
+                          z: 10,
+                          name: "NO",
+                          country: "Norway",
+                        },
+                        {
+                          x: 71,
+                          y: 93.2,
+                          z: 24.7,
+                          name: "UK",
+                          country: "United Kingdom",
+                        },
+                        {
+                          x: 69.2,
+                          y: 57.6,
+                          z: 10.4,
+                          name: "IT",
+                          country: "Italy",
+                        },
+                        {
+                          x: 68.6,
+                          y: 20,
+                          z: 16,
+                          name: "RU",
+                          country: "Russia",
+                        },
+                        {
+                          x: 65.5,
+                          y: 126.4,
+                          z: 35.3,
+                          name: "US",
+                          country: "United States",
+                        },
+                        {
+                          x: 65.4,
+                          y: 50.8,
+                          z: 28.5,
+                          name: "HU",
+                          country: "Hungary",
+                        },
+                        {
+                          x: 63.4,
+                          y: 51.8,
+                          z: 15.4,
+                          name: "PT",
+                          country: "Portugal",
+                        },
+                        {
+                          x: 64,
+                          y: 82.9,
+                          z: 31.3,
+                          name: "NZ",
+                          country: "New Zealand",
+                        },
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "bubble",
+                  animation: false,
+                  plotBorderWidth: 1,
+                  zooming: {
+                    type: "xy",
+                  },
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title || "Sugar and fat intake per country",
+                  align: chart_Title_align || "center",
+                },
+
+                accessibility: {
+                  point: {
+                    valueDescriptionFormat:
+                      "{index}. {point.name}, fat: {point.x}g, sugar: {point.y}g, obesity: {point.z}%.",
+                  },
+                },
+                xAxis: {
+                  gridLineWidth: 1,
+                  title: { text: "Daily fat intake" },
+                  labels: { format: "{value} gr" },
+                  plotLines: [
+                    {
+                      dashStyle: "dot",
+                      width: 2,
+                      value: 65,
+                      label: {
+                        rotation: 0,
+                        y: 15,
+                        style: { fontStyle: "italic" },
+                        text: "Safe fat intake 65g/day",
+                      },
+                      zIndex: 3,
+                    },
+                  ],
+                  accessibility: {
+                    rangeDescription: "Range: 60 to 100 grams.",
+                  },
+                },
+                yAxis: {
+                  startOnTick: false,
+                  endOnTick: false,
+                  title: { text: "Daily sugar intake" },
+                  labels: { format: "{value} gr" },
+                  maxPadding: 0.2,
+                  plotLines: [
+                    {
+                      dashStyle: "dot",
+                      width: 2,
+                      value: 50,
+                      label: {
+                        align: "right",
+                        style: { fontStyle: "italic" },
+                        text: "Safe sugar intake 50g/day",
+                        x: -10,
+                      },
+                      zIndex: 3,
+                    },
+                  ],
+                  accessibility: {
+                    rangeDescription: "Range: 0 to 160 grams.",
+                  },
+                },
+                legend: {
+                  enabled: false,
+                },
+                tooltip: {
+                  useHTML: true,
+                  headerFormat: "<table>",
+                  pointFormat:
+                    '<tr><th colspan="2"><h3>{point.country}</h3></th></tr>' +
+                    "<tr><th>Fat intake:</th><td>{point.x}g</td></tr>" +
+                    "<tr><th>Sugar intake:</th><td>{point.y}g</td></tr>" +
+                    "<tr><th>Obesity (adults):</th><td>{point.z}%</td></tr>",
+                  footerFormat: "</table>",
+                  followPointer: true,
+                },
+                plotOptions: {
+                  series: {
+                    dataLabels: {
+                      enabled: true,
+                      format: "{point.name}",
+                    },
+                  },
+                  colors: customColors,
+                },
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "spiderweb") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Allocated Budget",
+                      data: [43000, 19000, 60000, 35000, 17000, 10000],
+                      pointPlacement: "on",
+                    },
+                    {
+                      name: "Actual Spending",
+                      data: [50000, 39000, 42000, 31000, 26000, 14000],
+                      pointPlacement: "on",
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  polar: true,
+                  type: "line",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title || "Budget vs spending",
+                  x: -80,
+                  align: chart_Title_align || "center",
+                },
+
+                accessibility: {
+                  description:
+                    "A spiderweb chart compares the allocated budget against actual spending. Each spoke represents a department. The chart shows departments like Marketing and IT overspending the most.",
+                },
+                pane: {
+                  size: "80%",
+                },
+                xAxis: {
+                  categories: [
+                    "Sales",
+                    "Marketing",
+                    "Development",
+                    "Customer Support",
+                    "Information Technology",
+                    "Administration",
+                  ],
+                  tickmarkPlacement: "on",
+                  lineWidth: 0,
+                },
+                yAxis: {
+                  gridLineInterpolation: "polygon",
+                  lineWidth: 0,
+                  min: 0,
+                },
+                tooltip: {
+                  shared: true,
+                  pointFormat:
+                    '<span style="color:{series.color}">{series.name}: <b>${point.y:,.0f}</b><br/>',
+                },
+                legend: {
+                  layout: chart_layout || "vertical",
+                  align: "right",
+                  [chartAlign || "verticalAlign"]: "middle",
+                },
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        title: {
+                          x: 0,
+                        },
+                        legend: {
+                          align: "center",
+                          verticalAlign: "bottom",
+                          layout: "horizontal",
+                        },
+                        pane: {
+                          size: "70%",
+                        },
+                      },
+                    },
+                  ],
+                },
+                series: seriesData.series,
+                credits: { enabled: false },
+              };
+            }
+
+            if (chartType === "candlestick") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: "candlestick",
+                      name: "AAPL",
+                      data: [
+                        [Date.UTC(2024, 4, 1), 140.0, 145.0, 138.0, 143.0],
+                        [Date.UTC(2024, 4, 2), 143.0, 147.0, 141.0, 146.5],
+                        [Date.UTC(2024, 4, 3), 146.5, 150.0, 145.0, 148.0],
+                        [Date.UTC(2024, 4, 4), 148.0, 149.0, 144.0, 145.0],
+                        [Date.UTC(2024, 4, 5), 145.0, 146.0, 140.0, 142.0],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "candlestick",
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title || "AAPL Stock Price (Demo)",
+                  align: chart_Title_align || "center",
+                },
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Stock Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  series: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        xAxis: {
+                          labels: {
+                            rotation: -45,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "candlestick-live") {
+              const symbol = "btcusdt";
+              const interval = "1m";
+
+              seriesData = {
+                series: [
+                  {
+                    type: "candlestick",
+                    name: "BTC/USDT",
+                    id: "live-series",
+                    data: [],
+                  },
+                ],
+              };
+
+              seriesData2 = {
+                chart: {
+                  type: "candlestick",
+                  events: {
+                    load: function () {
+                      const chart = this;
+                      const series = chart.get("live-series");
+
+                      fetch(
+                        `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`
+                      )
+                        .then((res) => res.json())
+                        .then((data) => {
+                          const ohlc = data.map((d) => [
+                            d[0],
+                            parseFloat(d[1]),
+                            parseFloat(d[2]),
+                            parseFloat(d[3]),
+                            parseFloat(d[4]),
+                          ]);
+                          series.setData(ohlc, true, false, false);
+                        });
+
+                      const ws = new WebSocket(
+                        `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`
+                      );
+
+                      ws.onmessage = function (event) {
+                        const msg = JSON.parse(event.data);
+                        const k = msg.k;
+
+                        const point = [
+                          k.t,
+                          parseFloat(k.o),
+                          parseFloat(k.h),
+                          parseFloat(k.l),
+                          parseFloat(k.c),
+                        ];
+
+                        const last = series.data[series.data.length - 1];
+                        if (last && last.x === point[0]) {
+                          last.update(
+                            {
+                              open: point[1],
+                              high: point[2],
+                              low: point[3],
+                              close: point[4],
+                            },
+                            true,
+                            false
+                          );
+                        } else {
+                          series.addPoint(
+                            point,
+                            true,
+                            series.data.length > 100
+                          );
+                        }
+                      };
+                    },
+                  },
+                },
+                title: {
+                  text: chart_Title || "Live BTC/USDT Candlestick Chart",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  candlestick: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "ohlc") {
+              seriesData = {
+                series: [
+                  {
+                    type: "ohlc",
+                    name: "Demo OHLC",
+                    id: "ohlc-static-series",
+                    data: [
+                      [Date.UTC(2023, 7, 1), 100, 110, 90, 105],
+                      [Date.UTC(2023, 7, 2), 105, 115, 95, 100],
+                      [Date.UTC(2023, 7, 3), 100, 108, 97, 107],
+                      [Date.UTC(2023, 7, 4), 107, 112, 102, 104],
+                      [Date.UTC(2023, 7, 5), 104, 118, 100, 117],
+                    ],
+                  },
+                ],
+              };
+
+              seriesData2 = {
+                chart: {
+                  type: "ohlc",
+                },
+                title: {
+                  text: chart_Title || "Static OHLC Chart",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  ohlc: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "ohlc-live") {
+              const symbol = "btcusdt";
+              const interval = "1m";
+
+              seriesData = {
+                series: [
+                  {
+                    type: "ohlc",
+                    name: "BTC/USDT",
+                    id: "live-ohlc-series",
+                    data: [],
+                  },
+                ],
+              };
+
+              seriesData2 = {
+                chart: {
+                  type: "ohlc",
+                  events: {
+                    load: function () {
+                      const chart = this;
+                      const series = chart.get("live-ohlc-series");
+
+                      fetch(
+                        `https://api.binance.com/api/v3/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=100`
+                      )
+                        .then((res) => res.json())
+                        .then((data) => {
+                          const ohlc = data.map((d) => [
+                            d[0],
+                            parseFloat(d[1]),
+                            parseFloat(d[2]),
+                            parseFloat(d[3]),
+                            parseFloat(d[4]),
+                          ]);
+                          series.setData(ohlc, true, false, false);
+                        });
+
+                      const ws = new WebSocket(
+                        `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`
+                      );
+
+                      ws.onmessage = function (event) {
+                        const msg = JSON.parse(event.data);
+                        const k = msg.k;
+
+                        const point = [
+                          k.t,
+                          parseFloat(k.o),
+                          parseFloat(k.h),
+                          parseFloat(k.l),
+                          parseFloat(k.c),
+                        ];
+
+                        const last = series.data[series.data.length - 1];
+                        if (last && last.x === point[0]) {
+                          last.update(
+                            {
+                              open: point[1],
+                              high: point[2],
+                              low: point[3],
+                              close: point[4],
+                            },
+                            true,
+                            false
+                          );
+                        } else {
+                          series.addPoint(
+                            point,
+                            true,
+                            series.data.length > 100
+                          );
+                        }
+                      };
+                    },
+                  },
+                },
+                title: {
+                  text: chart_Title || "Live BTC/USDT OHLC Chart",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "datetime",
+                },
+                yAxis: {
+                  title: {
+                    text: "Price",
+                  },
+                },
+                tooltip: {
+                  split: true,
+                  valueDecimals: 2,
+                },
+                plotOptions: {
+                  ohlc: {
+                    color: customColors ? customColors[0] : "#d32f2f",
+                    upColor: customColors ? customColors[1] : "#388e3c",
+                  },
+                },
+                series: seriesData.series,
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "line-column") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Precipitation",
+                      type: "column",
+                      yAxis: 1,
+                      data: [
+                        45.7, 37.0, 28.9, 17.1, 39.2, 18.9, 90.2, 78.5, 74.6,
+                        18.7, 17.1, 16.0,
+                      ],
+                      tooltip: {
+                        valueSuffix: " mm",
+                      },
+                    },
+                    {
+                      name: "Temperature",
+                      type: "spline",
+                      data: [
+                        -11.4, -9.5, -14.2, 0.2, 7.0, 12.1, 13.5, 13.6, 8.2,
+                        -2.8, -12.0, -15.5,
+                      ],
+                      tooltip: {
+                        valueSuffix: "°C",
+                      },
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  zooming: { type: "xy" },
+                  animation: false,
+                  inverted: swapAxis,
+                },
+                title: {
+                  text: chart_Title || "Karasjok weather, 2023",
+                  align: chart_Title_align || "left",
+                },
+
+                xAxis: [
+                  {
+                    categories: [
+                      "Jan",
+                      "Feb",
+                      "Mar",
+                      "Apr",
+                      "May",
+                      "Jun",
+                      "Jul",
+                      "Aug",
+                      "Sep",
+                      "Oct",
+                      "Nov",
+                      "Dec",
+                    ],
+                    crosshair: true,
+                  },
+                ],
+                yAxis: [
+                  {
+                    labels: {
+                      format: "{value}°C",
+                    },
+                    title: {
+                      text: "Temperature",
+                    },
+                    lineColor: Highcharts.getOptions().colors[1],
+                    lineWidth: 2,
+                  },
+                  {
+                    title: {
+                      text: "Precipitation",
+                    },
+                    labels: {
+                      format: "{value} mm",
+                    },
+                    lineColor: Highcharts.getOptions().colors[0],
+                    lineWidth: 2,
+                    opposite: true,
+                  },
+                ],
+                tooltip: {
+                  shared: true,
+                },
+                legend: {
+                  align: chart_layout || "left",
+                  [chartAlign || "verticalAlign"]: "top",
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          layout: chart_layout || "horizontal",
+                          align: "center",
+                          verticalAlign: "bottom",
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "donut-3d") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      name: "Medals",
+                      data: [
+                        ["Norway", 16],
+                        ["Germany", 12],
+                        ["USA", 8],
+                        ["Sweden", 8],
+                        ["Netherlands", 8],
+                        ["ROC", 6],
+                        ["Austria", 7],
+                        ["Canada", 4],
+                        ["Japan", 3],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  options3d: {
+                    enabled: true,
+                    alpha: 45,
+                  },
+                  animation: false,
+                },
+                title: {
+                  text: chart_Title || "Beijing 2022 gold medals by country",
+                  align: chart_Title_align || "center",
+                },
+
+                subtitle: {
+                  text: "3D donut in Highcharts",
+                },
+                plotOptions: {
+                  pie: {
+                    innerSize: 100,
+                    depth: 45,
+                    colors: customColors,
+                  },
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          enabled: false,
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "pie-3d") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: "pie",
+                      name: "Share",
+                      data: [
+                        ["Samsung", 23],
+                        ["Apple", 18],
+                        {
+                          name: "Xiaomi",
+                          y: 12,
+                          sliced: true,
+                          selected: true,
+                        },
+                        ["Oppo*", 9],
+                        ["Vivo", 8],
+                        ["Others", 30],
+                      ],
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "pie",
+                  options3d: {
+                    enabled: true,
+                    alpha: 45,
+                    beta: 0,
+                  },
+                  animation: false,
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    "Global smartphone shipments market share, Q1 2022",
+                  align: chart_Title_align || "center",
+                },
+
+                accessibility: {
+                  point: {
+                    valueSuffix: "%",
+                  },
+                },
+                tooltip: {
+                  pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>",
+                },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: "pointer",
+                    depth: 35,
+                    colors: customColors,
+                    dataLabels: {
+                      enabled: true,
+                      format: "{point.name}",
+                    },
+                  },
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        legend: {
+                          enabled: false,
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            if (chartType === "column-3d") {
+              if (!seriesData.series) {
+                seriesData = {
+                  series: [
+                    {
+                      type: "column",
+                      data: [
+                        ["Toyota", 1795],
+                        ["Volkswagen", 1242],
+                        ["Volvo", 1074],
+                        ["Tesla", 832],
+                        ["Hyundai", 593],
+                        ["MG", 509],
+                        ["Skoda", 471],
+                        ["BMW", 442],
+                        ["Ford", 385],
+                        ["Nissan", 371],
+                      ],
+                      colorByPoint: true,
+                    },
+                  ],
+                };
+              }
+
+              seriesData2 = {
+                chart: {
+                  type: "column",
+                  options3d: {
+                    enabled: true,
+                    alpha: 15,
+                    beta: 15,
+                    depth: 50,
+                    viewDistance: 25,
+                  },
+                  animation: false,
+                },
+                title: {
+                  text:
+                    chart_Title ||
+                    "Sold passenger cars in Norway by brand, May 2024",
+                  align: chart_Title_align || "center",
+                },
+
+                xAxis: {
+                  type: "category",
+                },
+                yAxis: {
+                  title: {
+                    enabled: false,
+                  },
+                },
+                tooltip: {
+                  headerFormat: "<b>{point.key}</b><br>",
+                  pointFormat: "Cars sold: {point.y}",
+                },
+                legend: {
+                  enabled: false,
+                },
+                plotOptions: {
+                  column: {
+                    depth: 25,
+                    colorByPoint: !customColors,
+                  },
+                  colors: customColors,
+                },
+                series: seriesData.series,
+                responsive: {
+                  rules: [
+                    {
+                      condition: {
+                        maxWidth: 500,
+                      },
+                      chartOptions: {
+                        xAxis: {
+                          labels: {
+                            rotation: -45,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+                credits: {
+                  enabled: false,
+                },
+              };
+            }
+
+            try {
+              if (window.Highcharts) {
+                const existingChart = window.Highcharts.charts.find(
+                  (chart) =>
+                    chart && chart.container && chart.container.id === ctx
+                );
+                if (existingChart) {
+                  existingChart.destroy();
+                }
+
+                const chart = window.Highcharts.chart(ctx, seriesData2);
+
+                element.chartInstance = chart;
+
+                setTimeout(() => {
+                  if (chart && chart.reflow) {
+                    chart.reflow();
+                  }
+                }, 100);
+              }
+            } catch (error) {
+              console.error("Error creating Highcharts chart:", error);
+              element.innerHTML =
+                '<div style="padding: 20px; text-align: center; color: #666;">Chart could not be rendered</div>';
+            }
+          };
+
+          const loadHighcharts = () => {
+            return new Promise((resolve, reject) => {
+              if (window.Highcharts) {
+                resolve();
+                return;
+              }
+
+              const script = document.createElement("script");
+              script.src = "https://code.highcharts.com/11.4.8/highcharts.js";
+              script.onload = () => {
+                const drilldownScript = document.createElement("script");
+                drilldownScript.src =
+                  "https://code.highcharts.com/11.4.8/modules/drilldown.js";
+                drilldownScript.onload = resolve;
+                drilldownScript.onerror = resolve;
+                document.head.appendChild(drilldownScript);
+              };
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+          };
+
+          const init = async () => {
+            try {
+              await loadHighcharts();
+              if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", initializeChart);
+              } else {
+                setTimeout(initializeChart, 50);
+              }
+            } catch (error) {
+              console.error("Failed to load Highcharts:", error);
+            }
+          };
+
+          if (!this.highchartsInitialized) {
+            this.highchartsInitialized = true;
+            init();
+          }
+
+          this.on("removed", () => {
+            const element = document.getElementById(this.id);
+            if (element && element.chartInstance) {
+              element.chartInstance.destroy();
+              element.chartInstance = null;
+            }
+            this.highchartsInitialized = false;
+          });
+
+          if (typeof window !== "undefined") {
+            window.addEventListener("beforeprint", () => {
+              setTimeout(initializeChart, 3000);
+            });
+
+            window.addEventListener("afterprint", () => {
+              setTimeout(initializeChart, 3000);
+            });
+          }
+        }).bind(items[i])();
+      }
+    </script>
+  </body>
+</html>

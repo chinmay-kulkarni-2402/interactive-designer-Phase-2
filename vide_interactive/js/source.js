@@ -52,7 +52,6 @@ function source(editor) {
       },
 
       init() {
-        // Update src when audiopath changes
         this.on("change:audiopath", () => {
           const path = this.get("audiopath");
           if (path && path.trim() !== "") {
@@ -64,7 +63,6 @@ function source(editor) {
           }
         });
 
-        // Update loop when trait changes
         this.on("change:loop", () => {
           const shouldLoop = this.get("loop");
           if (shouldLoop) {

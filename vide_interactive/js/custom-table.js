@@ -1,6 +1,4 @@
 function customTable(editor) {
-
-  // Add Table block in the Block Manager
   editor.Blocks.add('table', {
     label: 'Table',
     category: "Extra",
@@ -41,7 +39,7 @@ function customTable(editor) {
       }
     }
   });
-  // Function to show toast/warning
+
   function showToast(message, type = 'warning') {
     const toast = document.createElement('div');
     toast.style.cssText = `
@@ -68,7 +66,6 @@ function customTable(editor) {
     }, 3000);
   }
 
-  // Function to evaluate highlighting conditions
   function evaluateCondition(cellValue, conditionType, conditionValue) {
     if (!conditionType || !conditionType.trim()) return false;
 
@@ -142,28 +139,22 @@ function customTable(editor) {
             case 'ends-with':
               return cellText.endsWith(conditionText);
             default:
-              // Exact match
               return cellText === conditionText;
           }
         }
       });
 
     } catch (error) {
-      console.warn('Error evaluating highlight condition:', error);
       return false;
     }
   }
 
-  // Function to apply highlighting to table cells
   function applyHighlighting(tableId, conditionType, conditionValue, highlightColor) {
     try {
       const canvasBody = editor.Canvas.getBody();
       const table = canvasBody.querySelector(`#${tableId}`);
       if (!table) return;
-
       const wrapper = editor.DomComponents.getWrapper();
-
-      // === Always: Clear previous highlights
       const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
       prev.forEach(td => {
         td.style.backgroundColor = '';
@@ -179,18 +170,15 @@ function customTable(editor) {
         }
       });
 
-      // === Only apply new highlights if condition exists
       if (conditionType && conditionType.trim()) {
         const bodyCells = table.querySelectorAll('tbody td');
         bodyCells.forEach(td => {
           const div = td.querySelector('div');
           const val = div ? div.textContent.trim() : td.textContent.trim();
-
           if (evaluateCondition(val, conditionType, conditionValue)) {
             const bg = highlightColor || '#ffff99';
             td.style.backgroundColor = bg;
             td.setAttribute('data-highlighted', 'true');
-
             const id = td.id;
             if (id) {
               const comp = wrapper.find(`#${id}`)[0];
@@ -208,11 +196,9 @@ function customTable(editor) {
       }
 
     } catch (err) {
-      console.warn('Error applying highlighting:', err);
+      console.warn('Error applying highlighting:');
     }
   }
-
-  // Function to apply multiple highlighting conditions to table cells
 
   function applyMultipleHighlightingWithStyles(tableId, conditions, styles = {}) {
     try {
@@ -226,10 +212,7 @@ function customTable(editor) {
         textColor: '#000000',
         fontFamily: ''
       };
-
       const highlightStyles = { ...defaultStyles, ...styles };
-
-      // Clear previous highlights
       const prev = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
       prev.forEach(td => {
         td.style.backgroundColor = '';
@@ -249,14 +232,12 @@ function customTable(editor) {
         }
       });
 
-      // Apply highlights only if conditions exist
       if (conditions && conditions.length > 0) {
         const bodyCells = table.querySelectorAll('tbody td');
         bodyCells.forEach(td => {
           const div = td.querySelector('div');
           const val = div ? div.textContent.trim() : td.textContent.trim();
 
-          // Check if any condition matches
           let shouldHighlight = false;
           for (let condition of conditions) {
             if (evaluateConditionWithCaseSensitivity(val, condition.type, condition.value, condition.caseSensitive)) {
@@ -266,7 +247,6 @@ function customTable(editor) {
           }
 
           if (shouldHighlight) {
-            // Apply all styles
             td.style.backgroundColor = highlightStyles.backgroundColor;
             td.style.color = highlightStyles.textColor;
             if (highlightStyles.fontFamily) {
@@ -298,58 +278,42 @@ function customTable(editor) {
       }
 
     } catch (err) {
-      console.warn('Error applying highlighting with styles:', err);
+      console.warn('Error applying highlighting with styles:');
     }
   }
 
-  // Enhanced evaluation function with case sensitivity support
   function evaluateConditionWithCaseSensitivity(cellValue, conditionType, conditionValue, caseSensitive = false) {
     if (!conditionType || !conditionType.trim()) return false;
-
     try {
-      // Handle null/empty condition
       if (conditionType === 'null') {
         return !cellValue || cellValue.toString().trim() === '';
       }
 
-      // If no condition value provided for non-null conditions, return false
       if (!conditionValue && conditionType !== 'null') return false;
-
       const conditions = conditionValue.split(',').map(cond => cond.trim()).filter(cond => cond);
-
       return conditions.some(condition => {
-        // Check if it's a number condition based on condition type
         const isNumberConditionType = ['>', '>=', '<', '<=', '=', '!=', 'between'].includes(conditionType);
 
         if (isNumberConditionType) {
           const numericValue = parseFloat(cellValue);
           const isNumeric = !isNaN(numericValue);
-
           if (!isNumeric) return false;
-
           if (conditionType === 'between') {
-            // For 'between', expect format like "100 < value < 1000" or "100 <= value <= 1000"
             const trimmed = condition.trim();
-
-            // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
             const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
             const rangeMatch = trimmed.match(rangePattern);
-
             if (rangeMatch) {
               const [, min, minOp, maxOp, max] = rangeMatch;
               const minValue = parseFloat(min);
               const maxValue = parseFloat(max);
               const minInclusive = minOp === '<=';
               const maxInclusive = maxOp === '<=';
-
               const minCondition = minInclusive ? numericValue >= minValue : numericValue > minValue;
               const maxCondition = maxInclusive ? numericValue <= maxValue : numericValue < maxValue;
-
               return minCondition && maxCondition;
             }
             return false;
           } else {
-            // For other number conditions (>, >=, <, <=, =, !=)
             const threshold = parseFloat(condition);
             if (isNaN(threshold)) return false;
 
@@ -364,11 +328,9 @@ function customTable(editor) {
             }
           }
         } else {
-          // Text-based conditions with case sensitivity support
           let cellText = cellValue.toString();
           let conditionText = condition;
 
-          // Apply case sensitivity
           if (!caseSensitive) {
             cellText = cellText.toLowerCase();
             conditionText = conditionText.toLowerCase();
@@ -382,26 +344,23 @@ function customTable(editor) {
             case 'ends-with':
               return cellText.endsWith(conditionText);
             default:
-              // Exact match
               return cellText === conditionText;
           }
         }
       });
 
     } catch (error) {
-      console.warn('Error evaluating highlight condition:', error);
+      console.warn('Error evaluating highlight condition:');
       return false;
     }
   }
-  // Enhanced function to get target container that works with page system
+
   function getTargetContainer() {
     const selected = editor.getSelected();
 
-    // First priority: Check if something is selected and can accept children
     if (selected) {
       const droppable = selected.get('droppable');
       if (droppable !== false) {
-        // Check if it's a main content area (preferred for pages)
         if (selected.getEl()?.classList.contains('main-content-area') ||
           selected.closest('.main-content-area')) {
           return selected.closest('.main-content-area') || selected;
@@ -409,11 +368,9 @@ function customTable(editor) {
         return selected;
       }
 
-      // Try to find a droppable parent
       let parent = selected.parent();
       while (parent) {
         if (parent.get('droppable') !== false) {
-          // Prefer main content area if available
           if (parent.getEl()?.classList.contains('main-content-area') ||
             parent.closest('.main-content-area')) {
             return parent.closest('.main-content-area') || parent;
@@ -424,27 +381,22 @@ function customTable(editor) {
       }
     }
 
-    // Second priority: Look for main content area in current page
     const allPages = editor.getWrapper().find('.page-container');
     if (allPages.length > 0) {
-      // Try to find the currently visible or active page
       const canvasBody = editor.Canvas.getBody();
       let targetPage = null;
 
-      // Find the page that's currently in view or the first page
       allPages.forEach(page => {
         const pageEl = page.getEl();
         if (pageEl && canvasBody.contains(pageEl)) {
           const rect = pageEl.getBoundingClientRect();
           const viewportHeight = window.innerHeight;
-          // Check if page is visible in viewport
           if (rect.top < viewportHeight && rect.bottom > 0) {
             targetPage = page;
           }
         }
       });
 
-      // If no page is in view, use the first page
       if (!targetPage) {
         targetPage = allPages.at(0);
       }
@@ -457,23 +409,18 @@ function customTable(editor) {
       }
     }
 
-    // Third priority: Use the main canvas wrapper
     const wrapper = editor.DomComponents.getWrapper();
     return wrapper;
   }
 
-  // Function to get available formulas
-  // Function to get available formulas
   function getAvailableFormulas() {
     try {
       const iframe = editor.getContainer().querySelector('iframe');
       let formulas = [];
 
       if (iframe && iframe.contentWindow && iframe.contentWindow.formulaParser && iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS) {
-        // Get supported formulas from the loaded parser
         formulas = [...iframe.contentWindow.formulaParser.SUPPORTED_FORMULAS];
       } else {
-        // Fallback list of common Excel formulas
         formulas = [
           'ABS', 'ACOS', 'ACOSH', 'AND', 'ASIN', 'ASINH', 'ATAN', 'ATAN2', 'ATANH',
           'AVERAGE', 'AVERAGEA', 'AVERAGEIF', 'AVERAGEIFS', 'CEILING', 'CHOOSE',
@@ -491,7 +438,6 @@ function customTable(editor) {
         ];
       }
 
-      // Add our custom formulas
       const customFormulas = ['PERCENT', 'NUMTOWORDS'];
       customFormulas.forEach(f => {
         if (!formulas.includes(f)) {
@@ -502,17 +448,14 @@ function customTable(editor) {
       return formulas.sort();
 
     } catch (error) {
-      console.warn('Error getting formulas:', error);
+
       return ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'PERCENT', 'NUMTOWORDS'].sort();
     }
   }
 
-
-  // Function to show all formulas in modal
   function showAllFormulasModal() {
     const availableFormulas = getAvailableFormulas();
 
-    // Group formulas by category (first letter for simplicity)
     const groupedFormulas = {};
     availableFormulas.forEach(formula => {
       const firstLetter = formula.charAt(0);
@@ -531,7 +474,6 @@ function customTable(editor) {
         <div id="formulas-container" style="max-height: 350px; overflow-y: auto; border: 1px solid #eee; padding: 15px; background: #fafafa;">
     `;
 
-    // Add grouped formulas
     Object.keys(groupedFormulas).sort().forEach(letter => {
       modalContent += `<div class="formula-group" style="margin-bottom: 20px;">`;
       modalContent += `<h4 style="margin: 0 0 8px 0; color: #444; border-bottom: 2px solid #ddd; padding-bottom: 4px; font-size: 14px; font-weight: bold;">${letter} (${groupedFormulas[letter].length})</h4>`;
@@ -568,7 +510,6 @@ function customTable(editor) {
     editor.Modal.setContent(modalContent);
     editor.Modal.open();
 
-    // Add event listeners after modal opens
     setTimeout(() => {
       const searchInput = document.getElementById('formula-search');
       const formulasContainer = document.getElementById('formulas-container');
@@ -579,7 +520,6 @@ function customTable(editor) {
         return;
       }
 
-      // Search functionality
       searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const formulaItems = formulasContainer.querySelectorAll('.formula-item');
@@ -594,7 +534,6 @@ function customTable(editor) {
           }
         });
 
-        // Hide empty groups and show count
         groups.forEach(group => {
           const visibleItems = group.querySelectorAll('.formula-item[style*="inline-block"], .formula-item:not([style*="none"])');
           if (visibleItems.length > 0) {
@@ -605,10 +544,8 @@ function customTable(editor) {
         });
       });
 
-      // Formula item click handlers
       const formulaItems = formulasContainer.querySelectorAll('.formula-item');
       formulaItems.forEach(item => {
-        // Mouse hover effects
         item.addEventListener('mouseenter', () => {
           item.style.backgroundColor = '#007cba';
           item.style.color = 'white';
@@ -624,20 +561,15 @@ function customTable(editor) {
           item.style.transform = 'translateY(0)';
           item.style.boxShadow = 'none';
         });
-
-        // Click handler
         item.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
 
           const formula = item.getAttribute('data-formula');
-
-          // Try to insert into currently focused cell
           const canvasDoc = editor.Canvas.getDocument();
           const activeCell = canvasDoc.querySelector('td:focus, th:focus');
 
           if (activeCell) {
-            // Get current text content
             const targetDiv = activeCell.querySelector('div');
             const currentText = targetDiv ? targetDiv.textContent : activeCell.textContent;
 
@@ -650,18 +582,15 @@ function customTable(editor) {
               newText = `=${formula}(`;
             }
 
-            // Update cell content
             if (targetDiv) {
               targetDiv.textContent = newText;
             } else {
               activeCell.textContent = newText;
             }
 
-            // Ensure cell is in edit mode and focused
             activeCell.contentEditable = "true";
             activeCell.focus();
 
-            // Position cursor after opening parenthesis
             setTimeout(() => {
               try {
                 const range = canvasDoc.createRange();
@@ -681,7 +610,6 @@ function customTable(editor) {
                   range.setEnd(textNode, newText.length);
                   sel.addRange(range);
                 } else {
-                  // Create text node if needed
                   const newTextNode = canvasDoc.createTextNode(newText);
                   if (targetDiv) {
                     targetDiv.innerHTML = '';
@@ -698,16 +626,13 @@ function customTable(editor) {
                 activeCell.focus();
 
               } catch (error) {
-                console.warn('Error positioning cursor:', error);
+                console.warn('Error positioning cursor:');
                 activeCell.focus();
               }
             }, 100);
-
-            showToast(`Formula ${formula} inserted into cell`, 'success');
             editor.Modal.close();
 
           } else {
-            // No active cell - copy to clipboard as fallback
             const tempInput = document.createElement('input');
             tempInput.value = `=${formula}()`;
             document.body.appendChild(tempInput);
@@ -725,7 +650,6 @@ function customTable(editor) {
         });
       });
 
-      // Close button
       closeBtn.addEventListener('mouseenter', () => {
         closeBtn.style.backgroundColor = '#006ba6';
       });
@@ -738,177 +662,155 @@ function customTable(editor) {
         editor.Modal.close();
       });
 
-      // Focus search input
       searchInput.focus();
 
     }, 150);
   }
 
-  // Helper function to get cell value
   function getCellValue(cell) {
     try {
-      // Check for formula first
       const formula = cell.getAttribute('data-formula');
       if (formula && formula.startsWith('=')) {
-        // Return the calculated value, not the formula
         const displayValue = cell.querySelector('div') ? cell.querySelector('div').textContent : cell.textContent;
         const numValue = parseFloat(displayValue);
         return isNaN(numValue) ? displayValue : numValue;
       }
-
-      // Return regular cell value
       const textValue = cell.querySelector('div') ? cell.querySelector('div').textContent : cell.textContent;
       const numValue = parseFloat(textValue);
       return isNaN(numValue) ? textValue : numValue;
     } catch (error) {
-      console.warn('Error getting cell value:', error);
+      console.warn('Error getting cell value:');
       return '';
     }
   }
 
-  // Detect table block drag stop
   editor.on('block:drag:stop', (block) => {
     if (block.get('tagName') === 'table') {
-      // Remove the default empty table that was created
       block.remove();
-      // Open the configuration modal
       addTable();
     }
   });
 
-  // Load CSS inside GrapesJS iframe
   editor.on('load', () => {
     const iframe = editor.getContainer().querySelector('iframe');
     const head = iframe.contentDocument.head;
     const style = document.createElement('style');
     style.type = 'text/css';
     style.innerHTML = `
-  a.dt-button { border: 1px solid #ccc !important; }
-  .dataTables_wrapper .dataTables_filter input {
-    border: 1px solid #ccc !important;
-  }
-  .dataTables_wrapper .dataTables_filter input:focus-visible { outline: 0px!important; }
-  .i_designer-dashed *[data-i_designer-highlightable] {
-    border: 1px solid #ccc !important;
-  }
-  .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    border: 1px solid #ccc !important;
-  }
-  .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    border: 1px solid #ccc !important;
-    background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
-  }
-  table.dataTable { border: 1px solid #ccc !important; }
-  table.dataTable thead th { border-bottom: 1px solid #ccc !important; }
+      a.dt-button { border: 1px solid #ccc !important; }
+      .dataTables_wrapper .dataTables_filter input {
+        border: 1px solid #ccc !important;
+      }
+      .dataTables_wrapper .dataTables_filter input:focus-visible { outline: 0px!important; }
+      .i_designer-dashed *[data-i_designer-highlightable] {
+        border: 1px solid #ccc !important;
+      }
+      .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        border: 1px solid #ccc !important;
+      }
+      .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        border: 1px solid #ccc !important;
+        background: linear-gradient(to bottom, #fff 0%, #dcdcdc 100%) !important;
+      }
+      table.dataTable { border: 1px solid #ccc !important; }
+      table.dataTable thead th { border-bottom: 1px solid #ccc !important; }
 
-  /* Enhanced highlighted cell styles - applied to td/th instead of div */
-  td[data-highlighted="true"], th[data-highlighted="true"] {
-    position: relative;
-  }
-  td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-    content: "★";
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    font-size: 10px;
-    color: #ff6b35;
-    font-weight: bold;
-    z-index: 1;
-  }
+      td[data-highlighted="true"], th[data-highlighted="true"] {
+        position: relative;
+      }
+      td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+        content: "★";
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        font-size: 10px;
+        color: #ff6b35;
+        font-weight: bold;
+        z-index: 1;
+      }
 
-  /* Formula suggestions styling */
-  .formula-suggestions {
-    font-family: Arial, sans-serif !important;
-  }
-  .formula-suggestions div:hover {
-    background-color: #f0f0f0 !important;
-  }
+      .formula-suggestions {
+        font-family: Arial, sans-serif !important;
+      }
+      .formula-suggestions div:hover {
+        background-color: #f0f0f0 !important;
+      }
 
-  /* Page-aware table styles */
-  .page-container .dataTables_wrapper {
-    max-width: 100%;
-    overflow: hidden;
-  }
-  
-  .main-content-area .dataTables_wrapper {
-    width: 100% !important;
-    box-sizing: border-box;
-  }
-  
-  /* Enhanced print styles for tables in pages with cell highlighting preservation */
-  @media print {
-    .page-container table.dataTable {
-      border-collapse: collapse !important;
-      width: 100% !important;
-      font-size: 10px !important;
-      page-break-inside: avoid !important;
-    }
-    
-    .page-container .dataTables_wrapper .dataTables_length,
-    .page-container .dataTables_wrapper .dataTables_filter,
-    .page-container .dataTables_wrapper .dataTables_info,
-    .page-container .dataTables_wrapper .dataTables_paginate,
-    .page-container .dataTables_wrapper .dt-buttons {
-      display: none !important;
-    }
-    
-    .page-container table.dataTable thead th,
-    .page-container table.dataTable tbody td {
-      border: 1px solid #000 !important;
-      padding: 4px !important;
-      text-align: left !important;
-    }
-    
-    .page-container table.dataTable thead th {
-      background-color: #f5f5f5 !important;
-      font-weight: bold !important;
-      -webkit-print-color-adjust: exact !important;
-      color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
+      .page-container .dataTables_wrapper {
+        max-width: 100%;
+        overflow: hidden;
+      }
+      
+      .main-content-area .dataTables_wrapper {
+        width: 100% !important;
+        box-sizing: border-box;
+      }
+      
+      @media print {
+        .page-container table.dataTable {
+          border-collapse: collapse !important;
+          width: 100% !important;
+          font-size: 10px !important;
+          page-break-inside: avoid !important;
+        }
+        
+        .page-container .dataTables_wrapper .dataTables_length,
+        .page-container .dataTables_wrapper .dataTables_filter,
+        .page-container .dataTables_wrapper .dataTables_info,
+        .page-container .dataTables_wrapper .dataTables_paginate,
+        .page-container .dataTables_wrapper .dt-buttons {
+          display: none !important;
+        }
+        
+        .page-container table.dataTable thead th,
+        .page-container table.dataTable tbody td {
+          border: 1px solid #000 !important;
+          padding: 4px !important;
+          text-align: left !important;
+        }
+        
+        .page-container table.dataTable thead th {
+          background-color: #f5f5f5 !important;
+          font-weight: bold !important;
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
 
-    /* Preserve cell highlighting in print - critical for PDF generation */
-    td[data-highlighted="true"], th[data-highlighted="true"] {
-      -webkit-print-color-adjust: exact !important;
-      color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    
-    /* Ensure background colors are preserved in print/PDF */
-    * {
-      -webkit-print-color-adjust: exact !important;
-      color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    
-    /* Hide the star indicator in print to avoid clutter */
-    td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
-      display: none !important;
-    }
-  }
-`;
+        td[data-highlighted="true"], th[data-highlighted="true"] {
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        * {
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        td[data-highlighted="true"]::after, th[data-highlighted="true"]::after {
+          display: none !important;
+        }
+      }
+    `;
     head.appendChild(style);
-
-    // Inject formula parser library into iframe
     const script = document.createElement('script');
     script.src = "https://cdn.jsdelivr.net/npm/hot-formula-parser/dist/formula-parser.min.js";
     script.crossOrigin = "anonymous";
 
     script.onload = () => {
-      // Wait a bit for the library to fully initialize
       setTimeout(() => {
         registerCustomFormulas();
       }, 300);
     };
 
     script.onerror = (error) => {
-      console.error('Failed to load hot-formula-parser:', error);
+      console.error('Failed to load hot-formula-parser:');
     };
 
-    // Append to iframe head instead of main document head
     iframe.contentDocument.head.appendChild(script);
 
-    // Add the table condition manager command
     editor.Commands.add('open-table-condition-manager-local-table', {
       run() {
         const selected = editor.getSelected();
@@ -1036,7 +938,7 @@ function customTable(editor) {
         }, 100);
       }
     });
-    // ✅ Custom formula registration
+
     function registerCustomFormulas() {
       try {
         const iframe = editor.getContainer().querySelector('iframe');
@@ -1048,21 +950,17 @@ function customTable(editor) {
 
         const iframeWindow = iframe.contentWindow;
 
-        // Wait for formulaParser to be available in iframe
         if (!iframeWindow.formulaParser || !iframeWindow.formulaParser.Parser) {
           console.warn('Formula parser not available in iframe, retrying...');
           setTimeout(registerCustomFormulas, 500);
           return;
         }
 
-        // ✅ Store the parser constructor globally in iframe for enableFormulaEditing to use
         if (!iframeWindow.globalFormulaParser) {
           iframeWindow.globalFormulaParser = new iframeWindow.formulaParser.Parser();
 
-          // ✅ Register custom formulas on the global parser instance
           const parser = iframeWindow.globalFormulaParser;
 
-          // Register PERCENT formula: PERCENT(base, percent)
           parser.setFunction('PERCENT', function (params) {
             if (params.length !== 2) return '#N/A';
             const base = parseFloat(params[0]);
@@ -1071,7 +969,6 @@ function customTable(editor) {
             return base * (percent / 100);
           });
 
-          // Register ABSOLUTE formula: ABSOLUTE(number)
           parser.setFunction('ABSOLUTE', function (params) {
             if (params.length !== 1) return '#N/A';
             const num = parseFloat(params[0]);
@@ -1079,10 +976,6 @@ function customTable(editor) {
             return Math.abs(num);
           });
 
-          console.log('Custom formulas PERCENT and ABSOLUTE registered successfully');
-
-          // ✅ Also register these formulas on the Parser constructor prototype
-          // so new instances will have them
           if (iframeWindow.formulaParser.Parser.prototype.setFunction) {
             iframeWindow.formulaParser.Parser.prototype.customFormulas = {
               'PERCENT': function (params) {
@@ -1100,52 +993,41 @@ function customTable(editor) {
               }
             };
           }
-
-          // Load number-to-words library
           loadNumberToWords(parser, iframeWindow);
         }
 
       } catch (error) {
-        console.error('Error registering custom formulas:', error);
+        console.error('Error registering custom formulas');
       }
     }
 
     function loadNumberToWords(parser, iframeWindow) {
       try {
-        // Check if numberToWords is already available
         if (iframeWindow.numberToWords) {
-          console.log("alrady available")
           registerNumToWords(parser, iframeWindow);
           return;
         }
 
-        // Create script element in iframe document
         const script = iframeWindow.document.createElement('script');
         script.src = "https://cdn.jsdelivr.net/npm/number-to-words@1.2.4/numberToWords.min.js";
         script.crossOrigin = "anonymous";
 
         script.onload = function () {
           try {
-            // Give it a moment for the library to initialize
             setTimeout(() => {
-              console.log("number to word script is oading")
               registerNumToWords(parser, iframeWindow);
             }, 100);
           } catch (error) {
-            console.error('Error after loading number-to-words:', error);
+            console.error('Error after loading number-to-words');
           }
         };
 
         script.onerror = function (error) {
-          console.error('Failed to load number-to-words library:', error);
-
-          // Fallback: register a simple NUMTOWORDS that converts basic numbers
           parser.setFunction('NUMTOWORDS', function (params) {
             if (params.length !== 1) return '#N/A';
             const num = parseInt(params[0]);
             if (isNaN(num)) return '#VALUE!';
 
-            // Simple fallback for numbers 0-20
             const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
               'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
 
@@ -1160,15 +1042,12 @@ function customTable(editor) {
               return 'Number too large for fallback';
             }
           });
-
-          console.log('NUMTOWORDS registered with fallback implementation');
         };
 
-        // Append to iframe head
         iframeWindow.document.head.appendChild(script);
 
       } catch (error) {
-        console.error('Error loading number-to-words library:', error);
+        console.error('Error loading number-to-words library:');
       }
     }
     function registerNumToWords(parser, iframeWindow) {
@@ -1186,12 +1065,11 @@ function customTable(editor) {
             }
           });
 
-          console.log('NUMTOWORDS formula registered successfully with number-to-words library');
         } else {
           console.warn('numberToWords library not properly loaded');
         }
       } catch (error) {
-        console.error('Error registering NUMTOWORDS:', error);
+        console.error('Error registering NUMTOWORDS');
       }
     }
   });
@@ -1217,7 +1095,6 @@ function customTable(editor) {
 
 
   editor.on('storage:store', function () {
-    // Before storing, ensure running total data is preserved in components
     try {
       const canvasBody = editor.Canvas.getBody();
       const tables = canvasBody.querySelectorAll('table[id^="table"]');
@@ -1228,14 +1105,12 @@ function customTable(editor) {
 
 
         if (tableComponent) {
-          // Find all running total cells and preserve their data
           const runningTotalCells = table.querySelectorAll('[data-running-total-cell], [data-running-total-header]');
 
           runningTotalCells.forEach(cell => {
             const tableComponent = editor.getWrapper().find('table')[0];
 
             if (cellComponent) {
-              // Preserve running total attributes in the component
               const attributes = cellComponent.getAttributes();
 
               if (cell.hasAttribute('data-running-total-cell')) {
@@ -1252,8 +1127,6 @@ function customTable(editor) {
               }
 
               cellComponent.setAttributes(attributes);
-
-              // Also ensure the cell content is preserved
               const cellContent = cell.textContent || cell.innerHTML;
               if (cellContent) {
                 cellComponent.set('content', cellContent);
@@ -1263,7 +1136,7 @@ function customTable(editor) {
         }
       });
     } catch (error) {
-      console.warn('Error preserving running totals during export:', error);
+      console.warn('Error preserving running totals during export');
     }
   });
 
@@ -1275,8 +1148,6 @@ function customTable(editor) {
     const closeBtn = document.getElementById('table-close-manager-btn');
     const applyBtn = document.getElementById('table-apply-conditions-btn');
     const conditionsList = document.getElementById('table-conditions-list');
-
-    // NEW: Get styling elements
     const bgColorInput = document.getElementById('highlight-bg-color');
     const textColorInput = document.getElementById('highlight-text-color');
     const fontFamilySelect = document.getElementById('highlight-font-family');
@@ -1284,23 +1155,19 @@ function customTable(editor) {
 
     if (!conditionTypeSelect || !addBtn || !closeBtn || !applyBtn || !conditionsList ||
       !bgColorInput || !textColorInput || !fontFamilySelect || !caseSensitiveCheckbox) {
-      console.warn('Table condition manager elements not found');
       return;
     }
 
-    // Load existing styling settings from tableComponent if available
     const existingStyles = tableComponent.get('highlight-styles') || {};
     bgColorInput.value = existingStyles.backgroundColor || '#ffff99';
     textColorInput.value = existingStyles.textColor || '#000000';
     fontFamilySelect.value = existingStyles.fontFamily || '';
 
-    // Handle condition type change
     conditionTypeSelect.addEventListener('change', (e) => {
       const selectedType = e.target.value;
       if (selectedType === 'between') {
         singleValueInput.style.display = 'none';
         rangeInputs.style.display = 'block';
-        // Disable case sensitivity for numeric conditions
         caseSensitiveCheckbox.disabled = true;
         caseSensitiveCheckbox.checked = false;
       } else if (selectedType === 'null') {
@@ -1311,18 +1178,15 @@ function customTable(editor) {
       } else if (['>', '>=', '<', '<=', '=', '!='].includes(selectedType)) {
         singleValueInput.style.display = 'block';
         rangeInputs.style.display = 'none';
-        // Disable case sensitivity for numeric conditions
         caseSensitiveCheckbox.disabled = true;
         caseSensitiveCheckbox.checked = false;
       } else {
         singleValueInput.style.display = 'block';
         rangeInputs.style.display = 'none';
-        // Enable case sensitivity for text conditions
         caseSensitiveCheckbox.disabled = false;
       }
     });
 
-    // Render existing conditions
     function renderConditions() {
       if (conditions.length === 0) {
         conditionsList.innerHTML = '<p style="color: #666;">No conditions added yet.</p>';
@@ -1349,7 +1213,6 @@ function customTable(editor) {
       }).join('');
     }
 
-    // Global function to remove condition
     window.removeTableCondition = function (index) {
       conditions.splice(index, 1);
       renderConditions();
@@ -1359,7 +1222,6 @@ function customTable(editor) {
     addBtn.addEventListener('click', () => {
       const type = conditionTypeSelect.value;
       if (!type) {
-        showToast('Please select a condition type', 'warning');
         return;
       }
 
@@ -1369,7 +1231,6 @@ function customTable(editor) {
         const minValue = document.getElementById('table-min-value').value;
         const maxValue = document.getElementById('table-max-value').value;
         if (!minValue || !maxValue) {
-          showToast('Please enter both min and max values', 'warning');
           return;
         }
         condition.minValue = parseFloat(minValue);
@@ -1380,12 +1241,10 @@ function customTable(editor) {
       } else {
         const value = document.getElementById('table-condition-value').value;
         if (!value) {
-          showToast('Please enter a value', 'warning');
           return;
         }
         condition.value = value;
 
-        // Add case sensitivity for text conditions
         if (['contains', 'starts-with', 'ends-with'].includes(type)) {
           condition.caseSensitive = caseSensitiveCheckbox.checked;
         }
@@ -1394,7 +1253,6 @@ function customTable(editor) {
       conditions.push(condition);
       renderConditions();
 
-      // Clear form
       conditionTypeSelect.value = '';
       document.getElementById('table-condition-value').value = '';
       document.getElementById('table-min-value').value = '';
@@ -1405,9 +1263,7 @@ function customTable(editor) {
       rangeInputs.style.display = 'none';
     });
 
-    // Apply conditions
     applyBtn.addEventListener('click', () => {
-      // Save styling settings to tableComponent
       const highlightStyles = {
         backgroundColor: bgColorInput.value,
         textColor: textColorInput.value,
@@ -1416,16 +1272,11 @@ function customTable(editor) {
 
       tableComponent.set('highlight-styles', highlightStyles);
       tableComponent.setHighlightConditions([...conditions]);
-
-      // Apply highlighting with new styles
       const tableId = tableComponent.getId();
       applyMultipleHighlightingWithStyles(tableId, conditions, highlightStyles);
-
-      showToast('Conditions and styles applied successfully!', 'success');
       editor.Modal.close();
     });
 
-    // Close modal
     closeBtn.addEventListener('click', () => {
       editor.Modal.close();
     });
@@ -1435,19 +1286,14 @@ function customTable(editor) {
 
   function getComponentFromDom(el) {
     if (!el) return null;
-
-    // GrapesJS adds this automatically for every component element
     const cid = el.getAttribute('data-gjs-cid');
     if (!cid) return null;
 
     return editor.DomComponents.getById(cid);
   }
 
-  // Global storage for selected cells
   window.crosstabSelectedCells = [];
 
-  // Function to enable crosstab cell selection
-  // Function to enable crosstab cell selection
   function enableCrosstabSelection(tableId, enabled) {
     try {
       const canvasBody = editor.Canvas.getBody();
@@ -1458,7 +1304,6 @@ function customTable(editor) {
       const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
 
       if (enabled) {
-        // Store original GrapesJS properties
         table._originalGjsProps = new Map();
         table._originalRowGjsProps = new Map();
 
@@ -1476,12 +1321,11 @@ function customTable(editor) {
           cell.contentEditable = "false";
           cell.style.cursor = 'pointer';
           cell.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent row selection
+            e.stopPropagation();
             handleCrosstabCellClick(cell, tableId);
           });
         });
 
-        // Disable row selection
         const allRows = table.querySelectorAll('tr');
         allRows.forEach(row => {
           const comp = getComponentFromDom(row);
@@ -1497,15 +1341,13 @@ function customTable(editor) {
         showToast('Crosstab mode enabled - Click cells to select for merging', 'success');
       } else {
         window.crosstabSelectedCells = [];
-
-        // ✅ First: Restore cell properties BEFORE clearing visual styles
         if (table._originalGjsProps) {
           allCells.forEach(cell => {
             const original = table._originalGjsProps.get(cell);
             const comp = getComponentFromDom(cell);
             if (comp && original) {
               comp.set({
-                selectable: true, // ✅ Force cells to be selectable
+                selectable: true,
                 hoverable: true,
                 editable: true
               });
@@ -1514,14 +1356,13 @@ function customTable(editor) {
           delete table._originalGjsProps;
         }
 
-        // ✅ Second: Ensure rows remain NON-selectable
         if (table._originalRowGjsProps) {
           const allRows = table.querySelectorAll('tr');
           allRows.forEach(row => {
             const comp = getComponentFromDom(row);
             if (comp) {
               comp.set({
-                selectable: false, // ✅ Keep rows non-selectable
+                selectable: false,
                 hoverable: false
               });
             }
@@ -1529,7 +1370,6 @@ function customTable(editor) {
           delete table._originalRowGjsProps;
         }
 
-        // ✅ Third: Clean up visual styles
         allCells.forEach(cell => {
           cell.classList.remove('crosstab-selected');
           cell.style.outline = '';
@@ -1537,21 +1377,14 @@ function customTable(editor) {
           cell.style.cursor = 'text';
         });
 
-        // ✅ Fourth: Remove event listeners by cloning cells
         allCells.forEach(cell => {
           const newCell = cell.cloneNode(true);
           cell.parentNode.replaceChild(newCell, cell);
         });
 
-        // ✅ Fifth: Force GrapesJS to refresh the component structure
         if (tableComponent) {
-          // Deselect any currently selected component
           editor.select(null);
-
-          // Update the table component
           editor.trigger('component:update', tableComponent);
-
-          // Refresh all cell components to ensure proper selectability
           setTimeout(() => {
             const allCellComponents = tableComponent.find('td, th');
             allCellComponents.forEach(cellComp => {
@@ -1563,7 +1396,6 @@ function customTable(editor) {
               editor.trigger('component:update', cellComp);
             });
 
-            // Ensure rows stay non-selectable
             const allRowComponents = tableComponent.find('tr');
             allRowComponents.forEach(rowComp => {
               rowComp.set({
@@ -1573,10 +1405,7 @@ function customTable(editor) {
               editor.trigger('component:update', rowComp);
             });
 
-            // Force layer manager refresh
             editor.trigger('layer:refresh');
-
-            // Re-enable formula editing
             enableFormulaEditing(tableId);
           }, 200);
         }
@@ -1584,15 +1413,13 @@ function customTable(editor) {
         showToast('Crosstab mode disabled - Normal cell editing restored', 'success');
       }
     } catch (error) {
-      console.error('Error toggling crosstab mode:', error);
+      console.error('Error toggling crosstab mode:');
     }
   }
 
-  // Handle cell click in crosstab mode
-  // Helper: build a grid map of the table accounting for rowspan/colspan
   function buildTableGrid(table) {
-    const grid = []; // grid[row][col] = cellElement
-    const cellMap = new Map(); // cellElement -> {positions: [{r,c}], rowspan, colspan}
+    const grid = [];
+    const cellMap = new Map();
 
     const rows = Array.from(table.rows);
     for (let r = 0; r < rows.length; r++) {
@@ -1601,7 +1428,6 @@ function customTable(editor) {
       let c = 0;
       for (let ci = 0; ci < cells.length; ci++) {
         const cell = cells[ci];
-        // find next free column index
         while (grid[r][c]) c++;
 
         const rowspan = parseInt(cell.getAttribute('rowspan') || '1', 10);
@@ -1626,15 +1452,11 @@ function customTable(editor) {
     return { grid, cellMap };
   }
 
-  // Updated handleCrosstabCellClick to record grid coordinates (accounts for colspan/rowspan)
   function handleCrosstabCellClick(cell, tableId) {
     try {
       const canvasBody = editor.Canvas.getBody();
       const table = canvasBody.querySelector(`#${tableId}`);
       if (!table) return;
-
-
-      // ✅ NEW: Check if cell is in thead or tbody
       const isHeaderCell = cell.closest('thead') !== null;
       const cellInfo = {
         element: cell,
@@ -1642,7 +1464,6 @@ function customTable(editor) {
         isHeader: isHeaderCell
       };
 
-      // ✅ NEW: Check if mixing header and body cells
       if (window.crosstabSelectedCells.length > 0) {
         const firstCellIsHeader = window.crosstabSelectedCells[0].isHeader;
         if (firstCellIsHeader !== isHeaderCell) {
@@ -1659,107 +1480,24 @@ function customTable(editor) {
       cellInfo.gridCol = mapEntry.firstCol;
       cellInfo.rowspan = mapEntry.rowspan;
       cellInfo.colspan = mapEntry.colspan;
-      // Check if cell is already selected (compare element)
       const existingIndex = window.crosstabSelectedCells.findIndex(
         c => c.element === cell
       );
 
       if (existingIndex !== -1) {
-        // Deselect
         window.crosstabSelectedCells.splice(existingIndex, 1);
         cell.classList.remove('crosstab-selected');
         cell.style.outline = '';
       } else {
-        // Select
         window.crosstabSelectedCells.push(cellInfo);
         cell.classList.add('crosstab-selected');
         cell.style.outline = '2px solid #007bff';
       }
-
-      console.log('Selected cells:', window.crosstabSelectedCells.length);
     } catch (err) {
-      console.error('handleCrosstabCellClick error:', err);
+      console.error('handleCrosstabCellClick error:');
     }
   }
 
-  // Function to validate if selected cells are consecutive
-  function validateConsecutiveCells(selectedCells) {
-    if (!selectedCells || selectedCells.length < 2) return false;
-
-    // Build set of occupied grid positions from selected cells
-    let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
-    const occupied = new Set(); // "r:c"
-    for (const s of selectedCells) {
-      const r0 = s.gridRow;
-      const c0 = s.gridCol;
-      const rs = s.rowspan || 1;
-      const cs = s.colspan || 1;
-
-      minRow = Math.min(minRow, r0);
-      minCol = Math.min(minCol, c0);
-      maxRow = Math.max(maxRow, r0 + rs - 1);
-      maxCol = Math.max(maxCol, c0 + cs - 1);
-
-      for (let rr = r0; rr < r0 + rs; rr++) {
-        for (let cc = c0; cc < c0 + cs; cc++) {
-          occupied.add(`${rr}:${cc}`);
-        }
-      }
-    }
-
-    const expectedCellsCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
-
-    // Ensure every position inside the bounding rectangle is occupied by the selection
-    for (let rr = minRow; rr <= maxRow; rr++) {
-      for (let cc = minCol; cc <= maxCol; cc++) {
-        if (!occupied.has(`${rr}:${cc}`)) {
-          return false; // hole found
-        }
-      }
-    }
-
-    // Passed: selection forms a filled rectangle
-    return true;
-  }
-
-  // Add this helper function before mergeCrosstabCells
-  function forceTableComponentRefresh(tableId) {
-    try {
-      const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
-      if (!tableComponent) return;
-
-      const canvasBody = editor.Canvas.getBody();
-      const table = canvasBody.querySelector(`#${tableId}`);
-      if (!table) return;
-
-      // Get current HTML state
-      const tableHTML = table.outerHTML;
-      const parent = tableComponent.parent();
-      const index = parent.components().indexOf(tableComponent);
-
-      // Remove old component
-      parent.components().remove(tableComponent);
-
-      // Add back with fresh HTML
-      const newComponent = parent.components().add(tableHTML, { at: index })[0];
-
-      // Set type back to enhanced-table
-      const newTable = newComponent.find('table')[0] || newComponent;
-      if (newTable && newTable.get('tagName') === 'table') {
-        newTable.set('type', 'enhanced-table');
-      }
-
-      // Force refresh
-      editor.trigger('component:update', newTable);
-
-      return newTable;
-    } catch (error) {
-      console.error('Error refreshing table component:', error);
-    }
-  }
-
-  // Function to merge selected cells
-  // Function to merge selected cells
   function mergeCrosstabCells() {
     try {
       if (!window.crosstabSelectedCells || window.crosstabSelectedCells.length < 2) {
@@ -1770,12 +1508,8 @@ function customTable(editor) {
       const anyCell = window.crosstabSelectedCells[0].element;
       const table = anyCell.closest('table');
       const tableId = table.id;
-
-      // Build grid considering existing rowspan/colspan
       const { grid, cellMap } = buildTableGrid(table);
-
       const selectedPhysicalCells = new Set(window.crosstabSelectedCells.map(s => s.element));
-
       const selectedPositions = new Set();
       selectedPhysicalCells.forEach(cell => {
         const meta = cellMap.get(cell);
@@ -1791,7 +1525,6 @@ function customTable(editor) {
         return;
       }
 
-      // Determine bounding box
       let minRow = Infinity, maxRow = -Infinity;
       let minCol = Infinity, maxCol = -Infinity;
       selectedPositions.forEach(key => {
@@ -1802,10 +1535,8 @@ function customTable(editor) {
         maxCol = Math.max(maxCol, c);
       });
 
-      // Validate full contiguous rectangle
       const expectedSize = (maxRow - minRow + 1) * (maxCol - minCol + 1);
       if (selectedPositions.size !== expectedSize) {
-        showToast('Selected cells must form a complete rectangle without gaps', 'warning');
         return;
       }
 
@@ -1818,15 +1549,11 @@ function customTable(editor) {
       });
 
       if (!topLeftCell) {
-        showToast('Unable to find top-left cell', 'error');
         return;
       }
 
-      // Calculate new spans
       const newRowspan = maxRow - minRow + 1;
       const newColspan = maxCol - minCol + 1;
-
-      // Collect content from all selected cells
       let mergedContent = [];
       selectedPhysicalCells.forEach(cell => {
         const div = cell.querySelector('div');
@@ -1838,15 +1565,11 @@ function customTable(editor) {
       });
 
       const finalContent = mergedContent.length > 0 ? mergedContent.join(' ') : (topLeftCell.tagName === 'TH' ? 'Header' : 'Text');
-
-      // ✅ CRITICAL: Get GrapesJS table component FIRST
       const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
       if (!tableComponent) {
-        showToast('Table component not found', 'error');
         return;
       }
 
-      // ✅ Find the top-left cell component in GrapesJS
       const topLeftCellId = topLeftCell.id;
       let topLeftComponent = null;
 
@@ -1855,21 +1578,17 @@ function customTable(editor) {
       }
 
       if (!topLeftComponent) {
-        // Try to find by matching DOM element
         topLeftComponent = getComponentFromDom(topLeftCell);
       }
 
       if (topLeftComponent) {
-        // ✅ UPDATE: Set attributes in GrapesJS component using setAttributes
         topLeftComponent.setAttributes({
           rowspan: newRowspan.toString(),
           colspan: newColspan.toString()
         });
 
-        // ✅ UPDATE: Update content in GrapesJS component
         topLeftComponent.components(`<div>${finalContent}</div>`);
 
-        // ✅ Collect cells to remove from GrapesJS
         const toRemoveComponents = [];
         cellMap.forEach((meta, cell) => {
           if (cell === topLeftCell) return;
@@ -1894,7 +1613,6 @@ function customTable(editor) {
           }
         });
 
-        // ✅ Remove components from GrapesJS structure
         toRemoveComponents.forEach(comp => {
           const parent = comp.parent();
           if (parent) {
@@ -1902,17 +1620,14 @@ function customTable(editor) {
           }
         });
 
-        // ✅ Force GrapesJS to update
         editor.trigger('component:update', topLeftComponent);
         editor.trigger('component:update', tableComponent);
       }
 
-      // ✅ Update DOM (for immediate visual feedback)
       topLeftCell.setAttribute('rowspan', newRowspan.toString());
       topLeftCell.setAttribute('colspan', newColspan.toString());
       topLeftCell.innerHTML = `<div>${finalContent}</div>`;
 
-      // Remove cells from DOM
       const toRemove = new Set();
       cellMap.forEach((meta, cell) => {
         if (cell === topLeftCell) return;
@@ -1928,7 +1643,6 @@ function customTable(editor) {
         if (cell.parentNode) cell.parentNode.removeChild(cell);
       });
 
-      // ✅ Clear selection state
       window.crosstabSelectedCells.forEach(s => {
         if (s.element && s.element.classList) {
           s.element.classList.remove('crosstab-selected');
@@ -1937,53 +1651,37 @@ function customTable(editor) {
       });
       window.crosstabSelectedCells = [];
 
-      // ✅ Force complete refresh cycle
       setTimeout(() => {
-        // Update all rows in the table
         const allRows = tableComponent.find('tr');
         allRows.forEach(row => {
           editor.trigger('component:update', row);
         });
 
-        // Update table component
         editor.trigger('component:update', tableComponent);
 
-        // Force layer manager refresh
         editor.trigger('layer:refresh');
 
-        // Update DataTable structure
         updateDataTableStructure(tableId);
       }, 100);
 
-      showToast('Cells merged successfully', 'success');
     } catch (error) {
-      console.error('Error merging cells:', error);
-      showToast('Error merging cells: ' + error.message, 'error');
+      console.error('Error merging cells:');
     }
   }
 
-
-  // Override the default HTML export to include running total data
   const originalGetHtml = editor.getHtml;
   editor.getHtml = function () {
     try {
-      // Get the original HTML
       let html = originalGetHtml.call(this);
-
-      // Process HTML to ensure running total cells are properly included
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
-
-      // Find all tables and restore running total data from the canvas
       const canvasBody = editor.Canvas.getBody();
       const exportTables = tempDiv.querySelectorAll('table[id^="table"]');
-
       exportTables.forEach(exportTable => {
         const tableId = exportTable.id;
         const canvasTable = canvasBody.querySelector(`#${tableId}`);
 
         if (canvasTable) {
-          // Copy running total cells from canvas to export
           const canvasRunningCells = canvasTable.querySelectorAll('[data-running-total-cell], [data-running-total-header]');
           const exportRows = exportTable.querySelectorAll('tr');
           const canvasRows = canvasTable.querySelectorAll('tr');
@@ -2001,20 +1699,17 @@ function customTable(editor) {
                   (canvasCell.hasAttribute('data-running-total-cell') ||
                     canvasCell.hasAttribute('data-running-total-header'))) {
 
-                  // Copy running total attributes
                   ['data-running-total-cell', 'data-running-total-for', 'data-running-total-value', 'data-running-total-header'].forEach(attr => {
                     if (canvasCell.hasAttribute(attr)) {
                       exportCell.setAttribute(attr, canvasCell.getAttribute(attr));
                     }
                   });
 
-                  // Copy the content
                   const content = canvasCell.textContent || canvasCell.innerHTML;
                   if (content) {
                     exportCell.innerHTML = `<div>${content}</div>`;
                   }
 
-                  // Copy any styling
                   if (canvasCell.style.cssText) {
                     exportCell.style.cssText = canvasCell.style.cssText;
                   }
@@ -2028,11 +1723,11 @@ function customTable(editor) {
       return tempDiv.innerHTML;
 
     } catch (error) {
-      console.warn('Error in enhanced HTML export:', error);
+      console.warn('Error in enhanced HTML export:');
       return originalGetHtml.call(this);
     }
   };
-  // Add custom table component type with highlighting traits
+
   editor.DomComponents.addType('enhanced-table', {
     isComponent: el => el.tagName === 'TABLE' && el.id && el.id.startsWith('table'),
     model: {
@@ -2090,7 +1785,6 @@ function customTable(editor) {
         'highlight-conditions': [],
         'highlight-color': '#ffff99',
         'highlight-styles': {},
-        // Style properties
         'table-border-style': 'solid',
         'table-border-width': '1',
         'table-border-color': '#000000',
@@ -2100,7 +1794,6 @@ function customTable(editor) {
         'table-font-family': 'Arial, sans-serif',
         'table-text-align': 'left',
         'table-vertical-align': 'middle',
-        // Grouping & Summary properties
         'grouping-fields': [],
         'summary-fields': [],
         'sort-order': 'ascending',
@@ -2118,10 +1811,8 @@ function customTable(editor) {
         'grand-total': true,
         'grand-total-label': 'Grand Total',
         'summary-label': 'Subtotal',
-        // Running Total properties
         'running-totals': [],
         'selected-running-total-columns': [],
-        // Base data storage
         'base-headers': null,
         'base-data': null,
       },
@@ -2130,11 +1821,7 @@ function customTable(editor) {
         this.on('change:highlight-condition-type change:highlight-words change:highlight-color', this.handleHighlightChange);
         this.on('change:crosstab-mode', this.handleCrosstabModeChange);
         this.on('change:table-border-style change:table-border-width change:table-border-color change:table-border-opacity change:table-bg-color change:table-text-color change:table-font-family change:table-text-align change:table-vertical-align', this.applyTableStyles);
-
-        // Grouping & Summary listeners
         this.on('change:grouping-fields change:summary-fields change:sort-order change:top-n change:summarize-group change:merge-group-cells change:show-summary-only change:grand-total', this.applyGroupingAndSummary);
-
-        // Store base table data on initialization
         this.storeBaseTableData();
       },
 
@@ -2144,11 +1831,8 @@ function customTable(editor) {
           const canvasDoc = editor.Canvas.getDocument();
           const tableElement = canvasDoc.getElementById(tableId);
           if (!tableElement) return;
-
           const headers = {};
           const data = [];
-
-          // Extract headers
           const headerRow = tableElement.querySelector('thead tr');
           if (headerRow) {
             const headerCells = headerRow.querySelectorAll('th');
@@ -2159,7 +1843,6 @@ function customTable(editor) {
             });
           }
 
-          // Extract data
           const bodyRows = tableElement.querySelectorAll('tbody tr');
           bodyRows.forEach(row => {
             const rowData = {};
@@ -2177,7 +1860,7 @@ function customTable(editor) {
           this.set('base-data', data, { silent: true });
 
         } catch (error) {
-          console.warn('Error storing base table data:', error);
+          console.warn('Error storing base table data:');
         }
       },
 
@@ -2195,22 +1878,12 @@ function customTable(editor) {
         const summaryFields = this.get('summary-fields') || [];
         const data = this.getTableData();
         const headers = this.getTableHeaders();
-
-        console.log('🔧 applyGroupingAndSummary called:', {
-          groupingFields: groupingFields.length,
-          summarizeGroup,
-          summaryFields: summaryFields.length,
-          dataRows: data.length
-        });
-
         if (groupingFields.length === 0) {
-          console.log('✅ No grouping - restoring original data');
           this.rebuildTableHTML(headers, data);
           return;
         }
 
         if (summarizeGroup && summaryFields.length === 0) {
-          showToast('Please add at least one summary field', 'warning');
           this.set('summarize-group', false);
           return;
         }
@@ -2232,7 +1905,6 @@ function customTable(editor) {
         const mergeGroupCells = this.get('merge-group-cells') || false;
         const hideSubtotalSingleRow = this.get('hide-subtotal-single-row') || false;
 
-        // Group data
         data.forEach(row => {
           if (!row || typeof row !== 'object') return;
           const groupKey = groupingFields.map(field => row[field.key] || '').join('|');
@@ -2248,7 +1920,6 @@ function customTable(editor) {
 
         if (Object.keys(grouped).length === 0) return data;
 
-        // Sort groups
         let sortedGroupKeys = Object.keys(grouped);
         if (sortOrder === 'ascending') {
           sortedGroupKeys.sort();
@@ -2256,7 +1927,6 @@ function customTable(editor) {
           sortedGroupKeys.sort().reverse();
         }
 
-        // Apply Top N
         if (topN !== 'none' && topN !== 'sort-all' && topNValue > 0) {
           if (topN === 'top') {
             sortedGroupKeys = sortedGroupKeys.slice(0, topNValue);
@@ -2302,7 +1972,6 @@ function customTable(editor) {
           }
         });
 
-        // Add grand total
         if (this.get('grand-total')) {
           const grandTotalRow = this.createGrandTotalRow(result.filter(r => !r._isSummary && !r._isGrandTotal));
           grandTotalRow._isGrandTotal = true;
@@ -2364,8 +2033,6 @@ function customTable(editor) {
 
         const firstKey = Object.keys(headers)[0];
         grandTotalRow[firstKey] = grandTotalLabel;
-
-        // Calculate for numeric columns
         const numericColumns = {};
         Object.keys(headers).forEach(key => {
           const isStrictlyNumeric = data.every(row => {
@@ -2430,10 +2097,7 @@ function customTable(editor) {
           const canvasDoc = editor.Canvas.getDocument();
           const tableElement = canvasDoc.getElementById(tableId);
           if (!tableElement) return;
-
           const mergeGroupCells = this.get('merge-group-cells') || false;
-
-          // Clear tbody
           let tbody = tableElement.querySelector('tbody');
           if (!tbody) {
             tbody = canvasDoc.createElement('tbody');
@@ -2441,7 +2105,6 @@ function customTable(editor) {
           }
           tbody.innerHTML = '';
 
-          // Rebuild rows
           data.forEach((row, rowIndex) => {
             const isSummary = row._isSummary;
             const isGrandTotal = row._isGrandTotal;
@@ -2482,12 +2145,10 @@ function customTable(editor) {
 
             tbody.appendChild(tr);
           });
-
-          // Update DataTable if exists
           updateDataTableStructure(tableId);
 
         } catch (error) {
-          console.error('Error rebuilding table HTML:', error);
+          console.error('Error rebuilding table HTML:');
         }
       },
 
@@ -2598,8 +2259,6 @@ function customTable(editor) {
     }
   });
 
-
-  // Add commands for highlighting
   editor.Commands.add('apply-table-highlighting', {
     run(editor) {
       const selected = editor.getSelected();
@@ -2610,12 +2269,10 @@ function customTable(editor) {
         const color = selected.get('highlight-color');
 
         if (!conditionType) {
-          showToast('Please select a highlight condition type first', 'warning');
           return;
         }
 
         if (conditionType !== 'null' && !conditionValue) {
-          showToast('Please enter highlight words/conditions', 'warning');
           return;
         }
 
@@ -2632,22 +2289,16 @@ function customTable(editor) {
       const selected = editor.getSelected();
       if (selected && selected.get('tagName') === 'table') {
         const tableId = selected.getId();
-
         applyHighlighting(tableId, '', '', '');
-
         selected.set('highlight-condition-type', '');
         selected.set('highlight-words', '');
         selected.set('highlight-color', '');
-
         showToast('Highlighting cleared successfully!', 'success');
-
         editor.trigger('component:update', selected);
       }
     }
   });
 
-
-  // Add command to show all formulas
   editor.Commands.add('show-all-formulas', {
     run(editor) {
       showAllFormulasModal();
@@ -2670,7 +2321,6 @@ function customTable(editor) {
     }
   });
 
-  // ✅ Table Style Manager Command
   editor.Commands.add('open-custom-table-style-manager', {
     run(editor) {
       const selected = editor.getSelected();
@@ -2789,241 +2439,240 @@ function customTable(editor) {
       }));
 
       const modalContent = `
-<div class="table-settings-modal" style="width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
-    <!-- Navbar -->
-    <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
-        <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
-        <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
-        <button class="nav-tab" data-tab="running-total" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Running Total</button>
-        <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
-    </div>
+        <div class="table-settings-modal" style="width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
+            <!-- Navbar -->
+            <div class="settings-navbar" style="display: flex; border-bottom: 2px solid #ddd; background: #f8f9fa; flex-shrink: 0;">
+                <button class="nav-tab active" data-tab="settings" style="flex: 1; padding: 12px; border: none; cursor: pointer; font-weight: bold; border-bottom: 3px solid #007bff;">Settings</button>
+                <button class="nav-tab" data-tab="grouping" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Grouping & Summary</button>
+                <button class="nav-tab" data-tab="running-total" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Running Total</button>
+                <button class="nav-tab" data-tab="options" style="flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer;">Options</button>
+            </div>
 
-    <!-- Tab Content -->
-    <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
-        <!-- Settings Tab -->
-        <div id="settings-tab" class="tab-pane active">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
-                            <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <!-- Tab Content -->
+            <div class="tab-content" style="padding: 15px; flex: 1; overflow-y: auto; min-height: 0;">
+                <!-- Settings Tab -->
+                <div id="settings-tab" class="tab-pane active">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                                <legend style="font-weight: bold; padding: 0 10px;">Row Operations</legend>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Rows:</label>
+                                    <input type="number" id="row-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
+                                    <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
+                                </div>
+                            </fieldset>
+
+                            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                                <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
+                                    <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
+                                    <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
+                                </div>
+                            </fieldset>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="add-rows" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Rows</button>
-                            <button id="remove-rows" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Rows</button>
+                        
+                        <!--
+                        <div>
+                          <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                                <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
+                                <div id="column-reorder-section">
+                                    <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
+                                    </div>
+                                    <div style="margin-top: 10px; display: flex; justify-content: space-between;">
+                                        <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                                            Reset to Original
+                                        </button>
+                                    </div>
+                                </div>
+                          </fieldset>
+                        </div> -->
+                    </div>
+                </div>
+
+                <!-- Grouping & Summary Tab -->
+                <div id="grouping-tab" class="tab-pane" style="display: none;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0;">Available Fields</h4>
+                        <div style="display: flex; gap: 5px;">
+                          <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+                          <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
                         </div>
+                      </div>
+                      <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+
+                    <div>
+                      <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Grouping Fields</h4>
+                      <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
+                        <p style="color: #999; text-align: center;">No fields selected</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Summary Fields Section -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                      <div>
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                              <h4 style="margin: 0;">Available Fields for Summary</h4>
+                              <div style="display: flex; gap: 5px;">
+                                  <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
+                                  <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
+                              </div>
+                          </div>
+                          <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;"></div>
+                      </div>
+
+                      <div>
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                              <h4 style="margin: 0;">Summary Configuration</h4>
+                          </div>
+                          
+                          <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;">
+                              <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Function:</label>
+                              <select id="summary-function" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
+                                  <option value="sum">Sum</option>
+                                  <option value="average">Average</option>
+                                  <option value="count">Count</option>
+                                  <option value="min">Min</option>
+                                  <option value="max">Max</option>
+                              </select>
+                              <button id="add-summary-field" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                  + Add Summary
+                              </button>
+                          </div>
+                          
+                          <div>
+                              <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Active Summaries:</label>
+                              <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 100px; max-height: 150px; overflow-y: auto; padding: 5px;">
+                                  <p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Grouping Options Grid -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+                      <legend style="font-weight: bold; padding: 0 10px;">Sort & Filter</legend>
+                      <div style="margin-bottom: 15px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Sort Order:</label>
+                        <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                          <option value="ascending">Ascending</option>
+                          <option value="descending">Descending</option>
+                          <option value="original">Original Order</option>
+                        </select>
+                      </div>
+                      <div style="margin-bottom: 10px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Top N:</label>
+                        <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                          <option value="none">None</option>
+                          <option value="top">Top N Groups</option>
+                          <option value="bottom">Bottom N Groups</option>
+                          <option value="sort-all">Sort All (No Limit)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">N Value:</label>
+                        <input type="number" id="top-n-value" value="10" min="1" style="width: calc(100% - 16px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                      </div>
                     </fieldset>
+
+                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
+                      <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
+                      <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                          <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
+                          <span style="font-weight: bold;">Summarize Group</span>
+                      </label>
+                    <!-- <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                          <input type="checkbox" id="page-break" style="margin-right: 8px;">
+                          <span style="font-weight: bold;">Page Break After Group</span>
+                      </label> -->
+                      <label style="display: flex; align-items: center;">
+                          <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
+                          <span style="font-weight: bold;">Merge Group Header Cells</span>
+                      </label>
+                    </fieldset>
+                  </div>
+                </div>
+
+                <!-- Running Total Tab -->
+                <div id="running-total-tab" class="tab-pane" style="display: none;">
+                  <div style="text-align: center; padding: 40px; color: #666;">
+                    <p>Running Total functionality coming soon...</p>
+                    <p style="font-size: 12px;">This feature will allow you to add cumulative totals to numeric columns.</p>
+                  </div>
+                </div>
+
+                <!-- Options Tab -->
+                <div id="options-tab" class="tab-pane" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                <legend style="font-weight: bold;">Display Options</legend>
+                                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                                    <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
+                                    <span>Group Header In-place</span>
+                                </label>
+                                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                                    <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
+                                    <span>Hide Subtotal for Single Row</span>
+                                </label>
+                            </fieldset>
+                        </div>
+                        <div>
+                            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                                <legend style="font-weight: bold;">Total Options</legend>
+                                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                                    <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
+                                    <span>Show Grand Total</span>
+                                </label>
+                                <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                                <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </fieldset>
+                        </div>
+                    </div>
 
                     <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Column Operations</legend>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Number of Columns:</label>
-                            <input type="number" id="column-count" min="1" value="1" style="width: 95%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="add-columns" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Add Columns</button>
-                            <button id="remove-columns" style="flex: 1; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Remove Columns</button>
-                        </div>
-                    </fieldset>
-                </div>
-                
-                <!--
-                <div>
-                  <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                        <legend style="font-weight: bold; padding: 0 10px;">Column Order</legend>
-                        <div id="column-reorder-section">
-                            <div id="column-list-inline" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;">
-                            </div>
-                            <div style="margin-top: 10px; display: flex; justify-content: space-between;">
-                                <button id="reset-order" style="background: #ffc107; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
-                                    Reset to Original
-                                </button>
-                            </div>
-                        </div>
-                  </fieldset>
-                </div> -->
-            </div>
-        </div>
-
-        <!-- Grouping & Summary Tab -->
-        <div id="grouping-tab" class="tab-pane" style="display: none;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h4 style="margin: 0;">Available Fields</h4>
-                <div style="display: flex; gap: 5px;">
-                  <button id="sort-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
-                  <button id="sort-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
-                </div>
-              </div>
-              <div id="available-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;"></div>
-            </div>
-
-            <div>
-              <h4 style="margin-bottom: 13.5px; margin-top: 0;">Selected Grouping Fields</h4>
-              <div id="selected-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 10px; max-height: 300px; overflow-y: auto;">
-                <p style="color: #999; text-align: center;">No fields selected</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Summary Fields Section -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-              <div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                      <h4 style="margin: 0;">Available Fields for Summary</h4>
-                      <div style="display: flex; gap: 5px;">
-                          <button id="sort-summary-asc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↑ A-Z</button>
-                          <button id="sort-summary-desc" style="padding: 4px 8px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 11px;">↓ Z-A</button>
-                      </div>
-                  </div>
-                  <div id="available-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; max-height: 300px; overflow-y: auto;"></div>
-              </div>
-
-              <div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                      <h4 style="margin: 0;">Summary Configuration</h4>
-                  </div>
-                  
-                  <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;">
-                      <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Function:</label>
-                      <select id="summary-function" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
-                          <option value="sum">Sum</option>
-                          <option value="average">Average</option>
-                          <option value="count">Count</option>
-                          <option value="min">Min</option>
-                          <option value="max">Max</option>
-                      </select>
-                      <button id="add-summary-field" style="width: 100%; padding: 8px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                          + Add Summary
-                      </button>
-                  </div>
-                  
-                  <div>
-                      <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Active Summaries:</label>
-                      <div id="selected-summary-fields" style="border: 1px solid #ddd; border-radius: 5px; min-height: 100px; max-height: 150px; overflow-y: auto; padding: 5px;">
-                          <p style="color: #999; text-align: center; font-size: 12px; margin: 10px 0;">No summaries configured</p>
-                      </div>
-                  </div>
-              </div>
-          </div>
-
-          <!-- Grouping Options Grid -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
-              <legend style="font-weight: bold; padding: 0 10px;">Sort & Filter</legend>
-              <div style="margin-bottom: 15px;">
-                <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Sort Order:</label>
-                <select id="sort-order" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                  <option value="ascending">Ascending</option>
-                  <option value="descending">Descending</option>
-                  <option value="original">Original Order</option>
-                </select>
-              </div>
-              <div style="margin-bottom: 10px;">
-                <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">Top N:</label>
-                <select id="top-n" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                  <option value="none">None</option>
-                  <option value="top">Top N Groups</option>
-                  <option value="bottom">Bottom N Groups</option>
-                  <option value="sort-all">Sort All (No Limit)</option>
-                </select>
-              </div>
-              <div>
-                <label style="font-weight: bold; display: block; margin-bottom: 5px; font-size: 12px;">N Value:</label>
-                <input type="number" id="top-n-value" value="10" min="1" style="width: calc(100% - 16px); padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-              </div>
-            </fieldset>
-
-            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin: 0;">
-              <legend style="font-weight: bold; padding: 0 10px;">Group Options</legend>
-              <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                  <input type="checkbox" id="summarize-group" style="margin-right: 8px;">
-                  <span style="font-weight: bold;">Summarize Group</span>
-              </label>
-             <!-- <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                  <input type="checkbox" id="page-break" style="margin-right: 8px;">
-                  <span style="font-weight: bold;">Page Break After Group</span>
-              </label> -->
-              <label style="display: flex; align-items: center;">
-                  <input type="checkbox" id="merge-group-cells" style="margin-right: 8px;">
-                  <span style="font-weight: bold;">Merge Group Header Cells</span>
-              </label>
-            </fieldset>
-          </div>
-        </div>
-
-        <!-- Running Total Tab -->
-        <div id="running-total-tab" class="tab-pane" style="display: none;">
-          <div style="text-align: center; padding: 40px; color: #666;">
-            <p>Running Total functionality coming soon...</p>
-            <p style="font-size: 12px;">This feature will allow you to add cumulative totals to numeric columns.</p>
-          </div>
-        </div>
-
-        <!-- Options Tab -->
-        <div id="options-tab" class="tab-pane" style="display: none;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                        <legend style="font-weight: bold;">Display Options</legend>
+                        <legend style="font-weight: bold;">Grouping Type</legend>
                         <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="group-header-inplace" checked style="margin-right: 8px;">
-                            <span>Group Header In-place</span>
+                            <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
+                            <span>Show All Records</span>
                         </label>
-                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="hide-subtotal-single-row" style="margin-right: 8px;">
-                            <span>Hide Subtotal for Single Row</span>
+                        <label style="display: flex; align-items: center;">
+                            <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
+                            <span>Show Summary Only</span>
+                        </label>
+                        <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
+                            <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
+                            <span>Keep Group Hierarchy</span>
                         </label>
                     </fieldset>
                 </div>
-                <div>
-                    <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
-                        <legend style="font-weight: bold;">Total Options</legend>
-                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="grand-total" checked style="margin-right: 8px;">
-                            <span>Show Grand Total</span>
-                        </label>
-                        <input type="text" id="grand-total-label" placeholder="Grand Total Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
-                        <input type="text" id="summary-label" placeholder="Summary Label" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    </fieldset>
-                </div>
             </div>
 
-            <fieldset style="border: 1px solid #ddd; padding: 15px; border-radius: 4px; margin-top: 15px;">
-                <legend style="font-weight: bold;">Grouping Type</legend>
-                <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                    <input type="radio" name="grouping-type" value="normal" checked style="margin-right: 8px;">
-                    <span>Show All Records</span>
-                </label>
-                <label style="display: flex; align-items: center;">
-                    <input type="radio" name="grouping-type" value="summary" style="margin-right: 8px;">
-                    <span>Show Summary Only</span>
-                </label>
-                <label style="display: flex; align-items: center; margin-top: 10px; margin-left: 25px;">
-                    <input type="checkbox" id="keep-group-hierarchy" disabled style="margin-right: 8px;">
-                    <span>Keep Group Hierarchy</span>
-                </label>
-            </fieldset>
+            <!-- Footer Buttons -->
+            <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
+                <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+            </div>
         </div>
-    </div>
-
-    <!-- Footer Buttons -->
-    <div style="border-top: 1px solid #ddd; padding: 15px; display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;">
-        <button id="cancel-settings" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
-        <button id="apply-settings" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
-    </div>
-</div>
-    `;
+            `;
 
       editor.Modal.setTitle('Table Settings');
       editor.Modal.setContent(modalContent);
       editor.Modal.open();
 
       setTimeout(() => {
-        // Populate available fields
         const availableFieldsDiv = document.getElementById('available-fields');
         let groupingHTML = availableFields.map(field => `
         <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
@@ -3036,8 +2685,6 @@ function customTable(editor) {
           groupingHTML = '<p style="color: #999; text-align: center; font-size: 12px">No fields available</p>';
         }
         availableFieldsDiv.innerHTML = groupingHTML;
-
-        // Populate available summary fields
         const availableSummaryFieldsDiv = document.getElementById('available-summary-fields');
         let summaryHTML = availableFields.map(field => `
         <div class="field-item" data-key="${field.key}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
@@ -3106,16 +2753,13 @@ function customTable(editor) {
     }
   });
 
-  // Function to open table creation modal
   function addTable() {
     const targetContainer = getTargetContainer();
 
     if (!targetContainer) {
-      showToast('No suitable container found for placing the table', 'error');
       return;
     }
 
-    // Check if target is within a page system
     const isInPageSystem = targetContainer.closest('.page-container') ||
       targetContainer.find('.page-container').length > 0 ||
       targetContainer.getEl()?.closest('.page-container');
@@ -3125,7 +2769,6 @@ function customTable(editor) {
       const pageContainer = targetContainer.closest('.page-container');
       if (pageContainer) {
         const pageIndex = pageContainer.getAttributes()['data-page-index'];
-        // containerInfo = `Page ${parseInt(pageIndex) + 1}`;
       } else {
         containerInfo = 'page content area';
       }
@@ -3135,38 +2778,37 @@ function customTable(editor) {
 
     editor.Modal.setTitle('Create New Table');
     editor.Modal.setContent(`
-  <div class="new-table-form">
-    <div>
-      <label>Header Rows</label>
-      <input type="number" value="1" id="nHeaderRows" min="0">
-    </div>
-    <div>
-      <label>Header Columns</label>
-      <input type="number" value="1" id="nHeaderColumns" min="0">
-    </div>
-    <div>
-      <label>Body Rows</label>
-      <input type="number" value="4" id="nRows" min="1">
-    </div>  
-    <div>
-      <label>Body Columns</label>
-      <input type="number" value="3" id="nColumns" min="1">
-    </div>  
-    <div>
-      <label>Scroll Columns length</label>
-      <input type="number" value="5" id="nColumnsScroll" min="5">
-    </div> 
-    <div><label>Add File Download</label><input type="checkbox" id="tbl_file_download"></div>
-    <div><label>Add Pagination</label><input type="checkbox" id="tbl_pagination"></div>
-    <div><label>Add Search</label><input type="checkbox" id="tbl_Search"></div>
-    <div><label>Add Footer</label><input type="checkbox" id="tbl_footer"></div>
-    <div><label>Add Caption</label><input type="checkbox" id="tbl_caption"></div>
-    <div><input id="table-button-create-new" type="button" value="Create Table"></div>
-  </div>
-`);
+      <div class="new-table-form">
+        <div>
+          <label>Header Rows</label>
+          <input type="number" value="1" id="nHeaderRows" min="0">
+        </div>
+        <div>
+          <label>Header Columns</label>
+          <input type="number" value="1" id="nHeaderColumns" min="0">
+        </div>
+        <div>
+          <label>Body Rows</label>
+          <input type="number" value="4" id="nRows" min="1">
+        </div>  
+        <div>
+          <label>Body Columns</label>
+          <input type="number" value="3" id="nColumns" min="1">
+        </div>  
+        <div>
+          <label>Scroll Columns length</label>
+          <input type="number" value="5" id="nColumnsScroll" min="5">
+        </div> 
+        <div><label>Add File Download</label><input type="checkbox" id="tbl_file_download"></div>
+        <div><label>Add Pagination</label><input type="checkbox" id="tbl_pagination"></div>
+        <div><label>Add Search</label><input type="checkbox" id="tbl_Search"></div>
+        <div><label>Add Footer</label><input type="checkbox" id="tbl_footer"></div>
+        <div><label>Add Caption</label><input type="checkbox" id="tbl_caption"></div>
+        <div><input id="table-button-create-new" type="button" value="Create Table"></div>
+      </div>
+    `);
     editor.Modal.open();
 
-    // Remove any existing event listeners and add a new one
     const createBtn = document.getElementById("table-button-create-new");
     createBtn.removeEventListener("click", () => createTable(targetContainer), true);
     createBtn.addEventListener("click", () => createTable(targetContainer), true);
@@ -3196,13 +2838,11 @@ function customTable(editor) {
       container.find('.page-container').length > 0 ||
       container.getEl()?.closest('.page-container');
 
-    // ✅ Helper function to generate unique cell IDs
     let cellIdCounter = 0;
     function generateCellId() {
       return `cell-${uniqueID}-${cellIdCounter++}`;
     }
 
-    // Build caption component if needed
     const captionComponent = tblCaption ? {
       tagName: 'caption',
       type: 'text',
@@ -3212,7 +2852,6 @@ function customTable(editor) {
       }
     } : null;
 
-    // Build thead components
     const theadRows = [];
     for (let i = 0; i < headerRows; i++) {
       const headerCells = [];
@@ -3222,7 +2861,7 @@ function customTable(editor) {
           type: 'enhanced-table-cell',
           attributes: {
             'data-gjs-type': 'enhanced-table-cell',
-            'id': generateCellId() // ✅ Add unique ID
+            'id': generateCellId()
           },
           components: [{
             tagName: 'div',
@@ -3249,19 +2888,17 @@ function customTable(editor) {
       components: theadRows
     } : null;
 
-    // Build tbody components
     const tbodyRows = [];
     for (let i = 0; i < bodyRows; i++) {
       const rowCells = [];
 
-      // Header columns in body
       for (let j = 0; j < headerCols; j++) {
         rowCells.push({
           tagName: 'th',
           type: 'enhanced-table-cell',
           attributes: {
             'data-gjs-type': 'enhanced-table-cell',
-            'id': generateCellId() // ✅ Add unique ID
+            'id': generateCellId()
           },
           components: [{
             tagName: 'div',
@@ -3277,14 +2914,13 @@ function customTable(editor) {
         });
       }
 
-      // Body columns
       for (let j = 0; j < bodyCols; j++) {
         rowCells.push({
           tagName: 'td',
           type: 'cell',
           attributes: {
             'data-gjs-type': 'cell',
-            'id': generateCellId() // ✅ Add unique ID
+            'id': generateCellId()
           },
           components: [{
             tagName: 'div',
@@ -3304,7 +2940,6 @@ function customTable(editor) {
       });
     }
 
-    // Add footer row if needed
     if (tblFooter) {
       const footerCells = [];
       for (let j = 0; j < totalCols; j++) {
@@ -3313,7 +2948,7 @@ function customTable(editor) {
           type: 'enhanced-table-cell',
           attributes: {
             'data-gjs-type': 'enhanced-table-cell',
-            'id': generateCellId() // ✅ Add unique ID
+            'id': generateCellId()
           },
           components: [{
             tagName: 'div',
@@ -3339,7 +2974,6 @@ function customTable(editor) {
       components: tbodyRows
     };
 
-    // Build complete table component structure
     const tableComponents = [];
     if (captionComponent) tableComponents.push(captionComponent);
     if (theadComponent) tableComponents.push(theadComponent);
@@ -3358,7 +2992,6 @@ function customTable(editor) {
       components: tableComponents
     };
 
-    // Wrap table if in page system
     let finalComponent;
     if (isInPageSystem) {
       finalComponent = {
@@ -3380,255 +3013,239 @@ function customTable(editor) {
       finalComponent = tableComponentDef;
     }
 
-    // DataTables initialization script (same as before)
     let tableScript = `
-  <script>
-    (function() {
-      window.enableFormulaEditing = function(tableId) {
-        try {
-          if (!window.formulaParser || !window.formulaParser.Parser) {
-            console.warn('Formula parser not available');
-            return;
-          }
-          
-          let parser = window.globalFormulaParser;
-          
-          if (!parser) {
-            parser = new window.formulaParser.Parser();
-            window.globalFormulaParser = parser;
-            
-            // Register custom formulas
-            parser.setFunction('PERCENT', function (params) {
-              if (params.length !== 2) return '#N/A';
-              const base = parseFloat(params[0]);
-              const percent = parseFloat(params[1]);
-              if (isNaN(base) || isNaN(percent)) return '#VALUE!';
-              const result = base * (percent / 100);
-              return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
-            });
-
-            if (window.numberToWords && window.numberToWords.toWords) {
-              parser.setFunction('NUMTOWORDS', function (params) {
-                if (params.length !== 1) return '#N/A';
-                const num = parseFloat(params[0]);
-                if (isNaN(num)) return '#VALUE!';
-                
-                try {
-                  const integerPart = Math.floor(num);
-                  const decimalPart = num - integerPart;
-                  
-                  if (decimalPart === 0) {
-                    return window.numberToWords.toWords(integerPart);
-                  } else {
-                    const integerWords = window.numberToWords.toWords(integerPart);
-                    const decimalString = decimalPart.toFixed(10).replace(/0+$/, '').substring(2);
-                    return integerWords + ' point ' + decimalString.split('').map(d => window.numberToWords.toWords(parseInt(d))).join(' ');
-                  }
-                } catch (error) {
-                  return '#ERROR';
-                }
-              });
-            }
-          }
-            
-          // Enhanced parser with range support
-          parser.on('callCellValue', function (cellCoord, done) {
-            let col = cellCoord.column.index;
-            let row = cellCoord.row.index;
-            let tableElem = document.getElementById(tableId);
-            let cell = tableElem.rows[row]?.cells[col];
-            if (cell) {
-              let val = cell.getAttribute('data-formula') || cell.innerText;
-              if (val.startsWith('=')) {
-                try {
-                  let res = parser.parse(val.substring(1));
-                  done(res.result);
-                } catch {
-                  done('#ERROR');
-                }
-              } else {
-                done(parseFloat(val) || val);
+      <script>
+        (function() {
+          window.enableFormulaEditing = function(tableId) {
+            try {
+              if (!window.formulaParser || !window.formulaParser.Parser) {
+                return;
               }
-            } else {
-              done(null);
-            }
-          });
+              
+              let parser = window.globalFormulaParser;
+              
+              if (!parser) {
+                parser = new window.formulaParser.Parser();
+                window.globalFormulaParser = parser;
+                
+                parser.setFunction('PERCENT', function (params) {
+                  if (params.length !== 2) return '#N/A';
+                  const base = parseFloat(params[0]);
+                  const percent = parseFloat(params[1]);
+                  if (isNaN(base) || isNaN(percent)) return '#VALUE!';
+                  const result = base * (percent / 100);
+                  return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
+                });
 
-          parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
-            let tableElem = document.getElementById(tableId);
-            let values = [];
-
-            let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
-            let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
-            let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
-            let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
-
-            for (let row = startRow; row <= endRow; row++) {
-              for (let col = startCol; col <= endCol; col++) {
+                if (window.numberToWords && window.numberToWords.toWords) {
+                  parser.setFunction('NUMTOWORDS', function (params) {
+                    if (params.length !== 1) return '#N/A';
+                    const num = parseFloat(params[0]);
+                    if (isNaN(num)) return '#VALUE!';
+                    
+                    try {
+                      const integerPart = Math.floor(num);
+                      const decimalPart = num - integerPart;
+                      
+                      if (decimalPart === 0) {
+                        return window.numberToWords.toWords(integerPart);
+                      } else {
+                        const integerWords = window.numberToWords.toWords(integerPart);
+                        const decimalString = decimalPart.toFixed(10).replace(/0+$/, '').substring(2);
+                        return integerWords + ' point ' + decimalString.split('').map(d => window.numberToWords.toWords(parseInt(d))).join(' ');
+                      }
+                    } catch (error) {
+                      return '#ERROR';
+                    }
+                  });
+                }
+              }
+                
+              parser.on('callCellValue', function (cellCoord, done) {
+                let col = cellCoord.column.index;
+                let row = cellCoord.row.index;
+                let tableElem = document.getElementById(tableId);
                 let cell = tableElem.rows[row]?.cells[col];
                 if (cell) {
                   let val = cell.getAttribute('data-formula') || cell.innerText;
                   if (val.startsWith('=')) {
                     try {
                       let res = parser.parse(val.substring(1));
-                      values.push(res.result);
+                      done(res.result);
                     } catch {
-                      values.push(0);
+                      done('#ERROR');
                     }
                   } else {
-                    values.push(parseFloat(val) || 0);
+                    done(parseFloat(val) || val);
                   }
                 } else {
-                  values.push(0);
+                  done(null);
                 }
-              }
+              });
+
+              parser.on('callRangeValue', function (startCellCoord, endCellCoord, done) {
+                let tableElem = document.getElementById(tableId);
+                let values = [];
+
+                let startRow = Math.min(startCellCoord.row.index, endCellCoord.row.index);
+                let endRow = Math.max(startCellCoord.row.index, endCellCoord.row.index);
+                let startCol = Math.min(startCellCoord.column.index, endCellCoord.column.index);
+                let endCol = Math.max(startCellCoord.column.index, endCellCoord.column.index);
+
+                for (let row = startRow; row <= endRow; row++) {
+                  for (let col = startCol; col <= endCol; col++) {
+                    let cell = tableElem.rows[row]?.cells[col];
+                    if (cell) {
+                      let val = cell.getAttribute('data-formula') || cell.innerText;
+                      if (val.startsWith('=')) {
+                        try {
+                          let res = parser.parse(val.substring(1));
+                          values.push(res.result);
+                        } catch {
+                          values.push(0);
+                        }
+                      } else {
+                        values.push(parseFloat(val) || 0);
+                      }
+                    } else {
+                      values.push(0);
+                    }
+                  }
+                }
+                done(values);
+              });
+              
+              const tableElem = document.getElementById(tableId);
+              if (!tableElem) return;
+
+              tableElem.querySelectorAll('td, th').forEach(cell => {
+                if (cell.hasAttribute('data-formula-enabled')) return;
+                
+                cell.contentEditable = "true";
+                cell.setAttribute('data-formula-enabled', 'true');
+
+                cell.addEventListener('focus', function() {
+                  let formula = this.getAttribute('data-formula');
+                  if (formula) this.innerText = formula;
+                });
+
+                cell.addEventListener('blur', function() {
+                  const cell = this;
+                  let val = cell.innerText.trim();
+
+                  if (val.startsWith('=')) {
+                    cell.setAttribute('data-formula', val);
+                    try {
+                      const formulaContent = val.substring(1).trim();
+                      if (!formulaContent) throw new Error('Empty formula');
+
+                      const res = parser.parse(formulaContent);
+                      if (res.error) throw new Error(res.error);
+
+                      cell.innerText = (res.result !== undefined && res.result !== null) ? res.result : '#ERROR';
+                      cell.classList.remove('formula-error');
+
+                    } catch (error) {
+                      cell.innerText = '#ERROR';
+                      cell.classList.add('formula-error');
+                    }
+                  } else {
+                    cell.removeAttribute('data-formula');
+                    cell.innerText = val;
+                    cell.classList.remove('formula-error');
+                  }
+                });
+
+                cell.addEventListener('keydown', function(e) {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const table = this.closest('table');
+                    const allCells = Array.from(table.querySelectorAll('td, th'));
+                    const currentIndex = allCells.indexOf(this);
+
+                    let nextIndex;
+                    if (e.shiftKey) {
+                      nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
+                    } else {
+                      nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+                    }
+                    allCells[nextIndex].focus();
+                  }
+                });
+              });
+              
+            } catch (error) {
             }
-            done(values);
-          });
+          };
           
-          // Attach cell listeners
-          const tableElem = document.getElementById(tableId);
-          if (!tableElem) return;
-
-          tableElem.querySelectorAll('td, th').forEach(cell => {
-            if (cell.hasAttribute('data-formula-enabled')) return;
+          function initTable() {
+            if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+              setTimeout(initTable, 100);
+              return;
+            }
             
-            cell.contentEditable = "true";
-            cell.setAttribute('data-formula-enabled', 'true');
-
-            cell.addEventListener('focus', function() {
-              let formula = this.getAttribute('data-formula');
-              if (formula) this.innerText = formula;
-            });
-
-            cell.addEventListener('blur', function() {
-              const cell = this;
-              let val = cell.innerText.trim();
-
-              if (val.startsWith('=')) {
-                cell.setAttribute('data-formula', val);
-                try {
-                  const formulaContent = val.substring(1).trim();
-                  if (!formulaContent) throw new Error('Empty formula');
-
-                  const res = parser.parse(formulaContent);
-                  if (res.error) throw new Error(res.error);
-
-                  cell.innerText = (res.result !== undefined && res.result !== null) ? res.result : '#ERROR';
-                  cell.classList.remove('formula-error');
-
-                } catch (error) {
-                  console.warn('Formula parsing error:', error);
-                  cell.innerText = '#ERROR';
-                  cell.classList.add('formula-error');
+            const tableElement = document.getElementById('table${uniqueID}');
+            const isInPageSystem = tableElement && tableElement.closest('.page-container');
+            
+            const dtOptions = {
+              dom: 'Bfrtip',
+              paging: ${tblPagination},
+              info: ${tblPagination},
+              lengthChange: true,
+              fixedHeader: ${!isInPageSystem},
+              scrollX: ${colsScroll < totalCols},
+              fixedColumns: ${colsScroll < totalCols},
+              searching: ${tblSearch},
+              buttons: ${downloadBtn},
+              ordering: false,
+              order: [], 
+              drawCallback: function() {
+                setTimeout(() => enableFormulaEditing('table${uniqueID}'), 100);
+                
+                if (isInPageSystem) {
+                  const wrapper = this.closest('.dataTables_wrapper');
+                  if (wrapper) {
+                    wrapper.style.maxWidth = '100%';
+                    wrapper.style.overflow = 'hidden';
+                  }
                 }
-              } else {
-                cell.removeAttribute('data-formula');
-                cell.innerText = val;
-                cell.classList.remove('formula-error');
-              }
-            });
-
-            cell.addEventListener('keydown', function(e) {
-              if (e.key === 'Tab') {
-                e.preventDefault();
-                const table = this.closest('table');
-                const allCells = Array.from(table.querySelectorAll('td, th'));
-                const currentIndex = allCells.indexOf(this);
-
-                let nextIndex;
-                if (e.shiftKey) {
-                  nextIndex = currentIndex > 0 ? currentIndex - 1 : allCells.length - 1;
-                } else {
-                  nextIndex = currentIndex < allCells.length - 1 ? currentIndex + 1 : 0;
+              },
+              responsive: isInPageSystem ? {
+                details: {
+                  display: $.fn.dataTable.Responsive.display.childRowImmediate,
+                  type: 'none',
+                  target: ''
                 }
-                allCells[nextIndex].focus();
-              }
-            });
-          });
+              } : false
+            };
+            
+            $('#table${uniqueID}').DataTable(dtOptions);
+          }
           
-        } catch (error) {
-          console.error('Error in enableFormulaEditing:', error);
-        }
-      };
-      
-      function initTable() {
-        if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
-          setTimeout(initTable, 100);
-          return;
-        }
-        
-        const tableElement = document.getElementById('table${uniqueID}');
-        const isInPageSystem = tableElement && tableElement.closest('.page-container');
-        
-        const dtOptions = {
-          dom: 'Bfrtip',
-          paging: ${tblPagination},
-          info: ${tblPagination},
-          lengthChange: true,
-          fixedHeader: ${!isInPageSystem},
-          scrollX: ${colsScroll < totalCols},
-          fixedColumns: ${colsScroll < totalCols},
-          searching: ${tblSearch},
-          buttons: ${downloadBtn},
-          ordering: false,
-          order: [], 
-          drawCallback: function() {
-            setTimeout(() => enableFormulaEditing('table${uniqueID}'), 100);
-            
-            if (isInPageSystem) {
-              const wrapper = this.closest('.dataTables_wrapper');
-              if (wrapper) {
-                wrapper.style.maxWidth = '100%';
-                wrapper.style.overflow = 'hidden';
-              }
-            }
-          },
-          responsive: isInPageSystem ? {
-            details: {
-              display: $.fn.dataTable.Responsive.display.childRowImmediate,
-              type: 'none',
-              target: ''
-            }
-          } : false
-        };
-        
-        $('#table${uniqueID}').DataTable(dtOptions);
-      }
-      
-      initTable();
-    })();
-  </script>
-`;
+          initTable();
+        })();
+      </script>
+    `;
 
     try {
-      // Add the component to GrapesJS
       const addedComponent = container.append(finalComponent)[0];
-
-      // Add the script separately
       container.append(tableScript);
-
       editor.Modal.close();
 
-      // ✅ Store base table data after the table is fully initialized
       setTimeout(() => {
         const tableComponent = editor.getWrapper().find(`#table${uniqueID}`)[0];
         if (tableComponent) {
           tableComponent.storeBaseTableData();
         }
 
-        // Initialize formulas
         const iframe = editor.getContainer().querySelector('iframe');
         if (iframe && iframe.contentWindow && iframe.contentWindow.enableFormulaEditing) {
           iframe.contentWindow.enableFormulaEditing(`table${uniqueID}`);
         }
       }, 1500);
 
-      showToast(`Enhanced table created successfully!`, 'success');
-
     } catch (error) {
-      console.error('Error creating table:', error);
-      showToast('Error creating table. Please try again.', 'error');
+      console.error('Error creating table:');
     }
   }
 
@@ -3640,13 +3257,12 @@ function customTable(editor) {
       if (win.$ && win.$.fn.DataTable) {
         const tableElement = canvasDoc.getElementById(tableId);
         if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
-          // Just trigger a simple redraw without destroying
           const dt = win.$(tableElement).DataTable();
-          dt.columns.adjust().draw(false); // false = no page reset
+          dt.columns.adjust().draw(false);
         }
       }
     } catch (error) {
-      console.warn('Error updating DataTable structure:', error);
+      console.warn('Error updating DataTable structure:');
     }
   }
 
@@ -3655,39 +3271,30 @@ function customTable(editor) {
       const canvasBody = editor.Canvas.getBody();
       const table = canvasBody.querySelector(`#${tableId}`);
       if (!table) {
-        showToast('Table not found', 'error');
         return;
       }
 
-      // Get the GrapesJS table component
       const tableComponent = editor.getWrapper().find('table')[0];
 
       if (!tableComponent) {
-        showToast('Table component not found', 'error');
         return;
       }
 
-      // Get column index of the source cell
       const sourceRow = sourceCell.parentNode;
       const sourceCellIndex = Array.from(sourceRow.children).indexOf(sourceCell);
 
-      // Check if source cell is in header
       const isHeaderCell = sourceCell.tagName === 'TH' || sourceCell.closest('thead');
       if (!isHeaderCell) {
-        showToast('Running total can only be applied to header cells', 'error');
         return;
       }
 
-      // Check if running total column already exists
       const runningTotalColumnIndex = sourceCellIndex + 1;
       const headerRow = table.querySelector('thead tr');
       if (headerRow && headerRow.children[runningTotalColumnIndex] &&
         headerRow.children[runningTotalColumnIndex].getAttribute('data-running-total-for') === sourceCellIndex.toString()) {
-        showToast('Running total column already exists for this column', 'warning');
         return;
       }
 
-      // Validate that the source column contains numeric data
       const bodyRows = table.querySelectorAll('tbody tr');
       let hasValidNumericData = false;
 
@@ -3705,9 +3312,6 @@ function customTable(editor) {
       }
 
       if (!hasValidNumericData) {
-        showToast('Running total not possible: column contains non-numeric data', 'error');
-
-        // Uncheck the trait
         const cellComponent = editor.DomComponents.getComponentFromElement(sourceCell);
         if (cellComponent) {
           cellComponent.set('running-total', false);
@@ -3715,16 +3319,12 @@ function customTable(editor) {
         return;
       }
 
-      // === ADD TO ACTUAL COMPONENT HTML STRUCTURE ===
-
-      // 1. Add header cell to GrapesJS component structure - NO STYLING
       const theadComponent = tableComponent.find('thead')[0];
       if (theadComponent) {
         const headerRowComponent = theadComponent.find('tr')[0];
         if (headerRowComponent) {
           const headerCells = headerRowComponent.components();
 
-          // Create new header cell component WITHOUT any styling
           const newHeaderCellComponent = headerRowComponent.append({
             tagName: 'th',
             content: '<div>Running Total</div>',
@@ -3732,10 +3332,8 @@ function customTable(editor) {
               'data-running-total-for': sourceCellIndex.toString(),
               'data-running-total-header': 'true'
             }
-            // REMOVED: style object - no automatic styling
           });
 
-          // Move to correct position if needed
           if (runningTotalColumnIndex < headerCells.length) {
             const targetIndex = runningTotalColumnIndex;
             headerRowComponent.components().remove(newHeaderCellComponent[0]);
@@ -3744,12 +3342,10 @@ function customTable(editor) {
         }
       }
 
-      // 2. Add data cells to GrapesJS component structure - NO STYLING
       const tbodyComponent = tableComponent.find('tbody')[0];
       if (tbodyComponent) {
         const bodyRowComponents = tbodyComponent.find('tr');
         let runningSum = 0;
-
         bodyRowComponents.forEach((rowComponent, rowIndex) => {
           const row = bodyRows[rowIndex];
           if (row) {
@@ -3762,7 +3358,6 @@ function customTable(editor) {
                 runningSum += numericValue;
               }
 
-              // Create new data cell component WITHOUT any styling
               const newDataCellComponent = rowComponent.append({
                 tagName: 'td',
                 content: `<div>${runningSum.toFixed(2)}</div>`,
@@ -3771,10 +3366,8 @@ function customTable(editor) {
                   'data-running-total-value': runningSum.toString(),
                   'data-running-total-cell': 'true'
                 }
-                // REMOVED: style object - no automatic styling
               });
 
-              // Move to correct position if needed
               const rowCells = rowComponent.components();
               if (runningTotalColumnIndex < rowCells.length - 1) {
                 const targetIndex = runningTotalColumnIndex;
@@ -3786,9 +3379,6 @@ function customTable(editor) {
         });
       }
 
-      // === ALSO UPDATE THE DOM FOR IMMEDIATE VISUAL FEEDBACK - NO STYLING ===
-
-      // Add header cell for running total in DOM
       if (headerRow) {
         const existingRunningHeader = headerRow.querySelector(`[data-running-total-for="${sourceCellIndex}"]`);
         if (!existingRunningHeader) {
@@ -3796,9 +3386,6 @@ function customTable(editor) {
           newHeaderCell.innerHTML = '<div>Running Total</div>';
           newHeaderCell.setAttribute('data-running-total-for', sourceCellIndex.toString());
           newHeaderCell.setAttribute('data-running-total-header', 'true');
-          // REMOVED: style.cssText - no automatic styling
-
-          // Insert after source column
           if (headerRow.children[runningTotalColumnIndex]) {
             headerRow.insertBefore(newHeaderCell, headerRow.children[runningTotalColumnIndex]);
           } else {
@@ -3807,7 +3394,6 @@ function customTable(editor) {
         }
       }
 
-      // Add running total cells to body rows in DOM - NO STYLING
       let runningSum = 0;
       bodyRows.forEach((row, rowIndex) => {
         const sourceDataCell = row.children[sourceCellIndex];
@@ -3826,9 +3412,6 @@ function customTable(editor) {
             newDataCell.setAttribute('data-running-total-for', sourceCellIndex.toString());
             newDataCell.setAttribute('data-running-total-value', runningSum.toString());
             newDataCell.setAttribute('data-running-total-cell', 'true');
-            // REMOVED: style.cssText - no automatic styling
-
-            // Insert after source column
             if (row.children[runningTotalColumnIndex]) {
               row.insertBefore(newDataCell, row.children[runningTotalColumnIndex]);
             } else {
@@ -3837,25 +3420,20 @@ function customTable(editor) {
           }
         }
       });
-      // Apply equal width to all columns
+
       const totalColumns = headerRow.children.length;
       const columnWidth = `${100 / totalColumns}%`;
 
-      // Set width for all header cells
       Array.from(headerRow.children).forEach(th => {
         th.style.width = columnWidth;
       });
 
-      // Set width for all data cells in body rows
       bodyRows.forEach(row => {
         Array.from(row.children).forEach(td => {
           td.style.width = columnWidth;
         });
       });
 
-      // Ensure table layout is fixed
-      // Update DataTable if it exists
-      // Update DataTable without destroying it
       try {
         const canvasDoc = editor.Canvas.getDocument();
         const win = canvasDoc.defaultView;
@@ -3864,23 +3442,18 @@ function customTable(editor) {
           const tableElement = canvasDoc.getElementById(tableId);
           if (tableElement && win.$.fn.DataTable.isDataTable(tableElement)) {
             const dt = win.$(tableElement).DataTable();
-            // Just adjust columns without redraw to preserve layout
             dt.columns.adjust();
           }
         }
       } catch (error) {
-        console.warn('Error adjusting DataTable columns:', error);
+        console.warn('Error adjusting DataTable columns:');
       }
 
-      // Force GrapesJS to recognize the changes
       editor.trigger('component:update', tableComponent);
       editor.trigger('change:canvasOffset');
 
-      showToast('Running total column added successfully', 'success');
-
     } catch (error) {
-      console.error('Error adding running total column:', error);
-      showToast('Error adding running total column', 'error');
+      console.error('Error adding running total column:');
     }
   }
 
@@ -3890,17 +3463,10 @@ function customTable(editor) {
       const canvasBody = editor.Canvas.getBody();
       const table = canvasBody.querySelector(`#${tableId}`);
       if (!table) return;
-
-      // Get the GrapesJS table component
       const tableComponent = editor.getWrapper().find('table')[0];
       if (!tableComponent) return;
-
       const sourceRow = sourceCell.parentNode;
       const sourceCellIndex = Array.from(sourceRow.children).indexOf(sourceCell);
-
-      // === REMOVE FROM GRAPESJS COMPONENT STRUCTURE ===
-
-      // Remove from header
       const theadComponent = tableComponent.find('thead')[0];
       if (theadComponent) {
         const headerRowComponent = theadComponent.find('tr')[0];
@@ -3917,7 +3483,6 @@ function customTable(editor) {
         }
       }
 
-      // Remove from body rows
       const tbodyComponent = tableComponent.find('tbody')[0];
       if (tbodyComponent) {
         const bodyRowComponents = tbodyComponent.find('tr');
@@ -3935,33 +3500,24 @@ function customTable(editor) {
         });
       }
 
-      // === ALSO REMOVE FROM DOM ===
-
-      // Remove running total columns from DOM
       const allRows = table.querySelectorAll('tr');
       allRows.forEach(row => {
         const runningTotalCells = row.querySelectorAll(`[data-running-total-for="${sourceCellIndex}"]`);
         runningTotalCells.forEach(cell => cell.remove());
       });
-      // Apply equal width to all columns
       const totalColumns = headerRow.children.length;
       const columnWidth = `${100 / totalColumns}%`;
 
-      // Set width for all header cells
       Array.from(headerRow.children).forEach(th => {
         th.style.width = columnWidth;
       });
 
-      // Set width for all data cells in body rows
       bodyRows.forEach(row => {
         Array.from(row.children).forEach(td => {
           td.style.width = columnWidth;
         });
       });
 
-      // Ensure table layout is fixed
-      // Update DataTable if it exists
-      // Update DataTable without destroying it
       try {
         const canvasDoc = editor.Canvas.getDocument();
         const win = canvasDoc.defaultView;
@@ -3974,22 +3530,17 @@ function customTable(editor) {
           }
         }
       } catch (error) {
-        console.warn('Error adjusting DataTable columns:', error);
+        console.warn('Error adjusting DataTable columns:');
       }
 
-      // Force GrapesJS to recognize the changes
-      // Force GrapesJS to recognize the changes
       editor.trigger('component:update', tableComponent);
       editor.trigger('change:canvasOffset');
 
-      showToast('Running total column removed', 'success');
-
     } catch (error) {
-      console.error('Error removing running total column:', error);
-      showToast('Error removing running total column', 'error');
+      console.error('Error removing running total column:');
     }
   }
-  // Enhanced Formula editing handler with range support and suggestions
+
   function enableFormulaEditing(tableId) {
     const iframeDoc = editor.Canvas.getDocument();
     const iframeWindow = iframeDoc.defaultView;
@@ -3998,22 +3549,17 @@ function customTable(editor) {
       console.warn('Formula parser not available');
       return;
     }
-
-    // ✅ Use global parser if available, otherwise create new one
     let parser = iframeWindow.globalFormulaParser;
-
     if (!parser) {
       parser = new iframeWindow.formulaParser.Parser();
       iframeWindow.globalFormulaParser = parser;
 
-      // ✅ Register custom formulas
       parser.setFunction('PERCENT', function (params) {
         if (params.length !== 2) return '#N/A';
         const base = parseFloat(params[0]);
         const percent = parseFloat(params[1]);
         if (isNaN(base) || isNaN(percent)) return '#VALUE!';
         const result = base * (percent / 100);
-        // ✅ Maintain decimal precision
         return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
       });
 
@@ -4022,26 +3568,22 @@ function customTable(editor) {
         const num = parseFloat(params[0]);
         if (isNaN(num)) return '#VALUE!';
         const result = Math.abs(num);
-        // ✅ Maintain decimal precision
         return Number.isInteger(result) ? result : parseFloat(result.toFixed(10));
       });
 
-      // ✅ Register NUMTOWORDS if available
       if (iframeWindow.numberToWords && iframeWindow.numberToWords.toWords) {
         parser.setFunction('NUMTOWORDS', function (params) {
           if (params.length !== 1) return '#N/A';
-          const num = parseFloat(params[0]); // ✅ Changed from parseInt to parseFloat
+          const num = parseFloat(params[0]);
           if (isNaN(num)) return '#VALUE!';
 
           try {
-            // ✅ Handle decimal numbers - convert to integer for word conversion
             const integerPart = Math.floor(num);
             const decimalPart = num - integerPart;
 
             if (decimalPart === 0) {
               return iframeWindow.numberToWords.toWords(integerPart);
             } else {
-              // For decimals, show integer part in words + decimal notation
               const integerWords = iframeWindow.numberToWords.toWords(integerPart);
               const decimalString = decimalPart.toFixed(10).replace(/0+$/, '').substring(2);
               return `${integerWords} point ${decimalString.split('').map(d => iframeWindow.numberToWords.toWords(parseInt(d))).join(' ')}`;
@@ -4053,7 +3595,6 @@ function customTable(editor) {
       }
     }
 
-    // Enhanced parser with range support
     parser.on('callCellValue', function (cellCoord, done) {
       let col = cellCoord.column.index;
       let row = cellCoord.row.index;
@@ -4110,7 +3651,6 @@ function customTable(editor) {
       done(values);
     });
 
-    // Attach cell listeners
     const tableElem = iframeDoc.getElementById(tableId);
     if (!tableElem) return;
 
@@ -4146,7 +3686,7 @@ function customTable(editor) {
             this.textContent = (result !== undefined && result !== null) ? result : '#ERROR';
             cell.classList.remove('formula-error');
           } catch (error) {
-            console.warn('Formula parsing error:', error);
+            console.warn('Formula parsing error:');
             this.textContent = '#ERROR';
             cell.classList.add('formula-error');
           }
@@ -4185,7 +3725,6 @@ function customTable(editor) {
     const textAlign = document.getElementById('text-align');
     const verticalAlign = document.getElementById('vertical-align');
 
-    // Load current values
     if (borderStyle) borderStyle.value = component.get('table-border-style') || 'solid';
     if (borderWidth) borderWidth.value = component.get('table-border-width') || '1';
     if (borderColor) borderColor.value = component.get('table-border-color') || '#000000';
@@ -4196,14 +3735,12 @@ function customTable(editor) {
     if (textAlign) textAlign.value = component.get('table-text-align') || 'left';
     if (verticalAlign) verticalAlign.value = component.get('table-vertical-align') || 'middle';
 
-    // Opacity slider
     const opacitySlider = document.getElementById('border-opacity');
     const opacityValue = document.getElementById('opacity-value');
     opacitySlider.addEventListener('input', function () {
       opacityValue.textContent = this.value + '%';
     });
 
-    // Apply button
     document.getElementById('apply-styles').addEventListener('click', function () {
       component.set('table-border-style', borderStyle.value);
       component.set('table-border-width', borderWidth.value);
@@ -4217,10 +3754,8 @@ function customTable(editor) {
 
       component.applyTableStyles();
       editor.Modal.close();
-      showToast('Table styles applied successfully!', 'success');
     });
 
-    // Reset button
     document.getElementById('reset-styles').addEventListener('click', function () {
       borderStyle.value = 'solid';
       borderWidth.value = '1';
@@ -4234,13 +3769,11 @@ function customTable(editor) {
       opacityValue.textContent = '100%';
     });
 
-    // Cancel button
     document.getElementById('cancel-styles').addEventListener('click', function () {
       editor.Modal.close();
     });
   }
 
-  // Add hexToRgb helper if not already present
   function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -4254,7 +3787,6 @@ function customTable(editor) {
     let selectedGroupingFields = component.get('grouping-fields') || [];
     let selectedSummaryFields = component.get('summary-fields') || [];
 
-    // Tab navigation
     document.querySelectorAll('.nav-tab').forEach(tab => {
       tab.addEventListener('click', function () {
         document.querySelectorAll('.nav-tab').forEach(t => {
@@ -4281,10 +3813,8 @@ function customTable(editor) {
       });
     });
 
-    // Initialize column reorder
     initializeCustomTableColumnReorder(component);
 
-    // Load saved options
     const sortOrder = document.getElementById('sort-order');
     const topN = document.getElementById('top-n');
     const topNValue = document.getElementById('top-n-value');
@@ -4311,7 +3841,6 @@ function customTable(editor) {
     if (grandTotalLabel) grandTotalLabel.value = component.get('grand-total-label') || '';
     if (summaryLabel) summaryLabel.value = component.get('summary-label') || '';
 
-    // Load grouping type
     if (component.get('show-summary-only') === true) {
       const summaryRadio = document.querySelector('input[name="grouping-type"][value="summary"]');
       if (summaryRadio) {
@@ -4320,7 +3849,6 @@ function customTable(editor) {
       }
     }
 
-    // Top N enable/disable
     document.getElementById('top-n').addEventListener('change', function () {
       const topNValue = document.getElementById('top-n-value');
       const isEnabled = this.value === 'top' || this.value === 'bottom';
@@ -4331,7 +3859,6 @@ function customTable(editor) {
       topNValue.style.opacity = isEnabled ? '1' : '0.6';
     });
 
-    // Trigger on load
     setTimeout(() => {
       const topNSelect = document.getElementById('top-n');
       const topNValue = document.getElementById('top-n-value');
@@ -4344,7 +3871,6 @@ function customTable(editor) {
       topNValue.style.opacity = isEnabled ? '1' : '0.6';
     }, 100);
 
-    // Grand Total checkbox
     document.getElementById('grand-total').addEventListener('change', function () {
       const grandTotalLabel = document.getElementById('grand-total-label');
       const isEnabled = this.checked;
@@ -4352,7 +3878,6 @@ function customTable(editor) {
       grandTotalLabel.style.background = isEnabled ? 'white' : '#f0f0f0';
     });
 
-    // Grouping field selection
     document.querySelectorAll('#available-fields .field-checkbox').forEach(checkbox => {
       checkbox.addEventListener('change', function () {
         const fieldItem = this.closest('.field-item');
@@ -4407,13 +3932,13 @@ function customTable(editor) {
 
       selectedSummaryFieldsDiv.innerHTML = selectedSummaryFields
         .map((field, idx) => `
-      <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
-          <div style="flex: 1;">
-              <strong style="font-size: 13px;">${field.name}</strong>
-              <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
-          </div>
-          <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
-      </div>`).join('');
+          <div class="summary-field-item" data-index="${idx}" style="padding: 8px; margin-bottom: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+              <div style="flex: 1;">
+                  <strong style="font-size: 13px;">${field.name}</strong>
+                  <div style="font-size: 11px; color: #666; margin-top: 2px;">Function: ${field.function}</div>
+              </div>
+              <button class="remove-summary-field" data-index="${idx}" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">×</button>
+          </div>`).join('');
 
       selectedSummaryFieldsDiv.querySelectorAll('.remove-summary-field').forEach(btn => {
         btn.addEventListener('click', function () {
@@ -4424,13 +3949,11 @@ function customTable(editor) {
       });
     }
 
-    // Summary field add button
     document.getElementById('add-summary-field').addEventListener('click', function () {
       const summaryCheckboxes = document.querySelectorAll('#available-summary-fields .summary-checkbox:checked');
       const summaryFunction = document.getElementById('summary-function').value;
 
       if (summaryCheckboxes.length === 0) {
-        showToast('Please select at least one field for summary', 'warning');
         return;
       }
 
@@ -4449,16 +3972,12 @@ function customTable(editor) {
           });
           addedCount++;
         }
-
         checkbox.checked = false;
       });
 
       updateSummaryFieldsList();
-
-      if (addedCount > 0) console.log(`Added ${addedCount} summary field(s)`);
     });
 
-    // Sorting summary fields
     document.getElementById('sort-summary-asc').addEventListener('click', () => {
       const items = Array.from(document.querySelectorAll('#available-summary-fields .field-item'));
       items.sort((a, b) => a.textContent.localeCompare(b.textContent));
@@ -4475,7 +3994,6 @@ function customTable(editor) {
       items.forEach(item => container.appendChild(item));
     });
 
-    // Sorting grouping fields
     document.getElementById('sort-asc').addEventListener('click', () => {
       const items = Array.from(document.querySelectorAll('#available-fields .field-item'));
       items.sort((a, b) => a.textContent.localeCompare(b.textContent));
@@ -4492,7 +4010,6 @@ function customTable(editor) {
       items.forEach(item => container.appendChild(item));
     });
 
-    // Grouping type radio
     document.querySelectorAll('input[name="grouping-type"]').forEach(radio => {
       radio.addEventListener('change', function () {
         const keepHierarchy = document.getElementById('keep-group-hierarchy');
@@ -4506,44 +4023,32 @@ function customTable(editor) {
       });
     });
 
-    // Row/Column operations - attach directly without cloning
     document.getElementById('add-rows').addEventListener('click', function () {
       const count = parseInt(document.getElementById('row-count').value) || 1;
       const tableId = component.getId();
 
-      // Get the table component
       const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
       if (!tableComponent) {
-        showToast('Table component not found', 'error');
         return;
       }
 
-      // Get tbody component
       const tbodyComponent = tableComponent.find('tbody')[0];
       if (!tbodyComponent) {
-        showToast('Table body not found', 'error');
         return;
       }
 
-      // Get the first existing body row (to determine total columns)
       const firstRowComponent = tbodyComponent.find('tr')[0];
       if (!firstRowComponent) {
-        showToast('No rows to copy structure from', 'error');
         return;
       }
 
       const cellComponents = firstRowComponent.find('td, th');
       const cellCount = cellComponents.length;
-
-      // --- Detect header column structure ---
       const headerRow = tableComponent.find('thead tr')[0];
       const headerCells = headerRow ? headerRow.find('th') : null;
-
-      // Destroy DataTable first
       const canvasDoc = editor.Canvas.getDocument();
       const win = canvasDoc.defaultView;
       const tableElement = canvasDoc.getElementById(tableId);
-
       let wasDataTable = false;
       let dtOptions = null;
 
@@ -4554,7 +4059,6 @@ function customTable(editor) {
         dt.destroy();
       }
 
-      // --- Add rows with correct TH/TD matching header ---
       for (let i = 0; i < count; i++) {
         const newRowCells = [];
 
@@ -4590,17 +4094,13 @@ function customTable(editor) {
           });
         }
 
-        // Append the new row
         tbodyComponent.append({
           tagName: 'tr',
           components: newRowCells
         });
       }
-
-      // Force component refresh
       editor.trigger('component:update', tableComponent);
 
-      // Reinitialize DataTable + formulas
       setTimeout(() => {
         const updatedTableElement = canvasDoc.getElementById(tableId);
 
@@ -4610,48 +4110,37 @@ function customTable(editor) {
             const dt = win.$(updatedTableElement).DataTable(dtOptions);
             dt.columns.adjust().draw(false);
           } catch (error) {
-            console.warn('Error reinitializing DataTable:', error);
+            console.warn('Error reinitializing DataTable:');
           }
         }
-
         enableFormulaEditing(tableId);
         component.storeBaseTableData();
-
-        showToast(`Added ${count} row(s)`, 'success');
       }, 300);
     });
-
 
     document.getElementById('remove-rows').addEventListener('click', function () {
       const count = parseInt(document.getElementById('row-count').value) || 1;
       const tableId = component.getId();
 
-      // Get the table component
       const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
       if (!tableComponent) {
-        showToast('Table component not found', 'error');
         return;
       }
 
-      // Get tbody component
       const tbodyComponent = tableComponent.find('tbody')[0];
       if (!tbodyComponent) {
-        showToast('Table body not found', 'error');
         return;
       }
 
       const rows = tbodyComponent.find('tr');
 
       if (rows.length <= count) {
-        showToast('Cannot remove all rows', 'warning');
         return;
       }
 
-      // Destroy DataTable first
       const canvasDoc = editor.Canvas.getDocument();
       const win = canvasDoc.defaultView;
       const tableElement = canvasDoc.getElementById(tableId);
-
       let wasDataTable = false;
       let dtOptions = null;
 
@@ -4662,7 +4151,6 @@ function customTable(editor) {
         dt.destroy();
       }
 
-      // Remove rows from GrapesJS
       for (let i = 0; i < count && rows.length > 0; i++) {
         const lastRow = rows[rows.length - 1 - i];
         if (lastRow) {
@@ -4670,10 +4158,8 @@ function customTable(editor) {
         }
       }
 
-      // Force component refresh
       editor.trigger('component:update', tableComponent);
 
-      // Reinitialize DataTable
       setTimeout(() => {
         const updatedTableElement = canvasDoc.getElementById(tableId);
 
@@ -4681,12 +4167,11 @@ function customTable(editor) {
           try {
             win.$(updatedTableElement).DataTable(dtOptions);
           } catch (error) {
-            console.warn('Error reinitializing DataTable:', error);
+            console.warn('Error reinitializing DataTable:');
           }
         }
 
         component.storeBaseTableData();
-        showToast(`Removed ${count} row(s)`, 'success');
       }, 300);
     });
 
@@ -4697,18 +4182,14 @@ function customTable(editor) {
       const tableElement = canvasDoc.getElementById(tableId);
 
       if (!tableElement) {
-        showToast('Table not found', 'error');
         return;
       }
 
-      // Get the table component
       const tableComponent = editor.getWrapper().find(`#${tableId}`)[0];
       if (!tableComponent) {
-        showToast('Table component not found', 'error');
         return;
       }
 
-      // Add to header using GrapesJS components
       const theadComponent = tableComponent.find('thead')[0];
       if (theadComponent) {
         const headerRowComponent = theadComponent.find('tr')[0];
@@ -4741,7 +4222,6 @@ function customTable(editor) {
         }
       }
 
-      // Add to body rows using GrapesJS components
       const tbodyComponent = tableComponent.find('tbody')[0];
       if (tbodyComponent) {
         const bodyRowComponents = tbodyComponent.find('tr');
@@ -4772,7 +4252,6 @@ function customTable(editor) {
         });
       }
 
-      // Trigger updates
       editor.trigger('component:update', tableComponent);
       updateDataTableStructure(tableId);
       setTimeout(() => {
@@ -4787,8 +4266,6 @@ function customTable(editor) {
         enableFormulaEditing(tableId);
         component.storeBaseTableData();
       }, 200);
-
-      showToast(`Added ${count} column(s)`, 'success');
     });
 
     document.getElementById('remove-columns').addEventListener('click', function () {
@@ -4798,7 +4275,6 @@ function customTable(editor) {
       const tableElement = canvasDoc.getElementById(tableId);
 
       if (!tableElement) {
-        showToast('Table not found', 'error');
         return;
       }
 
@@ -4806,17 +4282,14 @@ function customTable(editor) {
       const headerCells = thead ? thead.querySelectorAll('th') : [];
 
       if (headerCells.length <= count) {
-        showToast('Cannot remove all columns', 'warning');
         return;
       }
 
-      // Remove from header
       for (let i = 0; i < count; i++) {
         const lastCell = headerCells[headerCells.length - 1 - i];
         if (lastCell) lastCell.remove();
       }
 
-      // Remove from body
       const tbody = tableElement.querySelector('tbody');
       const rows = tbody.querySelectorAll('tr');
       rows.forEach(row => {
@@ -4836,30 +4309,22 @@ function customTable(editor) {
         }
       }, 200);
       component.storeBaseTableData();
-      showToast(`Removed ${count} column(s)`, 'success');
     });
 
-    // Cancel button
     document.getElementById('cancel-settings').addEventListener('click', () => {
       editor.Modal.close();
     });
 
-    // Apply button
     document.getElementById('apply-settings').addEventListener('click', () => {
-      console.log('📝 Applying settings...');
-
       if (selectedGroupingFields.length === 0 && selectedSummaryFields.length > 0) {
-        showToast('Please select at least one grouping field before adding summaries', 'warning');
         return;
       }
 
       const summarizeChecked = document.getElementById('summarize-group').checked;
       if (summarizeChecked && selectedSummaryFields.length === 0) {
-        showToast('Please add at least one summary field when "Summarize Group" is enabled', 'warning');
         return;
       }
 
-      // Save settings
       component.set('grouping-fields', selectedGroupingFields);
       component.set('summary-fields', selectedSummaryFields);
       component.set('sort-order', document.getElementById('sort-order').value);
@@ -4873,9 +4338,7 @@ function customTable(editor) {
       const showSummaryOnly =
         document.querySelector('input[name="grouping-type"]:checked').value === 'summary';
       component.set('show-summary-only', showSummaryOnly);
-
       component.set('keep-group-hierarchy', document.getElementById('keep-group-hierarchy').checked);
-
       component.set('grand-total', document.getElementById('grand-total').checked);
       component.set('grand-total-label', document.getElementById('grand-total-label').value);
       component.set('summary-label', document.getElementById('summary-label').value);
@@ -4884,7 +4347,6 @@ function customTable(editor) {
 
       setTimeout(() => {
         component.applyGroupingAndSummary();
-        showToast('Settings applied successfully!', 'success');
       }, 100);
     });
 
@@ -4892,14 +4354,11 @@ function customTable(editor) {
     updateSummaryFieldsList();
   }
 
-
   function initializeCustomTableColumnReorder(component) {
     const headers = component.getTableHeaders();
     const columnKeys = Object.keys(headers);
-
     const columnList = document.getElementById('column-list-inline');
     if (!columnList) {
-      console.warn('Column list element not found');
       return;
     }
 
@@ -4914,22 +4373,22 @@ function customTable(editor) {
     }
 
     columnList.innerHTML = columnKeys.map(key => `
-    <div class="column-item-inline" data-key="${key}" draggable="true" style="
-        margin: 2px; 
-        padding: 12px 15px; 
-        background: #f8f9fa;
-        border: 1px solid #ddd;
-        border-radius: 3px; 
-        cursor: move; 
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: all 0.2s ease;
-    ">
-        <span style="font-weight: 500;">${headers[key]}</span>
-        <span style="color: #666; font-size: 12px;">≡≡≡</span>
-    </div>
-  `).join('');
+        <div class="column-item-inline" data-key="${key}" draggable="true" style="
+            margin: 2px; 
+            padding: 12px 15px; 
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 3px; 
+            cursor: move; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        ">
+            <span style="font-weight: 500;">${headers[key]}</span>
+            <span style="color: #666; font-size: 12px;">≡≡≡</span>
+        </div>
+      `).join('');
 
     let draggedElement = null;
 
@@ -4984,7 +4443,6 @@ function customTable(editor) {
       const data = component.getTableData();
       component.rebuildTableHTML(headers, data);
       initializeCustomTableColumnReorder(component);
-      showToast('Column order reset to original', 'success');
     });
   }
 
@@ -5018,113 +4476,11 @@ function customTable(editor) {
     component.rebuildTableHTML(reorderedHeaders, reorderedData);
   }
 
-  function addTableRows(component, count) {
-    const tbody = component.find('tbody')[0];
-    if (!tbody) return;
-
-    const firstBodyRow = tbody.find('tr')[0];
-    if (!firstBodyRow) return;
-
-    const cellTypes = firstBodyRow.find('> [type="cell"]').map(cell => cell.get('tagName').toLowerCase());
-
-    for (let i = 0; i < count; i++) {
-      let newRowHtml = '<tr>';
-      cellTypes.forEach(tag => {
-        const content = tag === 'th' ? '<div>Header</div>' : '<div>Text</div>';
-        newRowHtml += `<${tag}>${content}</${tag}>`;
-      });
-      newRowHtml += '</tr>';
-      tbody.append(newRowHtml);
-    }
-
-    // Re-enable formula editing and store data
-    setTimeout(() => {
-      enableFormulaEditing(component.getId());
-      component.storeBaseTableData();
-    }, 100);
-  }
-
-  function addTableColumns(component, count) {
-    const theadTr = component.find('thead > tr')[0];
-    const tbody = component.find('tbody')[0];
-    if (!tbody) return;
-
-    const bodyRows = tbody.find('tr');
-
-    // Add to header
-    if (theadTr) {
-      for (let i = 0; i < count; i++) {
-        theadTr.append('<th><div>Header</div></th>');
-      }
-    }
-
-    // Add to body rows (always td at end, regardless of row headers)
-    bodyRows.forEach(row => {
-      for (let i = 0; i < count; i++) {
-        row.append('<td><div>Text</div></td>');
-      }
-    });
-
-    // Re-enable formula editing and store data
-    setTimeout(() => {
-      enableFormulaEditing(component.getId());
-      component.storeBaseTableData();
-    }, 100);
-  }
-  function removeTableRows(component, count) {
-    const tbody = component.find('tbody')[0];
-    if (!tbody) return;
-
-    const rows = tbody.find('tr');
-    if (rows.length <= count) {
-      showToast('Cannot remove all rows', 'warning');
-      return;
-    }
-
-    for (let i = 0; i < count; i++) {
-      const lastRow = rows[rows.length - 1 - i];
-      if (lastRow) lastRow.remove();
-    }
-
-    component.storeBaseTableData();
-  }
-  function removeTableColumns(component, count) {
-    const theadTr = component.find('thead > tr')[0];
-    const tbody = component.find('tbody')[0];
-    if (!tbody) return;
-
-    const headerCells = theadTr ? theadTr.find('> [type="cell"]') : [];
-    if (headerCells.length <= count) {
-      showToast('Cannot remove all columns', 'warning');
-      return;
-    }
-
-    // Remove from header
-    for (let i = 0; i < count; i++) {
-      const lastHeaderCell = headerCells[headerCells.length - 1 - i];
-      if (lastHeaderCell) lastHeaderCell.remove();
-    }
-
-    // Remove from body
-    const bodyRows = tbody.find('tr');
-    bodyRows.forEach(row => {
-      const cells = row.find('> [type="cell"]');
-      for (let i = 0; i < count; i++) {
-        const lastCell = cells[cells.length - 1 - i];
-        if (lastCell) lastCell.remove();
-      }
-    });
-
-    component.storeBaseTableData();
-  }
-
-  // Enhanced event listener for table selection to apply highlighting traits
   editor.on('component:selected', function (component) {
     if (component) {
       const element = component.getEl();
       const tagName = component.get('tagName');
 
-      // Handle table selection
       if (tagName === 'table' && component.getId() && component.getId().startsWith('table')) {
         if (component.get('type') !== 'enhanced-table') {
           component.set('type', 'enhanced-table');
@@ -5140,15 +4496,13 @@ function customTable(editor) {
         }
       }
 
-      // Handle table cell selection
       if ((tagName === 'td' || tagName === 'th') && element) {
         const table = element.closest('table');
         if (table && table.id && table.id.startsWith('table')) {
-          // Set cell type to enhanced-table-cell
+
           if (component.get('type') !== 'enhanced-table-cell') {
             component.set('type', 'enhanced-table-cell');
 
-            // Check if this cell already has a running total
             const cellIndex = Array.from(element.parentNode.children).indexOf(element);
             const runningTotalExists = table.querySelector(`[data-running-total-for="${cellIndex}"]`);
 
@@ -5161,7 +4515,6 @@ function customTable(editor) {
     }
   });
 
-  // Global function to update highlighting for external access
   window.updateTableHighlighting = function (tableId, conditionType, conditionValue, color) {
     applyHighlighting(tableId, conditionType, conditionValue, color);
 
@@ -5174,15 +4527,13 @@ function customTable(editor) {
       }
     }
   };
-  // Page system integration - ensure tables work properly when pages are created/modified
+
   editor.on('component:add component:update', function (component) {
-    // Only process if this might be related to page structure changes
     if (component && (
       component.get('tagName') === 'div' ||
       component.getClasses().includes('page-container') ||
       component.getClasses().includes('main-content-area')
     )) {
-      // Re-initialize any tables that might have been affected by page changes
       setTimeout(() => {
         try {
           const canvasBody = editor.Canvas.getBody();
@@ -5190,31 +4541,27 @@ function customTable(editor) {
             const tables = canvasBody.querySelectorAll('table[id^="table"]');
             tables.forEach(table => {
               const tableId = table.id;
-              // Check if table needs re-initialization
               if (!window.pageTableInstances || !window.pageTableInstances[tableId]) {
-                // Find and re-execute the table script
                 const scriptId = tableId.replace('table', '');
                 const scriptElement = canvasBody.querySelector(`.table-script-${scriptId}`);
                 if (scriptElement && scriptElement.textContent) {
                   try {
                     eval(scriptElement.textContent);
                   } catch (error) {
-                    console.warn('Error re-initializing table:', error);
+                    console.warn('Error re-initializing table:');
                   }
                 }
               }
             });
           }
         } catch (error) {
-          console.warn('Error in page system table integration:', error);
+          console.warn('Error in page system table integration:');
         }
       }, 500);
     }
   });
 
-  // Cleanup function for page system integration
   editor.on('component:remove', function (component) {
-    // Clean up any DataTable instances when components are removed
     try {
       if (component && typeof component.getEl === 'function') {
         const element = component.getEl();
@@ -5227,40 +4574,33 @@ function customTable(editor) {
                 window.pageTableInstances[tableId].destroy();
                 delete window.pageTableInstances[tableId];
               } catch (error) {
-                console.warn('Error destroying DataTable:', error);
+                console.warn('Error destroying DataTable:');
               }
             }
           });
         }
       }
     } catch (error) {
-      console.warn('Error in table cleanup:', error);
+      console.warn('Error in table cleanup:');
     }
   });
 
-  // Enhanced print handling for page system
   if (typeof window !== 'undefined') {
-    // Store original print function
     const originalPrint = window.print;
-
     window.print = function () {
       try {
-        // Before printing, ensure all highlighted cells use GrapesJS background colors
         const tables = document.querySelectorAll('table[id^="table"]');
         tables.forEach(table => {
           try {
-            // Ensure table attributes for print
             table.setAttribute("border", "1");
             table.style.borderCollapse = "collapse";
             table.style.width = "100%";
             table.style.fontFamily = "Arial, sans-serif";
 
-            // Find highlighted cells and ensure background color is properly set
             const highlightedCells = table.querySelectorAll('td[data-highlighted="true"], th[data-highlighted="true"]');
             highlightedCells.forEach(cell => {
-              // Get background color from GrapesJS component if available
               const cellComponent = editor.DomComponents.getComponentFromElement(cell);
-              let bgColor = '#ffff99'; // default
+              let bgColor = '#ffff99';
 
               if (cellComponent) {
                 const componentBgColor = cellComponent.getStyle()['background-color'];
@@ -5269,7 +4609,6 @@ function customTable(editor) {
                 }
               }
 
-              // Apply inline styles for print compatibility
               cell.style.backgroundColor = bgColor;
               cell.style.webkitPrintColorAdjust = 'exact';
               cell.style.colorAdjust = 'exact';
@@ -5277,31 +4616,26 @@ function customTable(editor) {
             });
 
           } catch (error) {
-            console.warn('Error preparing table for print:', error);
+            console.warn('Error preparing table for print:');
           }
         });
 
-        // Call original print function
         originalPrint.call(this);
 
       } catch (error) {
-        console.warn('Error in custom print function, using original:', error);
+        console.warn('Error in custom print function, using original:');
         originalPrint.call(this);
       }
     };
   }
 
-  // Initialize page table instances storage
   if (typeof window !== 'undefined' && !window.pageTableInstances) {
     window.pageTableInstances = {};
   }
 
-  // Custom command to add table to selected component
   editor.Commands.add('add-table-to-selected', {
     run(editor) {
       addTable();
     }
   });
-
-  console.log('Enhanced Custom Table function initialized with formula suggestions, highlighting traits and page system integration');
 }

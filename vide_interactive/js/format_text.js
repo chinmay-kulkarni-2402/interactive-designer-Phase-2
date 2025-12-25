@@ -1,13 +1,8 @@
 function addFormattedRichTextComponent(editor) {
-
-  const FormulaParser = HyperFormula.HyperFormula;
-
-  // Create a HyperFormula instance for formula evaluation
   const formulaEngine = HyperFormula.buildEmpty({
     licenseKey: 'gpl-v3'
   });
 
-  // Format configurations
   const formatConfigs = {
     text: {
       label: 'Text',
@@ -25,29 +20,23 @@ function addFormattedRichTextComponent(editor) {
       label: 'Currency',
       patterns: [
         '$ 0', '$ 0.00',           // USA, Canada
-        '₹ 0.00', '₹ 0',           // India (existing)
+        '₹ 0.00', '₹ 0',           // India
         '¥ 0', '£ 0.00', '€ 0.00', // Existing
-        'IDR 0.000',               // Indonesia (existing)
-        'OMR 0.000',               // Oman (existing)
-        'R 0.00',                  // South Africa (ZAR)
-        '¥ 0.00',                  // China (CNY - different from JPY)
-        'S$ 0.00',                 // Singapore (SGD)
-        'RM 0.00',                 // Malaysia (MYR)
-        'Rs. 0.00',                // Sri Lanka (LKR)
-        'AED 0.00',                // UAE/Dubai (AED)
-        'SR 0.00',                 // Saudi Arabia (SAR)
-        '₽ 0.00'                   // Russia (RUB)
+        'IDR 0.000',               // Indonesia
+        'OMR 0.000',               // Oman
+        'R 0.00',                  // South Africa
+        '¥ 0.00',                  // China
+        'S$ 0.00',                 // Singapore
+        'RM 0.00',                 // Malaysia
+        'Rs. 0.00',                // Sri Lanka
+        'AED 0.00',                // UAE/Dubai
+        'SR 0.00',                 // Saudi Arabia
+        '₽ 0.00'                   // Russia
       ],
       defaultPattern: '₹ 0.00',
       icon: '💰'
     },
 
-    // percentage: {
-    //   label: 'Percentage',
-    //   patterns: ['0%', '0.0%', '0.00%'],
-    //   defaultPattern: '0.00%',
-    //   icon: '📊'
-    // },
     date: {
       label: 'Date',
       patterns: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM DD, YYYY', 'DD MMM YYYY'],
@@ -56,7 +45,6 @@ function addFormattedRichTextComponent(editor) {
     }
   };
 
-  // Enhanced format helper functions with conditional support
   const formatHelpers = {
     canConvertToNumber(value) {
       if (typeof value === 'number') return true;
@@ -80,7 +68,6 @@ function addFormattedRichTextComponent(editor) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
 
-      // Find all text nodes and replace with formatted content
       const walker = document.createTreeWalker(
         tempDiv,
         NodeFilter.SHOW_TEXT,
@@ -105,17 +92,14 @@ function addFormattedRichTextComponent(editor) {
       return tempDiv.innerHTML;
     },
 
-    // Enhanced method to check if a condition string is a number condition
     isNumberCondition(condition) {
       const conditionPattern = /^(<|<=|>|>=|=|!=)\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*\(\s*value\s*\)\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*\(\s*value\s*\)\s*<=\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<\s*value\s*<\s*\d+(\.\d+)?$|^\d+(\.\d+)?\s*<=\s*value\s*<=\s*\d+(\.\d+)?$/;
       return conditionPattern.test(condition.trim());
     },
 
-    // Parse and evaluate number conditions
     parseNumberCondition(condition) {
       const trimmed = condition.trim();
 
-      // Handle range conditions: 100<value<1000, 100<=value<=1000, etc.
       const rangePattern = /^(\d+(?:\.\d+)?)\s*(<|<=)\s*(?:\(?\s*value\s*\)?)\s*(<|<=)\s*(\d+(?:\.\d+)?)$/;
       const rangeMatch = trimmed.match(rangePattern);
 
@@ -144,7 +128,6 @@ function addFormattedRichTextComponent(editor) {
         };
       }
 
-      // Handle simple conditions: <1000, >=500, =100, !=50, etc.
       const simplePattern = /^(<|<=|>|>=|=|!=)\s*(\d+(?:\.\d+)?)$/;
       const simpleMatch = trimmed.match(simplePattern);
 
@@ -176,7 +159,6 @@ function addFormattedRichTextComponent(editor) {
       return null;
     },
 
-    // Extract all numbers from text content
     extractNumbers(content) {
       const text = this.extractTextContent(content);
       const numberPattern = /\b\d+(?:\.\d+)?\b/g;
@@ -184,7 +166,6 @@ function addFormattedRichTextComponent(editor) {
       return matches ? matches.map(match => parseFloat(match)) : [];
     },
 
-    // Check if any number in the content matches the condition
     evaluateNumberCondition(content, condition) {
       const conditionObj = this.parseNumberCondition(condition);
       if (!conditionObj) return false;
@@ -232,30 +213,23 @@ function addFormattedRichTextComponent(editor) {
       if (typeof textContent === 'number') return textContent;
 
       const str = String(textContent).trim();
-
-      // Remove currency symbols and other non-numeric characters except dots, commas, and minus
       const cleanValue = str.replace(/[^\d.,-]/g, '');
 
-      // Handle Indonesian format (dots as thousands, comma as decimal)
-      // Example: "1.234.567,89" should become 1234567.89
       if (cleanValue.includes('.') && cleanValue.includes(',')) {
         const lastComma = cleanValue.lastIndexOf(',');
         const lastDot = cleanValue.lastIndexOf('.');
 
         if (lastComma > lastDot) {
-          // Indonesian format: remove dots (thousands), replace comma with dot (decimal)
           const parsed = parseFloat(cleanValue.replace(/\./g, '').replace(',', '.'));
           return isNaN(parsed) ? 0 : parsed;
         }
       }
 
-      // Handle comma as decimal separator (no dots present)
       if (cleanValue.includes(',') && !cleanValue.includes('.')) {
         const parsed = parseFloat(cleanValue.replace(',', '.'));
         return isNaN(parsed) ? 0 : parsed;
       }
 
-      // Standard parsing: remove commas (thousand separators), keep dots (decimal)
       const standardClean = cleanValue.replace(/,/g, '');
       const parsed = parseFloat(standardClean);
       return isNaN(parsed) ? 0 : parsed;
@@ -295,10 +269,8 @@ function addFormattedRichTextComponent(editor) {
 
     formatCurrency(value, pattern) {
       const num = this.parseNumber(value);
-      // Extract currency symbol or code (leading non-digit, non-space part)
       const symbolMatch = pattern.match(/^([^\d\s]+|[A-Z]{2,3})\s*/);
       const currencySymbol = symbolMatch ? symbolMatch[1] : '';
-      // Determine decimal places from pattern (e.g., '.00' -> 2, '.000' -> 3)
       const decimalsMatch = pattern.match(/\.0+/);
       const decimals = decimalsMatch ? decimalsMatch[0].length - 1 : 0;
 
@@ -309,75 +281,54 @@ function addFormattedRichTextComponent(editor) {
         useGrouping: true
       };
 
-      // Determine locale based on currency symbol
       if (currencySymbol === '₹') {
-        // Indian numbering system: en-IN uses 00,00,000 grouping
         locale = 'en-IN';
       } else if (currencySymbol === 'IDR') {
-        // Indonesian formatting: use id-ID (dots as thousands, comma as decimal)
         locale = 'id-ID';
       } else if (currencySymbol === 'R') {
-        // South African Rand: use en-ZA
         locale = 'en-ZA';
       } else if (currencySymbol === '¥' && decimals === 2) {
-        // Chinese Yuan (has decimals): use zh-CN
         locale = 'zh-CN';
       } else if (currencySymbol === '¥' && decimals === 0) {
-        // Japanese Yen (no decimals): use ja-JP
         locale = 'ja-JP';
       } else if (currencySymbol === 'S$') {
-        // Singapore Dollar: use en-SG
         locale = 'en-SG';
       } else if (currencySymbol === 'RM') {
-        // Malaysian Ringgit: use ms-MY
         locale = 'ms-MY';
       } else if (currencySymbol === 'Rs.') {
-        // Sri Lankan Rupee: use si-LK
         locale = 'si-LK';
       } else if (currencySymbol === 'AED') {
-        // UAE Dirham: use ar-AE
         locale = 'ar-AE';
       } else if (currencySymbol === 'SR') {
-        // Saudi Riyal: use ar-SA
         locale = 'ar-SA';
       } else if (currencySymbol === '₽') {
-        // Russian Ruble: use ru-RU
         locale = 'ru-RU';
       } else if (currencySymbol === 'OMR') {
-        // Omani Rial: use ar-OM
         locale = 'ar-OM';
       } else if (currencySymbol === '£') {
-        // British Pound: use en-GB
         locale = 'en-GB';
       } else if (currencySymbol === '€') {
-        // Euro: use de-DE
         locale = 'de-DE';
       } else {
-        // Default western grouping (USD, CAD, etc.)
         locale = 'en-US';
       }
 
       let formattedNumber;
 
-      // Special handling for Indonesian format
       if (currencySymbol === 'IDR') {
-        // Indonesian uses dots for thousands and comma for decimal
         if (decimals > 0) {
           const integerPart = Math.floor(num);
           const decimalPart = (num - integerPart).toFixed(decimals).substring(2);
 
-          // Format integer part with dots as thousand separators
-          const integerFormatted = integerPart.toLocaleString('de-DE'); // German format uses dots for thousands
+          const integerFormatted = integerPart.toLocaleString('de-DE');
           formattedNumber = integerFormatted + ',' + decimalPart;
         } else {
-          formattedNumber = Math.floor(num).toLocaleString('de-DE'); // Use dots for thousands
+          formattedNumber = Math.floor(num).toLocaleString('de-DE');
         }
       } else {
-        // Use standard Intl.NumberFormat for other currencies
         formattedNumber = new Intl.NumberFormat(locale, options).format(num);
       }
 
-      // For three-letter currency codes, use space separator; for symbols, use space
       const separator = ' ';
       return currencySymbol + separator + formattedNumber;
     },
@@ -385,7 +336,7 @@ function addFormattedRichTextComponent(editor) {
     formatPercentage(value, pattern) {
       const num = this.parseNumber(value);
       const decimals = (pattern.match(/\.0+/) || [''])[0].length - 1;
-      const percentage = num * 100; // Multiply by 100 for percentage display
+      const percentage = num * 100;
       return percentage.toFixed(Math.max(0, decimals)) + '%';
     },
 
@@ -393,26 +344,21 @@ function addFormattedRichTextComponent(editor) {
       const textContent = this.extractTextContent(value);
       let date;
 
-      // Try to parse the date
       if (textContent instanceof Date) {
         date = textContent;
       } else {
         date = new Date(textContent);
-        // If invalid, try common formats
         if (isNaN(date.getTime())) {
           const parts = textContent.split(/[/-]/);
           if (parts.length === 3) {
-            // Try MM/DD/YYYY
             date = new Date(parts[2], parts[0] - 1, parts[1]);
             if (isNaN(date.getTime())) {
-              // Try DD/MM/YYYY
               date = new Date(parts[2], parts[1] - 1, parts[0]);
             }
           }
         }
       }
 
-      // If still invalid, use current date
       if (isNaN(date.getTime())) {
         date = new Date();
       }
@@ -469,18 +415,13 @@ function addFormattedRichTextComponent(editor) {
       try {
         const cleanFormula = formulaString.trim();
 
-        // Register custom functions if they don't exist
         if (!formulaEngine.isItPossibleToAddSheet('temp_sheet')) {
           formulaEngine.addSheet('temp_sheet');
           formulaEngine.removeSheet(formulaEngine.getSheetId('temp_sheet'));
         }
 
-        // Add a calculation sheet
         formulaEngine.addSheet('calculations');
         const sheetId = formulaEngine.getSheetId('calculations');
-
-        // Handle custom NUMTOWORD function
-        // Handle custom NUMTOWORD function
         let processedFormula = cleanFormula;
         const numToWordPattern = /NUMTOWORD\(([^)]+)\)/gi;
 
@@ -488,33 +429,29 @@ function addFormattedRichTextComponent(editor) {
           processedFormula = cleanFormula.replace(numToWordPattern, (match, value) => {
             try {
               const num = eval(value.replace(/=/g, ''));
-              // Use the external library
               return `"${numberToWords.toWords(parseFloat(num))}"`;
             } catch (e) {
               return '"#ERROR: Invalid NUMTOWORD"';
             }
           });
         }
-        // Handle percentage conversion
+
         processedFormula = processedFormula.replace(/(\d+(?:\.\d+)?)\s*%/g, (match, num) => {
           return (parseFloat(num) / 100).toString();
         });
 
-        // Set the formula in cell A1
         formulaEngine.setCellContents({
           row: 0,
           col: 0,
           sheet: sheetId
         }, processedFormula);
 
-        // Get the calculated value
         const result = formulaEngine.getCellValue({
           row: 0,
           col: 0,
           sheet: sheetId
         });
 
-        // Clean up
         formulaEngine.removeSheet(sheetId);
 
         return result;
@@ -524,7 +461,6 @@ function addFormattedRichTextComponent(editor) {
       }
     },
 
-    // Add this new helper method for NUMTOWORD
     numberToWords(num) {
       const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
       const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -578,11 +514,9 @@ function addFormattedRichTextComponent(editor) {
         const formulaString = textContent.trim();
         const result = this.evaluateFormula(formulaString);
 
-        // If result is an error, show both formula and error
         if (typeof result === 'string' && result.startsWith('#ERROR')) {
           return this.preserveRichTextStructure(content, `${formulaString} → ${result}`);
         } else {
-          // Return the calculated result
           return this.preserveRichTextStructure(content, String(result));
         }
       }
@@ -592,7 +526,6 @@ function addFormattedRichTextComponent(editor) {
 
   };
 
-  // Get all format options
   function getAllFormatOptions() {
     const options = Object.keys(formatConfigs).map(key => ({
       value: key,
@@ -602,7 +535,6 @@ function addFormattedRichTextComponent(editor) {
     return options;
   }
 
-  // Get format label for hover tooltip
   function getFormatLabel(formatType) {
     if (formatConfigs[formatType]) {
       return formatConfigs[formatType].label;
@@ -610,7 +542,6 @@ function addFormattedRichTextComponent(editor) {
     return 'Text';
   }
 
-  // Custom RTE actions
   const customRteActions = [
     {
       name: "bold",
@@ -644,44 +575,6 @@ function addFormattedRichTextComponent(editor) {
         return rte.exec("strikeThrough");
       }
     },
-    // {
-    //   name: "link",
-    //   icon: `<svg viewBox="0 0 24 24" style="width:14px;height:14px;">
-    //     <path fill="currentColor" d="M3.9,12C3.9,10.29 5.29,8.9 7,8.9H11V7H7A5,5 0 0,0 2,12A5,5 0 0,0 7,17H11V15.1H7C5.29,15.1 3.9,13.71 3.9,12M8,13H16V11H8V13M17,7H13V8.9H17C18.71,8.9 20.1,10.29 20.1,12C20.1,13.71 18.71,15.1 17,15.1H13V17H17A5,5 0 0,0 22,12A5,5 0 0,0 17,7Z" />
-    //   </svg>`,
-    //   attributes: {
-    //     style: "font-size:1.4rem;padding:0 4px 2px;",
-    //     title: "Link"
-    //   },
-    //   state: function (rte) {
-    //     const selection = rte && rte.selection();
-    //     if (!selection) return 0;
-    //     const anchorNode = selection.anchorNode;
-    //     const focusNode = selection.focusNode;
-    //     const anchorParent = anchorNode?.parentNode;
-    //     const focusParent = focusNode?.parentNode;
-    //     return (anchorParent?.nodeName === 'A' || focusParent?.nodeName === 'A') ? 1 : 0;
-    //   },
-    //   result: function (rte) {
-    //     const selection = rte.selection();
-    //     if (!selection) return;
-
-    //     const anchorNode = selection.anchorNode;
-    //     const focusNode = selection.focusNode;
-    //     const anchorParent = anchorNode?.parentNode;
-    //     const focusParent = focusNode?.parentNode;
-    //     const hasLink = anchorParent?.nodeName === 'A' || focusParent?.nodeName === 'A';
-
-    //     if (hasLink) {
-    //       rte.exec("unlink");
-    //     } else {
-    //       const selectedText = selection.toString();
-    //       if (selectedText) {
-    //         rte.insertHTML(`<a href="" data-selectme>${selectedText}</a>`, { select: true });
-    //       }
-    //     }
-    //   }
-    // }
   ];
 
   function initializeConditionManager(component, initialConditions) {
@@ -702,12 +595,10 @@ function addFormattedRichTextComponent(editor) {
 
     let currentConditions = [...initialConditions];
 
-    // Initialize with current component settings
     highlightBgColor.value = component.get('highlight-color') || '#ffff00';
     highlightTextColor.value = component.get('highlight-text-color') || '#000000';
     highlightFontFamily.value = component.get('highlight-font-family') || 'Default';
 
-    // Handle condition type change
     conditionTypeSelect.addEventListener('change', function () {
       const selectedType = this.value;
 
@@ -722,7 +613,6 @@ function addFormattedRichTextComponent(editor) {
         caseSensitive.disabled = false;
       }
 
-      // Update placeholder and input type based on condition type
       if (['>', '>=', '<', '<=', '=', '!='].includes(selectedType)) {
         conditionValue.placeholder = 'Enter number';
         conditionValue.type = 'number';
@@ -737,7 +627,6 @@ function addFormattedRichTextComponent(editor) {
       }
     });
 
-    // Add condition
     addBtn.addEventListener('click', function () {
       const type = conditionTypeSelect.value;
 
@@ -773,7 +662,7 @@ function addFormattedRichTextComponent(editor) {
         minValue.value = '';
         maxValue.value = '';
       } else {
-        const value = conditionValue.value; // Don't trim for once-if to preserve spaces
+        const value = conditionValue.value;
 
         if (!value && value !== ' ') {
           alert('Please enter a value');
@@ -810,7 +699,6 @@ function addFormattedRichTextComponent(editor) {
       currentConditions.push(newCondition);
       renderConditionsList();
 
-      // Reset form
       conditionTypeSelect.value = '';
       singleValueInput.style.display = 'block';
       rangeInputs.style.display = 'none';
@@ -818,7 +706,6 @@ function addFormattedRichTextComponent(editor) {
       caseSensitive.disabled = false;
     });
 
-    // Render conditions list
     function renderConditionsList() {
       if (currentConditions.length === 0) {
         conditionsList.innerHTML = '<p style="color: #bbb;">No conditions added yet.</p>';
@@ -826,24 +713,21 @@ function addFormattedRichTextComponent(editor) {
       }
 
       const conditionsHtml = currentConditions.map((condition, index) => `
-      <div class="condition-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #555;">
-        <span style="color: #f8f9fa;">${condition.label}</span>
-        <button onclick="removeCondition(${index})" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Remove</button>
-      </div>
-    `).join('');
+        <div class="condition-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #555;">
+          <span style="color: #f8f9fa;">${condition.label}</span>
+          <button onclick="removeCondition(${index})" style="background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Remove</button>
+        </div>
+      `).join('');
 
       conditionsList.innerHTML = conditionsHtml;
     }
 
-    // Remove condition function (global scope for onclick)
     window.removeCondition = function (index) {
       currentConditions.splice(index, 1);
       renderConditionsList();
     };
 
-    // Apply conditions
     applyBtn.addEventListener('click', function () {
-      // Set all styling properties
       component.set('highlight-color', highlightBgColor.value);
       component.set('highlight-text-color', highlightTextColor.value);
       component.set('highlight-font-family', highlightFontFamily.value);
@@ -851,16 +735,13 @@ function addFormattedRichTextComponent(editor) {
       editor.Modal.close();
     });
 
-    // Close modal
     closeBtn.addEventListener('click', function () {
       editor.Modal.close();
     });
 
-    // Initial render
     renderConditionsList();
   }
 
-  // Add the formatted-rich-text component
   editor.DomComponents.addType('formatted-rich-text', {
     model: {
       defaults: {
@@ -947,16 +828,10 @@ function addFormattedRichTextComponent(editor) {
 
         if (!validation.valid) {
           alert(validation.error);
-
-          // Revert to previous format type - CRITICAL: Use set without silent
           this.set('format-type', previousFormatType);
-
-          // Force trait update to reflect reverted value
           const trait = this.getTrait('format-type');
           if (trait && trait.view) {
-            // Update the trait's value property first
             trait.set('value', previousFormatType);
-            // Then force the view to re-render
             const selectEl = trait.view.el.querySelector('select');
             if (selectEl) {
               selectEl.value = previousFormatType;
@@ -974,63 +849,128 @@ function addFormattedRichTextComponent(editor) {
       handleJsonPathChange() {
         const jsonPath = this.get('my-input-json');
 
+        // Stop RTE safely
         if (this.view && this.view.rteActive) {
           this.view.forceStopRTE();
         }
 
-        if (jsonPath && jsonPath.trim()) {
-          try {
-            const commonJson = JSON.parse(localStorage.getItem("common_json"));
-            const jsonPaths = jsonPath.split(',').map(path => path.trim());
-            const currentContent = this.get('raw-content') || '';
+        if (!jsonPath || !jsonPath.trim()) return;
 
-            // Check for selective replacement mode
-            if (currentContent.includes('{') && currentContent.includes('}')) {
-              let updatedContent = currentContent;
+        try {
+          /* ===============================
+             FILE INDEX RESOLUTION
+          =============================== */
+          let fileIndex = this.get('json-file-index') || '0';
 
-              jsonPaths.forEach(path => {
-                const fullJsonPath = `commonJson.${custom_language}.${path}`;
-                try {
-                  const value = eval(fullJsonPath);
-                  if (value !== undefined && value !== null) {
-                    const placeholder = `{${path}}`;
-                    updatedContent = updatedContent.replace(
-                      new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-                      String(value)
-                    );
-                  }
-                } catch (e) {
-                  DL.warn(`Error evaluating path ${path}:`, e);
-                }
-              });
-
-              console.log('Setting selective replacement content:', updatedContent);
-              this.set('raw-content', updatedContent, { silent: true });
-              this.updateContent();
-            } else {
-              // Complete replacement mode (existing behavior)
-              const firstPath = jsonPaths[0];
-              const fullJsonPath = `commonJson.${custom_language}.${firstPath}`;
-              const value = eval(fullJsonPath);
-              console.log('Evaluated value:', value);
-
-              if (value !== undefined && value !== null) {
-                const stringValue = String(value);
-                console.log('Setting complete replacement content:', stringValue);
-                this.set('raw-content', stringValue, { silent: true });
-                this.updateContent();
-              }
-            }
-
-            if (this.view && this.view.el) {
-              this.view.render();
-              if (this.em) {
-                this.em.trigger('change:canvasOffset');
-              }
-            }
-          } catch (e) {
-            DL.error("Error evaluating DataSource path:", e);
+          // Sync from trait UI if available
+          const fileIndexSelect = document.querySelector(
+            '.i_designer-sm-property__json-file-index select'
+          );
+          if (fileIndexSelect) {
+            fileIndex = fileIndexSelect.value || '0';
+            this.set('json-file-index', fileIndex, { silent: true });
           }
+
+          /* ===============================
+             JSON SOURCE RESOLUTION
+          =============================== */
+          let commonJson = null;
+
+          if (fileIndex !== '0') {
+            const fileNames = (localStorage.getItem('common_json_files') || '')
+              .split(',')
+              .map(f => f.trim());
+
+            const selectedFile = fileNames[parseInt(fileIndex, 10) - 1];
+            const jsonString = selectedFile
+              ? localStorage.getItem(`common_json_${selectedFile}`)
+              : null;
+
+            if (jsonString) {
+              commonJson = JSON.parse(jsonString);
+            }
+          } else {
+            const jsonString = localStorage.getItem('common_json');
+            if (jsonString) {
+              commonJson = JSON.parse(jsonString);
+            }
+          }
+
+          if (!commonJson) return;
+
+          /* ===============================
+             CONTENT RESOLUTION
+          =============================== */
+          const jsonPaths = jsonPath.split(',').map(p => p.trim());
+          const rawContent =
+            this.get('raw-content') ||
+            this.get('content') ||
+            '';
+
+          // 🔁 TEMPLATE MODE
+          if (rawContent.includes('{') && rawContent.includes('}')) {
+            let updatedContent = rawContent;
+
+            jsonPaths.forEach(path => {
+              const parts = path.split('.');
+              const languageKey = parts[0];
+              const remainingPath = parts.slice(1).join('.');
+
+              if (!languageKey || !remainingPath) return;
+
+              try {
+                const evalPath = `commonJson.${languageKey}.${remainingPath}`;
+                const value = eval(evalPath);
+
+                if (value !== undefined && value !== null) {
+                  const placeholder = `{${remainingPath}}`;
+                  const escaped = placeholder.replace(
+                    /[.*+?^${}()|[\]\\]/g,
+                    '\\$&'
+                  );
+
+                  updatedContent = updatedContent.replace(
+                    new RegExp(escaped, 'g'),
+                    String(value)
+                  );
+                }
+              } catch (e) {
+                DL.warn(`Error evaluating path ${path}`, e);
+              }
+            });
+
+            this.set('raw-content', updatedContent, { silent: true });
+            this.updateContent?.();
+
+          }
+          else {
+            const firstPath = jsonPaths[0];
+            const parts = firstPath.split('.');
+            const languageKey = parts[0];
+            const remainingPath = parts.slice(1).join('.');
+
+            if (languageKey && remainingPath) {
+              try {
+                const evalPath = `commonJson.${languageKey}.${remainingPath}`;
+                const value = eval(evalPath);
+
+                if (value !== undefined && value !== null) {
+                  this.set('raw-content', String(value), { silent: true });
+                  this.updateContent?.();
+                }
+              } catch (e) {
+                DL.warn(`Error evaluating path ${firstPath}`, e);
+              }
+            }
+          }
+
+          if (this.view && this.view.el) {
+            this.view.render();
+            this.em?.trigger('change:canvasOffset');
+          }
+
+        } catch (e) {
+          DL.error('Error evaluating DataSource path:', e);
         }
       },
 
@@ -1040,7 +980,6 @@ function addFormattedRichTextComponent(editor) {
 
       setHighlightConditions(conditions) {
         this.set('highlight-conditions', conditions);
-        // Update the old format for backward compatibility
         const conditionStrings = conditions.map(cond => {
           if (cond.type === 'once-if') {
             return `once-if:${cond.value}`;
@@ -1093,19 +1032,17 @@ function addFormattedRichTextComponent(editor) {
         const characters = condition.split('');
 
         characters.forEach(char => {
-          if (char || char === ' ') { // Allow spaces
+          if (char || char === ' ') {
             const escapedChar = this.escapeRegex(char);
             let regex;
 
             if (char === ' ') {
-              // Special handling for spaces - match any whitespace but replace with non-breaking space
               regex = /(\s)/g;
             } else if (/\d/.test(char)) {
               regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, caseSensitive ? 'g' : 'gi');
             } else if (/[a-zA-Z]/.test(char)) {
               regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, caseSensitive ? 'g' : 'gi');
             } else {
-              // Special characters
               regex = new RegExp(`(?!<[^>]*?>)(${escapedChar})(?![^<]*?<\/span>)`, 'g');
             }
 
@@ -1128,17 +1065,14 @@ function addFormattedRichTextComponent(editor) {
         const conditionValue = condition.value;
         const caseSensitive = condition.caseSensitive || false;
 
-        // Handle "once-if" condition type
         if (conditionType === 'once-if') {
           return this.applyOnceIfHighlight(content, conditionValue, highlightColor, textColor, fontFamily, caseSensitive);
         }
 
-        // Create style string
         const fontStyle = fontFamily && fontFamily !== 'Default' ? `font-family: ${fontFamily};` : '';
         const colorStyle = textColor ? `color: ${textColor};` : '';
         const styleString = `background-color: ${highlightColor}; padding: 1px 2px; border-radius: 2px; ${fontStyle} ${colorStyle}`;
 
-        // Handle number conditions
         if (['>', '>=', '<', '<=', '=', '!='].includes(conditionType)) {
           const conditionString = conditionType + conditionValue;
 
@@ -1163,7 +1097,6 @@ function addFormattedRichTextComponent(editor) {
           return content;
         }
 
-        // Handle between condition
         if (conditionType === 'between') {
           const betweenCondition = `${condition.minValue}<value<${condition.maxValue}`;
           if (formatHelpers.isNumberCondition(betweenCondition)) {
@@ -1187,7 +1120,6 @@ function addFormattedRichTextComponent(editor) {
           return content;
         }
 
-        // Handle text-based highlighting
         let regex;
         const flags = caseSensitive ? 'g' : 'gi';
 
@@ -1224,11 +1156,8 @@ function addFormattedRichTextComponent(editor) {
         const highlightColor = this.get('highlight-color') || '#ffff00';
         const highlightTextColor = this.get('highlight-text-color') || '#000000';
         const highlightFontFamily = this.get('highlight-font-family') || 'Default';
-
-        // Remove existing formatting
         processedContent = processedContent.replace(/<span class="hidden-word"[^>]*>.*?<\/span>/gi, '');
         processedContent = processedContent.replace(/<span class="highlighted-word"[^>]*>(.*?)<\/span>/gi, '$1');
-
         const hasHideConditions = hideWords.trim().length > 0;
         const hasHighlightConditions = highlightConditions.length > 0;
 
@@ -1236,7 +1165,6 @@ function addFormattedRichTextComponent(editor) {
           return processedContent;
         }
 
-        // Handle hide conditions (existing logic)
         if (hasHideConditions) {
           const conditions = hideWords.split(',').map(cond => cond.trim()).filter(cond => cond);
 
@@ -1257,7 +1185,6 @@ function addFormattedRichTextComponent(editor) {
           });
         }
 
-        // Apply highlight conditions with styling
         if (hasHighlightConditions) {
           highlightConditions.forEach(condition => {
             processedContent = this.applyHighlightCondition(processedContent, condition, highlightColor, highlightTextColor, highlightFontFamily);
@@ -1277,29 +1204,23 @@ function addFormattedRichTextComponent(editor) {
         }
 
         const previousContent = this.get('content');
-
         let formattedContent;
 
-        // Process formula first if enabled
         if (isFormulaEnabled) {
           const textContent = formatHelpers.extractTextContent(rawContent);
 
-          // If it's a formula, evaluate it
           if (formatHelpers.isFormula(textContent)) {
             const formulaResult = formatHelpers.evaluateFormula(textContent.trim());
 
-            // Store the formula result as formatted content
             if (typeof formulaResult === 'string' && formulaResult.startsWith('#ERROR')) {
               formattedContent = formatHelpers.preserveRichTextStructure(rawContent, `${textContent} → ${formulaResult}`);
             } else {
               formattedContent = formatHelpers.preserveRichTextStructure(rawContent, String(formulaResult));
             }
           } else {
-            // Not a formula, just use the raw content
             formattedContent = rawContent;
           }
         } else {
-          // Apply regular formatting (not formula mode)
           if (formatType === 'text' || pattern === 'None') {
             formattedContent = rawContent;
           } else {
@@ -1316,11 +1237,8 @@ function addFormattedRichTextComponent(editor) {
 
         if (finalContent !== previousContent) {
           this.set('content', finalContent);
-          // CRITICAL FIX: Never overwrite raw-content automatically
-          // Raw content should only be updated by user editing
         }
       },
-
 
       updateFromJsonPath(jsonPath) {
         if (jsonPath && jsonPath.trim()) {
@@ -1351,36 +1269,20 @@ function addFormattedRichTextComponent(editor) {
         this.rteTimeout = null;
       },
 
-      // In the view object, modify the handleSingleClick method as follows:
       handleSingleClick(e) {
         if (this.rteActive) {
           e.stopPropagation();
           return;
         }
 
-        // Original code for handling links when not in RTE mode
         const clickedElement = e.target;
         const linkElement = clickedElement.closest('a');
 
         if (linkElement) {
-          // Prevent the event from bubbling up to avoid selecting the text component
           e.stopPropagation();
-
-          // Get the editor manager
           const em = this.model.em;
           if (!em) return;
 
-          // Create a temporary DOM component for the link
-          const linkComponent = {
-            tagName: 'a',
-            attributes: {
-              href: linkElement.getAttribute('href') || '',
-              target: linkElement.getAttribute('target') || '_self'
-            },
-            content: linkElement.innerHTML
-          };
-
-          // Create traits for the link
           const linkTraits = [
             {
               type: 'text',
@@ -1400,43 +1302,33 @@ function addFormattedRichTextComponent(editor) {
             }
           ];
 
-          // Show the traits panel with link-specific traits
           const traitManager = em.get('TraitManager');
           if (traitManager) {
-            // Clear existing traits
             traitManager.getCurrent().forEach(trait => {
               traitManager.removeTrait(trait.get('name'));
             });
 
-            // Add link traits
             linkTraits.forEach(traitConfig => {
               const trait = traitManager.addTrait(traitConfig);
 
-              // Handle trait changes
               trait.on('change:value', () => {
                 const traitName = trait.get('name');
                 const traitValue = trait.get('value');
 
-                // Update the actual link element
                 if (traitName === 'href') {
                   linkElement.setAttribute('href', traitValue);
                 } else if (traitName === 'target') {
                   linkElement.setAttribute('target', traitValue);
                 }
 
-                // Update the model's raw content
                 this.model.set('raw-content', this.el.innerHTML, { silent: true });
               });
             });
-
-            // Trigger trait update
             traitManager.trigger('update');
           }
 
           return;
         }
-
-        // If not clicking on a link, allow normal GrapesJS selection behavior
       },
 
       handleEditingChange() {
@@ -1449,114 +1341,81 @@ function addFormattedRichTextComponent(editor) {
       },
 
       enableRichTextEditing(e) {
-        console.log('=== DOUBLE CLICK DETECTED ===');
         e.preventDefault();
         e.stopPropagation();
-
-        // FIXED: Clear any pending timeout
         if (this.rteTimeout) {
           clearTimeout(this.rteTimeout);
           this.rteTimeout = null;
         }
 
-        // FIXED: Force stop any existing RTE first
         if (this.rteActive) {
-          console.log('RTE already active, forcing stop first');
           this.forceStopRTE();
-          // Wait a bit before starting new RTE session
           setTimeout(() => {
             this.model.enableRTE();
           }, 100);
           return;
         }
 
-        // Check if content is hidden
         const hideWords = this.model.get('hide-words') || '';
         if (hideWords.trim()) {
           const content = this.model.get('content') || '';
           if (content.includes('class="hidden-word"') && content.includes('display: none')) {
-            console.log('Content is hidden, cannot edit');
             window.alert("please remove hide word conditions first");
             return;
           }
         }
 
-        console.log('Enabling RTE...');
         this.model.enableRTE();
       },
 
       startRTE() {
-        console.log('=== STARTING RTE ===');
-
         if (this.rteActive) {
-          console.log('RTE already active, aborting start');
           return;
         }
 
         const em = this.model.em;
         if (!em) {
-          console.log('No editor manager found');
           return;
         }
 
         const rte = em.get('RichTextEditor');
         if (!rte) {
-          console.log('No RTE found');
           return;
         }
 
-        // FIXED: Set state immediately to prevent double initialization
         this.rteActive = true;
-
-        // Store original actions
         this.originalActions = rte.getAll().slice();
-        console.log('Stored original actions:', this.originalActions.length);
-
-        // Clear existing actions
         this.originalActions.forEach(action => {
           try {
             rte.remove(action.name);
           } catch (e) {
-            console.log('Error removing action:', action.name);
           }
         });
 
-        // Add custom actions
         customRteActions.forEach(action => {
           try {
             rte.add(action.name, action);
           } catch (e) {
-            console.log('Error adding action:', action.name);
           }
         });
 
-        // FIXED: Proper content handling for editing
-        // FIXED: Proper content handling for editing
         const rawContent = this.model.get('raw-content') || '';
         const isFormulaEnabled = this.model.get('formula-label') || false;
         const content = this.model.get('content') || '';
-        console.log('Raw content for editing:', rawContent);
 
-        // Set element content based on formula mode
         if (isFormulaEnabled) {
-          // In formula mode, show the raw formula (not the calculated result)
           this.el.innerHTML = rawContent;
         } else {
-          // In normal mode, show formatted content for editing
           this.el.innerHTML = content;
         }
 
-        // FIXED: Make element editable BEFORE enabling RTE
         this.el.contentEditable = true;
 
-        // Enable RTE with enhanced configuration
         try {
-          console.log('Enabling RTE on element');
           rte.enable(this, null, {
             actions: customRteActions.map(a => a.name),
             styleWithCSS: false
           });
-          console.log('RTE enabled successfully');
         } catch (e) {
           DL.error('RTE enable error:', e);
           this.rteActive = false;
@@ -1564,58 +1423,42 @@ function addFormattedRichTextComponent(editor) {
           return;
         }
 
-        // FIXED: Enhanced content change handler with debouncing
         this.rteChangeHandler = this.debounce(() => {
           const content = this.el.innerHTML;
-          console.log("Content changed in RTE:", content);
           this.model.set('raw-content', content, { silent: true });
         }, 150);
 
-        console.log('Adding event listeners');
         this.el.addEventListener('input', this.rteChangeHandler);
         this.el.addEventListener('paste', this.handleRTEPaste.bind(this));
 
-        // In the view object, modify the startRTE() method's globalClickHandler as follows:
         this.globalClickHandler = (e) => {
           if (!this.rteActive) return;
           if (!this.rteClickEnabled) return;
 
-          // Check if click is inside THIS specific element
           const clickedInside = this.el.contains(e.target) || this.el === e.target;
 
-          // Check if clicked on toolbar
           const clickedOnToolbar = e.target.closest('.gjs-rte-toolbar') ||
             e.target.closest('.gjs-toolbar') ||
             e.target.closest('.gjs-rte-actionbar');
 
-          // Only stop RTE if clicked outside THIS element AND not on toolbar
           if (!clickedInside && !clickedOnToolbar) {
-            console.log('Clicked outside this element, stopping RTE');
             this.handleRTEExit();
           } else if (clickedInside) {
-            console.log('Clicked inside same element, continuing edit');
-            // Allow default behavior for cursor positioning
-            // Do NOT stop propagation or prevent default
-            e.stopPropagation();  // Add this to prevent GrapesJS selection handling
+            e.stopPropagation();
           }
         };
 
         this.escapeHandler = (e) => {
           if (e.key === 'Escape') {
-            console.log('Escape key pressed, closing RTE');
             this.handleRTEExit();
           }
         };
 
-        // Disable click handler initially
         this.rteClickEnabled = false;
-
-        // FIXED: Attach to canvas frame and document
         const canvas = em.get('Canvas');
         const canvasBody = canvas?.getBody();
         const canvasDocument = canvas?.getDocument();
 
-        // Add listeners to multiple targets to ensure capture
         if (canvasBody) {
           canvasBody.addEventListener('mousedown', this.globalClickHandler, true);
         }
@@ -1625,21 +1468,16 @@ function addFormattedRichTextComponent(editor) {
         document.addEventListener('mousedown', this.globalClickHandler, true);
         document.addEventListener('keydown', this.escapeHandler);
 
-        // Enable click detection after a short delay
         setTimeout(() => {
           this.rteClickEnabled = true;
         }, 300);
 
-        // FIXED: Focus the element with proper timing and cursor positioning
         setTimeout(() => {
           if (this.rteActive && this.el) {
             this.el.focus();
-
-            // FIXED: Set cursor to end of content
             const range = document.createRange();
             const selection = window.getSelection();
 
-            // Find the last text node
             const walker = document.createTreeWalker(
               this.el,
               NodeFilter.SHOW_TEXT,
@@ -1657,22 +1495,16 @@ function addFormattedRichTextComponent(editor) {
               range.setStart(lastTextNode, lastTextNode.textContent.length);
               range.setEnd(lastTextNode, lastTextNode.textContent.length);
             } else {
-              // If no text nodes, set range to end of element
               range.selectNodeContents(this.el);
               range.collapse(false);
             }
 
             selection.removeAllRanges();
             selection.addRange(range);
-
-            console.log('Element focused with cursor positioned');
           }
         }, 200);
-
-        console.log('RTE startup complete');
       },
 
-      // FIXED: Add debounce utility function
       debounce(func, wait) {
         let timeout;
         return function executedFunction(...args) {
@@ -1685,55 +1517,38 @@ function addFormattedRichTextComponent(editor) {
         };
       },
 
-      // FIXED: Handle paste events properly
       handleRTEPaste(e) {
-        console.log('Paste event detected');
-        // Let the default paste happen, then update raw content
         setTimeout(() => {
           const content = this.el.innerHTML;
-          console.log("Content after paste:", content);
           this.model.set('raw-content', content, { silent: true });
         }, 10);
       },
 
       stopRTE() {
-        console.log('=== STOPPING RTE ===');
-
         if (!this.rteActive) {
-          console.log('RTE not active, nothing to stop');
           return;
         }
 
         const em = this.model.em;
         if (!em) {
-          console.log('No editor manager found');
           return;
         }
 
         const rte = em.get('RichTextEditor');
         if (!rte) {
-          console.log('No RTE found');
           return;
         }
 
-        // FIXED: Set state immediately to prevent race conditions
         this.rteActive = false;
 
-        // Remove event listeners first
         if (this.rteChangeHandler) {
-          console.log('Removing event listeners');
           this.el.removeEventListener('input', this.rteChangeHandler);
           this.el.removeEventListener('paste', this.handleRTEPaste);
           this.rteChangeHandler = null;
         }
 
-        // FIXED: Remove global event handlers
-        // FIXED: Remove global event handlers
         if (this.globalClickHandler) {
-          console.log('Removing global click handler');
-
-          this.rteClickEnabled = false; // Add this line
-
+          this.rteClickEnabled = false;
           const canvas = em.get('Canvas');
           const canvasBody = canvas?.getBody();
           const canvasDocument = canvas?.getDocument();
@@ -1749,30 +1564,23 @@ function addFormattedRichTextComponent(editor) {
           this.globalClickHandler = null;
         }
         if (this.escapeHandler) {
-          console.log('Removing escape key handler');
           document.removeEventListener('keydown', this.escapeHandler);
           this.escapeHandler = null;
         }
 
-        // Disable RTE
         try {
-          console.log('Disabling RTE');
           rte.disable(this);
-          console.log('RTE disabled successfully');
         } catch (e) {
           DL.error('RTE disable error:', e);
         }
 
         // Restore original actions
         if (this.originalActions) {
-          console.log('Restoring original actions');
-
-          // Remove custom actions first
           customRteActions.forEach(action => {
             try {
               rte.remove(action.name);
             } catch (e) {
-              console.log('Error removing custom action:', action.name);
+              console.log('Error removing custom action:');
             }
           });
 
@@ -1781,34 +1589,24 @@ function addFormattedRichTextComponent(editor) {
             try {
               rte.add(action.name, action);
             } catch (e) {
-              console.log('Error restoring action:', action.name);
+              console.log('Error restoring action:');
             }
           });
 
           this.originalActions = null;
-          console.log('Original actions restored');
         }
 
-        // FIXED: Clear any pending timeouts
         if (this.rteTimeout) {
           clearTimeout(this.rteTimeout);
           this.rteTimeout = null;
         }
 
-        // FIXED: Ensure element is properly reset
         this.el.contentEditable = false;
         this.el.blur();
-
-        console.log('RTE stop complete');
       },
 
-      // FIXED: Force stop method for external calls
       forceStopRTE() {
-        console.log('=== FORCE STOP RTE ===');
         if (this.rteActive) {
-          console.log('Forcing RTE to stop');
-
-          // FIXED: Clear timeouts before stopping
           if (this.rteTimeout) {
             clearTimeout(this.rteTimeout);
             this.rteTimeout = null;
@@ -1817,7 +1615,6 @@ function addFormattedRichTextComponent(editor) {
           this.stopRTE();
           this.model.set('is-editing', false, { silent: true });
 
-          // FIXED: Ensure element state is reset
           if (this.el) {
             this.el.contentEditable = false;
             this.el.blur();
@@ -1825,89 +1622,62 @@ function addFormattedRichTextComponent(editor) {
         }
       },
 
-      // FIXED: Use focusout instead of blur for better handling
       handleRTEExit() {
-        console.log('=== RTE EXIT TRIGGERED ===');
 
         if (!this.rteActive) {
-          console.log('RTE already inactive, ignoring exit');
           return;
         }
 
         const content = this.el.innerHTML;
-        console.log('Content on exit:', content);
 
         const formatType = this.model.get('format-type');
         const isFormulaEnabled = this.model.get('formula-label') || false;
-        console.log('Format type:', formatType, 'Formula enabled:', isFormulaEnabled);
-
-        // CRITICAL: Always update raw content from editor
-        console.log('Setting raw content:', content);
         this.model.set('raw-content', content, { silent: true });
 
         // Validation and processing
         if (isFormulaEnabled) {
           const textContent = formatHelpers.extractTextContent(content);
-          console.log('Extracted text for formula check:', textContent);
 
           if (formatHelpers.isFormula(textContent)) {
             try {
               const result = formatHelpers.evaluateFormula(textContent.trim());
-              console.log('Formula evaluation result:', result);
 
               if (typeof result === 'string' && result.startsWith('#ERROR')) {
-                console.log('Formula validation failed:', result);
                 alert(`Formula Error: ${result.replace('#ERROR: ', '')}`);
-                // Keep the formula visible, don't exit RTE
                 return;
               }
             } catch (error) {
-              console.log('Formula validation error:', error);
-              alert(`Formula Error: ${error.message}`);
+              console.log('Formula validation error:');
               return;
             }
           }
 
-          // Update content to show formula result
-          console.log('Formula content processed, updating');
           this.model.updateContent();
         } else {
-          // Non-formula: validate format conversion
           const validation = formatHelpers.validateFormat(content, formatType);
 
           if (!validation.valid) {
-            console.log('Validation failed:', validation.error);
             alert(validation.error);
-            // Restore previous content
             const previousRawContent = this.model.previous('raw-content');
             if (previousRawContent) {
               this.el.innerHTML = previousRawContent;
               this.model.set('raw-content', previousRawContent, { silent: true });
             }
-            return; // Don't exit RTE
+            return;
           } else {
             console.log('Validation passed, updating content');
             this.model.updateContent();
           }
         }
-
-        console.log('Disabling RTE from exit handler');
         this.model.disableRTE();
       },
 
-
-      // FIXED: Enhanced render method
       onRender() {
 
-        // Ensure element is not editable by default
         this.el.contentEditable = false;
-
-        // Set tooltip based on format type
         const formatType = this.model.get('format-type') || 'text';
         const label = getFormatLabel(formatType);
         this.el.setAttribute('title', label);
-
-        // NEW: Add formula indicator
         const isFormulaEnabled = this.model.get('formula-label') || false;
         if (isFormulaEnabled) {
           this.el.setAttribute('data-formula', 'true');
@@ -1915,42 +1685,29 @@ function addFormattedRichTextComponent(editor) {
           this.el.removeAttribute('data-formula');
         }
 
-        // Get current content
         const content = this.model.get('content') || '';
 
-        // Only update content if not in RTE mode and content has changed
         if (!this.rteActive) {
           if (this.el.innerHTML !== content) {
-            console.log('Updating element innerHTML (not in RTE mode)');
             this.el.innerHTML = content;
           }
         } else {
-          console.log('Skipping innerHTML update - RTE is active');
         }
 
-        // Ensure proper styling
         this.el.style.wordWrap = 'break-word';
         this.el.style.overflowWrap = 'break-word';
       },
 
-
-
-      // FIXED: Override destroy method to cleanup
       destroy() {
-        console.log('=== VIEW DESTROY ===');
-
-        // Force stop RTE if active
         if (this.rteActive) {
           this.forceStopRTE();
         }
 
-        // Clear any pending timeouts
         if (this.rteTimeout) {
           clearTimeout(this.rteTimeout);
           this.rteTimeout = null;
         }
 
-        // Call parent destroy
         if (this.constructor.__super__ && this.constructor.__super__.destroy) {
           this.constructor.__super__.destroy.apply(this, arguments);
         }
@@ -1962,131 +1719,125 @@ function addFormattedRichTextComponent(editor) {
     run(editor) {
       const selected = editor.getSelected();
       if (!selected || selected.get('type') !== 'formatted-rich-text') return;
-
       const conditions = selected.getHighlightConditions();
-
-      // Create modal content
       const modalContent = `
-<div class="condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;color: white; border-radius: 8px;">
-  <!-- Highlight Styles Section -->
-  <div class="highlight-styles" style="padding: 10px 20px 20px 0; border-radius: 8px;">
-    <h4 style="margin-top: 0; margin-bottom: 20px; color: #f8f9fa;">Highlight Styles</h4>
-    
-    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: end;">
-      <div>
-        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Background Color:</label>
-        <input type="color" id="highlight-bg-color" value="#ffff00" style="width: 100%; height: 40px; border: 2px solid #666; border-radius: 4px; background: none;">
-      </div>
-      
-      <div>
-        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Text Color:</label>
-        <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: 2px solid #666; border-radius: 4px; background: none;">
-      </div>
-      
-      <div>
-        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Font Family:</label>
-        <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 2px solid #666; border-radius: 4px;">
-          <option value="Default">Default</option>
-          <option value="Arial">Arial</option>
-          <option value="Arial Black">Arial Black</option>
-          <option value="Brush Script MT">Brush Script MT</option>
-          <option value="Comic Sans MS">Comic Sans MS</option>
-          <option value="Courier New">Courier New</option>
-          <option value="Georgia">Georgia</option>
-          <option value="Helvetica">Helvetica</option>
-          <option value="Impact">Impact</option>
-          <option value="Lucida Sans Unicode">Lucida Sans Unicode</option>
-          <option value="Tahoma">Tahoma</option>
-          <option value="Times New Roman">Times New Roman</option>
-          <option value="Trebuchet MS">Trebuchet MS</option>
-          <option value="Verdana">Verdana</option>
-        </select>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add New Condition Section -->
-  <div class="add-condition-form">
-    <h4 style="margin-top: 10px; margin-bottom: 20px; color: #f8f9fa;">Add New Condition</h4>
-    
-    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 15px;">
-      <div>
-        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Condition Type:</label>
-        <select id="condition-type" style="width: 100%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
-          <option value="">Select Condition Type</option>
-          <option value="contains">Text: Contains</option>
-          <option value="starts-with">Text: Starts With</option>
-          <option value="ends-with">Text: Ends With</option>
-          <option value="exact">Text: Exact Match</option>
-          <option value="once-if">Once If: Highlight individual letters/numbers/spaces</option>
-          <option value=">">Number: > (Greater than)</option>
-          <option value=">=">Number: >= (Greater than or equal)</option>
-          <option value="<">Number: < (Less than)</option>
-          <option value="<=">Number: <= (Less than or equal)</option>
-          <option value="=">Number: = (Equal to)</option>
-          <option value="!=">Number: != (Not equal to)</option>
-          <option value="between">Number: Between (range)</option>
-        </select>
-      </div>
-      
-      <div style="display: flex; align-items: center; margin-top:27px;">
-        <label style="display: flex; align-items: center; color: #f8f9fa; cursor: pointer;">
-          <input type="checkbox" id="case-sensitive" style="margin-right: 8px; transform: scale(1.2);">
-          <span style="font-weight: bold;">Case Sensitive</span>
-        </label>
-      </div>
-    </div>
-    
-    <div id="condition-inputs">
-      <div id="single-value-input" style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Value:</label>
-        <input type="text" id="condition-value" style="width: 97%; padding: 10px; border: 2px solid #666; border-radius: 4px;" placeholder="Enter text, number, or space">
-      </div>
-      
-      <div id="range-inputs" style="display: none; margin-bottom: 15px;">
-        <div style="display: flex; gap: 15px;">
-          <div style="flex: 1;">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Min Value:</label>
-            <input type="number" id="min-value" style="width: 90%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
+        <div class="condition-manager" style="padding: 0 20px 20px 30px; max-width: 700px;color: white; border-radius: 8px;">
+          <!-- Highlight Styles Section -->
+          <div class="highlight-styles" style="padding: 10px 20px 20px 0; border-radius: 8px;">
+            <h4 style="margin-top: 0; margin-bottom: 20px; color: #f8f9fa;">Highlight Styles</h4>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: end;">
+              <div>
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Background Color:</label>
+                <input type="color" id="highlight-bg-color" value="#ffff00" style="width: 100%; height: 40px; border: 2px solid #666; border-radius: 4px; background: none;">
+              </div>
+              
+              <div>
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Text Color:</label>
+                <input type="color" id="highlight-text-color" value="#000000" style="width: 100%; height: 40px; border: 2px solid #666; border-radius: 4px; background: none;">
+              </div>
+              
+              <div>
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Font Family:</label>
+                <select id="highlight-font-family" style="width: 100%; padding: 8px; border: 2px solid #666; border-radius: 4px;">
+                  <option value="Default">Default</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Arial Black">Arial Black</option>
+                  <option value="Brush Script MT">Brush Script MT</option>
+                  <option value="Comic Sans MS">Comic Sans MS</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Impact">Impact</option>
+                  <option value="Lucida Sans Unicode">Lucida Sans Unicode</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Trebuchet MS">Trebuchet MS</option>
+                  <option value="Verdana">Verdana</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div style="flex: 1;">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Max Value:</label>
-            <input type="number" id="max-value" style="width: 90%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
+
+          <!-- Add New Condition Section -->
+          <div class="add-condition-form">
+            <h4 style="margin-top: 10px; margin-bottom: 20px; color: #f8f9fa;">Add New Condition</h4>
+            
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 15px;">
+              <div>
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Condition Type:</label>
+                <select id="condition-type" style="width: 100%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
+                  <option value="">Select Condition Type</option>
+                  <option value="contains">Text: Contains</option>
+                  <option value="starts-with">Text: Starts With</option>
+                  <option value="ends-with">Text: Ends With</option>
+                  <option value="exact">Text: Exact Match</option>
+                  <option value="once-if">Once If: Highlight individual letters/numbers/spaces</option>
+                  <option value=">">Number: > (Greater than)</option>
+                  <option value=">=">Number: >= (Greater than or equal)</option>
+                  <option value="<">Number: < (Less than)</option>
+                  <option value="<=">Number: <= (Less than or equal)</option>
+                  <option value="=">Number: = (Equal to)</option>
+                  <option value="!=">Number: != (Not equal to)</option>
+                  <option value="between">Number: Between (range)</option>
+                </select>
+              </div>
+              
+              <div style="display: flex; align-items: center; margin-top:27px;">
+                <label style="display: flex; align-items: center; color: #f8f9fa; cursor: pointer;">
+                  <input type="checkbox" id="case-sensitive" style="margin-right: 8px; transform: scale(1.2);">
+                  <span style="font-weight: bold;">Case Sensitive</span>
+                </label>
+              </div>
+            </div>
+            
+            <div id="condition-inputs">
+              <div id="single-value-input" style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Value:</label>
+                <input type="text" id="condition-value" style="width: 97%; padding: 10px; border: 2px solid #666; border-radius: 4px;" placeholder="Enter text, number, or space">
+              </div>
+              
+              <div id="range-inputs" style="display: none; margin-bottom: 15px;">
+                <div style="display: flex; gap: 15px;">
+                  <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Min Value:</label>
+                    <input type="number" id="min-value" style="width: 90%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
+                  </div>
+                  <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #f8f9fa;">Max Value:</label>
+                    <input type="number" id="max-value" style="width: 90%; padding: 10px; border: 2px solid #666; border-radius: 4px;">
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button id="add-condition-btn" style="background: #3498db; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">Add Condition</button>
+          </div>
+          
+          <!-- Existing Conditions Section -->
+          <div class="existing-conditions" style=" padding: 20px 20px 20px 0; border-radius: 8px; margin-bottom: 3px;">
+            <div style="margin-top: 5px; color: #f8f9fa; font-weight: bold">Existing Conditions</div>
+            <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
+              ${conditions.length === 0 ? '<p style="color: #bbb;">No conditions added yet.</p>' : ''}
+            </div>
+          </div>
+          
+          <!-- Action Buttons -->
+          <div style="text-align: right;">
+            <button id="close-manager-btn" style="background: #95a5a6; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; margin-right: 15px; font-weight: bold;">Close</button>
+            <button id="apply-conditions-btn" style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">Apply Changes</button>
           </div>
         </div>
-      </div>
-    </div>
-    
-    <button id="add-condition-btn" style="background: #3498db; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">Add Condition</button>
-  </div>
-  
-  <!-- Existing Conditions Section -->
-  <div class="existing-conditions" style=" padding: 20px 20px 20px 0; border-radius: 8px; margin-bottom: 3px;">
-    <div style="margin-top: 5px; color: #f8f9fa; font-weight: bold">Existing Conditions</div>
-    <div id="conditions-list" style="max-height: 300px; overflow-y: auto;">
-      ${conditions.length === 0 ? '<p style="color: #bbb;">No conditions added yet.</p>' : ''}
-    </div>
-  </div>
-  
-  <!-- Action Buttons -->
-  <div style="text-align: right;">
-    <button id="close-manager-btn" style="background: #95a5a6; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; margin-right: 15px; font-weight: bold;">Close</button>
-    <button id="apply-conditions-btn" style="background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: bold;">Apply Changes</button>
-  </div>
-</div>
-`;
+        `;
 
-      // Create and show modal
       const modal = editor.Modal;
       modal.setTitle('Text Highlight Condition Manager');
       modal.setContent(modalContent);
       modal.open();
 
-      // Initialize the condition manager
       setTimeout(() => {
         initializeConditionManager(selected, conditions);
       }, 100);
     }
   });
-
 }

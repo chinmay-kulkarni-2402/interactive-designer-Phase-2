@@ -1,17 +1,13 @@
 function customSeparator(editor) {
-  // -------- local logger shim (uses DesignerLogger if present) --------
   const DL = (window && window.DesignerLogger) ? window.DesignerLogger : {
-    info:   (m,c)=>console.log(m,c||''),
-    warn:   (m,c)=>console.warn(m,c||''),
-    error:  (m,c)=>console.error(m,c||''),
-    success:(m,c)=>console.log(m,c||''),
-    debug:  (m,c)=>console.log(m,c||''),
-    event:  (m,c)=>console.log(m,c||''),
-    try(fn, ctx, onError){ try { return fn(); } catch(err){ console.error(err); if(onError) onError(err); } }
+    info: (m, c) => console.log(m, c || ''),
+    warn: (m, c) => console.warn(m, c || ''),
+    error: (m, c) => console.error(m, c || ''),
+    success: (m, c) => console.log(m, c || ''),
+    debug: (m, c) => console.log(m, c || ''),
+    event: (m, c) => console.log(m, c || ''),
+    try(fn, ctx, onError) { try { return fn(); } catch (err) { console.error(err); if (onError) onError(err); } }
   };
-
-  // announce component type registration
-  // DL.event('componentType:register', { type: 'separator' });
 
   editor.Components.addType("separator", {
     model: {
@@ -77,9 +73,8 @@ function customSeparator(editor) {
       },
 
       init() {
-        // created/init message
         const compId = (this.getId && this.getId()) || this.cid || null;
-        DL.event('separator:init', {
+        DL.event('separator added', {
           id: compId,
           initial: {
             borderStyle: this.get("border-style") || "solid",
@@ -90,7 +85,6 @@ function customSeparator(editor) {
           }
         });
 
-        // log trait changes explicitly
         const traitNames = [
           "border-style",
           "border-color",
@@ -101,7 +95,7 @@ function customSeparator(editor) {
 
         traitNames.forEach((tName) => {
           this.listenTo(this, "change:" + tName, () => {
-            DL.info('separator:trait:change', {
+            DL.info('separator settings changed', {
               id: compId,
               trait: tName,
               value: this.get(tName)
@@ -109,7 +103,6 @@ function customSeparator(editor) {
           });
         });
 
-        // apply style whenever one of the tracked props changes
         this.listenTo(
           this,
           "change:border-style change:border-color change:border-width-custom change:width change:margin",
@@ -119,66 +112,55 @@ function customSeparator(editor) {
 
       updateStyle() {
         const compId = (this.getId && this.getId()) || this.cid || null;
-
-        // read raw values
         let borderStyle = this.get("border-style") || "solid";
         let borderColor = this.get("border-color") || "#000000";
         let borderWidth = this.get("border-width-custom");
         let width = this.get("width") || "100%";
         let margin = this.get("margin") || "5px auto";
-
-        // ---- validation & normalization with logs ----
-        // thickness
         let numericWidth = Number(borderWidth);
+
         if (Number.isNaN(numericWidth)) {
-          DL.warn('separator:validation:thickness:NaN', { id: compId, received: borderWidth, fallback: 1 });
+          DL.warn('separator thickness should be in number', { id: compId, received: borderWidth, fallback: 1 });
           numericWidth = 1;
         }
         if (numericWidth < 0) {
-          DL.warn('separator:validation:thickness:negative', { id: compId, received: borderWidth, coercedTo: Math.abs(numericWidth) });
+          DL.warn('separator thickness should not be negative', { id: compId, received: borderWidth, coercedTo: Math.abs(numericWidth) });
           numericWidth = Math.abs(numericWidth);
         }
         if (numericWidth > 20) {
-          DL.warn('separator:validation:thickness:tooLarge', { id: compId, received: borderWidth, cappedTo: 20 });
+          DL.warn('separator thickness is too large', { id: compId, received: borderWidth, cappedTo: 20 });
           numericWidth = 20;
         }
 
-        // style type
         const allowedStyles = ['solid', 'dashed', 'dotted'];
         if (!allowedStyles.includes(borderStyle)) {
           DL.warn('separator:validation:style:invalid', { id: compId, received: borderStyle, fallback: 'solid' });
           borderStyle = 'solid';
         }
 
-        // color (basic check)
         const isHex = typeof borderColor === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(borderColor);
         if (!isHex) {
           DL.warn('separator:validation:color:invalid', { id: compId, received: borderColor, fallback: '#000000' });
           borderColor = '#000000';
         }
 
-        // width string (allow %, px, rem; basic sanity)
         if (typeof width !== 'string' || !/(%|px|rem|vw)$/.test(width)) {
           DL.warn('separator:validation:width:invalid', { id: compId, received: width, fallback: '100%' });
           width = '100%';
         }
 
-        // margin string – allow typical patterns; if not, fallback center
         if (typeof margin !== 'string' || margin.trim() === '') {
           DL.warn('separator:validation:margin:invalid', { id: compId, received: margin, fallback: '10px auto' });
           margin = '10px auto';
         }
 
-        // computed style parts
         const borderTop = `${numericWidth}px ${borderStyle} ${borderColor}`;
 
-        // announce what we’re about to apply
-        DL.debug('separator:style:compute', {
+        DL.debug('separator style changed', {
           id: compId,
           apply: { borderTop, width, margin }
         });
 
-        // ---- apply style (guarded) ----
         DL.try(() => {
           this.addStyle({
             "border-top": borderTop,
@@ -189,9 +171,6 @@ function customSeparator(editor) {
         }, { id: compId, phase: 'addStyle' }, (err) => {
           DL.error('separator:style:apply:failed', { id: compId, error: String(err) });
         });
-
-        // success message
-        DL.success('separator:style:applied', { id: compId, borderTop, width, margin });
       },
     },
   });
